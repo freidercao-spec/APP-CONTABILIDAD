@@ -136,8 +136,8 @@ const Login = () => {
                     </div>
                 </div>
 
-                <p className="text-center text-[9px] text-slate-700 uppercase tracking-widest font-bold mt-8">
-                    © 2026 Coraza CTA · VERSIÓN 3.0.1 (SUPABASE) · Todos los derechos reservados
+                <p className="text-center text-[10px] font-black text-primary-light uppercase tracking-[0.4em] mt-8 bg-black/40 py-2 rounded-full border border-white/5">
+                    © 2026 CORAZA CTA · VERSIÓN 3.0.2 (SUPABASE)
                 </p>
             </div>
         </div>
