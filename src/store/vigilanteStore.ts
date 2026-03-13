@@ -1,0 +1,506 @@
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { supabase, EMPRESA_ID } from '../lib/supabase';
+import { showTacticalToast } from '../utils/tacticalToast';
+
+export interface GuardHistory {
+    id: string;
+    timestamp: string;
+    action: string;
+    details: string;
+}
+
+export interface Descargo {
+    id: string;
+    puestoId?: string;
+    puestoNombre?: string;
+    fecha: string;
+    descripcion: string;
+    tipo: 'disciplinario' | 'incidente' | 'queja' | 'administrativo';
+    estado: 'activo' | 'resuelto';
+}
+
+export interface Vigilante {
+    id: string; // C-0001 format (maps to "codigo" in DB)
+    dbId?: string; // UUID from Supabase
+    nombre: string;
+    cedula: string;
+    rango: string;
+    estado: 'disponible' | 'activo' | 'ausente';
+    foto?: string;
+    puestoId?: string;
+    fechaIngreso: string;
+    historial: GuardHistory[];
+    justificacionDisponible?: string;
+    descargos: Descargo[];
+    vacaciones?: {
+        inicio: string;
+        fin: string;
+        motivo?: string;
+    };
+    telefono?: string;
+    email?: string;
+    especialidad?: string;
+}
+
+interface VigilanteState {
+    vigilantes: Vigilante[];
+    nextIdNumber: number;
+    loaded: boolean;
+
+    // Actions
+    fetchVigilantes: () => Promise<void>;
+    addVigilante: (
+        nombre: string,
+        cedula: string,
+        rango: string,
+        modulo: 'activo' | 'disponible',
+        justificacion?: string,
+        assignment?: { puestoId: string; horaInicio: string; horaFin: string }
+    ) => Promise<string>;
+    updateGuardStatus: (id: string, estado: Vigilante['estado'], puestoId?: string, justificacion?: string) => void;
+    addActivity: (id: string, action: string, details: string) => void;
+    deleteVigilante: (id: string) => void;
+    addDescargo: (vigilanteId: string, descargo: Omit<Descargo, 'id'>) => void;
+    resolverDescargo: (vigilanteId: string, descargoId: string) => void;
+    setVacaciones: (vigilanteId: string, inicio: string, fin: string, motivo?: string) => void;
+    cancelarVacaciones: (vigilanteId: string) => void;
+    updateVigilante: (id: string, updates: Partial<Pick<Vigilante, 'nombre' | 'cedula' | 'rango' | 'foto' | 'telefono' | 'email' | 'especialidad'>>) => void;
+    tieneDescargoEnPuesto: (vigilanteId: string, puestoId: string) => boolean;
+}
+
+// Helper: Map DB row → Vigilante
+function mapDbToVigilante(row: any, historial: any[], descargos: any[], vacacion: any): Vigilante {
+    return {
+        id: row.codigo,
+        dbId: row.id,
+        nombre: `${row.nombres} ${row.apellidos}`.trim(),
+        cedula: row.cedula,
+        rango: row.rango || 'Vigilante',
+        estado: row.estado as Vigilante['estado'],
+        foto: row.foto_url || undefined,
+        puestoId: row.puesto_actual_id || undefined,
+        fechaIngreso: row.fecha_ingreso || row.created_at,
+        justificacionDisponible: row.justificacion_disponible || undefined,
+        telefono: row.telefono || undefined,
+        email: row.email || undefined,
+        especialidad: row.especialidad || undefined,
+        historial: (historial || []).map((h: any) => ({
+            id: h.id,
+            timestamp: h.created_at,
+            action: h.accion,
+            details: h.detalles || '',
+        })),
+        descargos: (descargos || []).map((d: any) => ({
+            id: d.id,
+            puestoId: d.puesto_id || undefined,
+            puestoNombre: d.puesto_nombre || undefined,
+            fecha: d.fecha,
+            descripcion: d.descripcion,
+            tipo: d.tipo,
+            estado: d.estado,
+        })),
+        vacaciones: vacacion ? {
+            inicio: vacacion.fecha_inicio,
+            fin: vacacion.fecha_fin,
+            motivo: vacacion.motivo || undefined,
+        } : undefined,
+    };
+}
+
+export const useVigilanteStore = create<VigilanteState>()(
+    persist(
+        (set, get) => ({
+            vigilantes: [],
+            nextIdNumber: 1,
+            loaded: false,
+
+            fetchVigilantes: async () => {
+                try {
+                    // Fetch all vigilantes
+                    const { data: rows, error } = await supabase
+                        .from('vigilantes')
+                        .select('*')
+                        .eq('empresa_id', EMPRESA_ID)
+                        .order('codigo', { ascending: true });
+
+                    if (error) {
+                        console.error('Error fetching vigilantes:', error);
+                        return;
+                    }
+
+                    if (!rows || rows.length === 0) {
+                        set({ vigilantes: [], loaded: true });
+                        return;
+                    }
+
+                    const vigilanteIds = rows.map(r => r.id);
+
+                    // Fetch historial for all
+                    const { data: allHistorial } = await supabase
+                        .from('historial_vigilante')
+                        .select('*')
+                        .in('vigilante_id', vigilanteIds)
+                        .order('created_at', { ascending: true });
+
+                    // Fetch descargos for all
+                    const { data: allDescargos } = await supabase
+                        .from('descargos')
+                        .select('*')
+                        .in('vigilante_id', vigilanteIds);
+
+                    // Fetch vacaciones activas
+                    const { data: allVacaciones } = await supabase
+                        .from('vacaciones')
+                        .select('*')
+                        .in('vigilante_id', vigilanteIds)
+                        .eq('estado', 'aprobado');
+
+                    const vigilantes: Vigilante[] = rows.map(row => {
+                        const hist = (allHistorial || []).filter(h => h.vigilante_id === row.id);
+                        const desc = (allDescargos || []).filter(d => d.vigilante_id === row.id);
+                        const vac = (allVacaciones || []).find(v => v.vigilante_id === row.id);
+                        return mapDbToVigilante(row, hist, desc, vac);
+                    });
+
+                    // Calculate next ID number
+                    let maxNum = 0;
+                    vigilantes.forEach(v => {
+                        const match = v.id.match(/C-(\d+)/);
+                        if (match) {
+                            const num = parseInt(match[1], 10);
+                            if (num > maxNum) maxNum = num;
+                        }
+                    });
+
+                    set({ vigilantes, nextIdNumber: maxNum + 1, loaded: true });
+                } catch (err) {
+                    console.error('Error in fetchVigilantes:', err);
+                    set({ loaded: true });
+                }
+            },
+
+            addVigilante: async (nombre, cedula, rango, modulo, justificacion, assignment) => {
+                const nameParts = nombre.trim().split(' ');
+                const nombres = nameParts.slice(0, Math.ceil(nameParts.length / 2)).join(' ');
+                const apellidos = nameParts.slice(Math.ceil(nameParts.length / 2)).join(' ') || nombres;
+
+                try {
+                    // Insert into Supabase — codigo is auto-generated by trigger
+                    const { data: inserted, error } = await supabase
+                        .from('vigilantes')
+                        .insert({
+                            empresa_id: EMPRESA_ID,
+                            cedula,
+                            nombres,
+                            apellidos,
+                            rango,
+                            estado: modulo === 'activo' ? 'activo' : 'disponible',
+                            puesto_actual_id: assignment?.puestoId || null,
+                            justificacion_disponible: modulo === 'disponible' ? justificacion : null,
+                            fecha_ingreso: new Date().toISOString().split('T')[0],
+                        })
+                        .select()
+                        .single();
+
+                    if (error) {
+                        console.error('Error inserting vigilante:', error);
+                        showTacticalToast({ title: 'Error', message: `No se pudo registrar: ${error.message}`, type: 'error' });
+                        return '';
+                    }
+
+                    const codigo = inserted.codigo;
+
+                    // Insert initial historial
+                    await supabase.from('historial_vigilante').insert({
+                        vigilante_id: inserted.id,
+                        accion: 'Registro Inicial',
+                        detalles: `Ingreso al sistema con código táctico ${codigo}. Módulo: ${modulo === 'activo' ? 'Vigilantes Activos' : 'Personal Disponible'}`,
+                    });
+
+                    // Refresh from DB
+                    await get().fetchVigilantes();
+
+                    showTacticalToast({
+                        title: 'Efectivo Registrado',
+                        message: `Vigilante ${codigo} incorporado exitosamente al módulo de ${modulo === 'activo' ? 'Personal Activo' : 'Personal Disponible'}.`,
+                        type: 'success'
+                    });
+                    return codigo;
+                } catch (err) {
+                    console.error('Error adding vigilante:', err);
+                    showTacticalToast({ title: 'Error', message: 'Error de conexión al registrar vigilante.', type: 'error' });
+                    return '';
+                }
+            },
+
+            updateGuardStatus: async (id, estado, puestoId, justificacion) => {
+                const vigilante = get().vigilantes.find(v => v.id === id);
+                if (!vigilante?.dbId) return;
+
+                // Optimistic update
+                set((state) => ({
+                    vigilantes: state.vigilantes.map((v) =>
+                        v.id === id
+                            ? {
+                                ...v,
+                                estado,
+                                puestoId: estado === 'disponible' ? undefined : (puestoId !== undefined ? (puestoId || undefined) : v.puestoId),
+                                justificacionDisponible: estado === 'disponible' && justificacion ? justificacion : v.justificacionDisponible,
+                                historial: [
+                                    ...(v.historial || []),
+                                    {
+                                        id: crypto.randomUUID(),
+                                        timestamp: new Date().toISOString(),
+                                        action: 'Cambio de Estado',
+                                        details: `Transición a ${estado.toUpperCase()}${puestoId ? ` en puesto ${puestoId}` : ''}${justificacion ? `. Motivo: ${justificacion}` : ''}`
+                                    }
+                                ]
+                            }
+                            : v
+                    )
+                }));
+
+                // Write to Supabase
+                await supabase
+                    .from('vigilantes')
+                    .update({
+                        estado,
+                        puesto_actual_id: estado === 'disponible' ? null : (puestoId || vigilante.puestoId || null),
+                        justificacion_disponible: estado === 'disponible' && justificacion ? justificacion : null,
+                    })
+                    .eq('id', vigilante.dbId);
+
+                await supabase.from('historial_vigilante').insert({
+                    vigilante_id: vigilante.dbId,
+                    accion: 'Cambio de Estado',
+                    detalles: `Transición a ${estado.toUpperCase()}${puestoId ? ` en puesto ${puestoId}` : ''}${justificacion ? `. Motivo: ${justificacion}` : ''}`,
+                });
+            },
+
+            addActivity: async (id, action, details) => {
+                const vigilante = get().vigilantes.find(v => v.id === id);
+
+                // Optimistic
+                set((state) => ({
+                    vigilantes: state.vigilantes.map((v) =>
+                        v.id === id
+                            ? {
+                                ...v,
+                                historial: [
+                                    ...(v.historial || []),
+                                    { id: crypto.randomUUID(), timestamp: new Date().toISOString(), action, details }
+                                ]
+                            }
+                            : v
+                    )
+                }));
+
+                if (vigilante?.dbId) {
+                    await supabase.from('historial_vigilante').insert({
+                        vigilante_id: vigilante.dbId,
+                        accion: action,
+                        detalles: details,
+                    });
+                }
+            },
+
+            deleteVigilante: async (id) => {
+                const vigilante = get().vigilantes.find(v => v.id === id);
+
+                // Optimistic
+                set((state) => ({
+                    vigilantes: state.vigilantes.filter((v) => v.id !== id)
+                }));
+
+                if (vigilante?.dbId) {
+                    await supabase
+                        .from('vigilantes')
+                        .update({ estado: 'inactivo' })
+                        .eq('id', vigilante.dbId);
+                }
+            },
+
+            addDescargo: async (vigilanteId, descargo) => {
+                const vigilante = get().vigilantes.find(v => v.id === vigilanteId);
+                const newId = crypto.randomUUID();
+
+                // Optimistic
+                set((state) => ({
+                    vigilantes: state.vigilantes.map((v) =>
+                        v.id === vigilanteId
+                            ? {
+                                ...v,
+                                descargos: [...(v.descargos || []), { ...descargo, id: newId }],
+                                historial: [
+                                    ...(v.historial || []),
+                                    {
+                                        id: crypto.randomUUID(),
+                                        timestamp: new Date().toISOString(),
+                                        action: 'Descargo Registrado',
+                                        details: `${descargo.tipo.toUpperCase()}: ${descargo.descripcion}`
+                                    }
+                                ]
+                            }
+                            : v
+                    )
+                }));
+
+                if (vigilante?.dbId) {
+                    await supabase.from('descargos').insert({
+                        empresa_id: EMPRESA_ID,
+                        vigilante_id: vigilante.dbId,
+                        puesto_id: descargo.puestoId || null,
+                        puesto_nombre: descargo.puestoNombre || null,
+                        fecha: descargo.fecha,
+                        descripcion: descargo.descripcion,
+                        tipo: descargo.tipo,
+                        estado: descargo.estado,
+                    });
+                    await supabase.from('historial_vigilante').insert({
+                        vigilante_id: vigilante.dbId,
+                        accion: 'Descargo Registrado',
+                        detalles: `${descargo.tipo.toUpperCase()}: ${descargo.descripcion}`,
+                    });
+                }
+
+                showTacticalToast({ title: 'Descargo Registrado', message: 'Nueva incidencia vinculada al historial del efectivo.', type: 'warning' });
+            },
+
+            resolverDescargo: async (vigilanteId, descargoId) => {
+                set((state) => ({
+                    vigilantes: state.vigilantes.map((v) =>
+                        v.id === vigilanteId
+                            ? { ...v, descargos: (v.descargos || []).map(d => d.id === descargoId ? { ...d, estado: 'resuelto' as const } : d) }
+                            : v
+                    )
+                }));
+
+                await supabase
+                    .from('descargos')
+                    .update({ estado: 'resuelto' })
+                    .eq('id', descargoId);
+
+                showTacticalToast({ title: 'Caso Resuelto', message: 'El descargo administrativo ha sido marcado como resuelto.', type: 'success' });
+            },
+
+            setVacaciones: async (vigilanteId, inicio, fin, motivo) => {
+                const vigilante = get().vigilantes.find(v => v.id === vigilanteId);
+
+                set((state) => ({
+                    vigilantes: state.vigilantes.map((v) =>
+                        v.id === vigilanteId
+                            ? {
+                                ...v,
+                                vacaciones: { inicio, fin, motivo },
+                                historial: [
+                                    ...(v.historial || []),
+                                    { id: crypto.randomUUID(), timestamp: new Date().toISOString(), action: 'Vacaciones Programadas', details: `Del ${inicio} al ${fin}${motivo ? '. ' + motivo : ''}` }
+                                ]
+                            }
+                            : v
+                    )
+                }));
+
+                if (vigilante?.dbId) {
+                    await supabase.from('vacaciones').insert({
+                        vigilante_id: vigilante.dbId,
+                        fecha_inicio: inicio,
+                        fecha_fin: fin,
+                        motivo: motivo || null,
+                    });
+                    await supabase.from('historial_vigilante').insert({
+                        vigilante_id: vigilante.dbId,
+                        accion: 'Vacaciones Programadas',
+                        detalles: `Del ${inicio} al ${fin}${motivo ? '. ' + motivo : ''}`,
+                    });
+                }
+
+                showTacticalToast({ title: 'Licencia Programada', message: `Ciclo de vacaciones registrado para el efectivo ${vigilanteId}.`, type: 'info' });
+            },
+
+            cancelarVacaciones: async (vigilanteId) => {
+                const vigilante = get().vigilantes.find(v => v.id === vigilanteId);
+                set((state) => ({
+                    vigilantes: state.vigilantes.map((v) =>
+                        v.id === vigilanteId ? { ...v, vacaciones: undefined } : v
+                    )
+                }));
+
+                if (vigilante?.dbId) {
+                    await supabase
+                        .from('vacaciones')
+                        .update({ estado: 'cancelado' })
+                        .eq('vigilante_id', vigilante.dbId)
+                        .eq('estado', 'aprobado');
+                }
+            },
+
+            updateVigilante: async (id, updates) => {
+                const vigilante = get().vigilantes.find(v => v.id === id);
+
+                set((state) => ({
+                    vigilantes: state.vigilantes.map((v) =>
+                        v.id === id
+                            ? {
+                                ...v,
+                                ...updates,
+                                historial: [
+                                    ...(v.historial || []),
+                                    { id: crypto.randomUUID(), timestamp: new Date().toISOString(), action: 'Perfil Actualizado', details: `Se modificaron datos del perfil: ${Object.keys(updates).join(', ')}` }
+                                ]
+                            }
+                            : v
+                    )
+                }));
+
+                if (vigilante?.dbId) {
+                    const dbUpdates: Record<string, any> = {};
+                    if (updates.nombre) {
+                        const parts = updates.nombre.trim().split(' ');
+                        dbUpdates.nombres = parts.slice(0, Math.ceil(parts.length / 2)).join(' ');
+                        dbUpdates.apellidos = parts.slice(Math.ceil(parts.length / 2)).join(' ') || dbUpdates.nombres;
+                    }
+                    if (updates.cedula) dbUpdates.cedula = updates.cedula;
+                    if (updates.rango) dbUpdates.rango = updates.rango;
+                    if (updates.foto) dbUpdates.foto_url = updates.foto;
+                    if (updates.telefono) dbUpdates.telefono = updates.telefono;
+                    if (updates.email) dbUpdates.email = updates.email;
+                    if (updates.especialidad) dbUpdates.especialidad = updates.especialidad;
+
+                    if (Object.keys(dbUpdates).length > 0) {
+                        await supabase.from('vigilantes').update(dbUpdates).eq('id', vigilante.dbId);
+                    }
+                    await supabase.from('historial_vigilante').insert({
+                        vigilante_id: vigilante.dbId,
+                        accion: 'Perfil Actualizado',
+                        detalles: `Se modificaron datos del perfil: ${Object.keys(updates).join(', ')}`,
+                    });
+                }
+
+                showTacticalToast({ title: 'Perfil Actualizado', message: 'La información del efectivo ha sido modificada correctamente.', type: 'success' });
+            },
+
+            tieneDescargoEnPuesto: (vigilanteId, puestoId) => {
+                const v = get().vigilantes.find(v => v.id === vigilanteId);
+                if (!v) return false;
+                return (v.descargos || []).some(
+                    d => d.estado === 'activo' && (d.puestoId === puestoId || !d.puestoId)
+                );
+            }
+        }),
+        {
+            name: 'coraza-vigilante-v3',
+            onRehydrateStorage: () => (state) => {
+                if (state) {
+                    state.vigilantes = (state.vigilantes || []).map(v => ({
+                        ...v,
+                        historial: v.historial || [],
+                        descargos: v.descargos || [],
+                        vacaciones: v.vacaciones || undefined
+                    }));
+                }
+            }
+        }
+    )
+);
