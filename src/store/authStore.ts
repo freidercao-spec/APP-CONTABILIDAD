@@ -53,6 +53,7 @@ export const useAuthStore = create<AuthState>()(
                     const DEMO_USERS = [
                         { username: 'admin', password: 'coraza2026', role: 'Administrador Global', display: 'Cmdt. Operativo' },
                         { username: 'supervisor', password: 'coraza123', role: 'Supervisor', display: 'Supervisor de Turno' },
+                        { username: 'freidercardenas12@gmail.com', password: 'coraza2026', role: 'Administrador Global', display: 'Freider Cardenas' },
                     ];
 
                     const demoUser = DEMO_USERS.find(
@@ -76,6 +77,7 @@ export const useAuthStore = create<AuthState>()(
                     const DEMO_USERS = [
                         { username: 'admin', password: 'coraza2026', role: 'Administrador Global', display: 'Cmdt. Operativo' },
                         { username: 'supervisor', password: 'coraza123', role: 'Supervisor', display: 'Supervisor de Turno' },
+                        { username: 'freidercardenas12@gmail.com', password: 'coraza2026', role: 'Administrador Global', display: 'Freider Cardenas' },
                     ];
                     const demoUser = DEMO_USERS.find(
                         u => u.username === email.toLowerCase() && u.password === password
