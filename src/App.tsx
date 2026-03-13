@@ -28,7 +28,7 @@ const TacticalLoading = () => (
       </div>
     </div>
     <div className="flex flex-col items-center">
-      <span className="text-[10px] font-black text-primary uppercase tracking-[0.4em] animate-pulse">Sincronizando Sistemas</span>
+      <span className="text-[10px] font-black text-primary uppercase tracking-[0.4em] animate-pulse">Sincronizando con Servidores Coraza</span>
       <div className="w-32 h-1 bg-slate-100 rounded-full mt-4 overflow-hidden relative">
         <div className="absolute inset-y-0 left-0 bg-primary animate-[translate_2s_infinite_linear]" style={{ width: '40%' }}></div>
       </div>
