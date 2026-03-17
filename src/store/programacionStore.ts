@@ -209,7 +209,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     const { data: rows, error } = await supabase
                         .from('programacion_mensual')
                         .select('*')
-                        .eq('empresa_id', EMPRESA_ID);
+                        .eq('empresa_id', EMPRESA_ID)
+                        .limit(2000); // Suficiente para años de progs
 
                     if (error) {
                         console.warn('⚠️ [FETCH] Error fetching programacion_mensual:', error.message);
@@ -226,9 +227,9 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     const progIds = rows.map(r => r.id);
 
                     const [{ data: allPersonal }, { data: allAsignaciones }, { data: allHistorial }] = await Promise.all([
-                        supabase.from('personal_puesto').select('*').in('programacion_id', progIds),
-                        supabase.from('asignaciones_dia').select('*').in('programacion_id', progIds),
-                        supabase.from('historial_programacion').select('*').in('programacion_id', progIds).order('created_at', { ascending: true }),
+                        supabase.from('personal_puesto').select('*').in('programacion_id', progIds).limit(5000),
+                        supabase.from('asignaciones_dia').select('*').in('programacion_id', progIds).limit(10000),
+                        supabase.from('historial_programacion').select('*').in('programacion_id', progIds).order('created_at', { ascending: true }).limit(2000),
                     ]);
 
                     const programaciones: ProgramacionMensual[] = rows.map(row => {
@@ -294,7 +295,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     const { data: rows } = await supabase
                         .from('plantillas_programacion')
                         .select('*')
-                        .eq('empresa_id', EMPRESA_ID);
+                        .eq('empresa_id', EMPRESA_ID)
+                        .limit(500);
 
                     if (rows) {
                         const templates: TemplateProgramacion[] = rows.map(r => ({

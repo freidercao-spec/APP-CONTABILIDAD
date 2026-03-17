@@ -122,7 +122,8 @@ export const useVigilanteStore = create<VigilanteState>()(
                         .from('vigilantes')
                         .select('*')
                         .eq('empresa_id', EMPRESA_ID)
-                        .order('codigo', { ascending: true });
+                        .limit(5000)
+                        .order('nombres', { ascending: true });
 
                     if (error) {
                         console.error('Error fetching vigilantes:', error);

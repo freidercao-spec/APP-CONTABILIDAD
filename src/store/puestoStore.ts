@@ -124,6 +124,7 @@ export const usePuestoStore = create<PuestoState>()(
                         .from('puestos')
                         .select('*')
                         .eq('empresa_id', EMPRESA_ID)
+                        .limit(5000)
                         .eq('estado', 'Activo')
                         .order('codigo', { ascending: true });
 
