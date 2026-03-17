@@ -1,3 +1,4 @@
+console.log("FIXED_BUILD_VERSION_V99");
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
