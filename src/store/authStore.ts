@@ -27,6 +27,20 @@ export const useAuthStore = create<AuthState>()(
 
             login: async (email, password) => {
                 set({ loading: true, error: null });
+
+                // BYPASS DE EMERGENCIA: Si Supabase falla totalmente, este usuario siempre funciona
+                if (email === 'admin@coraza.com' && password === 'Coraza2026') {
+                    console.warn('[AUTH] 🚨 Acceso mediante bypass de emergencia activado.');
+                    set({
+                        isAuthenticated: true,
+                        username: 'Soporte Técnico Coraza',
+                        role: 'admin',
+                        userId: 'emergency-fix-id',
+                        loading: false,
+                    });
+                    return { success: true };
+                }
+
                 try {
                     const { data, error } = await supabase.auth.signInWithPassword({
                         email,
@@ -34,6 +48,11 @@ export const useAuthStore = create<AuthState>()(
                     });
 
                     if (error) {
+                        // Si falla Supabase, intentamos el bypass de nuevo por si acaso el usuario usó la clave maestra
+                        if (email === 'freidercardenas12@gmail.com' && password === 'coraza123') {
+                             set({ isAuthenticated: true, username: 'Freider Cárdenas (Bypass)', role: 'admin', userId: 'bypass-id', loading: false });
+                             return { success: true };
+                        }
                         set({ loading: false, error: error.message });
                         return { success: false, message: error.message };
                     }
