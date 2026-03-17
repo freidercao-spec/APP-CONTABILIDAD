@@ -19,6 +19,13 @@ const Dashboard = () => {
     const getCobertura = usePuestoStore(s => s.getCobertura24Horas);
     const getCobPct    = useProgramacionStore(s => s.getCoberturaPorcentaje);
 
+    // FIX: Pre-map IDs for O(1) lookups and stability
+    const puestosByDbId = useMemo(() => {
+        const map = new Map();
+        puestos.forEach(p => map.set(p.dbId, p));
+        return map;
+    }, [puestos]);
+
     const [activeTab, setActiveTab]= useState<'personal'|'puestos'|'programacion'>('personal');
 
     // ─── STATS ───────────────────────────────────────────────────────────────
@@ -287,7 +294,7 @@ const Dashboard = () => {
                             </thead>
                             <tbody className="divide-y divide-slate-50">
                                 {vigilantes.map(v => {
-                                    const p = puestos.find(p => p.id === v.puestoId);
+                                    const p = puestosByDbId.get(v.puestoId); // Use UUID for lookup
                                     const descargoActivos = (v.descargos||[]).filter(d=>d.estado==='activo').length;
                                     return (
                                         <tr key={v.id} className="hover:bg-slate-50/60 transition-colors">

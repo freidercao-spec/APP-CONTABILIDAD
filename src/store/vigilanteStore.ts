@@ -126,6 +126,7 @@ export const useVigilanteStore = create<VigilanteState>()(
 
                     if (error) {
                         console.error('Error fetching vigilantes:', error);
+                        set({ loaded: true }); // FIX: Ensure loading state resolves
                         return;
                     }
 
@@ -490,7 +491,7 @@ export const useVigilanteStore = create<VigilanteState>()(
             }
         }),
         {
-            name: 'coraza-vigilante-v3',
+            name: 'coraza-vigilantes-v6',
             onRehydrateStorage: () => (state) => {
                 if (state) {
                     state.vigilantes = (state.vigilantes || []).map(v => ({

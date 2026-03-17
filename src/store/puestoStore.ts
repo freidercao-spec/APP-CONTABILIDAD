@@ -129,6 +129,7 @@ export const usePuestoStore = create<PuestoState>()(
 
                     if (error) {
                         console.error('Error fetching puestos:', error);
+                        set({ loaded: true });
                         return;
                     }
 
@@ -497,7 +498,7 @@ export const usePuestoStore = create<PuestoState>()(
             }
         }),
         {
-            name: 'coraza-puestos-v3',
+            name: 'coraza-puestos-v6',
             onRehydrateStorage: () => (state) => {
                 if (state) {
                     state.puestos = (state.puestos || []).map(p => ({

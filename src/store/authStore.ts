@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { supabase, EMPRESA_ID } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 interface AuthState {
     isAuthenticated: boolean;
@@ -8,7 +8,8 @@ interface AuthState {
     role: string | null;
     userId: string | null;
     loading: boolean;
-    login: (email: string, password: string) => Promise<boolean>;
+    error: string | null;
+    login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
     logout: () => Promise<void>;
     updateProfile: (name: string, role: string) => void;
     checkSession: () => Promise<void>;
@@ -16,77 +17,51 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
     persist(
-        (set, get) => ({
+        (set) => ({
             isAuthenticated: false,
             username: null,
             role: null,
             userId: null,
             loading: true,
+            error: null,
 
             login: async (email, password) => {
+                set({ loading: true, error: null });
                 try {
-                    // Try Supabase Auth first
                     const { data, error } = await supabase.auth.signInWithPassword({
                         email,
                         password,
                     });
 
-                    if (!error && data.user) {
-                        // Fetch user profile from public.usuarios
-                        const { data: profile } = await supabase
-                            .from('usuarios')
-                            .select('nombre_completo, rol')
-                            .eq('id', data.user.id)
-                            .single();
-
-                        set({
-                            isAuthenticated: true,
-                            username: profile?.nombre_completo || data.user.email || 'Usuario',
-                            role: profile?.rol || 'coordinador',
-                            userId: data.user.id,
-                            loading: false,
-                        });
-                        return true;
+                    if (error) {
+                        set({ loading: false, error: error.message });
+                        return { success: false, message: error.message };
                     }
 
-                    // Fallback: Demo mode credentials (for development/demo only)
-                    const DEMO_USERS = [
-                        { username: 'admin', password: 'coraza2026', role: 'Administrador Global', display: 'Cmdt. Operativo' },
-                        { username: 'supervisor', password: 'coraza123', role: 'Supervisor', display: 'Supervisor de Turno' },
-                        { username: 'freidercardenas12@gmail.com', password: 'coraza2026', role: 'Administrador Global', display: 'Freider Cardenas' },
-                    ];
-
-                    const demoUser = DEMO_USERS.find(
-                        u => u.username === email.toLowerCase() && u.password === password
-                    );
-
-                    if (demoUser) {
-                        set({
-                            isAuthenticated: true,
-                            username: demoUser.display,
-                            role: demoUser.role,
-                            userId: null,
-                            loading: false,
-                        });
-                        return true;
+                    if (!data.user) {
+                        set({ loading: false, error: 'No se pudo obtener el usuario.' });
+                        return { success: false, message: 'No se pudo obtener el usuario.' };
                     }
 
-                    return false;
-                } catch {
-                    // If Supabase is unreachable, try demo mode
-                    const DEMO_USERS = [
-                        { username: 'admin', password: 'coraza2026', role: 'Administrador Global', display: 'Cmdt. Operativo' },
-                        { username: 'supervisor', password: 'coraza123', role: 'Supervisor', display: 'Supervisor de Turno' },
-                        { username: 'freidercardenas12@gmail.com', password: 'coraza2026', role: 'Administrador Global', display: 'Freider Cardenas' },
-                    ];
-                    const demoUser = DEMO_USERS.find(
-                        u => u.username === email.toLowerCase() && u.password === password
-                    );
-                    if (demoUser) {
-                        set({ isAuthenticated: true, username: demoUser.display, role: demoUser.role, userId: null, loading: false });
-                        return true;
-                    }
-                    return false;
+                    // Obtener perfil
+                    const { data: profile } = await supabase
+                        .from('usuarios')
+                        .select('nombre_completo, rol')
+                        .eq('id', data.user.id)
+                        .single();
+
+                    set({
+                        isAuthenticated: true,
+                        username: profile?.nombre_completo || data.user.email || 'Usuario',
+                        role: profile?.rol || 'coordinador',
+                        userId: data.user.id,
+                        loading: false,
+                    });
+                    return { success: true };
+                } catch (err: any) {
+                    const msg = err.message || 'Error de conexión desconocido';
+                    set({ loading: false, error: msg });
+                    return { success: false, message: msg };
                 }
             },
 
@@ -94,7 +69,14 @@ export const useAuthStore = create<AuthState>()(
                 try {
                     await supabase.auth.signOut();
                 } catch { /* ignore */ }
-                set({ isAuthenticated: false, username: null, role: null, userId: null, loading: false });
+                set({
+                    isAuthenticated: false,
+                    username: null,
+                    role: null,
+                    userId: null,
+                    loading: false,
+                    error: null,
+                });
             },
 
             updateProfile: (username, role) => set({ username, role }),
@@ -117,8 +99,7 @@ export const useAuthStore = create<AuthState>()(
                             loading: false,
                         });
                     } else {
-                        // Keep existing auth state (for demo mode)
-                        set({ loading: false });
+                        set({ isAuthenticated: false, loading: false });
                     }
                 } catch {
                     set({ loading: false });
@@ -126,11 +107,9 @@ export const useAuthStore = create<AuthState>()(
             },
         }),
         {
-            name: 'coraza-auth-v3',
+            name: 'coraza-auth-v6', // Incremento de versión para forzar limpieza
             onRehydrateStorage: () => (state) => {
-                if (state) {
-                    state.isAuthenticated = !!state.isAuthenticated;
-                }
+                if (state) state.loading = true; // Iniciar cargando hasta que checkSession termine
             }
         }
     )

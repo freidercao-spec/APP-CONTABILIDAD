@@ -58,7 +58,7 @@ export const useMotorInteligencia = () => {
 
         // --- 1. COBERTURA DE PUESTOS (ALTA CRITICIDAD) ---
         const puestosIncompletos = puestos.filter(p => {
-            const vigis = vigilantes.filter(v => v.puestoId === p.id);
+            const vigis = vigilantes.filter(v => v.puestoId === p.dbId); // Compare UUID
             return vigis.length < 3;
         });
 
@@ -84,7 +84,7 @@ export const useMotorInteligencia = () => {
         if (ausentes.length > 0) {
             if (ausentes.length <= 2) {
                 ausentes.forEach(v => {
-                    const puesto = puestos.find(p => p.id === v.puestoId);
+                    const puesto = puestos.find(p => p.dbId === v.puestoId); // Compare UUID
                     dispararAlerta(
                         `ausente_${v.id}`,
                         `**NOVEDAD OPERATIVA:** CorazAI informa que ${v.nombre} está ausente en "${puesto?.nombre || 'Puesto'}". Esto afecta mi planificación de turnos.`,
@@ -102,7 +102,7 @@ export const useMotorInteligencia = () => {
 
         // --- 3. PROGRAMACIÓN (TRABAJO ADMINISTRATIVO - MENOS INTRUSIVO) ---
         const progsMes = programaciones.filter(p => p.anio === anioActual && p.mes === mesActual);
-        const puestosSinProg = puestos.filter(p => !progsMes.some(prog => prog.puestoId === p.id));
+        const puestosSinProg = puestos.filter(p => !progsMes.some(prog => prog.puestoId === p.dbId)); // Use UUID
 
         if (puestosSinProg.length > 0) {
             // Solo es urgente si falta poco para acabar el mes o si son Demasiados puestos
@@ -137,8 +137,8 @@ export const useMotorInteligencia = () => {
         // --- 5. ANÁLISIS PREDICTIVO (AGOTAMIENTO Y FATIGA) ---
         vigilantes.forEach(v => {
             const misProgs = progsMes.map(p => ({
-                puesto: puestos.find(pst => pst.id === p.puestoId),
-                asigs: p.asignaciones.filter(a => a.vigilanteId === v.id)
+                puesto: puestos.find(pst => pst.dbId === p.puestoId), // Use UUID
+                asigs: (p.asignaciones || []).filter(a => a.vigilanteId === v.dbId || a.vigilanteId === v.id) // Try both ID types for safety
             })).filter(x => x.asigs.length > 0);
 
             if (misProgs.length === 0) return;
