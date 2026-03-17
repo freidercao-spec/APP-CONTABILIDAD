@@ -17,7 +17,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
     persist(
-        (set) => ({
+        (set, get) => ({
             isAuthenticated: false,
             username: null,
             role: null,
@@ -101,6 +101,13 @@ export const useAuthStore = create<AuthState>()(
             updateProfile: (username, role) => set({ username, role }),
 
             checkSession: async () => {
+                // Si ya tenemos una sesión de emergencia, no la pises con Supabase
+                const current = get();
+                if (current.isAuthenticated && (current.userId === 'emergency-fix-id' || current.userId === 'bypass-id')) {
+                    set({ loading: false });
+                    return;
+                }
+
                 try {
                     const { data: { session } } = await supabase.auth.getSession();
                     if (session?.user) {
