@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { usePuestoStore, type TurnoConfig, type JornadaCustom } from '../store/puestoStore';
 import { useVigilanteStore } from '../store/vigilanteStore';
-import { useProgramacionStore, type AsignacionDia, type TipoJornada, type RolPuesto, type TemplateProgramacion } from '../store/programacionStore';
+import { useProgramacionStore, type AsignacionDia, type TipoJornada, type RolPuesto, type TemplateProgramacion, type TurnoHora } from '../store/programacionStore';
 import { useAuthStore } from '../store/authStore';
 import { useAuditStore } from '../store/auditStore';
 import { useAIStore } from '../store/aiStore';
@@ -51,11 +51,20 @@ const JORNADA_COLORS: Record<string, { bg: string; text: string; label: string; 
 
 // ── Subcomponents ─────────────────────────────────────────────────────────────
 
+// Map turno index (0,1,2,...) to the default role so the grid
+// always uses the SAME primary key as the store: (dia, rol)
+const TURNO_IDX_TO_ROL: Record<number, RolPuesto> = {
+    0: 'titular_a',
+    1: 'titular_b',
+    2: 'relevante',
+};
+
 interface CeldaCalendarioProps {
     asig: AsignacionDia;
     vigilanteNombre?: string;
     onEdit: () => void;
     jornadasCustom?: JornadaCustom[];
+    turnosConfig?: TurnoConfig[];
 }
 
 const hexToRgb = (hex: string): [number, number, number] => {
@@ -65,61 +74,72 @@ const hexToRgb = (hex: string): [number, number, number] => {
     return [r, g, b];
 };
 
-const CeldaCalendario = ({ asig, vigilanteNombre, onEdit, jornadasCustom, turnosConfig }: CeldaCalendarioProps & { turnosConfig?: TurnoConfig[] }) => {
-    const j = getJornada(asig.jornada, jornadasCustom);
+const CeldaCalendario = ({ asig, vigilanteNombre, onEdit, jornadasCustom }: CeldaCalendarioProps) => {
+    const jList = jornadasCustom?.length ? jornadasCustom : DEFAULT_JORNADAS;
+    const j = jList.find(x => x.id === asig.jornada) ?? DEFAULT_JORNADAS[4];
     const isSinAsignar = asig.jornada === 'sin_asignar' || !asig.vigilanteId;
-    const bg = isSinAsignar ? '#ef4444' : j.color;
-    const tc = isSinAsignar ? '#fff' : j.textColor;
 
-    const tCfg = turnosConfig?.find(t => t.id === asig.turno);
-    const turnoNombre = tCfg ? `${tCfg.nombre} (${tCfg.inicio}-${tCfg.fin})` : asig.turno;
-    const militaryHours = tCfg ? `${tCfg.inicio}-${tCfg.fin}` : '';
-
-    // Split name into first name + last name for compact display
     const nameParts = (vigilanteNombre || '').trim().split(' ');
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ');
 
+    if (isSinAsignar) {
+        return (
+            <button
+                onClick={onEdit}
+                title={`Día ${asig.dia} · Sin asignar — Click para asignar`}
+                className="w-full h-full rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-red-300 bg-red-50 hover:bg-red-100 hover:border-red-500 transition-all group"
+                style={{ minHeight: '72px' }}
+            >
+                <span className="material-symbols-outlined text-red-400 text-[18px] group-hover:scale-110 transition-transform">person_add</span>
+                <span className="text-[8px] font-black text-red-400 uppercase mt-0.5">Asignar</span>
+            </button>
+        );
+    }
+
     return (
         <button
             onClick={onEdit}
-            title={`${vigilanteNombre || '¡SIN ASIGNAR!'} · ${turnoNombre} · ${j.nombre}`}
-            className="w-full rounded-xl tracking-wide transition-all hover:scale-105 hover:z-10 relative flex flex-col items-center justify-center border border-white/20 shadow-md px-1 py-1.5 gap-0"
-            style={{ background: bg, color: tc, minHeight: '76px' }}
+            title={`${vigilanteNombre} · ${j.nombre}`}
+            className="w-full h-full rounded-lg flex flex-col items-center justify-center border border-white/20 shadow-sm hover:scale-105 hover:shadow-md hover:z-10 relative transition-all px-1 py-1.5"
+            style={{ background: j.color, minHeight: '72px' }}
         >
-            {/* Turno label top */}
-            <span className="text-[7px] opacity-90 uppercase font-black tracking-tighter leading-none mb-0.5">
-                {asig.jornada === 'normal' ? (militaryHours || turnoNombre) : j.nombre}
-            </span>
-            {/* Jornada short badge */}
+            {/* Jornada badge */}
             <span
-                className="mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-black leading-none"
-                style={{ background: 'rgba(0,0,0,0.18)', color: tc }}
+                className="text-[7px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-tight leading-none mb-1"
+                style={{ background: 'rgba(0,0,0,0.25)', color: j.textColor }}
             >
                 {j.short}
             </span>
-            {/* Vigilante name — primary content */}
-            {isSinAsignar ? (
-                <span className="mt-1 text-[9px] font-black leading-tight text-center w-full px-0.5 opacity-90">
-                    Sin asignar
+            {/* Vigilante first name */}
+            {firstName && (
+                <span className="text-[9px] font-black leading-tight text-center w-full px-0.5" style={{ color: j.textColor }}>
+                    {firstName}
                 </span>
-            ) : (
-                <div className="mt-1 flex flex-col items-center w-full px-0.5">
-                    {firstName && (
-                        <span className="text-[9px] font-black leading-none text-center w-full truncate">
-                            {firstName}
-                        </span>
-                    )}
-                    {lastName && (
-                        <span className="text-[8px] font-bold leading-none text-center w-full truncate opacity-90">
-                            {lastName}
-                        </span>
-                    )}
-                </div>
+            )}
+            {/* Vigilante last name (first word) */}
+            {lastName && (
+                <span className="text-[8px] font-bold leading-none text-center w-full px-0.5 opacity-90" style={{ color: j.textColor }}>
+                    {lastName.split(' ')[0]}
+                </span>
             )}
         </button>
     );
 };
+
+// Empty turno slot — shows a [⁠+⁠] add button
+const CeldaVacia = ({ onAdd, isWeekend }: { onAdd: () => void; isWeekend?: boolean }) => (
+    <button
+        onClick={onAdd}
+        className={`w-full h-full rounded-lg flex items-center justify-center border border-dashed transition-all group ${
+            isWeekend ? 'border-slate-200 bg-slate-50/80' : 'border-slate-100 bg-slate-50/40'
+        } hover:border-primary/40 hover:bg-primary/5`}
+        style={{ minHeight: '72px' }}
+        title="Click para asignar este turno"
+    >
+        <span className="material-symbols-outlined text-[16px] text-slate-300 group-hover:text-primary/60 transition-colors">add_circle</span>
+    </button>
+);
 
 // Modal for editing a single day cell — with cross-validation
 interface EditCeldaModalProps {
@@ -136,10 +156,12 @@ interface EditCeldaModalProps {
 const EditCeldaModal = ({ asig, vigilantes, titularesId, ocupados, turnosConfig, jornadasCustom, onSave, onClose }: EditCeldaModalProps) => {
     const [vigilanteId, setVigilanteId] = useState(asig.vigilanteId || '');
     const [turno, setTurno] = useState(asig.turno);
-    const [jornada, setJornada] = useState(asig.jornada);
+    const [jornada, setJornada] = useState<TipoJornada>(asig.jornada);
     const [conflicto, setConflicto] = useState<string | null>(null);
 
     const rolLabel = ROL_LABELS[asig.rol] || asig.rol;
+    const jornadasList = jornadasCustom.length ? jornadasCustom : DEFAULT_JORNADAS;
+    const turnoConf = turnosConfig.find(t => t.id === turno);
 
     const checkConflict = (vid: string, t: string): string | null => {
         if (!vid) return null;
@@ -147,11 +169,10 @@ const EditCeldaModal = ({ asig, vigilantes, titularesId, ocupados, turnosConfig,
         if (slots.includes(`${asig.dia}-${t}`)) {
             return `${vigilantes.find(v => v.id === vid)?.nombre} ya tiene turno el día ${asig.dia} (${t})`;
         }
-        // PM → AM next day rule
         if (t === 'AM') {
             const prevDay = asig.dia - 1;
             if (slots.includes(`${prevDay}-PM`)) {
-                return `${vigilantes.find(v => v.id === vid)?.nombre} cubrió PM el día ${prevDay} — sin descanso mínimo para AM del día ${asig.dia}`;
+                return `${vigilantes.find(v => v.id === vid)?.nombre} trabajó PM el día ${prevDay} — sin descanso mínimo`;
             }
         }
         return null;
@@ -166,33 +187,117 @@ const EditCeldaModal = ({ asig, vigilantes, titularesId, ocupados, turnosConfig,
         setConflicto(checkConflict(vigilanteId, t));
     };
 
-    const jornadasList = jornadasCustom.length ? jornadasCustom : DEFAULT_JORNADAS;
+    const selectedVig = vigilantes.find(v => v.id === vigilanteId);
+    const jornadaActual = jornadasList.find(j => j.id === jornada) ?? jornadasList[0];
 
     return (
-        <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
-            <div className="bg-white rounded-t-3xl sm:rounded-3xl p-6 sm:p-8 w-full max-w-md shadow-2xl animate-in slide-in-from-bottom-5 duration-300" onClick={e => e.stopPropagation()}>
-                <div className="mb-6 pb-4 border-b border-slate-100">
-                    <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-                        <span className="material-symbols-outlined text-primary">edit_calendar</span>
-                        EDITAR ASIGNACIÓN
-                    </h2>
-                    <div className="flex items-center gap-2 mt-2">
-                        <span className="px-3 py-1 bg-primary/10 text-primary text-[10px] font-black rounded-lg uppercase">{rolLabel}</span>
-                        <p className="text-[11px] text-slate-500 font-bold">Día {asig.dia}</p>
+        <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
+            <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg shadow-2xl animate-in slide-in-from-bottom-5 duration-300 overflow-hidden" onClick={e => e.stopPropagation()}>
+
+                {/* ── Header ── */}
+                <div className="px-6 pt-6 pb-4 border-b border-slate-100" style={{ background: 'linear-gradient(135deg, #f8faff 0%, #eef2ff 100%)' }}>
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="material-symbols-outlined text-primary text-[20px]">edit_calendar</span>
+                                <h2 className="text-base font-black text-slate-800 uppercase tracking-tight">Editar Turno</h2>
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-black rounded-lg uppercase">{rolLabel}</span>
+                                <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-black rounded-lg">Día {asig.dia}</span>
+                                {turnoConf && (
+                                    <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-black rounded-lg">
+                                        {turnoConf.nombre} · {turnoConf.inicio}–{turnoConf.fin}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                        <button onClick={onClose} className="size-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all">
+                            <span className="material-symbols-outlined text-[18px] text-slate-500">close</span>
+                        </button>
                     </div>
+
+                    {/* Current assignment preview */}
+                    {selectedVig && (
+                        <div className="mt-3 flex items-center gap-2 py-2 px-3 rounded-xl"
+                            style={{ background: jornadaActual.color + '22' }}>
+                            <div className="size-7 rounded-full flex items-center justify-center font-black text-white text-xs shrink-0"
+                                style={{ background: jornadaActual.color }}>
+                                {selectedVig.nombre.charAt(0)}
+                            </div>
+                            <div>
+                                <p className="text-[11px] font-black text-slate-800">{selectedVig.nombre}</p>
+                                <p className="text-[9px] font-bold" style={{ color: jornadaActual.color }}>{jornadaActual.nombre}</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
+
+                {/* ── Conflict alert ── */}
                 {conflicto && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex gap-2 items-start">
-                        <span className="material-symbols-outlined text-red-500 text-[18px] mt-0.5">block</span>
+                    <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex gap-2 items-start">
+                        <span className="material-symbols-outlined text-red-500 text-[18px] mt-0.5 shrink-0">block</span>
                         <p className="text-[11px] font-bold text-red-700">{conflicto}</p>
                     </div>
                 )}
 
-                <div className="space-y-5">
-                    {/* Sugerencias Rápidas (Titulares) */}
+                <div className="p-6 space-y-5">
+                    {/* ── Turno selector ── */}
+                    <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">
+                            Turno
+                        </label>
+                        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(turnosConfig.length, 3)}, 1fr)` }}>
+                            {turnosConfig.map((t, idx) => {
+                                const turnoColors = ['#4318FF', '#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'];
+                                const col = turnoColors[idx % turnoColors.length];
+                                const isSelected = turno === t.id;
+                                return (
+                                    <button key={t.id} onClick={() => handleTurnoChange(t.id)}
+                                        className={`py-2.5 px-2 rounded-xl text-[10px] font-black border-2 transition-all`}
+                                        style={{
+                                            background: isSelected ? col : 'transparent',
+                                            borderColor: isSelected ? col : '#e2e8f0',
+                                            color: isSelected ? '#fff' : col,
+                                        }}>
+                                        <span className="block font-black">{t.nombre}</span>
+                                        <span className="block text-[8px] opacity-80 mt-0.5">{t.inicio}–{t.fin}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* ── Jornada type ── */}
+                    <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">
+                            Tipo de Jornada
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                            {jornadasList.map(j => {
+                                const isSelected = jornada === j.id;
+                                return (
+                                    <button key={j.id} onClick={() => setJornada(j.id as TipoJornada)}
+                                        className={`py-2.5 px-2 rounded-xl text-[10px] font-black border-2 transition-all text-center`}
+                                        style={{
+                                            background: isSelected ? j.color : j.color + '15',
+                                            borderColor: isSelected ? j.color : j.color + '40',
+                                            color: isSelected ? j.textColor : j.color,
+                                        }}>
+                                        <span className="block text-[12px] mb-0.5">{j.short}</span>
+                                        <span className="block text-[8px] leading-tight">{j.nombre}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* ── Vigilante quick-pick ── */}
                     {titularesId.length > 0 && (
                         <div>
-                            <label className="text-[10px] font-black text-primary uppercase tracking-widest mb-2 block">Sugerencia: Titulares</label>
+                            <label className="text-[10px] font-black text-primary uppercase tracking-widest mb-2 block">
+                                Titulares del Puesto
+                            </label>
                             <div className="flex flex-wrap gap-2">
                                 {titularesId.map(vid => {
                                     const v = vigilantes.find(vig => vig.id === vid);
@@ -203,11 +308,16 @@ const EditCeldaModal = ({ asig, vigilantes, titularesId, ocupados, turnosConfig,
                                         <button
                                             key={vid}
                                             onClick={() => handleVigChange(vid)}
-                                            className={`px-3 py-2 rounded-xl text-[10px] font-bold border transition-all flex items-center gap-2 ${isSelected ? 'bg-primary text-white border-primary shadow-md shadow-primary/20' : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-primary/50'}`}
+                                            className={`px-3 py-2 rounded-xl text-[10px] font-bold border-2 transition-all flex items-center gap-1.5 ${
+                                                isSelected
+                                                    ? 'bg-primary text-white border-primary shadow-md shadow-primary/20'
+                                                    : c
+                                                    ? 'bg-orange-50 text-orange-600 border-orange-200 hover:border-orange-400'
+                                                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-primary/50'
+                                            }`}
                                         >
-                                            <span className="material-symbols-outlined text-[14px]">{c ? 'warning' : 'person'}</span>
+                                            <span className="material-symbols-outlined text-[13px]">{c ? 'warning' : 'person'}</span>
                                             {v.nombre}
-                                            {c && <span className="text-[8px] opacity-70">⚠</span>}
                                         </button>
                                     );
                                 })}
@@ -215,10 +325,11 @@ const EditCeldaModal = ({ asig, vigilantes, titularesId, ocupados, turnosConfig,
                         </div>
                     )}
 
+                    {/* ── Full vigilante selector ── */}
                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Todos los Vigilantes</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Todos los Vigilantes</label>
                         <select value={vigilanteId} onChange={e => handleVigChange(e.target.value)}
-                            className="w-full mt-1 h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold outline-none focus:border-primary/50">
+                            className="w-full h-11 bg-slate-50 border-2 border-slate-200 rounded-xl px-4 text-sm font-bold outline-none focus:border-primary/60 transition-colors">
                             <option value="">— Sin asignar —</option>
                             <optgroup label="✅ TITULARES DEL PUESTO">
                                 {vigilantes.filter(v => titularesId.includes(v.id)).map(v => {
@@ -229,43 +340,35 @@ const EditCeldaModal = ({ asig, vigilantes, titularesId, ocupados, turnosConfig,
                             <optgroup label="🔄 REEMPLAZOS / OTROS">
                                 {vigilantes.filter(v => !titularesId.includes(v.id)).map(v => {
                                     const c = checkConflict(v.id, turno);
-                                    const estadoMark = v.estado === 'disponible' ? ' (Disponible)' : '';
-                                    return <option key={v.id} value={v.id}>{c ? `⚠ ${v.nombre}${estadoMark}` : `${v.nombre}${estadoMark}`}</option>;
+                                    return <option key={v.id} value={v.id}>{c ? `⚠ ${v.nombre}` : v.nombre}</option>;
                                 })}
                             </optgroup>
                         </select>
                     </div>
-                    <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Turno</label>
-                        <div className="flex gap-2 mt-1">
-                            {turnosConfig.map(t => (
-                                <button key={t.id} onClick={() => handleTurnoChange(t.id)}
-                                    className={`flex-1 py-2 rounded-xl text-[10px] font-black border-2 transition-all ${turno === t.id ? 'bg-primary text-white border-primary' : 'border-slate-200 text-slate-500 hover:border-primary/30'}`}>
-                                    {t.nombre}<br /><span className="text-[8px] opacity-70">{t.inicio}–{t.fin}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                    <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Jornada</label>
-                        <div className="grid grid-cols-2 gap-2 mt-1">
-                            {jornadasList.map(j => (
-                                <button key={j.id} onClick={() => setJornada(j.id as TipoJornada)}
-                                    className={`py-2.5 px-3 rounded-xl text-[10px] font-black border-2 transition-all text-left ${jornada === j.id ? 'border-primary shadow-lg' : 'border-slate-100 hover:border-slate-300'}`}
-                                    style={{ background: jornada === j.id ? j.color : '#f8fafc', color: jornada === j.id ? j.textColor : '#64748b' }}>
-                                    {j.nombre}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
                 </div>
-                <div className="flex gap-3 mt-6">
-                    <button disabled={!!conflicto}
-                        onClick={() => !conflicto && onSave({ vigilanteId: vigilanteId || null, turno: turno, jornada, rol: asig.rol })}
-                        className={`flex-1 py-3 rounded-2xl font-black uppercase tracking-widest text-[11px] transition-all shadow-lg ${conflicto ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-primary text-white hover:brightness-110 shadow-primary/30'}`}>
-                        Guardar
+
+                {/* ── Actions ── */}
+                <div className="px-6 pb-6 flex gap-2">
+                    <button
+                        onClick={() => onSave({ vigilanteId: null, turno: turno as TurnoHora, jornada: 'sin_asignar', rol: asig.rol })}
+                        className="px-4 py-3 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-red-50 hover:text-red-500 transition-all"
+                        title="Limpiar esta celda">
+                        <span className="material-symbols-outlined text-[16px]">delete</span>
                     </button>
-                    <button onClick={onClose} className="flex-1 py-3 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase tracking-widest text-[11px] hover:bg-slate-200 transition-all">Cancelar</button>
+                    <button
+                        disabled={!!conflicto}
+                        onClick={() => !conflicto && onSave({ vigilanteId: vigilanteId || null, turno: turno as TurnoHora, jornada, rol: asig.rol })}
+                        className={`flex-1 py-3 rounded-2xl font-black uppercase tracking-widest text-[11px] transition-all shadow-lg ${
+                            conflicto
+                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                : 'bg-primary text-white hover:brightness-110 shadow-primary/30 active:scale-95'
+                        }`}>
+                        Guardar Cambios
+                    </button>
+                    <button onClick={onClose}
+                        className="px-4 py-3 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all">
+                        Cancelar
+                    </button>
                 </div>
             </div>
         </div>
@@ -455,15 +558,15 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
         const resultado = actualizarAsignacion(prog.id, editCell.dia, { ...data, rol: editCell.rol }, username || 'Sistema');
         if (!resultado.permitido) {
             showTacticalToast({
-                title: 'Restricción AI',
+                title: 'Restricción de Sistema',
                 message: resultado.mensaje,
                 type: 'error'
             });
             logAction('PROGRAMACION', 'Asignación bloqueada por IA', resultado.regla || resultado.mensaje, 'critical');
         } else {
             showTacticalToast({
-                title: 'Actualización Local',
-                message: 'Turno registrado correctamente.',
+                title: '✅ Guardado Automático',
+                message: `Día ${editCell.dia} actualizado y sincronizado con la base de datos.`,
                 type: 'success'
             });
             logAction('PROGRAMACION', `Turno editado — Día ${editCell.dia}`, `Puesto: ${puestoNombre}`, 'info');
@@ -521,312 +624,400 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
 
         const generatePDF = async () => {
             const logoBase64 = await getBase64Image('/logo_premium.png').catch(() => null);
+            const now = new Date();
+            const timestampStr = now.toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' });
+            const shortTimestamp = now.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false });
 
-            // ── Helper to add logo ──
             const addHeaderLogo = (doc: jsPDF) => {
                 if (logoBase64) {
                     try {
                         doc.setFillColor(255, 255, 255);
                         doc.roundedRect(margin + 2, 4, 26, 26, 3, 3, 'F');
                         doc.addImage(logoBase64, 'PNG', margin + 3, 5, 24, 24);
-                    } catch (e) { /* fallback below */ }
-                } else {
-                    doc.setFontSize(7);
-                    doc.setTextColor(255, 255, 255);
-                    doc.text('CORAZA', margin + 15, 15, { align: 'center' });
-                    doc.text('SEGURIDAD', margin + 15, 19, { align: 'center' });
+                    } catch (e) { console.error(e); }
                 }
             };
 
-            // ============================================================
-            // PAGE 1: COVER — Post details + Personnel summary
-            // ============================================================
-
-        // ── Header Banner ──
-        doc.setFillColor(...accent);
-        doc.rect(0, 0, pageW, 34, 'F');
-        
-        addHeaderLogo(doc);
-
-        const textStartX = margin + 34;
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(255, 255, 255);
-        doc.text('PROGRAMACIÓN MENSUAL — CORAZA SEGURIDAD CTA', textStartX, 13);
-        
-        doc.setFontSize(8);
-        doc.setTextColor(180, 200, 255);
-        doc.text(`Puesto: ${puestoNombre.toUpperCase()}`, textStartX, 20);
-        doc.text(`Período: ${MONTH_NAMES[mes].toUpperCase()} ${anio}`, textStartX, 26);
-        doc.text(`Generado: ${new Date().toLocaleDateString('es-CO', { dateStyle: 'full' })} — ${new Date().toLocaleTimeString('es-CO', { hour12: false })}`, textStartX, 31);
-        
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(7);
-        doc.text(`v${prog.version} · Estado: ${prog.estado.toUpperCase()}`, pageW - margin, 13, { align: 'right' });
-        doc.text(`Cobertura: ${cobertura}%`, pageW - margin, 20, { align: 'right' });
-
-        // ── Post Details Card ──
-        let y = 42;
-        doc.setFillColor(245, 247, 252);
-        doc.roundedRect(margin, y, pageW - margin * 2, 38, 3, 3, 'F');
-        
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...accentLight);
-        doc.text('DATOS DEL PUESTO', margin + 5, y + 7);
-        
-        doc.setDrawColor(...accentLight);
-        doc.setLineWidth(0.4);
-        doc.line(margin + 5, y + 9, margin + 62, y + 9);
-
-        doc.setFontSize(7);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(60, 60, 90);
-        const details = [
-            ['Puesto:', puestoNombre],
-            ['ID:', puesto?.id || '—'],
-            ['Dirección:', puesto?.direccion || 'No registrada'],
-            ['Cliente:', puesto?.cliente || '—'],
-            ['N° Contrato:', puesto?.numeroContrato || '—'],
-            ['Tipo de Servicio:', puesto?.tipoServicio || '—'],
-            ['Contacto:', puesto?.contacto || '—'],
-            ['Teléfono:', puesto?.telefono || '—'],
-            ['Armamento:', puesto?.conArmamento ? 'CON ARMAMENTO' : 'SIN ARMAMENTO'],
-            ['Prioridad:', (puesto?.prioridad || 'media').toUpperCase()],
-        ];
-        
-            const col1X = margin + 6;
-            const col2X = pageW / 2 + 10;
-            details.forEach((pair, i) => {
-                const isRight = i >= 5;
-                const x = isRight ? col2X : col1X;
-                const row = isRight ? i - 5 : i;
+            const addGridHeader = (doc: jsPDF, pageNum: number, totalPages: number) => {
+                doc.setFillColor(accent[0], accent[1], accent[2]);
+                doc.rect(0, 0, pageW, 25, 'F');
+                addHeaderLogo(doc);
+                doc.setFontSize(10);
                 doc.setFont('helvetica', 'bold');
-                doc.text(pair[0], x, y + 16 + row * 4);
-                doc.setFont('helvetica', 'normal');
-                
-                // Manejo de texto largo para dirección y cliente
-                const val = pair[1];
-                const maxWidth = isRight ? pageW - x - margin - 5 : col2X - x - 30;
-                const lines = doc.splitTextToSize(val, maxWidth);
-                doc.text(lines, x + 28, y + 16 + row * 4);
-            });
+                doc.setTextColor(255, 255, 255);
+                doc.text(`CUADRO OPERATIVO MENSUAL — ${puestoNombre.toUpperCase()}`, margin + 34, 10);
+                doc.setFontSize(7);
+                doc.text(`MES: ${MONTH_NAMES[mes].toUpperCase()} ${anio} · EMISIÓN: ${shortTimestamp}`, margin + 34, 16);
+                doc.text(`RESPONSABLE: ${username?.toUpperCase() || 'CENTRAL'} · PÁGINA: ${pageNum}`, margin + 34, 21);
+            };
 
-        // ── Turnos Config ──
-        y += 44;
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...accentLight);
-        doc.text('CONFIGURACIÓN DE TURNOS OPERATIVOS', margin + 2, y);
-        y += 5;
-        turnosConfig.forEach((tc) => {
-            doc.setFontSize(7);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(60, 60, 90);
-            doc.text(`● ${tc.nombre}: ${tc.inicio} → ${tc.fin} (12 Horas)`, margin + 6, y);
-            y += 4.5;
-        });
+            // ── PAGE 1: DETALLES Y RESUMEN ──
+            doc.setFillColor(accent[0], accent[1], accent[2]);
+            doc.rect(0, 0, pageW, 34, 'F');
+            addHeaderLogo(doc);
 
-        // ── Personnel Summary ──
-        y += 4;
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...accentLight);
-        doc.text('RESUMEN DE PERSONAL — DETALLE POR QUINCENA', margin + 2, y);
-        y += 6;
-
-        // Table header
-        doc.setFillColor(...accent);
-        doc.rect(margin, y, pageW - margin * 2, 7, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(6);
-        doc.setFont('helvetica', 'bold');
-        const headers = ['ROL', 'NOMBRE COMPLETO', 'DÍAS T.', 'Q1: REM', 'Q1: N/REM', 'Q2: REM', 'Q2: N/REM', 'TOT. DESC.'];
-        const colWidths = [28, 55, 20, 19, 19, 19, 19, 21];
-        let hx = margin + 2;
-        headers.forEach((h, i) => {
-            doc.text(h, hx, y + 5);
-            hx += colWidths[i];
-        });
-        y += 7;
-
-        prog.personal.forEach((per, pIdx) => {
-            if (!per.vigilanteId) return;
-            const vig = vigilantes.find(v => v.id === per.vigilanteId);
-            const diasT = getDiasTrabajoVigilante(prog.id, per.vigilanteId);
-            const diasD = getDiasDescansoVigilante(prog.id, per.vigilanteId);
-            const r = restCounters[per.vigilanteId] || { q1rem: 0, q1nrem: 0, q2rem: 0, q2nrem: 0 };
-
-            const bg: [number, number, number] = pIdx % 2 === 0 ? [250, 251, 255] : [255, 255, 255];
-            doc.setFillColor(...bg);
-            doc.rect(margin, y, pageW - margin * 2, 6.5, 'F');
-            doc.setTextColor(40, 40, 70);
-            doc.setFontSize(6.5);
-
-            const row = [
-                ROL_LABELS[per.rol].toUpperCase(),
-                (vig?.nombre || 'VACANTE').toUpperCase(),
-                String(diasT),
-                String(r.q1rem),
-                String(r.q1nrem),
-                String(r.q2rem),
-                String(r.q2nrem),
-                String(diasD.remunerados + diasD.noRemunerados),
-            ];
-            let rx = margin + 2;
-            row.forEach((cell, ci) => {
-                doc.setFont('helvetica', ci === 0 ? 'bold' : 'normal');
-                doc.text(cell, rx, y + 4.5);
-                rx += colWidths[ci];
-            });
-            y += 6.5;
-        });
-
-        // ── Instructions / Requirements ──
-        if (puesto?.instrucciones || puesto?.requisitos) {
-            y += 6;
-            doc.setFontSize(9);
+            doc.setFontSize(14);
             doc.setFont('helvetica', 'bold');
-            doc.setTextColor(...accentLight);
-            doc.text('INSTRUCCIONES Y REQUISITOS', margin + 2, y);
-            y += 6;
-            doc.setFontSize(6.5);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(60, 60, 90);
-            
-            const instr = `Instrucciones: ${puesto?.instrucciones || 'N/A'} | Requisitos: ${puesto?.requisitos || 'N/A'}`;
-            const instrLines = doc.splitTextToSize(instr, pageW - margin * 2 - 10);
-            doc.text(instrLines, margin + 4, y);
-        }
-
-        // ============================================================
-        // PAGE 2: CALENDAR GRID
-        // ============================================================
-        doc.addPage('a4', 'landscape');
-        
-        // Header
-        doc.setFillColor(...accent);
-        doc.rect(0, 0, pageW, 25, 'F');
-        addHeaderLogo(doc);
-
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(255, 255, 255);
-        doc.text(`CUADRO DE PROGRAMACIÓN — ${puestoNombre.toUpperCase()}`, textStartX, 10);
-        doc.setFontSize(7);
-        doc.text(`${MONTH_NAMES[mes].toUpperCase()} ${anio} · Cobertura: ${cobertura}%`, textStartX, 16);
-        doc.text(`Operadores asignados: ${prog.personal.filter(p => p.vigilanteId).length}`, textStartX, 21);
-
-        y = 32;
-
-        // Calendar grid
-        const colW = (pageW - margin * 2) / (daysInMonth + 4.5);
-        const rowH = 9.5;
-
-        // Header - Day numbers
-        doc.setFillColor(...accent);
-        doc.rect(margin, y, colW * 4.5, rowH, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(6.5);
-        doc.setFont('helvetica', 'bold');
-        doc.text('OPERADOR / ROL', margin + colW * 2.25, y + 6, { align: 'center' });
-
-        dayNumbers.forEach((d, i) => {
-            const x = margin + colW * 4.5 + i * colW;
-            const dayName = new Date(anio, mes, d).toLocaleDateString('es-CO', { weekday: 'short' }).charAt(0).toUpperCase();
-            doc.setFillColor(...accent);
-            doc.rect(x, y, colW, rowH, 'F');
             doc.setTextColor(255, 255, 255);
-            doc.setFontSize(5);
-            doc.text(dayName, x + colW / 2, y + 3.5, { align: 'center' });
-            doc.setFontSize(6.5);
-            doc.text(String(d).padStart(2, '0'), x + colW / 2, y + 7.5, { align: 'center' });
-        });
-        y += rowH;
+            doc.text('REPORTE TÁCTICO DE PROGRAMACIÓN — CORAZA SEGURIDAD CTA', margin + 34, 13);
+            
+            doc.setFontSize(8);
+            doc.setTextColor(180, 200, 255);
+            doc.text(`INSTALACIÓN: ${puestoNombre.toUpperCase()}`, margin + 34, 20);
+            doc.text(`MES OPERATIVO: ${MONTH_NAMES[mes].toUpperCase()} ${anio}`, margin + 34, 26);
+            doc.text(`GENERADO POR: ${username?.toUpperCase() || 'CENTRAL DE OPERACIONES'} — ${timestampStr.toUpperCase()}`, margin + 34, 31);
+            
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(7);
+            doc.text(`VERSIÓN: ${prog.version} · ESTADO: ${prog.estado.toUpperCase()}`, pageW - margin, 13, { align: 'right' });
 
-        // Data rows per personal
-        prog.personal.forEach((per, pIdx) => {
-            const vig = per.vigilanteId ? vigilantes.find(v => v.id === per.vigilanteId) : null;
-            const bgRow: [number, number, number] = pIdx % 2 === 0 ? [248, 250, 252] : [255, 255, 255];
-            doc.setFillColor(...bgRow);
-            doc.rect(margin, y, pageW - margin * 2, rowH, 'F');
-
-            doc.setDrawColor(220, 220, 225);
-            doc.setLineWidth(0.1);
-            doc.rect(margin, y, pageW - margin * 2, rowH, 'S');
-
-            doc.setTextColor(30, 30, 60);
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(5.5);
-            const label = `${vig?.nombre || 'VACANTE'} (${ROL_LABELS[per.rol]})`;
-            doc.text(label.toUpperCase(), margin + 2, y + 6, { maxWidth: colW * 4.3 });
-
-            dayNumbers.forEach((d, i) => {
-                const asig = prog.asignaciones.find(a => a.dia === d && a.rol === per.rol);
-                const jornada = asig?.jornada ?? 'sin_asignar';
-                const jCfg = getJornada(jornada, jornadasCustom);
-
-                const isSinAsignar = jornada === 'sin_asignar' || !asig?.vigilanteId;
-                const [r, g, b] = hexToRgb(isSinAsignar ? '#fee2e2' : jCfg.color);
-                const textColor: [number, number, number] = isSinAsignar ? [220, 38, 38] : [255, 255, 255];
-
-                const x = margin + colW * 4.5 + i * colW;
-                doc.setFillColor(r, g, b);
-                doc.rect(x + 0.3, y + 0.6, colW - 0.6, rowH - 1.2, 'F');
-
-                doc.setDrawColor(240, 240, 240);
-                doc.rect(x, y, colW, rowH, 'S');
-
-                doc.setTextColor(...textColor);
-                doc.setFontSize(4.5);
-                doc.setFont('helvetica', 'bold');
-                doc.text(jCfg.short, x + colW / 2, y + 5.5, { align: 'center' });
+            let curY = 42;
+            doc.setFillColor(245, 247, 252);
+            doc.roundedRect(margin, curY, pageW - margin * 2, 38, 3, 3, 'F');
+            doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(accentLight[0], accentLight[1], accentLight[2]);
+            doc.text('DETALLES TÉCNICOS DEL PUESTO', margin + 5, curY + 7);
+            doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(60, 60, 90);
+            
+            const details = [
+                ['Puesto / Cliente:', `${puestoNombre} / ${puesto?.cliente || '—'}`],
+                ['ID Interno:', puesto?.id || '—'],
+                ['Ubicación:', puesto?.direccion || 'ZONA METROPOLITANA'],
+                ['Contacto Puesto:', puesto?.contacto || '—'],
+                ['Teléfono:', puesto?.telefono || '—'],
+                ['Tipo Servicio:', puesto?.tipoServicio || 'PROGRAMA FIJO'],
+                ['Armamento:', puesto?.conArmamento ? 'SI (CON ARMA)' : 'NO (SIN ARMA)'],
+                ['Prioridad:', (puesto?.prioridad || 'media').toUpperCase()],
+            ];
+            details.forEach((pair, i) => {
+                const x = i % 2 === 0 ? margin + 6 : pageW / 2.2;
+                const r = Math.floor(i / 2);
+                doc.setFont('helvetica', 'bold'); doc.text(pair[0], x, curY + 16 + r * 5);
+                doc.setFont('helvetica', 'normal'); doc.text(pair[1].substring(0, 50), x + 35, curY + 16 + r * 5);
             });
-            y += rowH;
-        });
 
-        // Legend & Signatures
-        y += 6;
-        doc.setFontSize(7);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...accent);
-        doc.text('LEYENDA DE JORNADAS:', margin + 2, y);
-        y += 5;
+            curY += 46;
+            doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.text('RESUMEN DE PERSONAL OPERATIVO', margin + 2, curY);
+            curY += 6;
+            doc.setFillColor(accent[0], accent[1], accent[2]);
+            doc.rect(margin, curY, pageW - margin * 2, 7.5, 'F');
+            doc.setTextColor(255, 255, 255); doc.setFontSize(6);
+            const headersSummary = ['ROL', 'CÉDULA / ID', 'NOMBRES Y APELLIDOS COMPLETOS', 'DÍAS T.', 'Q1 (R/NR)', 'Q2 (R/NR)', 'TOTAL DESC.'];
+            const colWidthsSum = [28, 25, 65, 20, 30, 30, 20];
+            let hx = margin + 2;
+            headersSummary.forEach((h, i) => { doc.text(h, hx, curY + 5); hx += colWidthsSum[i]; });
+            curY += 7.5;
 
-        doc.setFont('helvetica', 'normal');
-        const finalListJ = jornadasCustom.length ? jornadasCustom : DEFAULT_JORNADAS;
-        let xl = margin + 2;
-        finalListJ.forEach((j) => {
-            const [cr, cg, cb] = hexToRgb(j.color);
-            doc.setFillColor(cr, cg, cb);
-            doc.rect(xl, y - 2.5, 3.5, 3.5, 'F');
-            doc.setTextColor(60, 60, 90);
-            doc.setFontSize(6);
-            doc.text(`${j.short} = ${j.nombre}`, xl + 5, y);
-            xl += 36;
-            if (xl > pageW - 40) { xl = margin + 2; y += 5; }
-        });
+            prog.personal.forEach((per, pIdx) => {
+                if (!per.vigilanteId) return;
+                const vig = vigilantes.find(v => v.id === per.vigilanteId);
+                const diasT = getDiasTrabajoVigilante(prog.id, per.vigilanteId);
+                const diasD = getDiasDescansoVigilante(prog.id, per.vigilanteId);
+                const r = restCounters[per.vigilanteId] || { q1rem: 0, q1nrem: 0, q2rem: 0, q2nrem: 0 };
+                doc.setFillColor(pIdx % 2 === 0 ? 250 : 255, pIdx % 2 === 0 ? 251 : 255, pIdx % 2 === 0 ? 255 : 255);
+                doc.rect(margin, curY, pageW - margin * 2, 7, 'F');
+                doc.setTextColor(40, 40, 70); doc.setFontSize(6.5);
+                const row = [ROL_LABELS[per.rol].toUpperCase(), vig?.cedula || per.vigilanteId, (vig?.nombre || 'VACANTE').toUpperCase(), String(diasT), `${r.q1rem} / ${r.q1nrem}`, `${r.q2rem} / ${r.q2nrem}`, String(diasD.remunerados + diasD.noRemunerados)];
+                let rx = margin + 2;
+                row.forEach((cell, ci) => { doc.setFont('helvetica', ci === 0 ? 'bold' : 'normal'); doc.text(cell, rx, curY + 4.5); rx += colWidthsSum[ci]; });
+                curY += 7;
+            });
 
-        // Final footer
-        doc.setDrawColor(...accent);
-        doc.setLineWidth(0.5);
-        doc.line(margin, pageH - 12, pageW - margin, pageH - 12);
-        
-        doc.setFontSize(6);
-        doc.setTextColor(100, 100, 100);
-        doc.text(
-            `CORAZA SEGURIDAD CTA · Nit. 901324567-8 · Medellín, Colombia · 3113836939`,
-            pageW / 2, pageH - 8, { align: 'center' }
-        );
-        doc.text(`Página 2 de 2 · Reporte Operativo Generado automáticamente por el Sistema CTA`, pageW / 2, pageH - 5, { align: 'center' });
+            // ── PAGE 2+: CALENDAR GRID ──
+            doc.addPage('a4', 'landscape');
+            let currentPage = 2;
+            addGridHeader(doc, currentPage, 0);
 
-        doc.save(`CORAZA_${puestoNombre.replace(/\s+/g, '_')}_${MONTH_NAMES[mes]}_${anio}.pdf`);
-        showTacticalToast({
-            title: 'PDF Generado',
-            message: `Reporte operativo de ${puestoNombre} exportado con éxito.`,
-            type: 'success'
-        });
-        logAction('PROGRAMACION', 'PDF exportado', `Puesto: ${puestoNombre}`, 'info');
+            let gridY = 32;
+            const colW = (pageW - margin * 2) / (daysInMonth + 4.5);
+            const headerRowH = 10;
+            const dataRowH = 16;
+
+            const drawStickyHeader = (y: number) => {
+                doc.setFillColor(accent[0], accent[1], accent[2]);
+                doc.rect(margin, y, colW * 4.5, headerRowH, 'F');
+                doc.setTextColor(255, 255, 255); doc.setFontSize(6); doc.setFont('helvetica', 'bold');
+                doc.text('VIGILANTE / TURNO', margin + colW * 2.25, y + 6, { align: 'center' });
+                dayNumbers.forEach((d, i) => {
+                    const x = margin + colW * 4.5 + i * colW;
+                    const dateObj = new Date(anio, mes, d);
+                    const dName = dateObj.toLocaleDateString('es-CO', { weekday: 'short' }).charAt(0).toUpperCase();
+                    const isW = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+                    doc.setFillColor(isW ? 20 : accent[0], isW ? 30 : accent[1], isW ? 80 : accent[2]);
+                    doc.rect(x, y, colW, headerRowH, 'F');
+                    doc.setFontSize(5); doc.text(dName, x + colW / 2, y + 4, { align: 'center' });
+                    doc.setFontSize(6); doc.text(String(d).padStart(2, '0'), x + colW / 2, y + 8, { align: 'center' });
+                });
+            };
+
+            drawStickyHeader(gridY);
+            gridY += headerRowH;
+
+            // ── Render one row per (personal × turno) combination ──
+            const allRows: Array<{ per: typeof prog.personal[0]; turno: TurnoConfig }> = [];
+            prog.personal.forEach(per => {
+                turnosConfig.forEach(tc2 => {
+                    allRows.push({ per, turno: tc2 });
+                });
+            });
+
+            allRows.forEach(({ per, turno: tRow }, pIdx) => {
+                if (gridY + dataRowH > pageH - 40) {
+                    doc.addPage('a4', 'landscape');
+                    currentPage++;
+                    addGridHeader(doc, currentPage, 0);
+                    gridY = 32;
+                    drawStickyHeader(gridY);
+                    gridY += headerRowH;
+                }
+
+                const titularVig = per.vigilanteId ? vigilantes.find(v => v.id === per.vigilanteId) : null;
+                const vigNombre = titularVig?.nombre || 'VACANTE';
+                doc.setFillColor(pIdx % 2 === 0 ? 248 : 255, pIdx % 2 === 0 ? 250 : 255, pIdx % 2 === 0 ? 252 : 255);
+                doc.rect(margin, gridY, pageW - margin * 2, dataRowH, 'F');
+                doc.setDrawColor(220, 220, 225); doc.rect(margin, gridY, pageW - margin * 2, dataRowH, 'S');
+                doc.setTextColor(30, 30, 60); doc.setFontSize(5.5); doc.setFont('helvetica', 'bold');
+                const label = `${vigNombre.toUpperCase()} · ${tRow.nombre.toUpperCase()} (${tRow.inicio}-${tRow.fin})`;
+                let lines = doc.splitTextToSize(label, colW * 4.3);
+                doc.text(lines, margin + 2, gridY + (dataRowH / 2) - ((lines.length-1)*1.5), { baseline: 'middle' });
+
+                dayNumbers.forEach((d, i) => {
+                    // Find assignment for this person & this specific turno on day d
+                    const asig = prog.asignaciones.find(a => a.dia === d && a.rol === per.rol && a.turno === tRow.id);
+                    // Fallback: any assignment for this person on this day
+                    const asigAny = asig ?? prog.asignaciones.find(a => a.dia === d && a.rol === per.rol);
+                    const jornada = asigAny?.jornada ?? 'sin_asignar';
+                    const showThisTurno = asigAny?.turno === tRow.id;
+                    const jCfg = getJornada(jornada, jornadasCustom);
+                    const cellVig = vigilantes.find(v => v.id === asigAny?.vigilanteId);
+                    const nameParts = (cellVig?.nombre || '').split(' ');
+                    const displayName = nameParts[0] + (nameParts[1] ? ` ${nameParts[1][0]}.` : '');
+                    const isSA = !showThisTurno || jornada === 'sin_asignar' || !asigAny?.vigilanteId;
+                    const rgb = hexToRgb(isSA ? '#f1f5f9' : jCfg.color);
+                    const x = margin + colW * 4.5 + i * colW;
+                    
+                    doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+                    doc.rect(x + 0.3, gridY + 0.6, colW - 0.6, dataRowH - 1.2, 'F');
+                    doc.setDrawColor(230, 230, 235); doc.rect(x, gridY, colW, dataRowH, 'S');
+
+                    if (isSA) {
+                        doc.setTextColor(200, 210, 220); doc.setFontSize(4); doc.text('-', x + colW/2, gridY + 9, { align: 'center' });
+                    } else {
+                        doc.setTextColor(255, 255, 255); doc.setFontSize(4); doc.text(jCfg.short, x + colW/2, gridY + 3.8, { align: 'center' });
+                        doc.setFontSize(3); doc.setFont('helvetica', 'bold');
+                        doc.text(`${tRow.inicio}-${tRow.fin}`, x + colW/2, gridY + 7, { align: 'center' });
+                        doc.setFontSize(3.2); doc.setFont('helvetica', 'bold'); doc.text(displayName.toUpperCase(), x + colW/2, gridY + 10.5, { align: 'center', maxWidth: colW - 0.5 });
+                        if (cellVig?.cedula) { doc.setFont('helvetica', 'normal'); doc.setFontSize(2.5); doc.text(cellVig.cedula, x + colW/2, gridY + 13.5, { align: 'center' }); }
+                    }
+                });
+                gridY += dataRowH;
+            });
+
+            // ── PAGE 3+: INDIVIDUAL GUARD SCHEDULE CARDS ──────────────────────────────
+            // One page per vigilante — the card they carry with them
+            const personalConVigilante = prog.personal.filter(per => per.vigilanteId);
+            const guardsProcessed = new Set<string>();
+
+            for (const per of personalConVigilante) {
+                const vid = per.vigilanteId!;
+                if (guardsProcessed.has(vid)) continue;
+                guardsProcessed.add(vid);
+
+                const vig = vigilantes.find(v => v.id === vid);
+                if (!vig) continue;
+
+                doc.addPage('a4', 'portrait');
+                const pW = doc.internal.pageSize.getWidth();
+                const pH = doc.internal.pageSize.getHeight();
+                const m = 12;
+
+                // ── Card header banner ──
+                doc.setFillColor(accent[0], accent[1], accent[2]);
+                doc.rect(0, 0, pW, 42, 'F');
+                if (logoBase64) {
+                    try { doc.addImage(logoBase64, 'PNG', m, 6, 22, 22); } catch(e) { /* no logo */ }
+                }
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+                doc.text('PROGRAMACIÓN INDIVIDUAL DE TURNO', m + 26, 11);
+                doc.setFontSize(6); doc.setFont('helvetica', 'normal');
+                doc.text(`PUESTO / OBRA: ${puestoNombre.toUpperCase()}`, m + 26, 17);
+                doc.text(`MES: ${MONTH_NAMES[mes].toUpperCase()} ${anio}`, m + 26, 22);
+                doc.text(`EMISIÓN: ${timestampStr.toUpperCase()}`, m + 26, 27);
+
+                // Big guard name box
+                doc.setFillColor(accentLight[0], accentLight[1], accentLight[2]);
+                doc.roundedRect(m + 26, 30, pW - m * 2 - 26, 9, 2, 2, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+                doc.text(vig.nombre.toUpperCase(), pW / 2, 35.5, { align: 'center' });
+
+                // Sub info
+                doc.setTextColor(200, 215, 255);
+                doc.setFontSize(5.5);
+                doc.text(`CÉD: ${vig.cedula || '—'}  ·  ROL: ${ROL_LABELS[per.rol]}  ·  EMPLEADOR: CORAZA SEGURIDAD CTA`, pW / 2, 40, { align: 'center' });
+
+                let cardY = 48;
+                // ── Section: Turnos configured ──
+                doc.setFillColor(240, 242, 252);
+                doc.roundedRect(m, cardY, pW - m * 2, 16, 2, 2, 'F');
+                doc.setTextColor(accentLight[0], accentLight[1], accentLight[2]);
+                doc.setFontSize(6.5); doc.setFont('helvetica', 'bold');
+                doc.text('TURNOS ASIGNADOS EN ESTE PUESTO:', m + 4, cardY + 6);
+                doc.setTextColor(40, 40, 70); doc.setFontSize(6); doc.setFont('helvetica', 'normal');
+                const turnosStr = turnosConfig.map(t => `${t.nombre}: ${t.inicio}–${t.fin}`).join('   |   ');
+                doc.text(turnosStr, m + 4, cardY + 12);
+                cardY += 20;
+
+                // ── Day-by-day table ──
+                // Header row
+                const thH = 7;
+                const tdH = 7;
+                const colDate = 22;
+                const colDay = 14;
+                const colTurno = 34;
+                const colHoras = 34;
+                const colJornada = pW - m * 2 - colDate - colDay - colTurno - colHoras;
+
+                // header bg
+                doc.setFillColor(accent[0], accent[1], accent[2]);
+                doc.rect(m, cardY, pW - m * 2, thH, 'F');
+                doc.setTextColor(255, 255, 255); doc.setFontSize(5.5); doc.setFont('helvetica', 'bold');
+                let hx = m + 2;
+                const headers = ['FECHA', 'DÍA', 'TURNO', 'HORARIO', 'JORNADA'];
+                const widths = [colDate, colDay, colTurno, colHoras, colJornada];
+                headers.forEach((h, hi) => { doc.text(h, hx, cardY + 5); hx += widths[hi]; });
+                cardY += thH;
+
+                // Day rows — only show days for THIS vigilante
+                const diasDelVig = prog.asignaciones.filter(a => a.vigilanteId === vid || (a.rol === per.rol && per.vigilanteId === vid));
+
+                const weekdays = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'];
+
+                dayNumbers.forEach((d, dIdx) => {
+                    if (cardY + tdH > pH - 40) {
+                        // Add page continuation for long months
+                        doc.addPage('a4', 'portrait');
+                        cardY = 16;
+                        doc.setFillColor(accent[0], accent[1], accent[2]);
+                        doc.rect(m, cardY, pW - m * 2, thH, 'F');
+                        doc.setTextColor(255, 255, 255); doc.setFontSize(5.5); doc.setFont('helvetica', 'bold');
+                        hx = m + 2;
+                        headers.forEach((h, hi) => { doc.text(h, hx, cardY + 5); hx += widths[hi]; });
+                        cardY += thH;
+                    }
+
+                    const asig = diasDelVig.find(a => a.dia === d);
+                    const jornada = asig?.jornada ?? 'sin_asignar';
+                    const jCfg2 = getJornada(jornada, jornadasCustom);
+                    const tCfg2 = asig?.turno ? turnosConfig.find(t => t.id === asig.turno) : null;
+                    const isWork = jornada === 'normal';
+                    const dateObj2 = new Date(anio, mes, d);
+                    const isWeekend2 = dateObj2.getDay() === 0 || dateObj2.getDay() === 6;
+
+                    // Row background
+                    let rowBg: [number, number, number] = isWork
+                        ? hexToRgb(jCfg2.color + '22')
+                        : isWeekend2
+                            ? [248, 248, 255]
+                            : dIdx % 2 === 0 ? [252, 253, 255] : [255, 255, 255];
+                    doc.setFillColor(rowBg[0], rowBg[1], rowBg[2]);
+                    doc.rect(m, cardY, pW - m * 2, tdH, 'F');
+                    doc.setDrawColor(230, 232, 240); doc.line(m, cardY + tdH, m + pW - m * 2, cardY + tdH);
+
+                    // Date
+                    const dateStr = `${String(d).padStart(2,'0')}/${String(mes+1).padStart(2,'0')}/${anio}`;
+                    doc.setTextColor(isWork ? accentLight[0] : 100, isWork ? accentLight[1] : 100, isWork ? accentLight[2] : 120);
+                    doc.setFontSize(5.5); doc.setFont('helvetica', isWork ? 'bold' : 'normal');
+                    doc.text(dateStr, m + 2, cardY + 5);
+
+                    // Day of week
+                    doc.setTextColor(isWeekend2 ? 160 : 80, isWeekend2 ? 80 : 80, isWeekend2 ? 160 : 100);
+                    doc.text(weekdays[dateObj2.getDay()], m + colDate + 2, cardY + 5);
+
+                    // Turno & Hours
+                    if (isWork && tCfg2) {
+                        doc.setTextColor(accentLight[0], accentLight[1], accentLight[2]);
+                        doc.setFont('helvetica', 'bold');
+                        doc.text(tCfg2.nombre.toUpperCase(), m + colDate + colDay + 2, cardY + 5);
+                        doc.text(`${tCfg2.inicio} – ${tCfg2.fin}`, m + colDate + colDay + colTurno + 2, cardY + 5);
+                    } else {
+                        doc.setTextColor(160, 160, 180);
+                        doc.setFont('helvetica', 'normal');
+                        doc.text('—', m + colDate + colDay + 2, cardY + 5);
+                        doc.text('—', m + colDate + colDay + colTurno + 2, cardY + 5);
+                    }
+
+                    // Jornada
+                    const jRgb = hexToRgb(jCfg2.color);
+                    doc.setTextColor(jRgb[0], jRgb[1], jRgb[2]);
+                    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5);
+                    doc.text(jCfg2.nombre.toUpperCase(), m + colDate + colDay + colTurno + colHoras + 2, cardY + 5);
+
+                    cardY += tdH;
+                });
+
+                // ── Summary box ──
+                cardY += 4;
+                const diasTrabajados = diasDelVig.filter(a => a.jornada === 'normal').length;
+                const descRem = diasDelVig.filter(a => a.jornada === 'descanso_remunerado').length;
+                const descNRem = diasDelVig.filter(a => a.jornada === 'descanso_no_remunerado').length;
+
+                if (cardY + 18 < pH - 50) {
+                    doc.setFillColor(240, 245, 255);
+                    doc.roundedRect(m, cardY, pW - m * 2, 16, 2, 2, 'F');
+                    doc.setTextColor(accent[0], accent[1], accent[2]);
+                    doc.setFontSize(6); doc.setFont('helvetica', 'bold');
+                    doc.text('RESUMEN DEL MES:', m + 4, cardY + 6);
+                    doc.setTextColor(40, 40, 70); doc.setFont('helvetica', 'normal');
+                    doc.text(`Días trabajados: ${diasTrabajados}   |   Descansos Rem.: ${descRem}   |   Descansos No Rem.: ${descNRem}   |   Total horas estimadas: ${diasTrabajados * 12}h`, m + 4, cardY + 12);
+                    cardY += 20;
+                }
+
+                // ── Signature area at bottom ──
+                const sigY2 = pH - 38;
+                doc.setDrawColor(180, 180, 200);
+                doc.line(m, sigY2, m + 70, sigY2);
+                doc.line(pW - m - 70, sigY2, pW - m, sigY2);
+                doc.setFontSize(6); doc.setFont('helvetica', 'bold'); doc.setTextColor(accent[0], accent[1], accent[2]);
+                doc.text('FIRMA RESPONSABLE CTA', m + 35, sigY2 + 4, { align: 'center' });
+                doc.text('RECIBIDO Y CONFORME — VIGILANTE', pW - m - 35, sigY2 + 4, { align: 'center' });
+                doc.setFontSize(5.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 100);
+                doc.text(`Nombre: ${username?.toUpperCase() || '____________________'}`, m, sigY2 + 9);
+                doc.text(`Fecha: ${shortTimestamp}`, m, sigY2 + 14);
+                doc.text(`Cargo: JEFE DE OPERACIONES`, m, sigY2 + 19);
+                doc.text(`Nombre: ${vig.nombre.toUpperCase()}`, pW - m - 70, sigY2 + 9);
+                doc.text(`Cédula: ${vig.cedula || '___________'}`, pW - m - 70, sigY2 + 14);
+                doc.text(`Firma: _______________________`, pW - m - 70, sigY2 + 19);
+
+                // ── Footer note ──
+                doc.setFontSize(5); doc.setTextColor(160, 160, 180);
+                doc.text('CORAZA SEGURIDAD CTA · Documento generado automáticamente. Válido solo con firma del responsable CTA.', pW / 2, pH - 8, { align: 'center' });
+            }
+
+            // ── SIGNATURES on last summary page ──
+            doc.addPage('a4', 'landscape');
+            currentPage++;
+            addGridHeader(doc, currentPage, 0);
+            let sigY = pageH - 32;
+            doc.setDrawColor(180, 180, 180); doc.line(margin, sigY, margin + 80, sigY);
+            doc.line(pageW/2 - 40, sigY, pageW/2 + 40, sigY);
+            doc.line(pageW - margin - 80, sigY, pageW - margin, sigY);
+            doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(accent[0], accent[1], accent[2]);
+            doc.text('FIRMA RESPONSABLE CTA', margin + 40, sigY + 4, { align: 'center' });
+            doc.text('V°B° CONTROL Y SUPERVISIÓN', pageW/2, sigY + 4, { align: 'center' });
+            doc.text('RECIBIDO VIGILANTE / CLIENTE', pageW - margin - 40, sigY + 4, { align: 'center' });
+            doc.setFontSize(6); doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 100);
+            doc.text(`NOMBRE: ${username?.toUpperCase() || '____________________'}`, margin + 2, sigY + 9);
+            doc.text(`FECHA: ${shortTimestamp}`, margin + 2, sigY + 13);
+            doc.text('CARGO: JEFE DE OPERACIONES', margin + 2, sigY + 17);
+            doc.text('NOMBRE: ____________________', pageW/2 - 38, sigY + 9);
+            doc.text('FECHA/HORA: ____/____/____', pageW/2 - 38, sigY + 13);
+            doc.text('NOMBRE: ____________________', pageW - margin - 78, sigY + 9);
+            doc.text('FIRMA Y SELLO: _______________', pageW - margin - 78, sigY + 13);
+
+            const filename = `CORAZA_PROGRAMA_${puestoNombre.replace(/\s+/g,'_').toUpperCase()}_${MONTH_NAMES[mes].toUpperCase()}.pdf`;
+            doc.save(filename);
+            showTacticalToast({ title: 'Reporte Generado', message: 'PDF con horarios individuales y cuadro de turnos completo generado.', type: 'success' });
         };
 
         generatePDF();
@@ -855,18 +1046,20 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                 </div>
 
                 <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto overflow-x-auto sm:overflow-visible pb-1 sm:pb-0 no-scrollbar">
+                    {/* Auto-save indicator */}
+                    <div className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-200">
+                        <span className="material-symbols-outlined text-[14px] text-emerald-500">cloud_done</span>
+                        <span className="text-[9px] font-black uppercase tracking-widest">Auto-guardado</span>
+                    </div>
                     {/* Coverage badge */}
                     <div className={`shrink-0 px-3 sm:px-4 py-2 rounded-xl font-black text-[10px] sm:text-[11px] uppercase ${cobertura >= 80 ? 'bg-success/10 text-success border border-success/20' : cobertura >= 50 ? 'bg-warning/10 text-warning border border-warning/20' : 'bg-danger/10 text-danger border border-danger/20'}`}>
-                        {cobertura}%
+                        {cobertura}% Cobertura
                     </div>
                     <div className={`shrink-0 px-2 sm:px-3 py-2 rounded-xl font-black text-[9px] sm:text-[10px] uppercase ${prog.estado === 'publicado' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
-                        {prog.estado === 'publicado' ? '✓' : '✏️'}
+                        {prog.estado === 'publicado' ? '✓ Publicado' : '✏️ Borrador'}
                     </div>
                     <button onClick={handleExportPDF} className="shrink-0 flex items-center gap-1.5 px-3 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-slate-200 transition-all border border-slate-200/50">
                         <span className="material-symbols-outlined text-[16px]">picture_as_pdf</span> PDF
-                    </button>
-                    <button onClick={handleBorrador} className="shrink-0 flex items-center gap-1.5 px-3 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-slate-200 transition-all border border-slate-200/50">
-                        <span className="material-symbols-outlined text-[16px]">save</span> Guardar
                     </button>
                     {/* Save as template button */}
                     <button
@@ -885,34 +1078,79 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
             {/* Save Template Modal */}
             {showSaveTplModal && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowSaveTplModal(false)}>
-                    <div className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center gap-3 mb-6">
-                            <span className="material-symbols-outlined text-violet-600 text-[28px]">bookmark_add</span>
-                            <div>
-                                <h3 className="text-lg font-black text-slate-900 uppercase">Guardar Plantilla</h3>
-                                <p className="text-[11px] text-slate-500 font-bold">Reutilizable en meses futuros</p>
+                    <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden" onClick={e => e.stopPropagation()}>
+                        {/* Header */}
+                        <div className="px-8 pt-8 pb-5 bg-gradient-to-br from-violet-50 to-indigo-50 border-b border-violet-100">
+                            <div className="flex items-center gap-3 mb-1">
+                                <span className="material-symbols-outlined text-violet-600 text-[28px]">bookmark_add</span>
+                                <div>
+                                    <h3 className="text-lg font-black text-slate-900 uppercase">Guardar Plantilla</h3>
+                                    <p className="text-[11px] text-violet-600 font-bold">Reutilizable en cualquier mes futuro</p>
+                                </div>
                             </div>
                         </div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Nombre de la plantilla</label>
-                        <input
-                            autoFocus
-                            value={tplNombre}
-                            onChange={e => setTplNombre(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && handleGuardarPlantilla()}
-                            placeholder="Ej: Turnos Estándar Enero"
-                            className="w-full h-11 border-2 border-slate-200 rounded-xl px-4 text-sm font-bold outline-none focus:border-violet-400 transition-all"
-                        />
-                        <div className="flex gap-3 mt-6">
-                            <button onClick={handleGuardarPlantilla} disabled={!tplNombre.trim()} className="flex-1 py-3 bg-violet-600 text-white font-black rounded-xl uppercase tracking-widest text-[10px] hover:bg-violet-700 disabled:opacity-40 transition-all">
-                                Guardar
-                            </button>
-                            <button onClick={() => setShowSaveTplModal(false)} className="flex-1 py-3 bg-slate-100 text-slate-500 font-black rounded-xl uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all">
-                                Cancelar
-                            </button>
+
+                        {/* What will be saved preview */}
+                        <div className="px-8 py-4 bg-violet-50/50 border-b border-violet-100">
+                            <p className="text-[10px] font-black text-violet-700 uppercase tracking-widest mb-3">Lo que se guardará en la plantilla:</p>
+                            <div className="space-y-2">
+                                {prog.personal.filter(p => p.vigilanteId).map(per => {
+                                    const vig = vigilantes.find(v => v.id === per.vigilanteId);
+                                    const dias = prog.asignaciones.filter(a => a.rol === per.rol && a.jornada !== 'sin_asignar').length;
+                                    const descansos = prog.asignaciones.filter(a => a.rol === per.rol && (a.jornada === 'descanso_remunerado' || a.jornada === 'descanso_no_remunerado')).length;
+                                    return (
+                                        <div key={per.rol} className="flex items-center gap-3 bg-white rounded-xl px-3 py-2 border border-violet-100">
+                                            <div className="size-8 rounded-lg bg-violet-100 flex items-center justify-center">
+                                                <span className="material-symbols-outlined text-violet-600 text-[16px]">person</span>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[11px] font-black text-slate-800 truncate">{vig?.nombre || 'Sin asignar'}</p>
+                                                <p className="text-[9px] font-bold text-slate-400">{ROL_LABELS[per.rol]} · {dias} días turnos · {descansos} descansos</p>
+                                            </div>
+                                            <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">✓ Incluido</span>
+                                        </div>
+                                    );
+                                })}
+                                {prog.personal.filter(p => p.vigilanteId).length === 0 && (
+                                    <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl">
+                                        <p className="text-[11px] font-bold text-orange-700">⚠ No hay vigilantes asignados. La plantilla guardará solo el patrón de turnos y jornadas.</p>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="mt-2 flex items-center gap-2">
+                                <span className="material-symbols-outlined text-[14px] text-slate-400">info</span>
+                                <p className="text-[9px] font-bold text-slate-400">También se guardan los asignaciones día a día, incluyendo reemplazos y variaciones.</p>
+                            </div>
+                        </div>
+
+                        <div className="px-8 py-5">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Nombre de la plantilla</label>
+                            <input
+                                autoFocus
+                                value={tplNombre}
+                                onChange={e => setTplNombre(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && handleGuardarPlantilla()}
+                                placeholder="Ej: Turnos Estándar Marzo 2026"
+                                className="w-full h-11 border-2 border-slate-200 rounded-xl px-4 text-sm font-bold outline-none focus:border-violet-400 transition-all"
+                            />
+                            <div className="flex gap-3 mt-5">
+                                <button onClick={handleGuardarPlantilla} disabled={!tplNombre.trim()}
+                                    className="flex-1 py-3 bg-violet-600 text-white font-black rounded-xl uppercase tracking-widest text-[10px] hover:bg-violet-700 disabled:opacity-40 transition-all shadow-lg shadow-violet-200">
+                                    <span className="flex items-center justify-center gap-2">
+                                        <span className="material-symbols-outlined text-[16px]">bookmark_add</span>
+                                        Guardar Plantilla Completa
+                                    </span>
+                                </button>
+                                <button onClick={() => setShowSaveTplModal(false)}
+                                    className="px-5 py-3 bg-slate-100 text-slate-500 font-black rounded-xl uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all">
+                                    Cancelar
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
+
 
             {/* Alerts strip */}
             {alertas.length > 0 && (
@@ -939,82 +1177,194 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
             <div className="flex-1 overflow-auto p-6">
                 {/* ── CALENDARIO ─────────────────────────────────────────────── */}
                 {activeTab === 'calendario' && (
-                    <div className="space-y-6">
-                        {/* Stats per vigilante */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {statsBar.map(s => s && (
-                                <div key={s.rol} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
-                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{ROL_LABELS[s.rol]}</p>
-                                    <p className="text-sm font-black text-slate-900 truncate">{s.nombre}</p>
-                                    <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                        <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">{s.dias} días trabajados</span>
-                                        <span className="text-[10px] font-bold bg-success/10 text-success px-2 py-0.5 rounded-full">{s.remunerados} D.Rem</span>
-                                        <span className="text-[10px] font-bold bg-warning/10 text-warning px-2 py-0.5 rounded-full">{s.noRemunerados} D.N/Rem</span>
+                    <div className="space-y-5">
+
+                        {/* ── Stats bar: vigilante cards ────────────────────── */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            {prog.personal.map(per => {
+                                const vig = per.vigilanteId ? vigilantes.find(v => v.id === per.vigilanteId) : null;
+                                const dias = per.vigilanteId ? getDiasTrabajoVigilante(prog.id, per.vigilanteId) : 0;
+                                const desc = per.vigilanteId ? getDiasDescansoVigilante(prog.id, per.vigilanteId) : { remunerados: 0, noRemunerados: 0 };
+                                const rolColors: Record<RolPuesto, string> = {
+                                    titular_a: '#4318FF',
+                                    titular_b: '#0ea5e9',
+                                    relevante: '#10b981',
+                                };
+                                return (
+                                    <div key={per.rol} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex items-center gap-4">
+                                        <div className="size-10 rounded-xl flex items-center justify-center shrink-0 font-black text-white text-sm"
+                                            style={{ background: rolColors[per.rol] }}>
+                                            {vig ? vig.nombre.charAt(0).toUpperCase() : '?'}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-[9px] font-black uppercase tracking-widest mb-0.5" style={{ color: rolColors[per.rol] }}>{ROL_LABELS[per.rol]}</p>
+                                            <p className="text-sm font-black text-slate-900 truncate">{vig?.nombre || '— Sin asignar —'}</p>
+                                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                                <span className="text-[9px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{dias}d trabajados</span>
+                                                <span className="text-[9px] font-bold bg-success/10 text-success px-1.5 py-0.5 rounded-full">{desc.remunerados} DR</span>
+                                                <span className="text-[9px] font-bold bg-warning/10 text-warning px-1.5 py-0.5 rounded-full">{desc.noRemunerados} DNR</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
 
-                        {/* Legend */}
-                        <div className="flex items-center gap-4 flex-wrap">
+                        {/* ── Legend + Jornadas ─────────────────────────────── */}
+                        <div className="flex items-center gap-3 flex-wrap bg-white border border-slate-100 rounded-2xl px-4 py-3 shadow-sm">
                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Leyenda:</span>
-                            {Object.entries(JORNADA_COLORS).map(([key, cfg]) => (
-                                <div key={key} className="flex items-center gap-1.5">
-                                    <div className="size-3 rounded" style={{ background: cfg.bg }} />
-                                    <span className="text-[10px] font-bold text-slate-600">{cfg.label}</span>
+                            {(jornadasCustom.length ? jornadasCustom : DEFAULT_JORNADAS).map(j => (
+                                <div key={j.id} className="flex items-center gap-1.5">
+                                    <div className="size-3 rounded-sm shrink-0" style={{ background: j.color }} />
+                                    <span className="text-[10px] font-bold text-slate-600">{j.nombre}</span>
                                 </div>
                             ))}
+                            <div className="ml-auto flex items-center gap-2">
+                                <div className="flex items-center gap-1.5">
+                                    <div className="size-3 rounded-sm border-2 border-dashed border-red-400 bg-red-50 shrink-0" />
+                                    <span className="text-[10px] font-bold text-red-500">Sin asignar</span>
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Calendar grid */}
-                        <div className="bg-white border border-slate-100 rounded-2xl shadow-xl overflow-x-auto">
-                            <table className="w-full" style={{ minWidth: `${dayNumbers.length * 80 + 200}px` }}>
-                                <thead>
-                                    <tr className="bg-slate-900">
-                                        <th className="sticky left-0 z-30 bg-slate-900 px-6 py-4 text-left text-[11px] font-black text-slate-300 uppercase tracking-widest border-r border-slate-800" style={{ minWidth: '200px' }}>Vigilante / Rol</th>
-                                        {dayNumbers.map(d => (
-                                            <th key={d} className="py-4 text-center text-[10px] font-black text-slate-300 border-r border-slate-800">{d}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {prog.personal.map(per => {
-                                        const vig = per.vigilanteId ? vigilantes.find(v => v.id === per.vigilanteId) : null;
-                                        return (
-                                            <tr key={per.rol} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                                                <td className="sticky left-0 z-20 bg-white px-6 py-4 border-r border-slate-100 shadow-[4px_0_8px_rgba(0,0,0,0.03)]">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-[12px] font-black text-slate-900 uppercase leading-none">{vig?.nombre || '— No asignado —'}</span>
-                                                        <span className={`text-[9px] font-bold mt-1 inline-block px-2 py-0.5 rounded-md w-max ${per.rol === 'titular_a' ? 'bg-indigo-50 text-indigo-600' : per.rol === 'titular_b' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                                            {ROL_LABELS[per.rol]}
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                                {dayNumbers.map(d => {
-                                                    const asig = prog.asignaciones.find(a => a.dia === d && a.rol === per.rol);
-                                                    if (!asig) return <td key={d} className="p-1 border-r border-slate-50"><div className="w-full h-[76px] rounded-xl bg-slate-100"></div></td>;
-                                                    // Use the cell's own vigilanteId (may differ from the row's vigilante)
-                                                    const cellVigName = getVigilanteName(asig.vigilanteId);
-                                                    return (
-                                                        <td key={d} className="p-1 border-r border-slate-50">
-                                                            <CeldaCalendario
-                                                                asig={asig}
-                                                                vigilanteNombre={cellVigName}
-                                                                onEdit={() => setEditCell(asig)}
-                                                                jornadasCustom={jornadasCustom}
-                                                                turnosConfig={turnosConfig}
-                                                            />
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                        {/* ── CALENDAR GRID — turno-centric ─────────────────── */}
+                        <div className="bg-white border border-slate-100 rounded-2xl shadow-xl overflow-hidden">
+                            {/* Grid top bar: turno pills + month info */}
+                            <div className="bg-slate-900 px-5 py-3 flex items-center gap-3 flex-wrap border-b border-slate-800">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Turnos:</span>
+                                {turnosConfig.map((tc2, tIdx) => {
+                                    const turnoColors = ['#4318FF', '#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'];
+                                    const col = turnoColors[tIdx % turnoColors.length];
+                                    return (
+                                        <span key={tc2.id}
+                                            className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black border"
+                                            style={{ background: col + '22', color: col, borderColor: col + '55' }}>
+                                            <span className="size-2 rounded-full shrink-0" style={{ background: col }} />
+                                            {tc2.nombre} · {tc2.inicio}–{tc2.fin}
+                                        </span>
+                                    );
+                                })}
+                                <span className="ml-auto text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                                    {MONTH_NAMES[mes]} {anio} · {daysInMonth} días
+                                </span>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                                <table className="w-full border-collapse" style={{ minWidth: `${dayNumbers.length * 72 + 200}px` }}>
+                                    {/* Day header */}
+                                    <thead>
+                                        <tr>
+                                            <th className="sticky left-0 z-30 bg-slate-800 px-4 py-3 text-left text-[10px] font-black text-slate-300 uppercase tracking-widest border-r border-slate-700"
+                                                style={{ minWidth: '190px' }}>
+                                                Turno / Horario
+                                            </th>
+                                            {dayNumbers.map(d => {
+                                                const dateObj = new Date(anio, mes, d);
+                                                const dow = dateObj.getDay();
+                                                const isW = dow === 0 || dow === 6;
+                                                const isSun = dow === 0;
+                                                const dayNames = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+                                                return (
+                                                    <th key={d}
+                                                        className={`py-2 text-center border-r border-slate-700 ${isSun ? 'bg-red-900/30' : isW ? 'bg-indigo-900/20' : 'bg-slate-800'}`}
+                                                        style={{ minWidth: '72px' }}>
+                                                        <div className="flex flex-col items-center">
+                                                            <span className={`text-[8px] font-bold ${isSun ? 'text-red-400' : isW ? 'text-indigo-400' : 'text-slate-500'}`}>
+                                                                {dayNames[dow]}
+                                                            </span>
+                                                            <span className={`text-[11px] font-black ${isSun ? 'text-red-300' : isW ? 'text-indigo-300' : 'text-slate-200'}`}>
+                                                                {d}
+                                                            </span>
+                                                        </div>
+                                                    </th>
+                                                );
+                                            })}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {/* One row per configured TURNO — mapped by index to role */}
+                                        {turnosConfig.map((tConf, tIdx) => {
+                                            const turnoColors = ['#4318FF', '#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'];
+                                            const col = turnoColors[tIdx % turnoColors.length];
+                                            // The role assigned to this turno slot (store key)
+                                            const rol = TURNO_IDX_TO_ROL[tIdx] ?? 'relevante';
+                                            const titular = prog.personal.find(p => p.rol === rol);
+                                            const titularNombre = titular?.vigilanteId
+                                                ? vigilantes.find(v => v.id === titular.vigilanteId)?.nombre
+                                                : null;
+
+                                            return (
+                                                <tr key={tConf.id} className="border-b border-slate-100 hover:bg-slate-50/30 transition-colors">
+                                                    {/* Row label */}
+                                                    <td className="sticky left-0 z-20 bg-white px-4 py-2.5 border-r border-slate-100 shadow-[4px_0_12px_rgba(0,0,0,0.06)]"
+                                                        style={{ borderLeft: `4px solid ${col}` }}>
+                                                        <div className="flex flex-col gap-0.5">
+                                                            <span className="text-[12px] font-black uppercase leading-none" style={{ color: col }}>
+                                                                {tConf.nombre}
+                                                            </span>
+                                                            <span className="text-[10px] font-bold text-slate-400 leading-none">
+                                                                {tConf.inicio} – {tConf.fin}
+                                                            </span>
+                                                            {titularNombre && (
+                                                                <span className="text-[8px] font-bold text-slate-400 truncate mt-0.5 max-w-[150px]">
+                                                                    👤 {titularNombre}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    {/* Day cells — always find by (dia, rol) */}
+                                                    {dayNumbers.map(d => {
+                                                        const dateObj = new Date(anio, mes, d);
+                                                        const dow = dateObj.getDay();
+                                                        const isW = dow === 0 || dow === 6;
+                                                        // ✅ KEY FIX: always search by (dia, rol) — same key the store uses
+                                                        const asig = prog.asignaciones.find(a => a.dia === d && a.rol === rol);
+                                                        const cellVigName = asig ? getVigilanteName(asig.vigilanteId) : undefined;
+                                                        return (
+                                                            <td key={d}
+                                                                className={`p-1 border-r border-slate-50 ${isW ? 'bg-slate-50/80' : ''}`}
+                                                                style={{ minWidth: '72px' }}>
+                                                                {asig ? (
+                                                                    <CeldaCalendario
+                                                                        asig={asig}
+                                                                        vigilanteNombre={cellVigName}
+                                                                        onEdit={() => setEditCell(asig)}
+                                                                        jornadasCustom={jornadasCustom}
+                                                                        turnosConfig={turnosConfig}
+                                                                    />
+                                                                ) : (
+                                                                    <CeldaVacia isWeekend={isW} onAdd={() => {
+                                                                        // Find the assignment for this rol+day to open the editor
+                                                                        const target = prog.asignaciones.find(a => a.dia === d && a.rol === rol);
+                                                                        if (target) setEditCell(target);
+                                                                    }} />
+                                                                )}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Grid footer */}
+                            <div className="border-t border-slate-100 px-5 py-3 flex items-center gap-4 bg-slate-50/50">
+                                <span className="text-[10px] font-bold text-slate-400">
+                                    {prog.asignaciones.filter(a => a.vigilanteId && a.jornada === 'normal').length} turnos asignados
+                                </span>
+                                <span className="text-[10px] font-bold text-red-400">
+                                    {prog.asignaciones.filter(a => !a.vigilanteId || a.jornada === 'sin_asignar').length} sin asignar
+                                </span>
+                                <span className="ml-auto text-[10px] font-bold text-slate-400">
+                                    Click en cualquier celda para editar · Rojo = sin asignar
+                                </span>
+                            </div>
                         </div>
                     </div>
                 )}
+
 
                 {/* ── PLANTILLAS ─────────────────────────────────────────────── */}
                 {activeTab === 'plantillas' && (
@@ -1391,6 +1741,20 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                         </div>
                     </div>
                 </div>
+            )}
+            {/* Edit cell modal */}
+            {editCell && createPortal(
+                <EditCeldaModal
+                    asig={editCell}
+                    vigilantes={vigilantes}
+                    titularesId={prog.personal.filter(p => p.vigilanteId).map(p => p.vigilanteId!)}
+                    ocupados={new Map()} // Logic for occupancy could be added here if needed
+                    turnosConfig={turnosConfig}
+                    jornadasCustom={jornadasCustom}
+                    onSave={handleSaveCell}
+                    onClose={() => setEditCell(null)}
+                />,
+                document.body
             )}
         </div>
     );

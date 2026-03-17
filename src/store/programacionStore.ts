@@ -42,7 +42,7 @@ export interface TemplateProgramacion {
     puestoId: string;
     puestoNombre: string;
     personal: PersonalPuesto[];
-    patron: Array<{ diaRelativo: number; rol: RolPuesto; turno: string; jornada: TipoJornada }>;
+    patron: Array<{ diaRelativo: number; rol: RolPuesto; turno: string; jornada: TipoJornada; vigilanteId: string | null }>;
     creadoEn: string;
     creadoPor: string;
 }
@@ -123,11 +123,11 @@ interface ProgramacionState {
 let _currentUser = 'Sistema';
 export const setProgUser = (name: string) => { _currentUser = name; };
 
-// Helper: sync programacion to Supabase in background
-async function syncProgramacionToDb(prog: ProgramacionMensual) {
+// Helper: sync programacion to Supabase — robust with visible error reporting
+async function syncProgramacionToDb(prog: ProgramacionMensual): Promise<boolean> {
     try {
-        // Upsert programacion header
-        await supabase
+        // 1. Upsert the programacion header (DO NOT send creado_por — it's a UUID FK managed by DB)
+        const { error: upsertErr } = await supabase
             .from('programacion_mensual')
             .upsert({
                 id: prog.id,
@@ -137,13 +137,16 @@ async function syncProgramacionToDb(prog: ProgramacionMensual) {
                 mes: prog.mes,
                 estado: prog.estado,
                 version: prog.version,
-            });
+                updated_at: new Date().toISOString(),
+            }, { onConflict: 'id' });
 
-        // Delete existing personal and asignaciones, re-insert
+        if (upsertErr) {
+            console.warn('⚠️ [SYNC] Error upserting programacion_mensual:', upsertErr.message, upsertErr.details);
+            return false;
+        }
+
+        // 2. Delete old personal rows and reinsert
         await supabase.from('personal_puesto').delete().eq('programacion_id', prog.id);
-        await supabase.from('asignaciones_dia').delete().eq('programacion_id', prog.id);
-
-        // Insert personal
         const personalRows = prog.personal
             .filter(p => p.vigilanteId)
             .map(p => ({
@@ -152,10 +155,12 @@ async function syncProgramacionToDb(prog: ProgramacionMensual) {
                 vigilante_id: p.vigilanteId,
             }));
         if (personalRows.length > 0) {
-            await supabase.from('personal_puesto').insert(personalRows);
+            const { error: persErr } = await supabase.from('personal_puesto').insert(personalRows);
+            if (persErr) console.warn('⚠️ [SYNC] Error inserting personal_puesto:', persErr.message);
         }
 
-        // Insert asignaciones in batches of 100
+        // 3. Delete old asignaciones and reinsert in batches of 100
+        await supabase.from('asignaciones_dia').delete().eq('programacion_id', prog.id);
         const asignacionRows = prog.asignaciones.map(a => ({
             programacion_id: prog.id,
             dia: a.dia,
@@ -167,10 +172,18 @@ async function syncProgramacionToDb(prog: ProgramacionMensual) {
 
         for (let i = 0; i < asignacionRows.length; i += 100) {
             const batch = asignacionRows.slice(i, i + 100);
-            await supabase.from('asignaciones_dia').insert(batch);
+            const { error: asigErr } = await supabase.from('asignaciones_dia').insert(batch);
+            if (asigErr) {
+                console.warn(`⚠️ [SYNC] Error inserting asignaciones batch ${i}-${i+batch.length}:`, asigErr.message);
+                return false;
+            }
         }
+
+        console.log(`✅ [SYNC] Programación ${prog.puestoId} ${prog.anio}/${prog.mes+1} sincronizada con Supabase (${asignacionRows.length} asignaciones)`);
+        return true;
     } catch (err) {
-        console.error('Error syncing programacion to DB:', err);
+        console.warn('⚠️ [SYNC] Error inesperado sincronizando con Supabase:', err);
+        return false;
     }
 }
 
@@ -198,28 +211,25 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         .select('*')
                         .eq('empresa_id', EMPRESA_ID);
 
-                    if (error || !rows || rows.length === 0) {
+                    if (error) {
+                        console.warn('⚠️ [FETCH] Error fetching programacion_mensual:', error.message);
                         set({ loaded: true });
+                        return;
+                    }
+
+                    if (!rows || rows.length === 0) {
+                        // No data in DB → clear local cache so stale data doesn't persist
+                        set({ programaciones: [], loaded: true });
                         return;
                     }
 
                     const progIds = rows.map(r => r.id);
 
-                    const { data: allPersonal } = await supabase
-                        .from('personal_puesto')
-                        .select('*')
-                        .in('programacion_id', progIds);
-
-                    const { data: allAsignaciones } = await supabase
-                        .from('asignaciones_dia')
-                        .select('*')
-                        .in('programacion_id', progIds);
-
-                    const { data: allHistorial } = await supabase
-                        .from('historial_programacion')
-                        .select('*')
-                        .in('programacion_id', progIds)
-                        .order('created_at', { ascending: true });
+                    const [{ data: allPersonal }, { data: allAsignaciones }, { data: allHistorial }] = await Promise.all([
+                        supabase.from('personal_puesto').select('*').in('programacion_id', progIds),
+                        supabase.from('asignaciones_dia').select('*').in('programacion_id', progIds),
+                        supabase.from('historial_programacion').select('*').in('programacion_id', progIds).order('created_at', { ascending: true }),
+                    ]);
 
                     const programaciones: ProgramacionMensual[] = rows.map(row => {
                         const personal = (allPersonal || [])
@@ -270,9 +280,11 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         };
                     });
 
+                    // ✅ Always replace local state with fresh Supabase data
+                    console.log(`✅ [FETCH] ${programaciones.length} programaciones cargadas desde Supabase`);
                     set({ programaciones, loaded: true });
                 } catch (err) {
-                    console.error('Error fetching programaciones:', err);
+                    console.warn('⚠️ [FETCH] Error inesperado cargando programaciones:', err);
                     set({ loaded: true });
                 }
             },
@@ -487,7 +499,11 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     })
                 }));
 
-                // Background sync — debounced by caller if needed
+                // ✅ Auto-sync to DB on EVERY change so nothing is lost even without clicking "Guardar"
+                const updatedProg = get().programaciones.find(p => p.id === progId);
+                if (updatedProg) {
+                    syncProgramacionToDb(updatedProg);
+                }
                 logCambio(progId, usuario, descripcion, 'asignacion');
 
                 return { permitido: true, tipo: 'ok', mensaje: 'Asignación registrada correctamente' };
@@ -549,12 +565,16 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     nombre,
                     puestoId: prog.puestoId,
                     puestoNombre,
+                    // ✅ Save the complete personal list (role → vigilanteId)
                     personal: prog.personal.map(p => ({ ...p })),
+                    // ✅ Save EVERY assignment including vigilanteId per day
+                    //    This way when applied next month, ALL replacements, rest days, etc. are restored
                     patron: prog.asignaciones.map(a => ({
                         diaRelativo: a.dia,
                         rol: a.rol,
                         turno: a.turno,
                         jornada: a.jornada,
+                        vigilanteId: a.vigilanteId,    // ← KEY: save the specific vigilante for each day
                     })),
                     creadoEn: new Date().toISOString(),
                     creadoPor: usuario,
@@ -562,16 +582,20 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 set(s => ({ templates: [...s.templates, template] }));
 
                 // Save to Supabase
-                await supabase.from('plantillas_programacion').insert({
-                    id: template.id,
-                    empresa_id: EMPRESA_ID,
-                    nombre,
-                    puesto_id: prog.puestoId,
-                    puesto_nombre: puestoNombre,
-                    personal: template.personal,
-                    patron: template.patron,
-                    creado_por: usuario,
-                });
+                try {
+                    await supabase.from('plantillas_programacion').insert({
+                        id: template.id,
+                        empresa_id: EMPRESA_ID,
+                        nombre,
+                        puesto_id: prog.puestoId,
+                        puesto_nombre: puestoNombre,
+                        personal: template.personal,
+                        patron: template.patron,
+                        creado_por: usuario,
+                    });
+                } catch (err) {
+                    console.error('Error saving template to DB:', err);
+                }
             },
 
             aplicarPlantilla: (templateId, puestoId, anio, mes, usuario) => {
@@ -587,7 +611,10 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         const personal = tpl.personal.find(p => p.rol === rol);
                         asignaciones.push({
                             dia,
-                            vigilanteId: personal?.vigilanteId ?? null,
+                            // ✅ Restore the exact vigilante saved in the pattern (day-specific)
+                            //    Falls back to the role's titular if not set (old templates)
+                            //    Falls back to null if neither is set
+                            vigilanteId: match?.vigilanteId ?? personal?.vigilanteId ?? null,
                             turno: match?.turno ?? 'AM',
                             jornada: match?.jornada ?? 'sin_asignar',
                             rol,
