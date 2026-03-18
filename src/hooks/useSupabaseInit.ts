@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useVigilanteStore } from '../store/vigilanteStore';
 import { usePuestoStore } from '../store/puestoStore';
 import { useProgramacionStore } from '../store/programacionStore';
@@ -10,6 +10,7 @@ import { useAuditStore } from '../store/auditStore';
  */
 export function useSupabaseInit() {
     const didInit = useRef(false);
+    const [initialFetchDone, setInitialFetchDone] = useState(false);
 
     const fetchVigilantes = useVigilanteStore(s => s.fetchVigilantes);
     const vigilantesLoaded = useVigilanteStore(s => s.loaded);
@@ -21,7 +22,19 @@ export function useSupabaseInit() {
     const fetchAudit = useAuditStore(s => s.fetchEntries);
 
     useEffect(() => {
-        if (didInit.current) return;
+        if (!vigilantesLoaded || !puestosLoaded) return;
+        if (initialFetchDone && vigilantesLoaded && puestosLoaded) return;
+
+        if (didInit.current) {
+            // Re-fetch if data was cleared (e.g., after localStorage rehydration)
+            if (!programacionLoaded) {
+                console.log('[Coraza] 🔄 Re-fetching programaciones after rehydration...');
+                fetchProgramaciones();
+                fetchTemplates();
+            }
+            return;
+        }
+        
         didInit.current = true;
 
         console.log('[Coraza] 🔄 Inicializando datos desde Supabase...');
@@ -41,6 +54,7 @@ export function useSupabaseInit() {
                     fetchAudit(),
                 ]);
                 
+                setInitialFetchDone(true);
                 console.log('[Coraza] ✅ Datos cargados exitosamente desde Supabase');
             } catch (err) {
                 console.warn('[Coraza] ⚠️ Algunos datos no pudieron cargarse. Usando cache local.', err);
@@ -48,7 +62,7 @@ export function useSupabaseInit() {
         };
 
         initBaseDatos();
-    }, []);
+    }, [vigilantesLoaded, puestosLoaded, programacionLoaded]);
 
     return {
         isLoading: !vigilantesLoaded || !puestosLoaded || !programacionLoaded,

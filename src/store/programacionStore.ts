@@ -299,6 +299,9 @@ const queueSync = (progId: string, set: any, get: any) => {
         pendingSyncs.delete(progId);
         const prog = get().programaciones.find((p: any) => p.id === progId);
         if (!prog) return;
+        
+        // Don't sync if programacion is empty (just rehydrated, waiting for fetch)
+        if (!prog.personal && !prog.asignaciones) return;
 
         set({ isSyncing: true, lastSyncError: null });
         try {
@@ -466,12 +469,13 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
 
             crearOObtenerProgramacion: (puestoId, anio, mes, usuario) => {
-                const existing = get().programaciones.find(p => p.puestoId === puestoId && p.anio === anio && p.mes === mes);
+                const dbPuestoId = translatePuestoToUuid(puestoId) || puestoId;
+                const existing = get().programaciones.find(p => (p.puestoId === dbPuestoId || p.puestoId === puestoId) && p.anio === anio && p.mes === mes);
                 if (existing) return existing;
 
                 const newProg: ProgramacionMensual = {
                     id: crypto.randomUUID(),
-                    puestoId,
+                    puestoId: dbPuestoId,
                     anio,
                     mes,
                     personal: [
@@ -647,7 +651,13 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     // High priority sync for publicacion
                     set({ isSyncing: true, lastSyncError: null });
                     syncProgramacionToDb(prog, set, get)
-                        .then(() => set({ isSyncing: false }))
+                        .then((result) => {
+                            set({ isSyncing: false });
+                            // If server had newer version, show warning
+                            if (!result.success) {
+                                set({ lastSyncError: '⚠️ Conflict: Server has newer version. Your publish may not have been saved.' });
+                            }
+                        })
                         .catch(e => set({ isSyncing: false, lastSyncError: e.message }));
                     
                     logCambio(prog.id, usuario, 'Programación PUBLICADA como versión definitiva', 'publicacion');
