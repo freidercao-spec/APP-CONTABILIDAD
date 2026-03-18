@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase, EMPRESA_ID } from '../lib/supabase';
 import { showTacticalToast } from '../utils/tacticalToast';
+import { useVigilanteStore } from './vigilanteStore';
 
 export interface TurnoVigilante {
     vigilanteId: string;
@@ -341,6 +342,21 @@ export const usePuestoStore = create<PuestoState>()(
                     return;
                 }
 
+                // Helper: translate HID to UUID
+                const translateVigToUuid = (id: string | null): string | null => {
+                    if (!id) return null;
+                    if (id.length > 20) return id;
+                    const v = useVigilanteStore.getState().vigilantes.find(vg => vg.id === id);
+                    return v?.dbId || id;
+                };
+
+                const translatePuestoToUuid = (id: string | null): string | null => {
+                    if (!id) return null;
+                    if (id.length > 20) return id;
+                    const p = get().puestos.find(px => px.id === id);
+                    return p?.dbId || id;
+                };
+
                 const puesto = get().puestos.find(p => p.id === puestoId);
 
                 // Validate overlap
@@ -381,25 +397,28 @@ export const usePuestoStore = create<PuestoState>()(
                 }));
 
                 // Supabase sync
-                if (puesto?.dbId) {
+                const dbPuestoId = translatePuestoToUuid(puestoId);
+                const dbVigilanteId = translateVigToUuid(vigilanteId);
+
+                if (dbPuestoId && dbVigilanteId) {
                     if (wasAssigned) {
                         await supabase.from('turnos_puesto')
                             .update({ hora_inicio: horaInicio, hora_fin: horaFin })
-                            .eq('puesto_id', puesto.dbId)
-                            .eq('vigilante_id', vigilanteId);
+                            .eq('puesto_id', dbPuestoId)
+                            .eq('vigilante_id', dbVigilanteId);
                     } else {
                         await supabase.from('turnos_puesto').insert({
                             empresa_id: EMPRESA_ID,
-                            puesto_id: puesto.dbId,
-                            vigilante_id: vigilanteId,
+                            puesto_id: dbPuestoId,
+                            vigilante_id: dbVigilanteId,
                             hora_inicio: horaInicio,
                             hora_fin: horaFin,
                         });
                     }
                     await supabase.from('historial_puesto').insert({
-                        puesto_id: puesto.dbId,
+                        puesto_id: dbPuestoId,
                         accion: wasAssigned ? 'cambio' : 'asignacion',
-                        vigilante_id: vigilanteId,
+                        vigilante_id: dbVigilanteId,
                         detalles: wasAssigned ? `Horario modificado: ${horaInicio} - ${horaFin}` : `Nuevo vigilante asignado: ${horaInicio} - ${horaFin}`,
                     });
                 }
@@ -425,16 +444,19 @@ export const usePuestoStore = create<PuestoState>()(
                     )
                 }));
 
+                // Helper local (already defined in assignGuard scope, but this is a different method)
+                const vigUuId = useVigilanteStore.getState().vigilantes.find(vg => vg.id === vigilanteId)?.dbId || vigilanteId;
+
                 if (puesto?.dbId) {
                     await supabase.from('turnos_puesto')
                         .delete()
                         .eq('puesto_id', puesto.dbId)
-                        .eq('vigilante_id', vigilanteId);
+                        .eq('vigilante_id', vigUuId);
 
                     await supabase.from('historial_puesto').insert({
                         puesto_id: puesto.dbId,
                         accion: 'remocion',
-                        vigilante_id: vigilanteId,
+                        vigilante_id: vigUuId,
                         detalles: reason,
                     });
                 }
@@ -499,7 +521,7 @@ export const usePuestoStore = create<PuestoState>()(
             }
         }),
         {
-            name: 'coraza-puestos-v1.2.7',
+            name: 'coraza-puestos-v1.2.9',
             onRehydrateStorage: () => (state) => {
                 if (state) {
                     state.puestos = (state.puestos || []).map(p => ({

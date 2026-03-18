@@ -1,4 +1,4 @@
-﻿import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { usePuestoStore, type TurnoConfig, type JornadaCustom } from '../store/puestoStore';
 import { useVigilanteStore } from '../store/vigilanteStore';
@@ -303,14 +303,15 @@ const EditCeldaModal = ({ asig, vigilantes, titularesId, ocupados, turnosConfig,
                             </label>
                             <div className="flex flex-wrap gap-2">
                                 {titularesId.map(vid => {
-                                    const v = vigilantes.find(vig => vig.id === vid);
+                                    const v = vigilantes.find(vig => vig.id === vid || vig.dbId === vid);
                                     if (!v) return null;
-                                    const isSelected = vigilanteId === vid;
-                                    const c = checkConflict(vid, turno);
+                                    const v_id = v.id;
+                                    const isSelected = vigilanteId === v.id || vigilanteId === v.dbId;
+                                    const c = checkConflict(v.id, turno);
                                     return (
                                         <button
-                                            key={vid}
-                                            onClick={() => handleVigChange(vid)}
+                                            key={v.id}
+                                            onClick={() => handleVigChange(v.id)}
                                             className={`px-3 py-2 rounded-xl text-[10px] font-bold border-2 transition-all flex items-center gap-1.5 ${
                                                 isSelected
                                                     ? 'bg-primary text-white border-primary shadow-md shadow-primary/20'
@@ -334,16 +335,16 @@ const EditCeldaModal = ({ asig, vigilantes, titularesId, ocupados, turnosConfig,
                         <select value={vigilanteId} onChange={e => handleVigChange(e.target.value)}
                             className="w-full h-11 bg-slate-50 border-2 border-slate-200 rounded-xl px-4 text-sm font-bold outline-none focus:border-primary/60 transition-colors">
                             <option value="">â€” Sin asignar â€”</option>
-                            <optgroup label="âœ… TITULARES DEL PUESTO">
-                                {vigilantes.filter(v => titularesId.includes(v.id)).map(v => {
+                            <optgroup label="✅ TITULARES DEL PUESTO">
+                                {vigilantes.filter(v => titularesId.includes(v.id) || (v.dbId && titularesId.includes(v.dbId))).map(v => {
                                     const c = checkConflict(v.id, turno);
-                                    return <option key={v.id} value={v.id}>{c ? `âš  ${v.nombre}` : v.nombre}</option>;
+                                    return <option key={v.id} value={v.id}>{c ? `⚠️ ${v.nombre}` : v.nombre}</option>;
                                 })}
                             </optgroup>
-                            <optgroup label="ðŸ”„ REEMPLAZOS / OTROS">
-                                {vigilantes.filter(v => !titularesId.includes(v.id)).map(v => {
+                            <optgroup label="🔄 REEMPLAZOS / OTROS">
+                                {vigilantes.filter(v => !titularesId.includes(v.id) && !(v.dbId && titularesId.includes(v.dbId))).map(v => {
                                     const c = checkConflict(v.id, turno);
-                                    return <option key={v.id} value={v.id}>{c ? `âš  ${v.nombre}` : v.nombre}</option>;
+                                    return <option key={v.id} value={v.id}>{c ? `⚠️ ${v.nombre}` : v.nombre}</option>;
                                 })}
                             </optgroup>
                         </select>

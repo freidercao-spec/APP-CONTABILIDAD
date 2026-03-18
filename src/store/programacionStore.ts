@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase, EMPRESA_ID } from '../lib/supabase';
+import { useVigilanteStore } from './vigilanteStore';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -140,6 +141,15 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
         await activeSyncPromises.get(prog.id);
     }
 
+    // Helper: translate any HID (MED-0001) to UUID for DB
+    const translateToUuid = (id: string | null): string | null => {
+        if (!id) return null;
+        if (id.length > 20) return id; // Likely already a UUID
+        const vigs = useVigilanteStore.getState().vigilantes;
+        const v = vigs.find(vg => vg.id === id);
+        return v?.dbId || id;
+    };
+
     const syncPromise = (async () => {
         try {
             // CRITICAL FIX: The DB has a UNIQUE constraint on (puesto_id, anio, mes).
@@ -187,7 +197,7 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                 .map(p => ({
                     programacion_id: dbId,
                     rol: p.rol,
-                    vigilante_id: p.vigilanteId,
+                    vigilante_id: translateToUuid(p.vigilanteId),
                 }));
             if (personalRows.length > 0) {
                 const { error: persErr } = await supabase.from('personal_puesto').insert(personalRows);
@@ -199,7 +209,7 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
             const asignacionRows = prog.asignaciones.map(a => ({
                 programacion_id: dbId,
                 dia: a.dia,
-                vigilante_id: a.vigilanteId || null,
+                vigilante_id: translateToUuid(a.vigilanteId),
                 turno: a.turno,
                 jornada: a.jornada,
                 rol: a.rol,
@@ -807,7 +817,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
         }),
         {
-            name: 'coraza-programacion-store-v1.2.7',
+            name: 'coraza-programacion-store-v1.2.9',
             onRehydrateStorage: () => (state) => {
                 if (state) {
                     state.programaciones = (state.programaciones || []).map(p => ({
