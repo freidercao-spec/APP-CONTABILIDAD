@@ -115,7 +115,7 @@ const Login = () => {
                     </form>
                 </div>
                 <div className="absolute inset-x-0 bottom-8 text-center text-[10px] font-black text-primary/30 uppercase tracking-[0.4em] pointer-events-none">
-            MOD v1.3.1 · DEEP DIAGNOSTICS
+            MOD v1.3.2 · CASCADING LOAD FIX
           </div>
             </div>
         </div>
