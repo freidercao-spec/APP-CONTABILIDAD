@@ -28,12 +28,14 @@ export function useSupabaseInit() {
 
         const initBaseDatos = async () => {
             try {
-                // 1. MUST FETCH VIGILANTES FIRST for ID translation to work
+                // 1. MUST FETCH VIGILANTES FIRST
                 await fetchVigilantes();
+
+                // 2. MUST FETCH PUESTOS SECOND (required for programacion mapping)
+                await fetchPuestos();
                 
-                // 2. Fetch the rest safely
+                // 3. Fetch the rest safely
                 await Promise.all([
-                    fetchPuestos(),
                     fetchProgramaciones(),
                     fetchTemplates(),
                     fetchAudit(),
