@@ -492,7 +492,7 @@ export const useVigilanteStore = create<VigilanteState>()(
             }
         }),
         {
-            name: 'coraza-vigilantes-v6',
+            name: 'coraza-vigilante-store-v1.2.7',
             onRehydrateStorage: () => (state) => {
                 if (state) {
                     state.vigilantes = (state.vigilantes || []).map(v => ({

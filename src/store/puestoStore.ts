@@ -499,7 +499,7 @@ export const usePuestoStore = create<PuestoState>()(
             }
         }),
         {
-            name: 'coraza-puestos-v6',
+            name: 'coraza-puestos-v1.2.7',
             onRehydrateStorage: () => (state) => {
                 if (state) {
                     state.puestos = (state.puestos || []).map(p => ({

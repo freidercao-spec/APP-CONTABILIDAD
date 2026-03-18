@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+﻿import { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { usePuestoStore, type TurnoConfig, type JornadaCustom } from '../store/puestoStore';
 import { useVigilanteStore } from '../store/vigilanteStore';
@@ -11,18 +11,18 @@ import { MilitaryTimeInput } from '../components/ui/MilitaryTimeInput';
 import { supabase } from '../lib/supabase';
 import jsPDF from 'jspdf';
 
-// ── Default turn config ───────────────────────────────────────────────────────
+// â”€â”€ Default turn config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const DEFAULT_TURNOS: TurnoConfig[] = [
     { id: 'AM', nombre: 'Turno AM', inicio: '06:00', fin: '18:00' },
     { id: 'PM', nombre: 'Turno PM', inicio: '18:00', fin: '06:00' },
 ];
 
-// ── Default jornada colors ────────────────────────────────────────────────────
+// â”€â”€ Default jornada colors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const DEFAULT_JORNADAS: JornadaCustom[] = [
     { id: 'normal', nombre: 'Normal', short: 'N', color: '#4318FF', textColor: '#fff' },
     { id: 'descanso_remunerado', nombre: 'Desc. Rem.', short: 'DR', color: '#00b377', textColor: '#fff' },
     { id: 'descanso_no_remunerado', nombre: 'Desc. N/Rem.', short: 'DNR', color: '#ff9500', textColor: '#fff' },
-    { id: 'vacacion', nombre: 'Vacación', short: 'VAC', color: '#8b5cf6', textColor: '#fff' },
+    { id: 'vacacion', nombre: 'VacaciÃ³n', short: 'VAC', color: '#8b5cf6', textColor: '#fff' },
     { id: 'sin_asignar', nombre: 'Sin asignar', short: '-', color: '#ef4444', textColor: '#fff' },
 ];
 
@@ -39,18 +39,18 @@ const ROL_LABELS: Record<RolPuesto, string> = {
 
 const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
-// ── Legacy compat shim ───────────────────────────────────────────────────────
+// â”€â”€ Legacy compat shim â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const JORNADA_COLORS: Record<string, { bg: string; text: string; label: string; short: string }> = {
     normal: { bg: '#4318FF', text: '#fff', label: 'Normal', short: 'N' },
     descanso_remunerado: { bg: '#00b377', text: '#fff', label: 'Desc. Rem.', short: 'DR' },
     descanso_no_remunerado: { bg: '#ff9500', text: '#fff', label: 'Desc. N/Rem.', short: 'DNR' },
-    vacacion: { bg: '#8b5cf6', text: '#fff', label: 'Vacación', short: 'VAC' },
+    vacacion: { bg: '#8b5cf6', text: '#fff', label: 'VacaciÃ³n', short: 'VAC' },
     sin_asignar: { bg: '#ef4444', text: '#fff', label: 'Sin asignar', short: '!' },
 };
 
 
 
-// ── Subcomponents ─────────────────────────────────────────────────────────────
+// â”€â”€ Subcomponents â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // Map turno index (0,1,2,...) to the default role so the grid
 // always uses the SAME primary key as the store: (dia, rol)
@@ -88,7 +88,7 @@ const CeldaCalendario = ({ asig, vigilanteNombre, onEdit, jornadasCustom }: Celd
         return (
             <button
                 onClick={onEdit}
-                title={`Día ${asig.dia} · Sin asignar — Click para asignar`}
+                title={`DÃ­a ${asig.dia} Â· Sin asignar â€” Click para asignar`}
                 className="w-full h-full rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-red-300 bg-red-50 hover:bg-red-100 hover:border-red-500 transition-all group"
                 style={{ minHeight: '72px' }}
             >
@@ -101,7 +101,7 @@ const CeldaCalendario = ({ asig, vigilanteNombre, onEdit, jornadasCustom }: Celd
     return (
         <button
             onClick={onEdit}
-            title={`${vigilanteNombre} · ${j.nombre}`}
+            title={`${vigilanteNombre} Â· ${j.nombre}`}
             className="w-full h-full rounded-lg flex flex-col items-center justify-center border border-white/20 shadow-sm hover:scale-105 hover:shadow-md hover:z-10 relative transition-all px-1 py-1.5"
             style={{ background: j.color, minHeight: '72px' }}
         >
@@ -128,7 +128,7 @@ const CeldaCalendario = ({ asig, vigilanteNombre, onEdit, jornadasCustom }: Celd
     );
 };
 
-// Empty turno slot — shows a [⁠+⁠] add button
+// Empty turno slot â€” shows a [â +â ] add button
 const CeldaVacia = ({ onAdd, isWeekend }: { onAdd: () => void; isWeekend?: boolean }) => (
     <button
         onClick={onAdd}
@@ -142,7 +142,7 @@ const CeldaVacia = ({ onAdd, isWeekend }: { onAdd: () => void; isWeekend?: boole
     </button>
 );
 
-// Modal for editing a single day cell — with cross-validation
+// Modal for editing a single day cell â€” with cross-validation
 interface EditCeldaModalProps {
     asig: AsignacionDia;
     vigilantes: { id: string; nombre: string; estado?: string }[];
@@ -169,13 +169,13 @@ const EditCeldaModal = ({ asig, vigilantes, titularesId, ocupados, turnosConfig,
         const slots = ocupados.get(vid) || [];
         if (slots.includes(`${asig.dia}-${t}`)) {
             const v = vigilantes.find(gv => gv.id === vid || gv.dbId === vid);
-            return `${v?.nombre || 'Efectivo'} ya tiene turno el día ${asig.dia} (${t})`;
+            return `${v?.nombre || 'Efectivo'} ya tiene turno el dÃ­a ${asig.dia} (${t})`;
         }
         if (t === 'AM') {
             const prevDay = asig.dia - 1;
             if (slots.includes(`${prevDay}-PM`)) {
                 const v = vigilantes.find(gv => gv.id === vid || gv.dbId === vid);
-                return `${v?.nombre || 'Efectivo'} trabajó PM el día ${prevDay} — sin descanso mínimo`;
+                return `${v?.nombre || 'Efectivo'} trabajÃ³ PM el dÃ­a ${prevDay} â€” sin descanso mÃ­nimo`;
             }
         }
         return null;
@@ -197,7 +197,7 @@ const EditCeldaModal = ({ asig, vigilantes, titularesId, ocupados, turnosConfig,
         <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
             <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg shadow-2xl animate-in slide-in-from-bottom-5 duration-300 overflow-hidden" onClick={e => e.stopPropagation()}>
 
-                {/* ── Header ── */}
+                {/* â”€â”€ Header â”€â”€ */}
                 <div className="px-6 pt-6 pb-4 border-b border-slate-100" style={{ background: 'linear-gradient(135deg, #f8faff 0%, #eef2ff 100%)' }}>
                     <div className="flex items-start justify-between gap-3">
                         <div>
@@ -207,10 +207,10 @@ const EditCeldaModal = ({ asig, vigilantes, titularesId, ocupados, turnosConfig,
                             </div>
                             <div className="flex items-center gap-2 flex-wrap">
                                 <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-black rounded-lg uppercase">{rolLabel}</span>
-                                <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-black rounded-lg">Día {asig.dia}</span>
+                                <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-black rounded-lg">DÃ­a {asig.dia}</span>
                                 {turnoConf && (
                                     <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-black rounded-lg">
-                                        {turnoConf.nombre} · {turnoConf.inicio}–{turnoConf.fin}
+                                        {turnoConf.nombre} Â· {turnoConf.inicio}â€“{turnoConf.fin}
                                     </span>
                                 )}
                             </div>
@@ -236,7 +236,7 @@ const EditCeldaModal = ({ asig, vigilantes, titularesId, ocupados, turnosConfig,
                     )}
                 </div>
 
-                {/* ── Conflict alert ── */}
+                {/* â”€â”€ Conflict alert â”€â”€ */}
                 {conflicto && (
                     <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex gap-2 items-start">
                         <span className="material-symbols-outlined text-red-500 text-[18px] mt-0.5 shrink-0">block</span>
@@ -245,7 +245,7 @@ const EditCeldaModal = ({ asig, vigilantes, titularesId, ocupados, turnosConfig,
                 )}
 
                 <div className="p-6 space-y-5">
-                    {/* ── Turno selector ── */}
+                    {/* â”€â”€ Turno selector â”€â”€ */}
                     <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">
                             Turno
@@ -264,14 +264,14 @@ const EditCeldaModal = ({ asig, vigilantes, titularesId, ocupados, turnosConfig,
                                             color: isSelected ? '#fff' : col,
                                         }}>
                                         <span className="block font-black">{t.nombre}</span>
-                                        <span className="block text-[8px] opacity-80 mt-0.5">{t.inicio}–{t.fin}</span>
+                                        <span className="block text-[8px] opacity-80 mt-0.5">{t.inicio}â€“{t.fin}</span>
                                     </button>
                                 );
                             })}
                         </div>
                     </div>
 
-                    {/* ── Jornada type ── */}
+                    {/* â”€â”€ Jornada type â”€â”€ */}
                     <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">
                             Tipo de Jornada
@@ -295,7 +295,7 @@ const EditCeldaModal = ({ asig, vigilantes, titularesId, ocupados, turnosConfig,
                         </div>
                     </div>
 
-                    {/* ── Vigilante quick-pick ── */}
+                    {/* â”€â”€ Vigilante quick-pick â”€â”€ */}
                     {titularesId.length > 0 && (
                         <div>
                             <label className="text-[10px] font-black text-primary uppercase tracking-widest mb-2 block">
@@ -328,29 +328,29 @@ const EditCeldaModal = ({ asig, vigilantes, titularesId, ocupados, turnosConfig,
                         </div>
                     )}
 
-                    {/* ── Full vigilante selector ── */}
+                    {/* â”€â”€ Full vigilante selector â”€â”€ */}
                     <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Todos los Vigilantes</label>
                         <select value={vigilanteId} onChange={e => handleVigChange(e.target.value)}
                             className="w-full h-11 bg-slate-50 border-2 border-slate-200 rounded-xl px-4 text-sm font-bold outline-none focus:border-primary/60 transition-colors">
-                            <option value="">— Sin asignar —</option>
-                            <optgroup label="✅ TITULARES DEL PUESTO">
+                            <option value="">â€” Sin asignar â€”</option>
+                            <optgroup label="âœ… TITULARES DEL PUESTO">
                                 {vigilantes.filter(v => titularesId.includes(v.id)).map(v => {
                                     const c = checkConflict(v.id, turno);
-                                    return <option key={v.id} value={v.id}>{c ? `⚠ ${v.nombre}` : v.nombre}</option>;
+                                    return <option key={v.id} value={v.id}>{c ? `âš  ${v.nombre}` : v.nombre}</option>;
                                 })}
                             </optgroup>
-                            <optgroup label="🔄 REEMPLAZOS / OTROS">
+                            <optgroup label="ðŸ”„ REEMPLAZOS / OTROS">
                                 {vigilantes.filter(v => !titularesId.includes(v.id)).map(v => {
                                     const c = checkConflict(v.id, turno);
-                                    return <option key={v.id} value={v.id}>{c ? `⚠ ${v.nombre}` : v.nombre}</option>;
+                                    return <option key={v.id} value={v.id}>{c ? `âš  ${v.nombre}` : v.nombre}</option>;
                                 })}
                             </optgroup>
                         </select>
                     </div>
                 </div>
 
-                {/* ── Actions ── */}
+                {/* â”€â”€ Actions â”€â”€ */}
                 <div className="px-6 pb-6 flex gap-2">
                     <button
                         onClick={() => onSave({ vigilanteId: null, turno: turno as TurnoHora, jornada: 'sin_asignar', rol: asig.rol })}
@@ -378,7 +378,7 @@ const EditCeldaModal = ({ asig, vigilantes, titularesId, ocupados, turnosConfig,
     );
 };
 
-// ── Panel de Programación Mensual ─────────────────────────────────────────────
+// â”€â”€ Panel de ProgramaciÃ³n Mensual â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 interface PanelMensualProps {
     puestoId: string;
     puestoNombre: string;
@@ -415,7 +415,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
     const getCoberturaPorcentaje = useProgramacionStore(s => s.getCoberturaPorcentaje);
     const getAlertas = useProgramacionStore(s => s.getAlertas);
 
-    // Get raw data from store — NEVER use .filter()/.find() inside selectors (creates new refs = infinite loop)
+    // Get raw data from store â€” NEVER use .filter()/.find() inside selectors (creates new refs = infinite loop)
     const allTemplates = useProgramacionStore(s => s.templates);
     const templates = useMemo(() => allTemplates.filter(t => t.puestoId === puestoId), [allTemplates, puestoId]);
 
@@ -474,7 +474,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
             if (isSyncing) {
                 e.preventDefault();
-                e.returnValue = 'Hay cambios guardándose en la nube. ¿Deseas salir de todas formas?';
+                e.returnValue = 'Hay cambios guardÃ¡ndose en la nube. Â¿Deseas salir de todas formas?';
             }
         };
         window.addEventListener('beforeunload', handleBeforeUnload);
@@ -483,8 +483,8 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
 
     const handleAplicarPlantilla = (tpl: TemplateProgramacion) => {
         aplicarPlantilla(tpl.id, puestoId, anio, mes, username || 'Sistema');
-        showTacticalToast({ title: 'Plantilla Aplicada', message: `Se cargó "${tpl.nombre}" — puedes editar cualquier celda libremente.`, type: 'info' });
-        logAction('PROGRAMACION', 'Plantilla aplicada', `"${tpl.nombre}" — ${MONTH_NAMES[mes]} ${anio}`, 'info');
+        showTacticalToast({ title: 'Plantilla Aplicada', message: `Se cargÃ³ "${tpl.nombre}" â€” puedes editar cualquier celda libremente.`, type: 'info' });
+        logAction('PROGRAMACION', 'Plantilla aplicada', `"${tpl.nombre}" â€” ${MONTH_NAMES[mes]} ${anio}`, 'info');
         setActiveTab('calendario');
     };
 
@@ -505,7 +505,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
         return map;
     }, [allProgramaciones, anio, mes, puestoId]);
 
-    // Quincena rest counters — use stable string IDs as deps, not object references
+    // Quincena rest counters â€” use stable string IDs as deps, not object references
     const progId = prog?.id;
     const progAsignacionesKey = prog?.asignaciones?.length ?? 0;
     const progPersonalKey = prog?.personal?.map(p => p.vigilanteId).join(',') ?? '';
@@ -536,7 +536,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
             if (alertasDisparadas.current.has(key)) return;
             alertasDisparadas.current.add(key);
             addAIAction({
-                text: `**ASIGNACIÓN INCOMPLETA:** El puesto "${puestoNombre}" tiene ${progAsignacionesCountForEffect} turnos sin vigilante asignado para ${MONTH_NAMES[mes]}.`,
+                text: `**ASIGNACIÃ“N INCOMPLETA:** El puesto "${puestoNombre}" tiene ${progAsignacionesCountForEffect} turnos sin vigilante asignado para ${MONTH_NAMES[mes]}.`,
                 type: 'notification',
                 sender: 'ai',
                 priority: 'medium'
@@ -567,14 +567,14 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                         </button>
                         <div>
                             <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight leading-none">{puestoNombre}</h2>
-                            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">{MONTH_NAMES[mes]} {anio} · Programación Mensual</p>
+                            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">{MONTH_NAMES[mes]} {anio} Â· ProgramaciÃ³n Mensual</p>
                         </div>
                     </div>
                 </div>
                 <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
                     <span className="material-symbols-outlined text-[80px] text-slate-200 mb-6 font-light">edit_calendar</span>
-                    <h3 className="text-2xl font-black text-slate-900 mb-2">Programación de {MONTH_NAMES[mes]} {anio}</h3>
-                    <p className="text-sm text-slate-500 mb-8 max-w-sm">No se ha iniciado la programación para este mes. Haz clic en el botón para generar el cuadro de turnos en blanco.</p>
+                    <h3 className="text-2xl font-black text-slate-900 mb-2">ProgramaciÃ³n de {MONTH_NAMES[mes]} {anio}</h3>
+                    <p className="text-sm text-slate-500 mb-8 max-w-sm">No se ha iniciado la programaciÃ³n para este mes. Haz clic en el botÃ³n para generar el cuadro de turnos en blanco.</p>
                     <button
                         onClick={() => {
                             crearOObtenerProgramacion(puestoId, anio, mes, username || 'Sistema');
@@ -587,7 +587,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                         className="flex items-center gap-2 px-8 py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:brightness-110 shadow-xl shadow-primary/30 transition-all hover:-translate-y-1"
                     >
                         <span className="material-symbols-outlined text-[20px]">add_circle</span>
-                        Iniciar Programación
+                        Iniciar ProgramaciÃ³n
                     </button>
                 </div>
             </div>
@@ -610,28 +610,28 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
         const resultado = actualizarAsignacion(prog.id, editCell.dia, { ...data, rol: editCell.rol }, username || 'Sistema');
         if (!resultado.permitido) {
             showTacticalToast({
-                title: 'Restricción de Sistema',
+                title: 'RestricciÃ³n de Sistema',
                 message: resultado.mensaje,
                 type: 'error'
             });
-            logAction('PROGRAMACION', 'Asignación bloqueada por IA', resultado.regla || resultado.mensaje, 'critical');
+            logAction('PROGRAMACION', 'AsignaciÃ³n bloqueada por IA', resultado.regla || resultado.mensaje, 'critical');
         } else {
             showTacticalToast({
-                title: '✅ Guardado Automático',
-                message: `Día ${editCell.dia} actualizado y sincronizado con la base de datos.`,
+                title: 'âœ… Guardado AutomÃ¡tico',
+                message: `DÃ­a ${editCell.dia} actualizado y sincronizado con la base de datos.`,
                 type: 'success'
             });
-            logAction('PROGRAMACION', `Turno editado — Día ${editCell.dia}`, `Puesto: ${puestoNombre}`, 'info');
+            logAction('PROGRAMACION', `Turno editado â€” DÃ­a ${editCell.dia}`, `Puesto: ${puestoNombre}`, 'info');
         }
         setEditCell(null);
     };
 
     const handlePublicar = () => {
         publicarProgramacion(prog.id, username || 'Sistema');
-        logAction('PROGRAMACION', 'Programación PUBLICADA', `Puesto: ${puestoNombre} · ${MONTH_NAMES[mes]} ${anio}`, 'success');
+        logAction('PROGRAMACION', 'ProgramaciÃ³n PUBLICADA', `Puesto: ${puestoNombre} Â· ${MONTH_NAMES[mes]} ${anio}`, 'success');
         showTacticalToast({
             title: 'Despliegue Exitoso',
-            message: 'Programación publicada y activa para el personal.',
+            message: 'ProgramaciÃ³n publicada y activa para el personal.',
             type: 'success'
         });
     };
@@ -641,7 +641,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
         logAction('PROGRAMACION', 'Borrador guardado', `Puesto: ${puestoNombre}`, 'info');
         showTacticalToast({
             title: 'Progreso Guardado',
-            message: 'Borrador almacenado en el núcleo del sistema.',
+            message: 'Borrador almacenado en el nÃºcleo del sistema.',
             type: 'info'
         });
     };
@@ -654,7 +654,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
         const accentLight: [number, number, number] = [67, 24, 255]; // Primary
         const margin = 8;
 
-        // ── Helper to convert image to Base64 (Reliable Rendering) ──
+        // â”€â”€ Helper to convert image to Base64 (Reliable Rendering) â”€â”€
         const getBase64Image = (url: string): Promise<string> => {
             return new Promise((resolve, reject) => {
                 const img = new Image();
@@ -697,13 +697,13 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(255, 255, 255);
-                doc.text(`CUADRO OPERATIVO MENSUAL — ${puestoNombre.toUpperCase()}`, margin + 34, 10);
+                doc.text(`CUADRO OPERATIVO MENSUAL â€” ${puestoNombre.toUpperCase()}`, margin + 34, 10);
                 doc.setFontSize(7);
-                doc.text(`MES: ${MONTH_NAMES[mes].toUpperCase()} ${anio} · EMISIÓN: ${shortTimestamp}`, margin + 34, 16);
-                doc.text(`RESPONSABLE: ${username?.toUpperCase() || 'CENTRAL'} · PÁGINA: ${pageNum}`, margin + 34, 21);
+                doc.text(`MES: ${MONTH_NAMES[mes].toUpperCase()} ${anio} Â· EMISIÃ“N: ${shortTimestamp}`, margin + 34, 16);
+                doc.text(`RESPONSABLE: ${username?.toUpperCase() || 'CENTRAL'} Â· PÃGINA: ${pageNum}`, margin + 34, 21);
             };
 
-            // ── PAGE 1: DETALLES Y RESUMEN ──
+            // â”€â”€ PAGE 1: DETALLES Y RESUMEN â”€â”€
             doc.setFillColor(accent[0], accent[1], accent[2]);
             doc.rect(0, 0, pageW, 34, 'F');
             addHeaderLogo(doc);
@@ -711,31 +711,31 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
             doc.setFontSize(14);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(255, 255, 255);
-            doc.text('REPORTE TÁCTICO DE PROGRAMACIÓN — CORAZA SEGURIDAD CTA', margin + 34, 13);
+            doc.text('REPORTE TÃCTICO DE PROGRAMACIÃ“N â€” CORAZA SEGURIDAD CTA', margin + 34, 13);
             
             doc.setFontSize(8);
             doc.setTextColor(180, 200, 255);
-            doc.text(`INSTALACIÓN: ${puestoNombre.toUpperCase()}`, margin + 34, 20);
+            doc.text(`INSTALACIÃ“N: ${puestoNombre.toUpperCase()}`, margin + 34, 20);
             doc.text(`MES OPERATIVO: ${MONTH_NAMES[mes].toUpperCase()} ${anio}`, margin + 34, 26);
-            doc.text(`GENERADO POR: ${username?.toUpperCase() || 'CENTRAL DE OPERACIONES'} — ${timestampStr.toUpperCase()}`, margin + 34, 31);
+            doc.text(`GENERADO POR: ${username?.toUpperCase() || 'CENTRAL DE OPERACIONES'} â€” ${timestampStr.toUpperCase()}`, margin + 34, 31);
             
             doc.setTextColor(255, 255, 255);
             doc.setFontSize(7);
-            doc.text(`VERSIÓN: ${prog.version} · ESTADO: ${prog.estado.toUpperCase()}`, pageW - margin, 13, { align: 'right' });
+            doc.text(`VERSIÃ“N: ${prog.version} Â· ESTADO: ${prog.estado.toUpperCase()}`, pageW - margin, 13, { align: 'right' });
 
             let curY = 42;
             doc.setFillColor(245, 247, 252);
             doc.roundedRect(margin, curY, pageW - margin * 2, 38, 3, 3, 'F');
             doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(accentLight[0], accentLight[1], accentLight[2]);
-            doc.text('DETALLES TÉCNICOS DEL PUESTO', margin + 5, curY + 7);
+            doc.text('DETALLES TÃ‰CNICOS DEL PUESTO', margin + 5, curY + 7);
             doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(60, 60, 90);
             
             const details = [
-                ['Puesto / Cliente:', `${puestoNombre} / ${puesto?.cliente || '—'}`],
-                ['ID Interno:', puesto?.id || '—'],
-                ['Ubicación:', puesto?.direccion || 'ZONA METROPOLITANA'],
-                ['Contacto Puesto:', puesto?.contacto || '—'],
-                ['Teléfono:', puesto?.telefono || '—'],
+                ['Puesto / Cliente:', `${puestoNombre} / ${puesto?.cliente || 'â€”'}`],
+                ['ID Interno:', puesto?.id || 'â€”'],
+                ['UbicaciÃ³n:', puesto?.direccion || 'ZONA METROPOLITANA'],
+                ['Contacto Puesto:', puesto?.contacto || 'â€”'],
+                ['TelÃ©fono:', puesto?.telefono || 'â€”'],
                 ['Tipo Servicio:', puesto?.tipoServicio || 'PROGRAMA FIJO'],
                 ['Armamento:', puesto?.conArmamento ? 'SI (CON ARMA)' : 'NO (SIN ARMA)'],
                 ['Prioridad:', (puesto?.prioridad || 'media').toUpperCase()],
@@ -753,7 +753,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
             doc.setFillColor(accent[0], accent[1], accent[2]);
             doc.rect(margin, curY, pageW - margin * 2, 7.5, 'F');
             doc.setTextColor(255, 255, 255); doc.setFontSize(6);
-            const headersSummary = ['ROL', 'CÉDULA / ID', 'NOMBRES Y APELLIDOS COMPLETOS', 'DÍAS T.', 'Q1 (R/NR)', 'Q2 (R/NR)', 'TOTAL DESC.'];
+            const headersSummary = ['ROL', 'CÃ‰DULA / ID', 'NOMBRES Y APELLIDOS COMPLETOS', 'DÃAS T.', 'Q1 (R/NR)', 'Q2 (R/NR)', 'TOTAL DESC.'];
             const colWidthsSum = [28, 25, 65, 20, 30, 30, 20];
             let hx = margin + 2;
             headersSummary.forEach((h, i) => { doc.text(h, hx, curY + 5); hx += colWidthsSum[i]; });
@@ -774,7 +774,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                 curY += 7;
             });
 
-            // ── PAGE 2+: CALENDAR GRID ──
+            // â”€â”€ PAGE 2+: CALENDAR GRID â”€â”€
             doc.addPage('a4', 'landscape');
             let currentPage = 2;
             addGridHeader(doc, currentPage, 0);
@@ -804,7 +804,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
             drawStickyHeader(gridY);
             gridY += headerRowH;
 
-            // ── Render one row per (personal × turno) combination ──
+            // â”€â”€ Render one row per (personal Ã— turno) combination â”€â”€
             const allRows: Array<{ per: typeof prog.personal[0]; turno: TurnoConfig }> = [];
             prog.personal.forEach(per => {
                 turnosConfig.forEach(tc2 => {
@@ -828,7 +828,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                 doc.rect(margin, gridY, pageW - margin * 2, dataRowH, 'F');
                 doc.setDrawColor(220, 220, 225); doc.rect(margin, gridY, pageW - margin * 2, dataRowH, 'S');
                 doc.setTextColor(30, 30, 60); doc.setFontSize(5.5); doc.setFont('helvetica', 'bold');
-                const label = `${vigNombre.toUpperCase()} · ${tRow.nombre.toUpperCase()} (${tRow.inicio}-${tRow.fin})`;
+                const label = `${vigNombre.toUpperCase()} Â· ${tRow.nombre.toUpperCase()} (${tRow.inicio}-${tRow.fin})`;
                 let lines = doc.splitTextToSize(label, colW * 4.3);
                 doc.text(lines, margin + 2, gridY + (dataRowH / 2) - ((lines.length-1)*1.5), { baseline: 'middle' });
 
@@ -864,8 +864,8 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                 gridY += dataRowH;
             });
 
-            // ── PAGE 3+: INDIVIDUAL GUARD SCHEDULE CARDS ──────────────────────────────
-            // One page per vigilante — the card they carry with them
+            // â”€â”€ PAGE 3+: INDIVIDUAL GUARD SCHEDULE CARDS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // One page per vigilante â€” the card they carry with them
             const personalConVigilante = prog.personal.filter(per => per.vigilanteId);
             const guardsProcessed = new Set<string>();
 
@@ -882,7 +882,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                 const pH = doc.internal.pageSize.getHeight();
                 const m = 12;
 
-                // ── Card header banner ──
+                // â”€â”€ Card header banner â”€â”€
                 doc.setFillColor(accent[0], accent[1], accent[2]);
                 doc.rect(0, 0, pW, 42, 'F');
                 if (logoBase64) {
@@ -890,11 +890,11 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                 }
                 doc.setTextColor(255, 255, 255);
                 doc.setFontSize(7); doc.setFont('helvetica', 'bold');
-                doc.text('PROGRAMACIÓN INDIVIDUAL DE TURNO', m + 26, 11);
+                doc.text('PROGRAMACIÃ“N INDIVIDUAL DE TURNO', m + 26, 11);
                 doc.setFontSize(6); doc.setFont('helvetica', 'normal');
                 doc.text(`PUESTO / OBRA: ${puestoNombre.toUpperCase()}`, m + 26, 17);
                 doc.text(`MES: ${MONTH_NAMES[mes].toUpperCase()} ${anio}`, m + 26, 22);
-                doc.text(`EMISIÓN: ${timestampStr.toUpperCase()}`, m + 26, 27);
+                doc.text(`EMISIÃ“N: ${timestampStr.toUpperCase()}`, m + 26, 27);
 
                 // Big guard name box
                 doc.setFillColor(accentLight[0], accentLight[1], accentLight[2]);
@@ -906,21 +906,21 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                 // Sub info
                 doc.setTextColor(200, 215, 255);
                 doc.setFontSize(5.5);
-                doc.text(`CÉD: ${vig.cedula || '—'}  ·  ROL: ${ROL_LABELS[per.rol]}  ·  EMPLEADOR: CORAZA SEGURIDAD CTA`, pW / 2, 40, { align: 'center' });
+                doc.text(`CÃ‰D: ${vig.cedula || 'â€”'}  Â·  ROL: ${ROL_LABELS[per.rol]}  Â·  EMPLEADOR: CORAZA SEGURIDAD CTA`, pW / 2, 40, { align: 'center' });
 
                 let cardY = 48;
-                // ── Section: Turnos configured ──
+                // â”€â”€ Section: Turnos configured â”€â”€
                 doc.setFillColor(240, 242, 252);
                 doc.roundedRect(m, cardY, pW - m * 2, 16, 2, 2, 'F');
                 doc.setTextColor(accentLight[0], accentLight[1], accentLight[2]);
                 doc.setFontSize(6.5); doc.setFont('helvetica', 'bold');
                 doc.text('TURNOS ASIGNADOS EN ESTE PUESTO:', m + 4, cardY + 6);
                 doc.setTextColor(40, 40, 70); doc.setFontSize(6); doc.setFont('helvetica', 'normal');
-                const turnosStr = turnosConfig.map(t => `${t.nombre}: ${t.inicio}–${t.fin}`).join('   |   ');
+                const turnosStr = turnosConfig.map(t => `${t.nombre}: ${t.inicio}â€“${t.fin}`).join('   |   ');
                 doc.text(turnosStr, m + 4, cardY + 12);
                 cardY += 20;
 
-                // ── Day-by-day table ──
+                // â”€â”€ Day-by-day table â”€â”€
                 // Header row
                 const thH = 7;
                 const tdH = 7;
@@ -935,15 +935,15 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                 doc.rect(m, cardY, pW - m * 2, thH, 'F');
                 doc.setTextColor(255, 255, 255); doc.setFontSize(5.5); doc.setFont('helvetica', 'bold');
                 let hx = m + 2;
-                const headers = ['FECHA', 'DÍA', 'TURNO', 'HORARIO', 'JORNADA'];
+                const headers = ['FECHA', 'DÃA', 'TURNO', 'HORARIO', 'JORNADA'];
                 const widths = [colDate, colDay, colTurno, colHoras, colJornada];
                 headers.forEach((h, hi) => { doc.text(h, hx, cardY + 5); hx += widths[hi]; });
                 cardY += thH;
 
-                // Day rows — only show days for THIS vigilante
+                // Day rows â€” only show days for THIS vigilante
                 const diasDelVig = prog.asignaciones.filter(a => a.vigilanteId === vid || (a.rol === per.rol && per.vigilanteId === vid));
 
-                const weekdays = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'];
+                const weekdays = ['DOM', 'LUN', 'MAR', 'MIÃ‰', 'JUE', 'VIE', 'SÃB'];
 
                 dayNumbers.forEach((d, dIdx) => {
                     if (cardY + tdH > pH - 40) {
@@ -991,12 +991,12 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                         doc.setTextColor(accentLight[0], accentLight[1], accentLight[2]);
                         doc.setFont('helvetica', 'bold');
                         doc.text(tCfg2.nombre.toUpperCase(), m + colDate + colDay + 2, cardY + 5);
-                        doc.text(`${tCfg2.inicio} – ${tCfg2.fin}`, m + colDate + colDay + colTurno + 2, cardY + 5);
+                        doc.text(`${tCfg2.inicio} â€“ ${tCfg2.fin}`, m + colDate + colDay + colTurno + 2, cardY + 5);
                     } else {
                         doc.setTextColor(160, 160, 180);
                         doc.setFont('helvetica', 'normal');
-                        doc.text('—', m + colDate + colDay + 2, cardY + 5);
-                        doc.text('—', m + colDate + colDay + colTurno + 2, cardY + 5);
+                        doc.text('â€”', m + colDate + colDay + 2, cardY + 5);
+                        doc.text('â€”', m + colDate + colDay + colTurno + 2, cardY + 5);
                     }
 
                     // Jornada
@@ -1008,7 +1008,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                     cardY += tdH;
                 });
 
-                // ── Summary box ──
+                // â”€â”€ Summary box â”€â”€
                 cardY += 4;
                 const diasTrabajados = diasDelVig.filter(a => a.jornada === 'normal').length;
                 const descRem = diasDelVig.filter(a => a.jornada === 'descanso_remunerado').length;
@@ -1021,32 +1021,32 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                     doc.setFontSize(6); doc.setFont('helvetica', 'bold');
                     doc.text('RESUMEN DEL MES:', m + 4, cardY + 6);
                     doc.setTextColor(40, 40, 70); doc.setFont('helvetica', 'normal');
-                    doc.text(`Días trabajados: ${diasTrabajados}   |   Descansos Rem.: ${descRem}   |   Descansos No Rem.: ${descNRem}   |   Total horas estimadas: ${diasTrabajados * 12}h`, m + 4, cardY + 12);
+                    doc.text(`DÃ­as trabajados: ${diasTrabajados}   |   Descansos Rem.: ${descRem}   |   Descansos No Rem.: ${descNRem}   |   Total horas estimadas: ${diasTrabajados * 12}h`, m + 4, cardY + 12);
                     cardY += 20;
                 }
 
-                // ── Signature area at bottom ──
+                // â”€â”€ Signature area at bottom â”€â”€
                 const sigY2 = pH - 38;
                 doc.setDrawColor(180, 180, 200);
                 doc.line(m, sigY2, m + 70, sigY2);
                 doc.line(pW - m - 70, sigY2, pW - m, sigY2);
                 doc.setFontSize(6); doc.setFont('helvetica', 'bold'); doc.setTextColor(accent[0], accent[1], accent[2]);
                 doc.text('FIRMA RESPONSABLE CTA', m + 35, sigY2 + 4, { align: 'center' });
-                doc.text('RECIBIDO Y CONFORME — VIGILANTE', pW - m - 35, sigY2 + 4, { align: 'center' });
+                doc.text('RECIBIDO Y CONFORME â€” VIGILANTE', pW - m - 35, sigY2 + 4, { align: 'center' });
                 doc.setFontSize(5.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 100);
                 doc.text(`Nombre: ${username?.toUpperCase() || '____________________'}`, m, sigY2 + 9);
                 doc.text(`Fecha: ${shortTimestamp}`, m, sigY2 + 14);
                 doc.text(`Cargo: JEFE DE OPERACIONES`, m, sigY2 + 19);
                 doc.text(`Nombre: ${vig.nombre.toUpperCase()}`, pW - m - 70, sigY2 + 9);
-                doc.text(`Cédula: ${vig.cedula || '___________'}`, pW - m - 70, sigY2 + 14);
+                doc.text(`CÃ©dula: ${vig.cedula || '___________'}`, pW - m - 70, sigY2 + 14);
                 doc.text(`Firma: _______________________`, pW - m - 70, sigY2 + 19);
 
-                // ── Footer note ──
+                // â”€â”€ Footer note â”€â”€
                 doc.setFontSize(5); doc.setTextColor(160, 160, 180);
-                doc.text('CORAZA SEGURIDAD CTA · Documento generado automáticamente. Válido solo con firma del responsable CTA.', pW / 2, pH - 8, { align: 'center' });
+                doc.text('CORAZA SEGURIDAD CTA Â· Documento generado automÃ¡ticamente. VÃ¡lido solo con firma del responsable CTA.', pW / 2, pH - 8, { align: 'center' });
             }
 
-            // ── SIGNATURES on last summary page ──
+            // â”€â”€ SIGNATURES on last summary page â”€â”€
             doc.addPage('a4', 'landscape');
             currentPage++;
             addGridHeader(doc, currentPage, 0);
@@ -1056,7 +1056,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
             doc.line(pageW - margin - 80, sigY, pageW - margin, sigY);
             doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(accent[0], accent[1], accent[2]);
             doc.text('FIRMA RESPONSABLE CTA', margin + 40, sigY + 4, { align: 'center' });
-            doc.text('V°B° CONTROL Y SUPERVISIÓN', pageW/2, sigY + 4, { align: 'center' });
+            doc.text('VÂ°BÂ° CONTROL Y SUPERVISIÃ“N', pageW/2, sigY + 4, { align: 'center' });
             doc.text('RECIBIDO VIGILANTE / CLIENTE', pageW - margin - 40, sigY + 4, { align: 'center' });
             doc.setFontSize(6); doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 100);
             doc.text(`NOMBRE: ${username?.toUpperCase() || '____________________'}`, margin + 2, sigY + 9);
@@ -1093,7 +1093,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                     </button>
                     <div className="min-w-0">
                         <h2 className="text-base sm:text-xl font-black text-slate-900 uppercase tracking-tight truncate leading-none">{puestoNombre}</h2>
-                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">{MONTH_NAMES[mes]} {anio} · Programación Mensual</p>
+                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">{MONTH_NAMES[mes]} {anio} Â· ProgramaciÃ³n Mensual</p>
                     </div>
                 </div>
 
@@ -1120,7 +1120,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                         {cobertura}% Cobertura
                     </div>
                     <div className={`shrink-0 px-2 sm:px-3 py-2 rounded-xl font-black text-[9px] sm:text-[10px] uppercase ${prog.estado === 'publicado' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
-                        {prog.estado === 'publicado' ? '✓ Publicado' : '✏️ Borrador'}
+                        {prog.estado === 'publicado' ? 'âœ“ Publicado' : 'âœï¸ Borrador'}
                     </div>
                     <button onClick={handleExportPDF} className="shrink-0 flex items-center gap-1.5 px-3 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-slate-200 transition-all border border-slate-200/50">
                         <span className="material-symbols-outlined text-[16px]">picture_as_pdf</span> PDF
@@ -1156,7 +1156,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
 
                         {/* What will be saved preview */}
                         <div className="px-8 py-4 bg-violet-50/50 border-b border-violet-100">
-                            <p className="text-[10px] font-black text-violet-700 uppercase tracking-widest mb-3">Lo que se guardará en la plantilla:</p>
+                            <p className="text-[10px] font-black text-violet-700 uppercase tracking-widest mb-3">Lo que se guardarÃ¡ en la plantilla:</p>
                             <div className="space-y-2">
                                 {prog.personal.filter(p => p.vigilanteId).map(per => {
                                     const vig = vigilantes.find(v => v.id === per.vigilanteId);
@@ -1169,21 +1169,21 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-[11px] font-black text-slate-800 truncate">{vig?.nombre || 'Sin asignar'}</p>
-                                                <p className="text-[9px] font-bold text-slate-400">{ROL_LABELS[per.rol]} · {dias} días turnos · {descansos} descansos</p>
+                                                <p className="text-[9px] font-bold text-slate-400">{ROL_LABELS[per.rol]} Â· {dias} dÃ­as turnos Â· {descansos} descansos</p>
                                             </div>
-                                            <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">✓ Incluido</span>
+                                            <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">âœ“ Incluido</span>
                                         </div>
                                     );
                                 })}
                                 {prog.personal.filter(p => p.vigilanteId).length === 0 && (
                                     <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl">
-                                        <p className="text-[11px] font-bold text-orange-700">⚠ No hay vigilantes asignados. La plantilla guardará solo el patrón de turnos y jornadas.</p>
+                                        <p className="text-[11px] font-bold text-orange-700">âš  No hay vigilantes asignados. La plantilla guardarÃ¡ solo el patrÃ³n de turnos y jornadas.</p>
                                     </div>
                                 )}
                             </div>
                             <div className="mt-2 flex items-center gap-2">
                                 <span className="material-symbols-outlined text-[14px] text-slate-400">info</span>
-                                <p className="text-[9px] font-bold text-slate-400">También se guardan los asignaciones día a día, incluyendo reemplazos y variaciones.</p>
+                                <p className="text-[9px] font-bold text-slate-400">TambiÃ©n se guardan los asignaciones dÃ­a a dÃ­a, incluyendo reemplazos y variaciones.</p>
                             </div>
                         </div>
 
@@ -1194,7 +1194,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                                 value={tplNombre}
                                 onChange={e => setTplNombre(e.target.value)}
                                 onKeyDown={e => e.key === 'Enter' && handleGuardarPlantilla()}
-                                placeholder="Ej: Turnos Estándar Marzo 2026"
+                                placeholder="Ej: Turnos EstÃ¡ndar Marzo 2026"
                                 className="w-full h-11 border-2 border-slate-200 rounded-xl px-4 text-sm font-bold outline-none focus:border-violet-400 transition-all"
                             />
                             <div className="flex gap-3 mt-5">
@@ -1239,11 +1239,11 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
 
             {/* Content */}
             <div className="flex-1 overflow-auto p-6">
-                {/* ── CALENDARIO ─────────────────────────────────────────────── */}
+                {/* â”€â”€ CALENDARIO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                 {activeTab === 'calendario' && (
                     <div className="space-y-5">
 
-                        {/* ── Stats bar: vigilante cards ────────────────────── */}
+                        {/* â”€â”€ Stats bar: vigilante cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             {prog.personal.map(per => {
                                 const vig = per.vigilanteId ? vigilantes.find(v => v.id === per.vigilanteId) : null;
@@ -1262,7 +1262,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-[9px] font-black uppercase tracking-widest mb-0.5" style={{ color: rolColors[per.rol] }}>{ROL_LABELS[per.rol]}</p>
-                                            <p className="text-sm font-black text-slate-900 truncate">{vig?.nombre || '— Sin asignar —'}</p>
+                                            <p className="text-sm font-black text-slate-900 truncate">{vig?.nombre || 'â€” Sin asignar â€”'}</p>
                                             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                                 <span className="text-[9px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{dias}d trabajados</span>
                                                 <span className="text-[9px] font-bold bg-success/10 text-success px-1.5 py-0.5 rounded-full">{desc.remunerados} DR</span>
@@ -1274,7 +1274,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                             })}
                         </div>
 
-                        {/* ── Legend + Jornadas ─────────────────────────────── */}
+                        {/* â”€â”€ Legend + Jornadas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                         <div className="flex items-center gap-3 flex-wrap bg-white border border-slate-100 rounded-2xl px-4 py-3 shadow-sm">
                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Leyenda:</span>
                             {(jornadasCustom.length ? jornadasCustom : DEFAULT_JORNADAS).map(j => (
@@ -1291,7 +1291,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                             </div>
                         </div>
 
-                        {/* ── CALENDAR GRID — turno-centric ─────────────────── */}
+                        {/* â”€â”€ CALENDAR GRID â€” turno-centric â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                         <div className="bg-white border border-slate-100 rounded-2xl shadow-xl overflow-hidden">
                             {/* Grid top bar: turno pills + month info */}
                             <div className="bg-slate-900 px-5 py-3 flex items-center gap-3 flex-wrap border-b border-slate-800">
@@ -1304,12 +1304,12 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                                             className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black border"
                                             style={{ background: col + '22', color: col, borderColor: col + '55' }}>
                                             <span className="size-2 rounded-full shrink-0" style={{ background: col }} />
-                                            {tc2.nombre} · {tc2.inicio}–{tc2.fin}
+                                            {tc2.nombre} Â· {tc2.inicio}â€“{tc2.fin}
                                         </span>
                                     );
                                 })}
                                 <span className="ml-auto text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                                    {MONTH_NAMES[mes]} {anio} · {daysInMonth} días
+                                    {MONTH_NAMES[mes]} {anio} Â· {daysInMonth} dÃ­as
                                 </span>
                             </div>
 
@@ -1346,7 +1346,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {/* One row per configured TURNO — mapped by index to role */}
+                                        {/* One row per configured TURNO â€” mapped by index to role */}
                                         {turnosConfig.map((tConf, tIdx) => {
                                             const turnoColors = ['#4318FF', '#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'];
                                             const col = turnoColors[tIdx % turnoColors.length];
@@ -1367,21 +1367,21 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                                                                 {tConf.nombre}
                                                             </span>
                                                             <span className="text-[10px] font-bold text-slate-400 leading-none">
-                                                                {tConf.inicio} – {tConf.fin}
+                                                                {tConf.inicio} â€“ {tConf.fin}
                                                             </span>
                                                             {titularNombre && (
                                                                 <span className="text-[8px] font-bold text-slate-400 truncate mt-0.5 max-w-[150px]">
-                                                                    👤 {titularNombre}
+                                                                    ðŸ‘¤ {titularNombre}
                                                                 </span>
                                                             )}
                                                         </div>
                                                     </td>
-                                                    {/* Day cells — always find by (dia, rol) */}
+                                                    {/* Day cells â€” always find by (dia, rol) */}
                                                     {dayNumbers.map(d => {
                                                         const dateObj = new Date(anio, mes, d);
                                                         const dow = dateObj.getDay();
                                                         const isW = dow === 0 || dow === 6;
-                                                        // ✅ KEY FIX: always search by (dia, rol) — same key the store uses
+                                                        // âœ… KEY FIX: always search by (dia, rol) â€” same key the store uses
                                                         const asig = prog.asignaciones.find(a => a.dia === d && a.rol === rol);
                                                         const cellVigName = asig ? getVigilanteName(asig.vigilanteId) : undefined;
                                                         return (
@@ -1422,7 +1422,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                                     {prog.asignaciones.filter(a => !a.vigilanteId || a.jornada === 'sin_asignar').length} sin asignar
                                 </span>
                                 <span className="ml-auto text-[10px] font-bold text-slate-400">
-                                    Click en cualquier celda para editar · Rojo = sin asignar
+                                    Click en cualquier celda para editar Â· Rojo = sin asignar
                                 </span>
                             </div>
                         </div>
@@ -1430,7 +1430,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                 )}
 
 
-                {/* ── PLANTILLAS ─────────────────────────────────────────────── */}
+                {/* â”€â”€ PLANTILLAS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                 {activeTab === 'plantillas' && (
                     <div className="max-w-2xl space-y-4">
                         <div className="flex items-start gap-4 p-4 bg-violet-50 border border-violet-200 rounded-2xl">
@@ -1438,8 +1438,8 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                             <div>
                                 <p className="text-[12px] font-black text-violet-900">Sistema de Plantillas Reutilizables</p>
                                 <p className="text-[11px] text-violet-700 font-bold mt-1">
-                                    Guarda la programación actual como plantilla y aplícala en cualquier mes futuro.
-                                    Los horarios y jornadas se copian exactamente; puedes modificar lo que necesites después.
+                                    Guarda la programaciÃ³n actual como plantilla y aplÃ­cala en cualquier mes futuro.
+                                    Los horarios y jornadas se copian exactamente; puedes modificar lo que necesites despuÃ©s.
                                 </p>
                             </div>
                         </div>
@@ -1451,7 +1451,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                         >
                             <span className="material-symbols-outlined text-[24px] group-hover:scale-110 transition-transform">bookmark_add</span>
                             <div className="text-left">
-                                <p className="text-[12px] font-black uppercase tracking-widest">Guardar Programación Actual como Plantilla</p>
+                                <p className="text-[12px] font-black uppercase tracking-widest">Guardar ProgramaciÃ³n Actual como Plantilla</p>
                                 <p className="text-[10px] font-bold opacity-70">Captura el estado actual del tablero de {MONTH_NAMES[mes]} {anio}</p>
                             </div>
                         </button>
@@ -1460,12 +1460,12 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                             <div className="text-center py-16 bg-white border border-slate-100 rounded-2xl shadow-sm">
                                 <span className="material-symbols-outlined text-[64px] text-slate-200 mb-4">bookmarks</span>
                                 <p className="text-[13px] font-black text-slate-400 uppercase tracking-widest">Sin plantillas guardadas</p>
-                                <p className="text-[11px] text-slate-400 mt-2 font-bold">Guarda la programación de este mes para reutilizarla luego</p>
+                                <p className="text-[11px] text-slate-400 mt-2 font-bold">Guarda la programaciÃ³n de este mes para reutilizarla luego</p>
                             </div>
                         ) : (
                             <div className="space-y-3">
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
-                                    Plantillas de {puestoNombre} — {templates.length} guardada{templates.length !== 1 && 's'}
+                                    Plantillas de {puestoNombre} â€” {templates.length} guardada{templates.length !== 1 && 's'}
                                 </p>
                                 {templates.map(tpl => (
                                     <div key={tpl.id} className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex items-center gap-4 group hover:border-violet-200 transition-all">
@@ -1475,8 +1475,8 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                                         <div className="flex-1 min-w-0">
                                             <p className="text-[13px] font-black text-slate-900 truncate">{tpl.nombre}</p>
                                             <p className="text-[10px] text-slate-400 font-bold mt-0.5">
-                                                Creada por {tpl.creadoPor} · {new Date(tpl.creadoEn).toLocaleDateString('es-CO')}
-                                                · {tpl.patron.length} asignaciones
+                                                Creada por {tpl.creadoPor} Â· {new Date(tpl.creadoEn).toLocaleDateString('es-CO')}
+                                                Â· {tpl.patron.length} asignaciones
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-2 shrink-0">
@@ -1505,7 +1505,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                     </div>
                 )}
 
-                {/* ── PERSONAL ───────────────────────────────────────────────── */}
+                {/* â”€â”€ PERSONAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                 {activeTab === 'personal' && (
                     <div className="max-w-xl space-y-4">
                         <p className="text-[11px] text-slate-500 font-bold">Asigna los 3 vigilantes responsables de este puesto este mes.</p>
@@ -1561,20 +1561,20 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                                         }}
                                         className="mt-1 w-full h-10 bg-white border-2 border-slate-100 rounded-xl px-3 text-sm font-bold outline-none focus:border-primary/50 focus:bg-white transition-all shadow-sm"
                                     >
-                                        <option value="">— Seleccionar del personal —</option>
+                                        <option value="">â€” Seleccionar del personal â€”</option>
                                         <optgroup label="DIPONIBLES">
                                             {vigilantes.filter(v => v.estado === 'disponible').map(v => (
-                                                <option key={v.id} value={v.id}>✅ {v.nombre}</option>
+                                                <option key={v.id} value={v.id}>âœ… {v.nombre}</option>
                                             ))}
                                         </optgroup>
                                         <optgroup label="ACTIVOS">
                                             {vigilantes.filter(v => v.estado === 'activo').map(v => (
-                                                <option key={v.id} value={v.id}>👤 {v.nombre}</option>
+                                                <option key={v.id} value={v.id}>ðŸ‘¤ {v.nombre}</option>
                                             ))}
                                         </optgroup>
                                         <optgroup label="OTROS">
                                             {vigilantes.filter(v => v.estado !== 'disponible' && v.estado !== 'activo').map(v => (
-                                                <option key={v.id} value={v.id}>⚠ {v.nombre} ({v.estado})</option>
+                                                <option key={v.id} value={v.id}>âš  {v.nombre} ({v.estado})</option>
                                             ))}
                                         </optgroup>
                                     </select>
@@ -1584,7 +1584,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                     </div>
                 )}
 
-                {/* ── HISTORIAL ──────────────────────────────────────────────── */}
+                {/* â”€â”€ HISTORIAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                 {activeTab === 'historial' && (
                     <div className="space-y-2 max-h-[70vh] overflow-y-auto">
                         {prog.historialCambios.slice().reverse().map(h => (
@@ -1595,17 +1595,17 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                                 <div className="flex-1">
                                     <p className="text-sm font-bold text-slate-900">{h.descripcion}</p>
                                     {h.reglaViolada && <p className="text-[11px] text-danger font-bold mt-0.5">Regla: {h.reglaViolada}</p>}
-                                    <p className="text-[10px] text-slate-400 mt-1">{new Date(h.timestamp).toLocaleString('es-CO', { hour12: false })} · {h.usuario}</p>
+                                    <p className="text-[10px] text-slate-400 mt-1">{new Date(h.timestamp).toLocaleString('es-CO', { hour12: false })} Â· {h.usuario}</p>
                                 </div>
                             </div>
                         ))}
                         {prog.historialCambios.length === 0 && (
-                            <p className="text-center text-slate-400 font-bold py-10">Sin cambios registrados aún</p>
+                            <p className="text-center text-slate-400 font-bold py-10">Sin cambios registrados aÃºn</p>
                         )}
                     </div>
                 )}
 
-                {/* ── ALERTAS IA ─────────────────────────────────────────────── */}
+                {/* â”€â”€ ALERTAS IA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                 {activeTab === 'alertas' && (
                     <div className="space-y-4">
                         <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5">
@@ -1615,16 +1615,16 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                             </h3>
                             <ul className="space-y-2 text-[12px] text-slate-700 font-medium">
                                 {[
-                                    '🚫 Un vigilante no puede estar en dos puestos al mismo tiempo en el mismo turno',
-                                    '🚫 Máximo 3 días de descanso por quincena por vigilante',
-                                    '🚫 Los 3 descansos deben ser: 2 remunerados + 1 no remunerado exactamente',
-                                    '🚫 No se aprueban vacaciones en diciembre, enero ni Semana Santa',
-                                    '🚫 Si el vigilante tiene descanso, no puede ser asignado a otro puesto ese día',
-                                    '⚠️ El relevante con días vacíos recibirá sugerencia de asignación alterna',
-                                    '⚠️ Días sin cobertura generan alerta de puesto desprotegido',
+                                    'ðŸš« Un vigilante no puede estar en dos puestos al mismo tiempo en el mismo turno',
+                                    'ðŸš« MÃ¡ximo 3 dÃ­as de descanso por quincena por vigilante',
+                                    'ðŸš« Los 3 descansos deben ser: 2 remunerados + 1 no remunerado exactamente',
+                                    'ðŸš« No se aprueban vacaciones en diciembre, enero ni Semana Santa',
+                                    'ðŸš« Si el vigilante tiene descanso, no puede ser asignado a otro puesto ese dÃ­a',
+                                    'âš ï¸ El relevante con dÃ­as vacÃ­os recibirÃ¡ sugerencia de asignaciÃ³n alterna',
+                                    'âš ï¸ DÃ­as sin cobertura generan alerta de puesto desprotegido',
                                 ].map((r, i) => (
                                     <li key={i} className="flex items-start gap-2">
-                                        <span className="mt-0.5">→</span> {r}
+                                        <span className="mt-0.5">â†’</span> {r}
                                     </li>
                                 ))}
                             </ul>
@@ -1633,7 +1633,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                         <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
                             <h3 className="font-black text-slate-900 mb-3 text-[13px]">Rechazos de IA registrados</h3>
                             {prog.historialCambios.filter(h => h.tipo === 'rechazo_ia').length === 0 ? (
-                                <p className="text-[12px] text-success font-bold">✅ Sin rechazos en este período. Todo en orden.</p>
+                                <p className="text-[12px] text-success font-bold">âœ… Sin rechazos en este perÃ­odo. Todo en orden.</p>
                             ) : (
                                 prog.historialCambios.filter(h => h.tipo === 'rechazo_ia').map(h => (
                                     <div key={h.id} className="flex gap-2 p-3 bg-danger/5 border border-danger/20 rounded-xl mb-2">
@@ -1649,7 +1649,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                     </div>
                 )}
 
-                {/* ── CONFIG TAB ─────────────────────────────────────── */}
+                {/* â”€â”€ CONFIG TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                 {activeTab === 'config' && (
                     <div className="space-y-8 max-w-2xl">
                         {/* Turnos Config */}
@@ -1662,7 +1662,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                                             onChange={e => { const t = [...turnosConfig]; t[idx] = { ...t[idx], nombre: e.target.value }; updatePuesto(puestoId, { turnosConfig: t }); }} />
                                         <MilitaryTimeInput value={tc.inicio}
                                             onChange={val => { const t = [...turnosConfig]; t[idx] = { ...t[idx], inicio: val }; updatePuesto(puestoId, { turnosConfig: t }); }} />
-                                        <span className="text-slate-400">→</span>
+                                        <span className="text-slate-400">â†’</span>
                                         <MilitaryTimeInput value={tc.fin}
                                             onChange={val => { const t = [...turnosConfig]; t[idx] = { ...t[idx], fin: val }; updatePuesto(puestoId, { turnosConfig: t }); }} />
                                         <button onClick={() => { const t = turnosConfig.filter((_, i) => i !== idx); updatePuesto(puestoId, { turnosConfig: t }); }} className="size-8 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-all">
@@ -1692,16 +1692,16 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                                 ))}
                             </div>
                         </div>
-                        {/* Programación Recurrente */}
+                        {/* ProgramaciÃ³n Recurrente */}
                         <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm">
-                            <h3 className="font-black text-slate-900 mb-2 flex items-center gap-2"><span className="material-symbols-outlined text-primary">repeat</span>Programación Recurrente</h3>
-                            <p className="text-[11px] text-slate-500 mb-4">Guarda el mes actual como plantilla para replicar automáticamente en meses futuros.</p>
+                            <h3 className="font-black text-slate-900 mb-2 flex items-center gap-2"><span className="material-symbols-outlined text-primary">repeat</span>ProgramaciÃ³n Recurrente</h3>
+                            <p className="text-[11px] text-slate-500 mb-4">Guarda el mes actual como plantilla para replicar automÃ¡ticamente en meses futuros.</p>
                             <button onClick={() => {
                                 if (!prog) return;
                                 updatePuesto(puestoId, { plantillaRecurrente: { activa: true, asignaciones: prog.asignaciones, personal: prog.personal, desdeAnio: anio, desMes: mes } });
                                 showTacticalToast({
                                     title: 'Plantilla Guardada',
-                                    message: 'Configuración guardada para recursividad mensual.',
+                                    message: 'ConfiguraciÃ³n guardada para recursividad mensual.',
                                     type: 'success'
                                 });
                                 logAction('PROGRAMACION', 'Plantilla recurrente guardada', `Puesto: ${puestoNombre} desde ${MONTH_NAMES[mes]} ${anio}`, 'info');
@@ -1709,7 +1709,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                                 <span className="material-symbols-outlined text-[16px]">save</span>Guardar como Plantilla Base
                             </button>
                             {puesto?.plantillaRecurrente?.activa && (
-                                <p className="mt-3 text-[11px] text-success font-bold">✓ Plantilla activa desde {MONTH_NAMES[puesto?.plantillaRecurrente?.desMes || 0]} {puesto?.plantillaRecurrente?.desdeAnio}</p>
+                                <p className="mt-3 text-[11px] text-success font-bold">âœ“ Plantilla activa desde {MONTH_NAMES[puesto?.plantillaRecurrente?.desMes || 0]} {puesto?.plantillaRecurrente?.desdeAnio}</p>
                             )}
                         </div>
                     </div>
@@ -1741,7 +1741,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                                     <span className="material-symbols-outlined text-2xl">swap_horiz</span>
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-black uppercase tracking-tight">Justificación</h3>
+                                    <h3 className="text-lg font-black uppercase tracking-tight">JustificaciÃ³n</h3>
                                     <p className="text-[9px] font-bold text-white/60 uppercase tracking-widest">Protocolo de Seguridad</p>
                                 </div>
                             </div>
@@ -1759,7 +1759,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                                     autoFocus
                                     value={justificacionText}
                                     onChange={e => setJustificacionText(e.target.value)}
-                                    placeholder="Escriba el motivo aquí..."
+                                    placeholder="Escriba el motivo aquÃ­..."
                                     className="w-full h-24 bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold text-slate-900 outline-none focus:border-primary/30 focus:bg-white transition-all resize-none shadow-sm"
                                 />
                             </div>
@@ -1769,8 +1769,8 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                                     onClick={() => {
                                         setShowJustificacion(null);
                                         showTacticalToast({
-                                            title: 'Operación Abortada',
-                                            message: 'Se requiere justificación para asignar personal disponible.',
+                                            title: 'OperaciÃ³n Abortada',
+                                            message: 'Se requiere justificaciÃ³n para asignar personal disponible.',
                                             type: 'info'
                                         });
                                     }}
@@ -1824,7 +1824,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
     );
 };
 
-// ── MAIN PAGE ─────────────────────────────────────────────────────────────────
+// â”€â”€ MAIN PAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const GestionPuestos = () => {
     const puestos = usePuestoStore(s => s.puestos);
@@ -1896,9 +1896,9 @@ const GestionPuestos = () => {
                         <span className="text-primary font-black">Puestos Activos</span>
                     </div>
                     <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">
-                        Programación <span className="text-primary">Puestos Activos</span>
+                        ProgramaciÃ³n <span className="text-primary">Puestos Activos</span>
                     </h1>
-                    <p className="text-sm text-slate-400 mt-1 font-medium">Panel de control mensual · Gestión de personal élite</p>
+                    <p className="text-sm text-slate-400 mt-1 font-medium">Panel de control mensual Â· GestiÃ³n de personal Ã©lite</p>
                 </div>
 
                 {/* Month/Year selector */}
@@ -1949,7 +1949,7 @@ const GestionPuestos = () => {
                 </select>
                 <select value={filtroCobertura} onChange={e => setFiltroCobertura(e.target.value)} className="h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 outline-none">
                     <option value="todos">Toda la cobertura</option>
-                    <option value="completo">≥80% Completo</option>
+                    <option value="completo">â‰¥80% Completo</option>
                     <option value="incompleto">&lt;80% Incompleto</option>
                 </select>
                 <span className="text-[10px] font-bold text-slate-400">{puestosFiltrados.length} puestos</span>
@@ -1976,7 +1976,7 @@ const GestionPuestos = () => {
                         {/* Coverage bar */}
                         <div className="mb-3">
                             <div className="flex justify-between items-center mb-1">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Programación {MONTH_NAMES[mes]}</span>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">ProgramaciÃ³n {MONTH_NAMES[mes]}</span>
                                 <span className={`text-[11px] font-black ${p.cobertura >= 80 ? 'text-success' : p.cobertura >= 50 ? 'text-warning' : 'text-danger'}`}>{p.cobertura}%</span>
                             </div>
                             <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -1989,7 +1989,7 @@ const GestionPuestos = () => {
 
                         <div className="flex items-center justify-between">
                             <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${p.progEstado === 'publicado' ? 'bg-success/10 text-success' : p.progEstado === 'borrador' ? 'bg-warning/10 text-warning' : 'bg-slate-100 text-slate-400'}`}>
-                                {p.progEstado === 'publicado' ? '✓ Publicado' : p.progEstado === 'borrador' ? '✏️ Borrador' : 'Sin programar'}
+                                {p.progEstado === 'publicado' ? 'âœ“ Publicado' : p.progEstado === 'borrador' ? 'âœï¸ Borrador' : 'Sin programar'}
                             </span>
                             {p.alertas.length > 0 && (
                                 <span className="text-[10px] font-black text-danger flex items-center gap-1">

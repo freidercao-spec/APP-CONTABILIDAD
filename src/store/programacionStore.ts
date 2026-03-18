@@ -807,7 +807,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
         }),
         {
-            name: 'coraza-programacion-store',
+            name: 'coraza-programacion-store-v1.2.7',
             onRehydrateStorage: () => (state) => {
                 if (state) {
                     state.programaciones = (state.programaciones || []).map(p => ({
