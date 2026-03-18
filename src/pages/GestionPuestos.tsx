@@ -168,12 +168,14 @@ const EditCeldaModal = ({ asig, vigilantes, titularesId, ocupados, turnosConfig,
         if (!vid) return null;
         const slots = ocupados.get(vid) || [];
         if (slots.includes(`${asig.dia}-${t}`)) {
-            return `${vigilantes.find(v => v.id === vid)?.nombre} ya tiene turno el día ${asig.dia} (${t})`;
+            const v = vigilantes.find(gv => gv.id === vid || gv.dbId === vid);
+            return `${v?.nombre || 'Efectivo'} ya tiene turno el día ${asig.dia} (${t})`;
         }
         if (t === 'AM') {
             const prevDay = asig.dia - 1;
             if (slots.includes(`${prevDay}-PM`)) {
-                return `${vigilantes.find(v => v.id === vid)?.nombre} trabajó PM el día ${prevDay} — sin descanso mínimo`;
+                const v = vigilantes.find(gv => gv.id === vid || gv.dbId === vid);
+                return `${v?.nombre || 'Efectivo'} trabajó PM el día ${prevDay} — sin descanso mínimo`;
             }
         }
         return null;
@@ -188,7 +190,7 @@ const EditCeldaModal = ({ asig, vigilantes, titularesId, ocupados, turnosConfig,
         setConflicto(checkConflict(vigilanteId, t));
     };
 
-    const selectedVig = vigilantes.find(v => v.id === vigilanteId);
+    const selectedVig = vigilantes.find(v => v.id === vigilanteId || v.dbId === vigilanteId);
     const jornadaActual = jornadasList.find(j => j.id === jornada) ?? jornadasList[0];
 
     return (
@@ -600,7 +602,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
 
     const getVigilanteName = (id: string | null) => {
         if (!id) return undefined;
-        return vigilantes.find(v => v.id === id)?.nombre;
+        return vigilantes.find(v => (v.dbId === id || v.id === id))?.nombre;
     };
 
     const handleSaveCell = (data: Partial<AsignacionDia>) => {
@@ -1524,7 +1526,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                                                 asignarPersonal(prog.id, updated, username || 'Sistema');
 
                                                 if (newVigilanteId) {
-                                                    const v = vigilantes.find(gv => gv.id === newVigilanteId);
+                                                    const v = vigilantes.find(gv => gv.id === newVigilanteId || gv.dbId === newVigilanteId);
                                                     if (v && v.estado === 'disponible') {
                                                         updateGuardStatus(newVigilanteId, 'activo', puestoId, `Asignado como TITULAR en ${puestoNombre}: ${justificacionText}`);
                                                     }
@@ -1538,7 +1540,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                                             };
 
                                             if (newVigilanteId) {
-                                                const v = vigilantes.find(gv => gv.id === newVigilanteId);
+                                                const v = vigilantes.find(gv => gv.id === newVigilanteId || gv.dbId === newVigilanteId);
                                                 if (v && v.estado === 'disponible') {
                                                     // Instead of prompt, show modal
                                                     setShowJustificacion({ vigilante: v, per, newVigilanteId });
@@ -1718,7 +1720,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
             {editCell && (
                 <EditCeldaModal
                     asig={editCell}
-                    vigilantes={vigilantes.map(v => ({ id: v.id, nombre: v.nombre, estado: v.estado }))}
+                    vigilantes={vigilantes.map(v => ({ id: v.id, dbId: v.dbId, nombre: v.nombre, estado: v.estado }))}
                     titularesId={prog!.personal.filter(p => !!p.vigilanteId).map(p => p.vigilanteId as string)}
                     ocupados={ocupados}
                     turnosConfig={turnosConfig}
@@ -1843,7 +1845,7 @@ const GestionPuestos = () => {
 
     const puestosConProg = useMemo(() => {
         return puestos.map(p => {
-            const prog = programaciones.find(pr => pr.puestoId === p.id && pr.anio === anio && pr.mes === mes);
+            const prog = programaciones.find(pr => (pr.puestoId === p.dbId || pr.puestoId === p.id) && pr.anio === anio && pr.mes === mes);
             const cobertura = prog ? getCoberturaPorcentaje(prog.id) : 0;
             const alertas = prog ? getAlertas(prog.id) : [];
             return { ...p, cobertura, alertas, progEstado: prog?.estado ?? 'sin_programacion' };
@@ -1958,8 +1960,8 @@ const GestionPuestos = () => {
                 {puestosFiltrados.map(p => (
                     <div
                         key={p.id}
-                        className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm hover:shadow-md hover:border-primary/20 transition-all cursor-pointer group"
-                        onClick={() => setPuestoSeleccionado({ id: p.id, nombre: p.nombre })}
+                        className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm hover:shadow-md hover:border-primary/20 transition-all cursor-pointer"
+                        onClick={() => setPuestoSeleccionado({ id: p.dbId || p.id, nombre: p.nombre })}
                     >
                         <div className="flex items-start justify-between mb-4">
                             <div>
