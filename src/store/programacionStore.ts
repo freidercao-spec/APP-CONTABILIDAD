@@ -135,20 +135,27 @@ export const setProgUser = (name: string) => { _currentUser = name; };
 const pendingSyncs = new Map<string, any>();
 const activeSyncPromises = new Map<string, Promise<any>>();
 
+// Helper: translate any HID (MED-0001) to UUID for DB
+const translateToUuid = (id: string | null): string | null => {
+    if (!id) return null;
+    if (id && id.length > 20) return id; // Likely already a UUID
+    const vigs = useVigilanteStore.getState().vigilantes;
+    const v = vigs.find(vg => vg.id === id);
+    return v?.dbId || id;
+};
+
+const translateFromDb = (dbId: string | null) => {
+    if (!dbId) return null;
+    // Buscamos por dbId (UUID) o por id (shorthand si ya está convertido)
+    const v = useVigilanteStore.getState().vigilantes.find((v: any) => v.dbId === dbId || v.id === dbId);
+    return v?.id || dbId;
+};
+
 async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: any): Promise<boolean> {
     // If there's an active sync for this ID, wait for it
     if (activeSyncPromises.has(prog.id)) {
         await activeSyncPromises.get(prog.id);
     }
-
-    // Helper: translate any HID (MED-0001) to UUID for DB
-    const translateToUuid = (id: string | null): string | null => {
-        if (!id) return null;
-        if (id.length > 20) return id; // Likely already a UUID
-        const vigs = useVigilanteStore.getState().vigilantes;
-        const v = vigs.find(vg => vg.id === id);
-        return v?.dbId || id;
-    };
 
     const syncPromise = (async () => {
         try {
@@ -321,7 +328,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     const programaciones: ProgramacionMensual[] = rows.map(row => {
                         const personal = (allPersonal || [])
                             .filter(p => p.programacion_id === row.id)
-                            .map(p => ({ rol: p.rol as RolPuesto, vigilanteId: p.vigilante_id }));
+                            .map(p => ({ rol: p.rol as RolPuesto, vigilanteId: translateFromDb(p.vigilante_id) }));
 
                         // Ensure all 3 roles exist
                         const roles: RolPuesto[] = ['titular_a', 'titular_b', 'relevante'];
@@ -333,7 +340,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             .filter(a => a.programacion_id === row.id)
                             .map(a => ({
                                 dia: a.dia,
-                                vigilanteId: a.vigilante_id,
+                                vigilanteId: translateFromDb(a.vigilante_id),
                                 turno: a.turno,
                                 jornada: a.jornada as TipoJornada,
                                 rol: a.rol as RolPuesto,
@@ -817,7 +824,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
         }),
         {
-            name: 'coraza-programacion-store-v1.2.9',
+            name: 'coraza-programacion-store-v1.3.1',
             onRehydrateStorage: () => (state) => {
                 if (state) {
                     state.programaciones = (state.programaciones || []).map(p => ({

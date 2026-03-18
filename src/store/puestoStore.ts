@@ -140,6 +140,12 @@ export const usePuestoStore = create<PuestoState>()(
                         return;
                     }
 
+                    const translateVigFromDb = (dbId: string | null) => {
+                        if (!dbId) return null;
+                        const v = useVigilanteStore.getState().vigilantes.find((v: any) => v.dbId === dbId || v.id === dbId);
+                        return v?.id || dbId;
+                    };
+
                     const puestoIds = rows.map(r => r.id);
 
                     // Fetch turnos
@@ -159,7 +165,7 @@ export const usePuestoStore = create<PuestoState>()(
                         const turnos = (allTurnos || [])
                             .filter(t => t.puesto_id === row.id)
                             .map(t => ({
-                                vigilanteId: t.vigilante_id,
+                                vigilanteId: translateVigFromDb(t.vigilante_id) as string,
                                 horaInicio: t.hora_inicio,
                                 horaFin: t.hora_fin,
                                 dia: t.dia || undefined,
@@ -171,7 +177,7 @@ export const usePuestoStore = create<PuestoState>()(
                                 id: h.id,
                                 timestamp: h.created_at,
                                 action: h.accion as HistorialPuesto['action'],
-                                vigilanteId: h.vigilante_id || undefined,
+                                vigilanteId: translateVigFromDb(h.vigilante_id) as string || undefined,
                                 details: h.detalles || '',
                             }));
 
@@ -521,7 +527,7 @@ export const usePuestoStore = create<PuestoState>()(
             }
         }),
         {
-            name: 'coraza-puestos-v1.2.9',
+            name: 'coraza-puestos-v1.3.0',
             onRehydrateStorage: () => (state) => {
                 if (state) {
                     state.puestos = (state.puestos || []).map(p => ({

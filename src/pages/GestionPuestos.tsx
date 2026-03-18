@@ -1717,19 +1717,6 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                 )}
             </div>
 
-            {/* Edit cell modal */}
-            {editCell && (
-                <EditCeldaModal
-                    asig={editCell}
-                    vigilantes={vigilantes.map(v => ({ id: v.id, dbId: v.dbId, nombre: v.nombre, estado: v.estado }))}
-                    titularesId={prog!.personal.filter(p => !!p.vigilanteId).map(p => p.vigilanteId as string)}
-                    ocupados={ocupados}
-                    turnosConfig={turnosConfig}
-                    jornadasCustom={jornadasCustom}
-                    onSave={handleSaveCell}
-                    onClose={() => setEditCell(null)}
-                />
-            )}
 
             {/* Tactical Justification Modal */}
             {showJustificacion && (
@@ -1813,7 +1800,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                     asig={editCell}
                     vigilantes={vigilantes}
                     titularesId={prog.personal.filter(p => p.vigilanteId).map(p => p.vigilanteId!)}
-                    ocupados={new Map()} // Logic for occupancy could be added here if needed
+                    ocupados={ocupados}
                     turnosConfig={turnosConfig}
                     jornadasCustom={jornadasCustom}
                     onSave={handleSaveCell}

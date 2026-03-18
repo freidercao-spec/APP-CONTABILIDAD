@@ -114,7 +114,9 @@ const Login = () => {
                         </button>
                     </form>
                 </div>
-                <p className="text-center text-[10px] font-black text-slate-600 uppercase tracking-widest mt-8">VERSIÓN 3.3.0 - CORAZA CTA (MOD v1.2.9)</p>
+                <div className="absolute inset-x-0 bottom-8 text-center text-[10px] font-black text-primary/30 uppercase tracking-[0.4em] pointer-events-none">
+            MOD v1.3.1 · DEEP DIAGNOSTICS
+          </div>
             </div>
         </div>
     );
