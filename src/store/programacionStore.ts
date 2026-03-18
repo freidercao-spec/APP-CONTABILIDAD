@@ -272,27 +272,39 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         .from('programacion_mensual')
                         .select('*')
                         .eq('empresa_id', EMPRESA_ID)
-                        .limit(2000); // Suficiente para años de progs
+                        .limit(2000);
 
                     if (error) {
-                        console.warn('⚠️ [FETCH] Error fetching programacion_mensual:', error.message);
+                        console.error('Error fetching programacion_mensual:', error);
                         set({ loaded: true });
                         return;
                     }
 
                     if (!rows || rows.length === 0) {
-                        // No data in DB → clear local cache so stale data doesn't persist
                         set({ programaciones: [], loaded: true });
                         return;
                     }
 
                     const progIds = rows.map(r => r.id);
+                    
+                    // CHUNKING: Fetch sub-tables in chunks of 30 to stay within URL length limits
+                    const CHUNK_SIZE = 30;
+                    let allPersonal: any[] = [];
+                    let allAsignaciones: any[] = [];
+                    let allHistorial: any[] = [];
 
-                    const [{ data: allPersonal }, { data: allAsignaciones }, { data: allHistorial }] = await Promise.all([
-                        supabase.from('personal_puesto').select('*').in('programacion_id', progIds).limit(5000),
-                        supabase.from('asignaciones_dia').select('*').in('programacion_id', progIds).limit(10000),
-                        supabase.from('historial_programacion').select('*').in('programacion_id', progIds).order('created_at', { ascending: true }).limit(2000),
-                    ]);
+                    for (let i = 0; i < progIds.length; i += CHUNK_SIZE) {
+                        const chunk = progIds.slice(i, i + CHUNK_SIZE);
+                        const [persRes, asigsRes, histRes] = await Promise.all([
+                            supabase.from('personal_puesto').select('*').in('programacion_id', chunk).limit(2000),
+                            supabase.from('asignaciones_dia').select('*').in('programacion_id', chunk).limit(10000),
+                            supabase.from('historial_programacion').select('*').in('programacion_id', chunk).order('created_at', { ascending: true }).limit(2000)
+                        ]);
+
+                        if (persRes.data) allPersonal = [...allPersonal, ...persRes.data];
+                        if (asigsRes.data) allAsignaciones = [...allAsignaciones, ...asigsRes.data];
+                        if (histRes.data) allHistorial = [...allHistorial, ...histRes.data];
+                    }
 
                     const programaciones: ProgramacionMensual[] = rows.map(row => {
                         const personal = (allPersonal || [])
@@ -302,9 +314,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         // Ensure all 3 roles exist
                         const roles: RolPuesto[] = ['titular_a', 'titular_b', 'relevante'];
                         roles.forEach(rol => {
-                            if (!personal.find(p => p.rol === rol)) {
-                                personal.push({ rol, vigilanteId: null });
-                            }
+                            if (!personal.find(p => p.rol === rol)) personal.push({ rol, vigilanteId: null });
                         });
 
                         const asignaciones = (allAsignaciones || [])
@@ -343,11 +353,10 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         };
                     });
 
-                    // ✅ Always replace local state with fresh Supabase data
-                    console.log(`✅ [FETCH] ${programaciones.length} programaciones cargadas desde Supabase`);
+                    console.log(`✅ [FETCH] ${programaciones.length} progs loaded in ${Math.ceil(progIds.length/CHUNK_SIZE)} chunks`);
                     set({ programaciones, loaded: true });
                 } catch (err) {
-                    console.warn('⚠️ [FETCH] Error inesperado cargando programaciones:', err);
+                    console.error('CRITICAL: fetchProgramaciones crash:', err);
                     set({ loaded: true });
                 }
             },
@@ -748,9 +757,50 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 if (personalNulo > 0) alertas.push(`⚠️ ${personalNulo} roles de personal sin asignar`);
                 return alertas;
             },
+
+            fetchProgramacionById: async (progId: string) => {
+                const { data: r } = await supabase.from('programacion_mensual').select('*').eq('id', progId).single();
+                if (!r) return null;
+                const [pRes, aRes, hRes] = await Promise.all([
+                    supabase.from('personal_puesto').select('*').eq('programacion_id', progId).limit(10),
+                    supabase.from('asignaciones_dia').select('*').eq('programacion_id', progId).limit(1000),
+                    supabase.from('historial_programacion').select('*').eq('programacion_id', progId).order('created_at').limit(500)
+                ]);
+                const news: ProgramacionMensual = {
+                    id: r.id, 
+                    puestoId: r.puesto_id, 
+                    anio: r.anio, 
+                    mes: r.mes, 
+                    estado: r.estado as EstadoProgramacion, 
+                    version: r.version || 1,
+                    creadoEn: r.created_at,
+                    actualizadoEn: r.updated_at,
+                    personal: (pRes.data || []).map(p => ({ rol: p.rol as RolPuesto, vigilanteId: p.vigilante_id })),
+                    asignaciones: (aRes.data || []).map(a => ({ 
+                        dia: a.dia, 
+                        vigilanteId: a.vigilante_id, 
+                        turno: a.turno, 
+                        jornada: a.jornada as TipoJornada, 
+                        rol: a.rol as RolPuesto 
+                    })),
+                    historialCambios: (hRes.data || []).map(h => ({ 
+                        id: h.id, 
+                        timestamp: h.created_at, 
+                        usuario: h.usuario, 
+                        descripcion: h.descripcion, 
+                        tipo: h.tipo as CambioProgramacion['tipo'], 
+                        reglaViolada: h.regla_violada || undefined 
+                    }))
+                };
+                const perms = get().programaciones;
+                const exists = perms.findIndex(p => p.id === progId);
+                if (exists >= 0) { const up = [...perms]; up[exists] = news; set({ programaciones: up }); }
+                else { set({ programaciones: [...perms, news] }); }
+                return news;
+            },
         }),
         {
-            name: 'coraza-programacion-v3',
+            name: 'coraza-programacion-store',
             onRehydrateStorage: () => (state) => {
                 if (state) {
                     state.programaciones = (state.programaciones || []).map(p => ({

@@ -433,6 +433,31 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
     const [showSaveTplModal, setShowSaveTplModal] = useState(false);
     const [tplNombre, setTplNombre] = useState('');
     const alertasDisparadas = useRef<Set<string>>(new Set());
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const fetchProgramacionById = useProgramacionStore(s => s.fetchProgramacionById);
+
+    // If prog not found in global store, try one targeted fetch before giving up
+    useEffect(() => {
+        if (!prog && !isRefreshing) {
+            const checkDb = async () => {
+                setIsRefreshing(true);
+                // Search if there's any prog in DB for this posto/anio/mes
+                const { data } = await supabase
+                    .from('programacion_mensual')
+                    .select('id')
+                    .eq('puesto_id', puestoId)
+                    .eq('anio', anio)
+                    .eq('mes', mes)
+                    .single();
+                
+                if (data?.id) {
+                    await fetchProgramacionById(data.id);
+                }
+                setIsRefreshing(false);
+            };
+            checkDb();
+        }
+    }, [prog, puestoId, anio, mes, fetchProgramacionById]);
 
     const handleGuardarPlantilla = () => {
         if (!tplNombre) return;
@@ -516,6 +541,18 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [progIdForEffect, activeTab, progAsignacionesCountForEffect]);
+
+    if (isRefreshing) {
+        return (
+            <div className="absolute inset-0 z-[50] bg-slate-50 flex flex-col items-center justify-center animate-in fade-in duration-300">
+                <div className="relative size-16 mb-4">
+                    <div className="absolute inset-0 border-4 border-primary/20 rounded-full"></div>
+                    <div className="absolute inset-0 border-4 border-primary rounded-full border-t-transparent animate-spin"></div>
+                </div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Buscando datos en el servidor...</p>
+            </div>
+        );
+    }
 
     if (!prog) {
         return (
@@ -1481,7 +1518,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                                         onChange={e => {
                                             const newVigilanteId = e.target.value || null;
 
-                                            const processChange = (just: string) => {
+                                            const processChange = () => {
                                                 const updated = prog.personal.map(p => p.rol === per.rol ? { ...p, vigilanteId: newVigilanteId } : p);
                                                 asignarPersonal(prog.id, updated, username || 'Sistema');
 
@@ -1506,7 +1543,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                                                     setShowJustificacion({ vigilante: v, per, newVigilanteId });
                                                     setJustificacionText('');
                                                 } else {
-                                                    processChange('Actualización de personal');
+                                                    processChange();
                                                 }
                                             } else {
                                                 // Removal
