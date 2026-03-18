@@ -8,6 +8,7 @@ import { useAuditStore } from '../store/auditStore';
 import { useAIStore } from '../store/aiStore';
 import { showTacticalToast } from '../utils/tacticalToast';
 import { MilitaryTimeInput } from '../components/ui/MilitaryTimeInput';
+import { supabase } from '../lib/supabase';
 import jsPDF from 'jspdf';
 
 // ── Default turn config ───────────────────────────────────────────────────────
@@ -1525,7 +1526,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
                                                 if (newVigilanteId) {
                                                     const v = vigilantes.find(gv => gv.id === newVigilanteId);
                                                     if (v && v.estado === 'disponible') {
-                                                        updateGuardStatus(newVigilanteId, 'activo', puestoId, `Asignado como TITULAR en ${puestoNombre}: ${just}`);
+                                                        updateGuardStatus(newVigilanteId, 'activo', puestoId, `Asignado como TITULAR en ${puestoNombre}: ${justificacionText}`);
                                                     }
                                                 }
                                                 logAction('PROGRAMACION', 'Personal actualizado', `Rol ${ROL_LABELS[per.rol]}: ${newVigilanteId}`, 'info');
