@@ -121,6 +121,8 @@ interface ProgramacionState {
     getDiasDescansoVigilante: (progId: string, vigilanteId: string) => { remunerados: number; noRemunerados: number };
     getCoberturaPorcentaje: (progId: string) => number;
     getAlertas: (progId: string) => string[];
+    forceSync: () => Promise<void>;
+    fetchProgramacionById: (progId: string) => Promise<ProgramacionMensual | null>;
 }
 
 let _currentUser = 'Sistema';
@@ -797,6 +799,11 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 if (exists >= 0) { const up = [...perms]; up[exists] = news; set({ programaciones: up }); }
                 else { set({ programaciones: [...perms, news] }); }
                 return news;
+            },
+
+            forceSync: async () => {
+                set({ loaded: false });
+                await get().fetchProgramaciones();
             },
         }),
         {
