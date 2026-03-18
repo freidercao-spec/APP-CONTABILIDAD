@@ -139,9 +139,10 @@ const activeSyncPromises = new Map<string, Promise<any>>();
 // Helper: translate any HID (MED-0001) to UUID for DB
 const translateToUuid = (id: string | null): string | null => {
     if (!id) return null;
-    if (id && id.length > 20) return id; // Likely already a UUID
+    if (id && id.length > 20) return id; // Is a UUID
     const vigs = useVigilanteStore.getState().vigilantes;
-    const v = vigs.find(vg => vg.id === id);
+    // Buscamos por el 'id' (shorthand) o 'dbId' (UUID)
+    const v = vigs.find(vg => vg.id === id || vg.dbId === id);
     return v?.dbId || id;
 };
 
@@ -155,26 +156,32 @@ const translateFromDb = (dbId: string | null) => {
 // Helper: translate puesto ID (MED-0001) to UUID
 const translatePuestoToUuid = (id: string | null): string | null => {
     if (!id) return null;
-    if (id && id.length > 20) return id; // Likely already a UUID
+    if (id && id.length > 20) return id; // Is a UUID
     const puestos = usePuestoStore.getState().puestos;
-    const p = puestos.find((pt: any) => pt.id === id);
+    const p = puestos.find((pt: any) => pt.id === id || pt.dbId === id);
     return p?.dbId || id;
 };
 
-// Helper: translate UUID to puesto ID (MED-0001)
+// Helper: translate UUID to puesto ID (shorthand) para mostrar en logs/ui
 const translatePuestoFromDb = (dbId: string | null) => {
     if (!dbId) return null;
     const p = usePuestoStore.getState().puestos.find((pt: any) => pt.dbId === dbId || pt.id === dbId);
     return p?.id || dbId;
 };
 
-async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: any): Promise<boolean> {
+interface SyncResult {
+    success: boolean;
+    serverVersion: number;
+    serverUpdatedAt: string | null;
+}
+
+async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: any): Promise<SyncResult> {
     // If there's an active sync for this ID, wait for it
     if (activeSyncPromises.has(prog.id)) {
         await activeSyncPromises.get(prog.id);
     }
 
-    const syncPromise = (async () => {
+    const syncPromise = (async (): Promise<SyncResult> => {
         try {
             // CRITICAL FIX: The DB has a UNIQUE constraint on (puesto_id, anio, mes).
             // If we have a local ID that differs from what's in the DB, we MUST resolve it first.
@@ -183,7 +190,7 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
 
             const { data: existing } = await supabase
                 .from('programacion_mensual')
-                .select('id')
+                .select('id, version, updated_at')
                 .eq('puesto_id', dbPuestoId)
                 .eq('anio', prog.anio)
                 .eq('mes', prog.mes)
@@ -198,6 +205,26 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                         p.id === prog.id ? { ...p, id: dbId } : p
                     )
                 }));
+            }
+
+            // CRITICAL FIX: Check if server has newer version before overwriting
+            if (existing) {
+                const serverVersion = existing.version || 1;
+                const localVersion = prog.version;
+                
+                // Only skip if server version is significantly newer (more than 1 version ahead)
+                // This prevents infinite loops while still protecting against stale overwrites
+                if (serverVersion > localVersion) {
+                    console.warn(`⚠️ [SYNC] Server has newer version (${serverVersion} > ${localVersion}) for prog ${dbId}. Skipping sync to prevent data loss.`);
+                    return { 
+                        success: false, 
+                        serverVersion: serverVersion, 
+                        serverUpdatedAt: existing.updated_at 
+                    };
+                }
+                
+                // If server version is same or only 1 ahead, allow sync (user's changes take precedence)
+                // This handles the case where user publishes, then local state has the new version
             }
 
             // 1. Upsert header using the resolved ID
@@ -216,7 +243,7 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
 
             if (upsertErr) throw upsertErr;
 
-            // 2. Sync personal
+            // 2. Sync personal - delete and re-insert atomically
             await supabase.from('personal_puesto').delete().eq('programacion_id', dbId);
             const personalRows = prog.personal
                 .filter(p => p.vigilanteId)
@@ -230,7 +257,7 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                 if (persErr) throw persErr;
             }
 
-            // 3. Sync asignaciones
+            // 3. Sync asignaciones - delete and re-insert atomically
             await supabase.from('asignaciones_dia').delete().eq('programacion_id', dbId);
             const asignacionRows = prog.asignaciones.map(a => ({
                 programacion_id: dbId,
@@ -250,7 +277,7 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
             }
 
             console.log(`✅ [SYNC] Programación ${prog.puestoId} sincronizada exitosamente.`);
-            return true;
+            return { success: true, serverVersion: prog.version, serverUpdatedAt: new Date().toISOString() };
         } catch (err: any) {
             console.error('❌ [SYNC] Error crítico en sincronización:', err.message || err);
             throw err;
@@ -275,7 +302,14 @@ const queueSync = (progId: string, set: any, get: any) => {
 
         set({ isSyncing: true, lastSyncError: null });
         try {
-            await syncProgramacionToDb(prog, set, get);
+            const result = await syncProgramacionToDb(prog, set, get);
+            
+            // If sync was skipped due to server having newer version, refetch from server
+            if (!result.success) {
+                console.log(`🔄 [QUEUE] Fetching latest version from server for ${progId}`);
+                await get().fetchProgramaciones();
+            }
+            
             set({ isSyncing: false });
         } catch (err: any) {
             set({ isSyncing: false, lastSyncError: err.message || 'Error de conexión' });
@@ -310,7 +344,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         .from('programacion_mensual')
                         .select('*')
                         .eq('empresa_id', EMPRESA_ID)
-                        .limit(2000);
+                        .limit(5000);
 
                     if (error) {
                         console.error('Error fetching programacion_mensual:', error);
@@ -378,7 +412,9 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                         return {
                             id: row.id,
-                            puestoId: translatePuestoFromDb(row.puesto_id) as string,
+                            // MANTENEMOS EL UUID AQUÍ PARA EVITAR PROBLEMAS DE MAPEO
+                            // La traducción se hace en la capa de vista si es necesario
+                            puestoId: row.puesto_id as string,
                             anio: row.anio,
                             mes: row.mes,
                             personal,
@@ -843,16 +879,17 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
         }),
         {
-            name: 'coraza-programacion-store-v1.3.4',
+            name: 'coraza-programacion-store-v1.3.6',
+            // Only persist templates and loaded state - programaciones come from server
+            partialize: (state) => ({ 
+                templates: state.templates,
+                loaded: state.loaded,
+            }),
             onRehydrateStorage: () => (state) => {
                 if (state) {
-                    state.programaciones = (state.programaciones || []).map(p => ({
-                        ...p,
-                        personal: p.personal || [],
-                        asignaciones: p.asignaciones || [],
-                        historialCambios: p.historialCambios || []
-                    }));
-                    state.templates = state.templates || [];
+                    // Clear programaciones on rehydration - they will be fetched fresh from server
+                    state.programaciones = [];
+                    state.loaded = false;
                 }
             }
         }

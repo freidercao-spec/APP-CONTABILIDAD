@@ -115,7 +115,7 @@ const Login = () => {
                     </form>
                 </div>
                 <div className="absolute inset-x-0 bottom-8 text-center text-[10px] font-black text-primary/30 uppercase tracking-[0.4em] pointer-events-none">
-            MOD v1.3.4 · SEQUENTIAL LOAD FIX
+            MOD v1.3.5 · DATABASE SYNC FIX
           </div>
             </div>
         </div>

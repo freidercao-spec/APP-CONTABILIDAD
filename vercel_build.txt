@@ -1,0 +1,96 @@
+﻿node.exe : WARNING! Build 
+not running on Vercel. 
+System environment variables 
+will not be available.
+En línea: 1 Carácter: 1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
+    + CategoryInfo           
+   : NotSpecified: (WARNING  
+  ! Build ...t be availabl   
+ e.:String) [], RemoteExc    
+eption
+    + FullyQualifiedErrorId  
+   : NativeCommandError
+ 
+Installing dependencies...
+npm warn EBADENGINE 
+Unsupported engine {
+npm warn EBADENGINE   
+package: 
+'coraza-cta-app@0.0.0',
+npm warn EBADENGINE   
+required: { node: '22.x' },
+npm warn EBADENGINE   
+current: { node: 'v24.14.0', 
+npm: '11.9.0' }
+npm warn EBADENGINE }
+
+up to date in 8s
+
+80 packages are looking for funding
+  run `npm fund` for details
+Running "npm run build"
+
+> coraza-cta-app@0.0.0 build
+> tsc --noEmit && vite build
+
+[36mvite v7.3.1 [32mbuilding client environment for production...[36m[39m
+transforming...
+[33mnode_modules/@loaders.gl
+/worker-utils/dist/lib/proces
+s-utils/child-process-proxy.j
+s (56:50): "spawn" is not 
+exported by 
+"__vite-browser-external", 
+imported by "node_modules/@lo
+aders.gl/worker-utils/dist/li
+b/process-utils/child-process
+-proxy.js".[39m
+[32mÔ£ô[39m 1061 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                            [39m[1m[2m    0.87 kB[22m[1m[22m[2m Ôöé gzip:   0.49 kB[22m
+[2mdist/[22m[32massets/corazai-avatar-CU82KBid.png    [39m[1m[2m1,019.10 kB[22m[1m[22m
+[2mdist/[22m[35massets/Puestos-DwUhsmFz.css           [39m[1m[2m   69.92 kB[22m[1m[22m[2m Ôöé gzip:  10.05 kB[22m
+[2mdist/[22m[35massets/index-4LgDu_BW.css             [39m[1m[2m  133.25 kB[22m[1m[22m[2m Ôöé gzip:  19.38 kB[22m
+[2mdist/[22m[36massets/index-DU0ptL5v.js              [39m[1m[2m    0.07 kB[22m[1m[22m[2m Ôöé gzip:   0.08 kB[22m
+[2mdist/[22m[36massets/MilitaryTimeInput-95TiOwPh.js  [39m[1m[2m    6.12 kB[22m[1m[22m[2m Ôöé gzip:   2.04 kB[22m
+[2mdist/[22m[36massets/Dashboard-DTWX0-IW.js          [39m[1m[2m   11.45 kB[22m[1m[22m[2m Ôöé gzip:   3.59 kB[22m
+[2mdist/[22m[36massets/Inteligencia-C4KaVseU.js       [39m[1m[2m   12.69 kB[22m[1m[22m[2m Ôöé gzip:   3.51 kB[22m
+[2mdist/[22m[36massets/AuditoriaInterna-Cr3jHuE-.js   [39m[1m[2m   13.91 kB[22m[1m[22m[2m Ôöé gzip:   3.72 kB[22m
+[2mdist/[22m[36massets/Configuracion-D_f0MLze.js      [39m[1m[2m   14.17 kB[22m[1m[22m[2m Ôöé gzip:   3.43 kB[22m
+[2mdist/[22m[36massets/ConfirmDialog-C1eVQquk.js      [39m[1m[2m   14.66 kB[22m[1m[22m[2m Ôöé gzip:   3.84 kB[22m
+[2mdist/[22m[36massets/Novedades-DNiLx0pR.js          [39m[1m[2m   15.42 kB[22m[1m[22m[2m Ôöé gzip:   3.51 kB[22m
+[2mdist/[22m[36massets/purify.es-CovBOfck.js          [39m[1m[2m   22.58 kB[22m[1m[22m[2m Ôöé gzip:   8.67 kB[22m
+[2mdist/[22m[36massets/Vigilantes-DbwzNq_d.js         [39m[1m[2m   37.22 kB[22m[1m[22m[2m Ôöé gzip:   8.12 kB[22m
+[2mdist/[22m[36massets/Resumen-BK725m6p.js            [39m[1m[2m   46.42 kB[22m[1m[22m[2m Ôöé gzip:  14.82 kB[22m
+[2mdist/[22m[36massets/GestionPuestos-DA7UWyGr.js     [39m[1m[2m   69.22 kB[22m[1m[22m[2m Ôöé gzip:  18.62 kB[22m
+[2mdist/[22m[36massets/index.es-B1bR787d.js           [39m[1m[2m  158.62 kB[22m[1m[22m[2m Ôöé gzip:  52.95 kB[22m
+[2mdist/[22m[36massets/html2canvas.esm-DXEQVQnt.js    [39m[1m[2m  201.04 kB[22m[1m[22m[2m Ôöé gzip:  47.43 kB[22m
+[2mdist/[22m[36massets/jspdf.es.min-qXG2omg0.js       [39m[1m[2m  385.47 kB[22m[1m[22m[2m Ôöé gzip: 125.93 kB[22m
+[2mdist/[22m[36massets/index-BC2Rmqnd.js              [39m[1m[33m  510.72 kB[39m[22m[2m Ôöé gzip: 152.01 kB[22m
+[2mdist/[22m[36massets/Puestos-OZRvKPvs.js            [39m[1m[33m  838.14 kB[39m[22m[2m Ôöé gzip: 220.90 kB[22m
+[2mdist/[22m[36massets/maplibre-gl-C-Dkr_oc.js        [39m[1m[33m1,023.02 kB[39m[22m[2m Ôöé gzip: 276.98 kB[22m
+[33m
+(!) Some chunks are larger 
+than 500 kB after 
+minification. Consider:
+- Using dynamic import() to 
+code-split the application
+- Use build.rollupOptions.out
+put.manualChunks to improve 
+chunking: https://rollupjs.or
+g/configuration-options/#outp
+ut-manualchunks
+- Adjust chunk size limit 
+for this warning via build.ch
+unkSizeWarningLimit.[39m
+[32mÔ£ô built in 53.52s[39m
+Build Completed in 
+.vercel\output [1m]

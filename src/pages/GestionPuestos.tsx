@@ -394,7 +394,7 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
     const logAction = useAuditStore(s => s.logAction);
     const addAIAction = useAIStore(s => s.addAction);
     const allPuestos = usePuestoStore(s => s.puestos);
-    const puesto = useMemo(() => allPuestos.find(p => p.id === puestoId), [allPuestos, puestoId]);
+    const puesto = useMemo(() => allPuestos.find(p => p.id === puestoId || p.dbId === puestoId), [allPuestos, puestoId]);
     const updatePuesto = usePuestoStore(s => s.updatePuesto);
     const allProgramaciones = useProgramacionStore(s => s.programaciones);
     const updateGuardStatus = useVigilanteStore(s => s.updateGuardStatus);
@@ -1833,7 +1833,12 @@ const GestionPuestos = () => {
 
     const puestosConProg = useMemo(() => {
         return puestos.map(p => {
-            const prog = programaciones.find(pr => (pr.puestoId === p.dbId || pr.puestoId === p.id) && pr.anio === anio && pr.mes === mes);
+            // CRITICAL: Look up using UUID then fallback to Shorthand to ensure accuracy
+            const prog = programaciones.find(pr => 
+                (pr.puestoId === p.dbId || pr.puestoId === p.id) && 
+                pr.anio === anio && 
+                pr.mes === mes
+            );
             const cobertura = prog ? getCoberturaPorcentaje(prog.id) : 0;
             const alertas = prog ? getAlertas(prog.id) : [];
             return { ...p, cobertura, alertas, progEstado: prog?.estado ?? 'sin_programacion' };
