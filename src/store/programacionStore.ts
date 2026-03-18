@@ -103,6 +103,9 @@ interface ProgramacionState {
     fetchProgramaciones: () => Promise<void>;
     fetchTemplates: () => Promise<void>;
 
+    lastSyncError: string | null;
+    isSyncing: boolean;
+
     getProgramacion: (puestoId: string, anio: number, mes: number) => ProgramacionMensual | undefined;
     crearOObtenerProgramacion: (puestoId: string, anio: number, mes: number, usuario: string) => ProgramacionMensual;
     asignarPersonal: (progId: string, personal: PersonalPuesto[], usuario: string) => void;
@@ -123,69 +126,126 @@ interface ProgramacionState {
 let _currentUser = 'Sistema';
 export const setProgUser = (name: string) => { _currentUser = name; };
 
-// Helper: sync programacion to Supabase — robust with visible error reporting
-async function syncProgramacionToDb(prog: ProgramacionMensual): Promise<boolean> {
-    try {
-        // 1. Upsert the programacion header (DO NOT send creado_por — it's a UUID FK managed by DB)
-        const { error: upsertErr } = await supabase
-            .from('programacion_mensual')
-            .upsert({
-                id: prog.id,
-                empresa_id: EMPRESA_ID,
-                puesto_id: prog.puestoId,
-                anio: prog.anio,
-                mes: prog.mes,
-                estado: prog.estado,
-                version: prog.version,
-                updated_at: new Date().toISOString(),
-            }, { onConflict: 'id' });
+// ── Sync Logic with Debounce and Queue ───────────────────────────────────────
 
-        if (upsertErr) {
-            console.warn('⚠️ [SYNC] Error upserting programacion_mensual:', upsertErr.message, upsertErr.details);
-            return false;
-        }
+// Map to track active sync operations per program ID to avoid race conditions
+const pendingSyncs = new Map<string, any>();
+const activeSyncPromises = new Map<string, Promise<any>>();
 
-        // 2. Delete old personal rows and reinsert
-        await supabase.from('personal_puesto').delete().eq('programacion_id', prog.id);
-        const personalRows = prog.personal
-            .filter(p => p.vigilanteId)
-            .map(p => ({
-                programacion_id: prog.id,
-                rol: p.rol,
-                vigilante_id: p.vigilanteId,
-            }));
-        if (personalRows.length > 0) {
-            const { error: persErr } = await supabase.from('personal_puesto').insert(personalRows);
-            if (persErr) console.warn('⚠️ [SYNC] Error inserting personal_puesto:', persErr.message);
-        }
-
-        // 3. Delete old asignaciones and reinsert in batches of 100
-        await supabase.from('asignaciones_dia').delete().eq('programacion_id', prog.id);
-        const asignacionRows = prog.asignaciones.map(a => ({
-            programacion_id: prog.id,
-            dia: a.dia,
-            vigilante_id: a.vigilanteId || null,
-            turno: a.turno,
-            jornada: a.jornada,
-            rol: a.rol,
-        }));
-
-        for (let i = 0; i < asignacionRows.length; i += 100) {
-            const batch = asignacionRows.slice(i, i + 100);
-            const { error: asigErr } = await supabase.from('asignaciones_dia').insert(batch);
-            if (asigErr) {
-                console.warn(`⚠️ [SYNC] Error inserting asignaciones batch ${i}-${i+batch.length}:`, asigErr.message);
-                return false;
-            }
-        }
-
-        console.log(`✅ [SYNC] Programación ${prog.puestoId} ${prog.anio}/${prog.mes+1} sincronizada con Supabase (${asignacionRows.length} asignaciones)`);
-        return true;
-    } catch (err) {
-        console.warn('⚠️ [SYNC] Error inesperado sincronizando con Supabase:', err);
-        return false;
+async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: any): Promise<boolean> {
+    // If there's an active sync for this ID, wait for it
+    if (activeSyncPromises.has(prog.id)) {
+        await activeSyncPromises.get(prog.id);
     }
+
+    const syncPromise = (async () => {
+        try {
+            // CRITICAL FIX: The DB has a UNIQUE constraint on (puesto_id, anio, mes).
+            // If we have a local ID that differs from what's in the DB, we MUST resolve it first.
+            let dbId = prog.id;
+            const { data: existing } = await supabase
+                .from('programacion_mensual')
+                .select('id')
+                .eq('puesto_id', prog.puestoId)
+                .eq('anio', prog.anio)
+                .eq('mes', prog.mes)
+                .maybeSingle();
+
+            if (existing && existing.id !== prog.id) {
+                console.warn(`🔄 [SYNC] Resolviendo discrepancia de ID: ${prog.id} -> ${existing.id}`);
+                dbId = existing.id;
+                // Update local store to match DB ID for future operations
+                set((state: any) => ({
+                    programaciones: state.programaciones.map((p: any) => 
+                        p.id === prog.id ? { ...p, id: dbId } : p
+                    )
+                }));
+            }
+
+            // 1. Upsert header using the resolved ID
+            const { error: upsertErr } = await supabase
+                .from('programacion_mensual')
+                .upsert({
+                    id: dbId,
+                    empresa_id: EMPRESA_ID,
+                    puesto_id: prog.puestoId,
+                    anio: prog.anio,
+                    mes: prog.mes,
+                    estado: prog.estado,
+                    version: prog.version,
+                    updated_at: new Date().toISOString(),
+                });
+
+            if (upsertErr) throw upsertErr;
+
+            // 2. Sync personal
+            await supabase.from('personal_puesto').delete().eq('programacion_id', dbId);
+            const personalRows = prog.personal
+                .filter(p => p.vigilanteId)
+                .map(p => ({
+                    programacion_id: dbId,
+                    rol: p.rol,
+                    vigilante_id: p.vigilanteId,
+                }));
+            if (personalRows.length > 0) {
+                const { error: persErr } = await supabase.from('personal_puesto').insert(personalRows);
+                if (persErr) throw persErr;
+            }
+
+            // 3. Sync asignaciones
+            await supabase.from('asignaciones_dia').delete().eq('programacion_id', dbId);
+            const asignacionRows = prog.asignaciones.map(a => ({
+                programacion_id: dbId,
+                dia: a.dia,
+                vigilante_id: a.vigilanteId || null,
+                turno: a.turno,
+                jornada: a.jornada,
+                rol: a.rol,
+            }));
+
+            if (asignacionRows.length > 0) {
+                for (let i = 0; i < asignacionRows.length; i += 100) {
+                    const batch = asignacionRows.slice(i, i + 100);
+                    const { error: batchErr } = await supabase.from('asignaciones_dia').insert(batch);
+                    if (batchErr) throw batchErr;
+                }
+            }
+
+            console.log(`✅ [SYNC] Programación ${prog.puestoId} sincronizada exitosamente.`);
+            return true;
+        } catch (err: any) {
+            console.error('❌ [SYNC] Error crítico en sincronización:', err.message || err);
+            throw err;
+        } finally {
+            activeSyncPromises.delete(prog.id);
+        }
+    })();
+
+    activeSyncPromises.set(prog.id, syncPromise);
+    return syncPromise;
 }
+
+const queueSync = (progId: string, set: any, get: any) => {
+    if (pendingSyncs.has(progId)) {
+        clearTimeout(pendingSyncs.get(progId)!);
+    }
+
+    const timeout = setTimeout(async () => {
+        pendingSyncs.delete(progId);
+        const prog = get().programaciones.find((p: any) => p.id === progId);
+        if (!prog) return;
+
+        set({ isSyncing: true, lastSyncError: null });
+        try {
+            await syncProgramacionToDb(prog, set, get);
+            set({ isSyncing: false });
+        } catch (err: any) {
+            set({ isSyncing: false, lastSyncError: err.message || 'Error de conexión' });
+        }
+    }, 1500);
+
+    pendingSyncs.set(progId, timeout);
+};
 
 async function logCambio(progId: string, usuario: string, descripcion: string, tipo: CambioProgramacion['tipo'], regla?: string) {
     await supabase.from('historial_programacion').insert({
@@ -203,6 +263,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
             programaciones: [],
             templates: [],
             loaded: false,
+            isSyncing: false,
+            lastSyncError: null,
 
             fetchProgramaciones: async () => {
                 try {
@@ -321,18 +383,10 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
 
             crearOObtenerProgramacion: (puestoId, anio, mes, usuario) => {
-                const existing = get().getProgramacion(puestoId, anio, mes);
+                const existing = get().programaciones.find(p => p.puestoId === puestoId && p.anio === anio && p.mes === mes);
                 if (existing) return existing;
 
-                const daysInMonth = new Date(anio, mes + 1, 0).getDate();
-                const asignaciones: AsignacionDia[] = [];
-                for (let dia = 1; dia <= daysInMonth; dia++) {
-                    asignaciones.push({ dia, vigilanteId: null, turno: 'AM', jornada: 'sin_asignar', rol: 'titular_a' });
-                    asignaciones.push({ dia, vigilanteId: null, turno: 'PM', jornada: 'sin_asignar', rol: 'titular_b' });
-                    asignaciones.push({ dia, vigilanteId: null, turno: 'OFF', jornada: 'sin_asignar', rol: 'relevante' });
-                }
-
-                const nueva: ProgramacionMensual = {
+                const newProg: ProgramacionMensual = {
                     id: crypto.randomUUID(),
                     puestoId,
                     anio,
@@ -342,55 +396,35 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         { rol: 'titular_b', vigilanteId: null },
                         { rol: 'relevante', vigilanteId: null },
                     ],
-                    asignaciones,
+                    asignaciones: [], // Initial state is empty, it'll generate on first render or via helper
                     estado: 'borrador',
                     creadoEn: new Date().toISOString(),
                     actualizadoEn: new Date().toISOString(),
                     version: 1,
-                    historialCambios: [{
-                        id: crypto.randomUUID(),
-                        timestamp: new Date().toISOString(),
-                        usuario,
-                        descripcion: `Programación creada para ${anio}/${mes + 1}`,
-                        tipo: 'borrador',
-                    }],
+                    historialCambios: [],
                 };
 
-                set(s => ({ programaciones: [...s.programaciones, nueva] }));
-
-                // Sync to DB in background
-                syncProgramacionToDb(nueva);
-                logCambio(nueva.id, usuario, `Programación creada para ${anio}/${mes + 1}`, 'borrador');
-
-                return nueva;
+                set(s => ({ programaciones: [...s.programaciones, newProg] }));
+                queueSync(newProg.id, set, get);
+                return newProg;
             },
 
             asignarPersonal: (progId, personal, usuario) => {
                 set(s => ({
-                    programaciones: s.programaciones.map(p => p.id !== progId ? p : {
-                        ...p,
-                        personal,
-                        asignaciones: p.asignaciones.map(a => {
-                            const per = personal.find(pers => pers.rol === a.rol);
-                            return per ? { ...a, vigilanteId: per.vigilanteId } : a;
-                        }),
-                        actualizadoEn: new Date().toISOString(),
-                        historialCambios: [...p.historialCambios, {
-                            id: crypto.randomUUID(),
-                            timestamp: new Date().toISOString(),
-                            usuario,
-                            descripcion: 'Personal del puesto actualizado y propagado al calendario',
-                            tipo: 'personal' as const,
-                        }],
+                    programaciones: s.programaciones.map(p => {
+                        if (p.id !== progId) return p;
+                        return {
+                            ...p,
+                            personal,
+                            actualizadoEn: new Date().toISOString(),
+                            historialCambios: [
+                                ...p.historialCambios,
+                                { id: crypto.randomUUID(), timestamp: new Date().toISOString(), usuario, descripcion: 'Cambio de personal asignado', tipo: 'personal' }
+                            ]
+                        };
                     })
                 }));
-
-                // Sync in background
-                const prog = get().programaciones.find(p => p.id === progId);
-                if (prog) {
-                    syncProgramacionToDb(prog);
-                    logCambio(progId, usuario, 'Personal del puesto actualizado y propagado al calendario', 'personal');
-                }
+                queueSync(progId, set, get);
             },
 
             actualizarAsignacion: (progId, dia, data, usuario) => {
@@ -484,31 +518,28 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     ? `Día ${dia}: Asignado vigilante ${vigilanteId} (${turno} · ${jornada})`
                     : `Día ${dia}: Celda limpiada`;
 
+                const updatedProgData = {
+                    ...prog,
+                    asignaciones: prog.asignaciones.map(a =>
+                        a.dia === dia && a.rol === (data.rol ?? a.rol) ? { ...a, ...data } : a
+                    ),
+                    actualizadoEn: new Date().toISOString(),
+                    historialCambios: [...prog.historialCambios, {
+                        id: crypto.randomUUID(),
+                        timestamp: new Date().toISOString(),
+                        usuario,
+                        descripcion,
+                        tipo: 'asignacion' as const,
+                    }],
+                };
+
                 set(s => ({
-                    programaciones: s.programaciones.map(p => p.id !== progId ? p : {
-                        ...p,
-                        asignaciones: p.asignaciones.map(a =>
-                            a.dia === dia && a.rol === (data.rol ?? a.rol) ? { ...a, ...data } : a
-                        ),
-                        actualizadoEn: new Date().toISOString(),
-                        historialCambios: [...p.historialCambios, {
-                            id: crypto.randomUUID(),
-                            timestamp: new Date().toISOString(),
-                            usuario,
-                            descripcion,
-                            tipo: 'asignacion' as const,
-                        }],
-                    })
+                    programaciones: s.programaciones.map(p => (p.id !== progId) ? p : updatedProgData)
                 }));
-
-                // ✅ Auto-sync to DB on EVERY change so nothing is lost even without clicking "Guardar"
-                const updatedProg = get().programaciones.find(p => p.id === progId);
-                if (updatedProg) {
-                    syncProgramacionToDb(updatedProg);
-                }
+                
+                queueSync(progId, set, get);
                 logCambio(progId, usuario, descripcion, 'asignacion');
-
-                return { permitido: true, tipo: 'ok', mensaje: 'Asignación registrada correctamente' };
+                return { permitido: true, tipo: 'ok', mensaje: 'Asignación actualizada' };
             },
 
             publicarProgramacion: (progId, usuario) => {
@@ -530,8 +561,13 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                 const prog = get().programaciones.find(p => p.id === progId);
                 if (prog) {
-                    syncProgramacionToDb(prog);
-                    logCambio(progId, usuario, 'Programación PUBLICADA como versión definitiva', 'publicacion');
+                    // High priority sync for publicacion
+                    set({ isSyncing: true, lastSyncError: null });
+                    syncProgramacionToDb(prog, set, get)
+                        .then(() => set({ isSyncing: false }))
+                        .catch(e => set({ isSyncing: false, lastSyncError: e.message }));
+                    
+                    logCambio(prog.id, usuario, 'Programación PUBLICADA como versión definitiva', 'publicacion');
                 }
             },
 
@@ -553,8 +589,12 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                 const prog = get().programaciones.find(p => p.id === progId);
                 if (prog) {
-                    syncProgramacionToDb(prog);
-                    logCambio(progId, usuario, 'Borrador guardado', 'borrador');
+                    set({ isSyncing: true, lastSyncError: null });
+                    syncProgramacionToDb(prog, set, get)
+                        .then(() => set({ isSyncing: false }))
+                        .catch(e => set({ isSyncing: false, lastSyncError: e.message }));
+                    
+                    logCambio(prog.id, usuario, 'Borrador guardado manualmente', 'borrador');
                 }
             },
 
@@ -642,7 +682,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         })
                     }));
                     const prog = get().programaciones.find(p => p.id === existing.id);
-                    if (prog) syncProgramacionToDb(prog);
+                    if (prog) queueSync(prog.id, set, get);
                 } else {
                     const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
                     const nueva: ProgramacionMensual = {
@@ -665,7 +705,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         }],
                     };
                     set(s => ({ programaciones: [...s.programaciones, nueva] }));
-                    syncProgramacionToDb(nueva);
+                    syncProgramacionToDb(nueva, set, get);
                 }
             },
 

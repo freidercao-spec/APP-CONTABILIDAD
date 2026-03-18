@@ -402,6 +402,8 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
     const actualizarAsignacion = useProgramacionStore(s => s.actualizarAsignacion);
     const publicarProgramacion = useProgramacionStore(s => s.publicarProgramacion);
     const guardarBorrador = useProgramacionStore(s => s.guardarBorrador);
+    const isSyncing = useProgramacionStore(s => s.isSyncing);
+    const lastSyncError = useProgramacionStore(s => s.lastSyncError);
     const guardarComoPlantilla = useProgramacionStore(s => s.guardarComoPlantilla);
     const aplicarPlantilla = useProgramacionStore(s => s.aplicarPlantilla);
     const eliminarPlantilla = useProgramacionStore(s => s.eliminarPlantilla);
@@ -433,13 +435,23 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
     const alertasDisparadas = useRef<Set<string>>(new Set());
 
     const handleGuardarPlantilla = () => {
-        if (!tplNombre.trim()) return;
-        guardarComoPlantilla(prog!.id, tplNombre.trim(), puestoNombre, username || 'Sistema');
+        if (!tplNombre) return;
+        guardarComoPlantilla(prog!.id, tplNombre, puestoNombre, username || 'Sistema');
         setShowSaveTplModal(false);
         setTplNombre('');
-        showTacticalToast({ title: 'Plantilla Guardada', message: `"${tplNombre.trim()}" lista para reutilizar en meses futuros.`, type: 'success' });
-        logAction('PROGRAMACION', 'Plantilla creada', `"${tplNombre.trim()}" — Puesto: ${puestoNombre}`, 'info');
     };
+
+    // Warn before closing if sync is pending
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (isSyncing) {
+                e.preventDefault();
+                e.returnValue = 'Hay cambios guardándose en la nube. ¿Deseas salir de todas formas?';
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isSyncing]);
 
     const handleAplicarPlantilla = (tpl: TemplateProgramacion) => {
         aplicarPlantilla(tpl.id, puestoId, anio, mes, username || 'Sistema');
@@ -1047,9 +1059,21 @@ const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: Pane
 
                 <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto overflow-x-auto sm:overflow-visible pb-1 sm:pb-0 no-scrollbar">
                     {/* Auto-save indicator */}
-                    <div className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-200">
-                        <span className="material-symbols-outlined text-[14px] text-emerald-500">cloud_done</span>
-                        <span className="text-[9px] font-black uppercase tracking-widest">Auto-guardado</span>
+                    <div className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-all duration-500 ${
+                        lastSyncError 
+                            ? 'bg-red-50 text-red-700 border-red-200' 
+                            : isSyncing 
+                                ? 'bg-blue-50 text-blue-700 border-blue-200 animate-pulse' 
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    }`}>
+                        <span className={`material-symbols-outlined text-[14px] ${
+                            lastSyncError ? 'text-red-500' : isSyncing ? 'text-blue-500 animate-spin' : 'text-emerald-500'
+                        }`}>
+                            {lastSyncError ? 'sync_problem' : isSyncing ? 'sync' : 'cloud_done'}
+                        </span>
+                        <span className="text-[9px] font-black uppercase tracking-widest">
+                            {lastSyncError ? 'Error de red' : isSyncing ? 'Guardando...' : 'Sincronizado'}
+                        </span>
                     </div>
                     {/* Coverage badge */}
                     <div className={`shrink-0 px-3 sm:px-4 py-2 rounded-xl font-black text-[10px] sm:text-[11px] uppercase ${cobertura >= 80 ? 'bg-success/10 text-success border border-success/20' : cobertura >= 50 ? 'bg-warning/10 text-warning border border-warning/20' : 'bg-danger/10 text-danger border border-danger/20'}`}>
