@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase, EMPRESA_ID } from '../lib/supabase';
 import { useVigilanteStore } from './vigilanteStore';
+import { usePuestoStore } from './puestoStore';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -151,6 +152,22 @@ const translateFromDb = (dbId: string | null) => {
     return v?.id || dbId;
 };
 
+// Helper: translate puesto ID (MED-0001) to UUID
+const translatePuestoToUuid = (id: string | null): string | null => {
+    if (!id) return null;
+    if (id && id.length > 20) return id; // Likely already a UUID
+    const puestos = usePuestoStore.getState().puestos;
+    const p = puestos.find((pt: any) => pt.id === id);
+    return p?.dbId || id;
+};
+
+// Helper: translate UUID to puesto ID (MED-0001)
+const translatePuestoFromDb = (dbId: string | null) => {
+    if (!dbId) return null;
+    const p = usePuestoStore.getState().puestos.find((pt: any) => pt.dbId === dbId || pt.id === dbId);
+    return p?.id || dbId;
+};
+
 async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: any): Promise<boolean> {
     // If there's an active sync for this ID, wait for it
     if (activeSyncPromises.has(prog.id)) {
@@ -162,10 +179,12 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
             // CRITICAL FIX: The DB has a UNIQUE constraint on (puesto_id, anio, mes).
             // If we have a local ID that differs from what's in the DB, we MUST resolve it first.
             let dbId = prog.id;
+            const dbPuestoId = translatePuestoToUuid(prog.puestoId);
+
             const { data: existing } = await supabase
                 .from('programacion_mensual')
                 .select('id')
-                .eq('puesto_id', prog.puestoId)
+                .eq('puesto_id', dbPuestoId)
                 .eq('anio', prog.anio)
                 .eq('mes', prog.mes)
                 .maybeSingle();
@@ -187,7 +206,7 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                 .upsert({
                     id: dbId,
                     empresa_id: EMPRESA_ID,
-                    puesto_id: prog.puestoId,
+                    puesto_id: dbPuestoId,
                     anio: prog.anio,
                     mes: prog.mes,
                     estado: prog.estado,
@@ -359,7 +378,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                         return {
                             id: row.id,
-                            puestoId: row.puesto_id,
+                            puestoId: translatePuestoFromDb(row.puesto_id) as string,
                             anio: row.anio,
                             mes: row.mes,
                             personal,
@@ -824,7 +843,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
         }),
         {
-            name: 'coraza-programacion-store-v1.3.2',
+            name: 'coraza-programacion-store-v1.3.3',
             onRehydrateStorage: () => (state) => {
                 if (state) {
                     state.programaciones = (state.programaciones || []).map(p => ({
