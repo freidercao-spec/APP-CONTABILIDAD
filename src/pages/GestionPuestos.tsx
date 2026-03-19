@@ -10,7 +10,7 @@ import {
   useProgramacionStore,
   type AsignacionDia,
   type TipoJornada,
-  type RolPuesto,
+  RolPuesto,
   type TemplateProgramacion,
   type TurnoHora,
 } from "../store/programacionStore";
@@ -122,12 +122,12 @@ const JORNADA_COLORS: Record<
 
 // â”€â”€ Subcomponents â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// Map turno index (0,1,2,...) to the default role so the grid
-// always uses the SAME primary key as the store: (dia, rol)
-const TURNO_IDX_TO_ROL: Record<number, RolPuesto> = {
-  0: "titular_a",
-  1: "titular_b",
-  2: "relevante",
+// Helper to keep row keys unique even with many turnos (AM, PM, and custom ones)
+const getRolForTurno = (tConf: TurnoConfig, tIdx: number): RolPuesto => {
+  if (tIdx === 0) return "titular_a";
+  if (tIdx === 1) return "titular_b";
+  // For any extra rows, use the specific turno ID to prevent collisions
+  return tConf.id as RolPuesto;
 };
 
 interface CeldaCalendarioProps {
@@ -2185,7 +2185,7 @@ const PanelMensualPuesto = ({
                       ];
                       const col = turnoColors[tIdx % turnoColors.length];
                       // The role assigned to this turno slot (store key)
-                      const rol = TURNO_IDX_TO_ROL[tIdx] ?? "relevante";
+                      const rol = getRolForTurno(tConf, tIdx);
                       const titular = prog.personal.find((p) => p.rol === rol);
                       const titularNombre = titular?.vigilanteId
                         ? vigilantes.find((v) => v.id === titular.vigilanteId)
@@ -2225,6 +2225,7 @@ const PanelMensualPuesto = ({
                             const dow = dateObj.getDay();
                             const isW = dow === 0 || dow === 6;
                             // ✅ KEY FIX: always search by (dia, rol) — same key the store uses
+                            const rol = getRolForTurno(tConf, tIdx);
                             const asig = prog.asignaciones.find(
                               (a) => a.dia === d && a.rol === rol,
                             );
@@ -2250,6 +2251,7 @@ const PanelMensualPuesto = ({
                                     isWeekend={isW}
                                     onAdd={() => {
                                       // Find or create virtual target for new roles
+                                      const rol = getRolForTurno(tConf, tIdx);
                                       const target = prog.asignaciones.find(
                                         (a) => a.dia === d && a.rol === rol,
                                       );

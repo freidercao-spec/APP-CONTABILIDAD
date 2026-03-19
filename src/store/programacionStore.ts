@@ -8,7 +8,7 @@ import { usePuestoStore } from './puestoStore';
 
 export type TipoJornada = 'normal' | 'descanso_remunerado' | 'descanso_no_remunerado' | 'vacacion' | 'sin_asignar';
 export type TurnoHora = 'AM' | 'PM' | '24H';
-export type RolPuesto = 'titular_a' | 'titular_b' | 'relevante';
+export type RolPuesto = 'titular_a' | 'titular_b' | 'relevante' | string;
 export type EstadoProgramacion = 'borrador' | 'publicado' | 'anulado';
 
 export interface AsignacionDia {
