@@ -2624,7 +2624,7 @@ const PanelMensualPuesto = ({
                   "! Días sin cobertura generan alerta de puesto desprotegido",
                 ].map((r, i) => (
                   <li key={i} className="flex items-start gap-2">
-                    <span className="mt-0.5">→</span> {r}
+                    <span className="mt-0.5 text-primary">●</span> {r}
                   </li>
                 ))}
               </ul>
