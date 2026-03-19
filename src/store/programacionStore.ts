@@ -678,7 +678,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 // --- AUTO-APPEND MISSING ROWS ---
                 let found = false;
                 const asignaciones = prog.asignaciones.map(a => {
-                    const match = a.dia === dia && a.rol === (data.rol ?? a.rol);
+                    // Match strictly by day and role ID to prevent overwriting other rows
+                    const match = a.dia === dia && a.rol === data.rol;
                     if (match) {
                         found = true;
                         return { ...a, ...data };
