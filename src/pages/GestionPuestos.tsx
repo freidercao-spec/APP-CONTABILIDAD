@@ -1,4 +1,4 @@
-﻿import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   usePuestoStore,
@@ -570,9 +570,7 @@ const EditCeldaModal = ({
             </span>
           </button>
           <button
-            disabled={!!conflicto}
             onClick={() =>
-              !conflicto &&
               onSave({
                 vigilanteId: vigilanteId || null,
                 turno: turno as TurnoHora,
@@ -582,11 +580,11 @@ const EditCeldaModal = ({
             }
             className={`flex-1 py-3 rounded-2xl font-black uppercase tracking-widest text-[11px] transition-all shadow-lg ${
               conflicto
-                ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                ? "bg-orange-500 text-white hover:brightness-110 shadow-orange-500/30"
                 : "bg-primary text-white hover:brightness-110 shadow-primary/30 active:scale-95"
             }`}
           >
-            Guardar Cambios
+            {conflicto ? "Guardar con Aviso" : "Guardar Cambios"}
           </button>
           <button
             onClick={onClose}
