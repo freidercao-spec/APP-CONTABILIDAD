@@ -52,7 +52,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     cancelLabel = 'Cancelar',
     variant = 'info',
     requireInput = false,
-    inputPlaceholder = 'Escriba aquí...',
+    inputPlaceholder = 'Escriba aqui...',
     onConfirm,
     onCancel,
 }) => {
@@ -84,12 +84,12 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                     {/* Security badge */}
                     <div className="mt-4 flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5">
                         <span className="material-symbols-outlined text-[13px] text-slate-400 notranslate">security</span>
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Operación Sensible — Confirme antes de continuar</span>
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Operacion Sensible - Confirme antes de continuar</span>
                     </div>
 
                     {requireInput && (
                         <div className="w-full mt-4 text-left border-t border-slate-100 pt-4">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">Justificación requerida *</label>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">Justificacion requerida *</label>
                             <textarea
                                 value={inputValue}
                                 onChange={e => setInputValue(e.target.value)}

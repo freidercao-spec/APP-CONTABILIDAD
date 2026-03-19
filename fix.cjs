@@ -1,0 +1,12 @@
+const fs = require('fs');
+const path = 'c:/Users/Mirley/Downloads/APP - PORGRAMACION/coraza-cta-app/src/pages/GestionPuestos.tsx';
+let content = fs.readFileSync(path, 'utf8');
+content = content.replace(/PÃ GINA/g, 'PÁGINA');
+content = content.replace(/TÃ CTICO/g, 'TÁCTICO');
+content = content.replace(/DÃ AS/g, 'DÍAS');
+content = content.replace(/DÃ A/g, 'DÍA');
+content = content.replace(/SÃ B/g, 'SÁB');
+content = content.replace(/Ã—/g, '×');
+content = content.replace(/â€“/g, '–');
+fs.writeFileSync(path, content, 'utf8');
+console.log('Fixed encoding in GestionPuestos.tsx');

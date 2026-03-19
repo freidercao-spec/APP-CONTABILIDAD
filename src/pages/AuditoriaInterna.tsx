@@ -5,22 +5,22 @@ import { showTacticalToast } from '../utils/tacticalToast';
 import { MilitaryTimeInput } from '../components/ui/MilitaryTimeInput';
 
 const MODULE_LABELS: Record<AuditModule, string> = {
-    LOGIN: 'Autenticación',
+    LOGIN: 'Autenticacion',
     VIGILANTES: 'Vigilantes',
     PUESTOS: 'Puestos',
-    PROGRAMACION: 'Programación',
+    PROGRAMACION: 'CUADRO OPERATIVO',
     NOVEDADES: 'Novedades',
     RESUMEN: 'Resumen/PDF',
-    CONFIGURACION: 'Configuración',
+    CONFIGURACION: 'Configuracion',
     INTELIGENCIA: 'Inteligencia IA',
     SISTEMA: 'Sistema',
 };
 
 const SEVERITY_CONFIG: Record<AuditSeverity, { label: string; cls: string; dotCls: string }> = {
     info:     { label: 'Info',    cls: 'bg-primary/10 text-primary border-primary/20',       dotCls: 'bg-primary' },
-    success:  { label: 'Éxito',   cls: 'bg-success/10 text-success border-success/20',       dotCls: 'bg-success' },
+    success:  { label: 'Exito',   cls: 'bg-success/10 text-success border-success/20',       dotCls: 'bg-success' },
     warning:  { label: 'Aviso',   cls: 'bg-warning/10 text-warning border-warning/20',       dotCls: 'bg-warning' },
-    critical: { label: 'Crítico', cls: 'bg-danger/10 text-danger border-danger/20',          dotCls: 'bg-danger animate-pulse' },
+    critical: { label: 'Critico', cls: 'bg-danger/10 text-danger border-danger/20',          dotCls: 'bg-danger animate-pulse' },
 };
 
 const AuditoriaInterna = () => {
@@ -70,18 +70,18 @@ const AuditoriaInterna = () => {
     }), [entries]);
 
     const handleClear = () => {
-        if (confirm('¿Está seguro? Se eliminarán todos los registros de auditoría. Esta acción es irreversible.')) {
+        if (confirm('¿Esta seguro? Se eliminaran todos los registros de auditoria. Esta accion es irreversible.')) {
             clearAll();
             showTacticalToast({
                 title: 'Audit Purge',
-                message: 'Todos los registros de auditoría han sido eliminados del sistema.',
+                message: 'Todos los registros de auditoria han sido eliminados del sistema.',
                 type: 'success'
             });
         }
     };
 
     const handleExport = () => {
-        const headers = ['Timestamp','Módulo','Acción','Detalles','Usuario','Severidad'];
+        const headers = ['Timestamp','Modulo','Accion','Detalles','Usuario','Severidad'];
         const rows = filtered.map(e => [
             new Date(e.timestamp).toLocaleString('es-CO'),
             MODULE_LABELS[e.module],
@@ -91,14 +91,14 @@ const AuditoriaInterna = () => {
             e.severity.toUpperCase(),
         ]);
         const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(';')).join('\n');
-        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url; a.download = `CORAZA_Auditoria_${new Date().toISOString().split('T')[0]}.csv`;
         a.click(); URL.revokeObjectURL(url);
         showTacticalToast({
-            title: 'Exportación Exitosa',
-            message: 'El reporte de auditoría CSV ha sido generado y descargado.',
+            title: 'Exportacion Exitosa',
+            message: 'El reporte de auditoria CSV ha sido generado y descargado.',
             type: 'success'
         });
     };
@@ -117,10 +117,10 @@ const AuditoriaInterna = () => {
                     <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">
                         <span>Sistema</span>
                         <span className="material-symbols-outlined text-[14px] notranslate" translate="no">chevron_right</span>
-                        <span className="text-primary font-black">Auditoría Interna</span>
+                        <span className="text-primary font-black">Auditoria Interna</span>
                     </div>
                     <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">
-                        Auditoría <span className="text-primary">Interna</span>
+                        Auditoria <span className="text-primary">Interna</span>
                     </h1>
                     <p className="text-sm text-slate-400 mt-1 font-medium">Registro completo de todos los movimientos y cambios realizados en el sistema</p>
                 </div>
@@ -142,7 +142,7 @@ const AuditoriaInterna = () => {
                     { label: 'Total Registros', value: stats.total, icon: 'receipt_long', color: 'text-primary', bg: 'bg-primary/10' },
                     { label: 'Eventos Hoy', value: stats.today, icon: 'today', color: 'text-blue-600', bg: 'bg-blue-50' },
                     { label: 'Avisos', value: stats.warning, icon: 'warning', color: 'text-warning', bg: 'bg-warning/10' },
-                    { label: 'Críticos', value: stats.critical, icon: 'report', color: 'text-danger', bg: 'bg-danger/10' },
+                    { label: 'Criticos', value: stats.critical, icon: 'report', color: 'text-danger', bg: 'bg-danger/10' },
                 ].map(s => (
                     <div key={s.label} className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
                         <div className={`${s.bg} size-10 rounded-2xl flex items-center justify-center mb-3`}>
@@ -159,7 +159,7 @@ const AuditoriaInterna = () => {
                 <div className="flex items-center justify-between">
                     <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                         <span className="material-symbols-outlined text-[16px] text-primary notranslate">filter_list</span>
-                        Filtros de Búsqueda
+                        Filtros de Busqueda
                     </h3>
                     <button onClick={resetFilters} className="text-[9px] font-black text-slate-400 hover:text-primary uppercase tracking-widest transition-colors">
                         Limpiar todo
@@ -173,7 +173,7 @@ const AuditoriaInterna = () => {
                         <input
                             value={search}
                             onChange={e => { setSearch(e.target.value); setPage(1); }}
-                            placeholder="Buscar acción, detalle, usuario..."
+                            placeholder="Buscar accion, detalle, usuario..."
                             className="w-full h-11 pl-10 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all"
                         />
                     </div>
@@ -184,7 +184,7 @@ const AuditoriaInterna = () => {
                         onChange={e => { setFilterModule(e.target.value as AuditModule | 'todos'); setPage(1); }}
                         className="h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 outline-none focus:border-primary/30"
                     >
-                        <option value="todos">Todos los módulos</option>
+                        <option value="todos">Todos los modulos</option>
                         {(Object.entries(MODULE_LABELS) as [AuditModule, string][]).map(([k, v]) => (
                             <option key={k} value={k}>{v}</option>
                         ))}
@@ -198,9 +198,9 @@ const AuditoriaInterna = () => {
                     >
                         <option value="todos">Toda severidad</option>
                         <option value="info">Info</option>
-                        <option value="success">Éxito</option>
+                        <option value="success">Exito</option>
                         <option value="warning">Aviso</option>
-                        <option value="critical">Crítico</option>
+                        <option value="critical">Critico</option>
                     </select>
 
                     {/* Date range */}
@@ -242,8 +242,8 @@ const AuditoriaInterna = () => {
                     <div className="text-center py-20 text-slate-300 flex flex-col items-center gap-4">
                         <span className="material-symbols-outlined text-6xl notranslate">policy</span>
                         <div>
-                            <p className="text-[12px] font-black uppercase tracking-widest text-slate-400">Sin registros de auditoría</p>
-                            <p className="text-[10px] text-slate-300 mt-1">Los movimientos del sistema comenzarán a registrarse automáticamente.</p>
+                            <p className="text-[12px] font-black uppercase tracking-widest text-slate-400">Sin registros de auditoria</p>
+                            <p className="text-[10px] text-slate-300 mt-1">Los movimientos del sistema comenzaran a registrarse automaticamente.</p>
                         </div>
                     </div>
                 ) : paginated.length === 0 ? (
@@ -257,8 +257,8 @@ const AuditoriaInterna = () => {
                             <thead>
                                 <tr className="border-b border-slate-100 bg-slate-50">
                                     <th className="text-left text-[9px] font-black text-slate-400 uppercase tracking-widest px-6 py-4">Fecha / Hora</th>
-                                    <th className="text-left text-[9px] font-black text-slate-400 uppercase tracking-widest px-3 py-4">Módulo</th>
-                                    <th className="text-left text-[9px] font-black text-slate-400 uppercase tracking-widest px-3 py-4">Acción</th>
+                                    <th className="text-left text-[9px] font-black text-slate-400 uppercase tracking-widest px-3 py-4">Modulo</th>
+                                    <th className="text-left text-[9px] font-black text-slate-400 uppercase tracking-widest px-3 py-4">Accion</th>
                                     <th className="text-left text-[9px] font-black text-slate-400 uppercase tracking-widest px-3 py-4">Detalles</th>
                                     <th className="text-left text-[9px] font-black text-slate-400 uppercase tracking-widest px-3 py-4">Usuario</th>
                                     <th className="text-left text-[9px] font-black text-slate-400 uppercase tracking-widest px-3 py-4">Nivel</th>
@@ -306,7 +306,7 @@ const AuditoriaInterna = () => {
                 {totalPages > 1 && (
                     <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
                         <p className="text-[10px] font-bold text-slate-400">
-                            Página {page} de {totalPages}
+                            PAGINA {page} de {totalPages}
                         </p>
                         <div className="flex items-center gap-2">
                             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}

@@ -23,12 +23,12 @@ export const useTacticalOps = () => {
             // 3. Update Puesto Status if it was desprotegido (the Puesto page effect handles this too, but we can be proactive)
             // updatePuestoStatus(puestoId, 'cubierto');
             
-            addActivity(vigilanteId, 'Asignación Táctica', `Desplegado en puesto ${puestoId} (${horaInicio} - ${horaFin})`);
+            addActivity(vigilanteId, 'Asignacion Tactica', `Desplegado en puesto ${puestoId} (${horaInicio} - ${horaFin})`);
         } catch (error) {
             console.error('Error in tactical assignment:', error);
             showTacticalToast({
                 title: 'Falla de Despliegue',
-                message: 'No se pudo completar la asignación táctica del efectivo.',
+                message: 'No se pudo completar la asignacion tactica del efectivo.',
                 type: 'error'
             });
         }
@@ -42,12 +42,12 @@ export const useTacticalOps = () => {
             // 2. Update Vigilante Store
             updateGuardStatus(vigilanteId, 'disponible', undefined, reason);
             
-            addActivity(vigilanteId, 'Desvinculación', reason || 'Removido del puesto operativo');
+            addActivity(vigilanteId, 'Desvinculacion', reason || 'Removido del puesto operativo');
         } catch (error) {
             console.error('Error in tactical removal:', error);
             showTacticalToast({
                 title: 'Error Operativo',
-                message: 'La desvinculación del efectivo ha fallado.',
+                message: 'La desvinculacion del efectivo ha fallado.',
                 type: 'error'
             });
         }
@@ -65,7 +65,7 @@ export const useTacticalOps = () => {
             });
         } else {
             showTacticalToast({
-                title: 'Situación Controlada',
+                title: 'Situacion Controlada',
                 message: `Puesto ${puestoId} normalizado. Amenaza neutralizada.`,
                 type: 'success'
             });

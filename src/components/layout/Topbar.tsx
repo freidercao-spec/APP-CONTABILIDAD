@@ -6,15 +6,15 @@ import { useUIStore } from '../../store/uiStore';
 import { useAppStore } from '../../store/appStore';
 
 const PAGE_TITLE: Record<string, string> = {
-    '/': 'Estadísticas',
-    '/vigilantes': 'Gestión de Personal',
+    '/': 'Estadisticas',
+    '/vigilantes': 'GESTION de Personal',
     '/disponibles': 'Personal Disponible',
     '/puestos': 'Mapa de Puestos',
     '/inteligencia': 'Inteligencia Operativa',
-    '/novedades': 'Novedades Operativas',
+    '/novedades': 'NOTIFICACIONES OPERATIVAS',
     '/configuracion': 'Sistema Central',
     '/resumen': 'Resumen Programado',
-    '/auditoria': 'Auditoría Interna',
+    '/auditoria': 'Auditoria Interna',
     '/gestion-puestos': 'Puestos Activos',
 };
 
@@ -54,7 +54,7 @@ const Topbar = () => {
     }, []);
 
     const pageTitle = PAGE_TITLE[location.pathname] ?? 'Panel de Control';
-    const breadcrumb = location.pathname === '/' ? 'Principal' : 'Módulos';
+    const breadcrumb = location.pathname === '/' ? 'Principal' : 'Modulos';
 
     return (
         <header className="h-[80px] lg:h-[120px] flex items-center justify-between px-4 sm:px-6 lg:px-10 bg-app-bg/60 backdrop-blur-2xl backdrop-saturate-150 shrink-0 sticky top-0 z-40 pointer-events-none border-b border-white/40 transition-all duration-500">
@@ -93,7 +93,7 @@ const Topbar = () => {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-full py-2.5 pl-12 pr-4 text-xs font-bold placeholder:text-slate-500 text-white focus:bg-white/10 focus:border-primary/50 focus:ring-1 focus:ring-primary/30 outline-none transition-all shadow-inner"
-                            placeholder="Navegación Rápida..."
+                            placeholder="Navegacion Rapida..."
                         />
                     </div>
                 )}

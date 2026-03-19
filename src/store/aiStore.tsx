@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { toast } from 'react-hot-toast';
 import { showTacticalToast } from '../utils/tacticalToast';
-import { supabase } from '../lib/supabase';
+import { supabase, EMPRESA_ID } from '../lib/supabase';
 
 export interface AIAction {
     id: string;
@@ -34,7 +34,7 @@ export const useAIStore = create<AIState>()(
         (set) => ({
             actions: [{
                 id: 'init-msg',
-                text: 'CorazAI Programador Iniciado. Estoy supervisando la integridad de toda la programación y turnos del sistema.',
+                text: 'CorazAI Programador Iniciado. Estoy supervisando la integridad de toda la programacion y turnos del sistema.',
                 timestamp: Date.now(),
                 type: 'notification',
                 sender: 'ai',
@@ -51,7 +51,7 @@ export const useAIStore = create<AIState>()(
                 // Auto-determine priority if not provided
                 let priority: AIAction['priority'] = action.priority || 'low';
                 if (!action.priority) {
-                    if (action.text.toLowerCase().includes('alerta') || action.text.toLowerCase().includes('crítico') || action.text.toLowerCase().includes('atención')) {
+                    if (action.text.toLowerCase().includes('alerta') || action.text.toLowerCase().includes('critico') || action.text.toLowerCase().includes('atencion')) {
                         priority = 'high';
                     } else if (action.text.toLowerCase().includes('aviso') || action.text.toLowerCase().includes('revisar') || action.text.toLowerCase().includes('insight')) {
                         priority = 'medium';
@@ -61,11 +61,11 @@ export const useAIStore = create<AIState>()(
                 if (isFromAI && isClosed && !state.isMuted) {
                     // --- SISTEMA DE NOTIFICACIONES FILTRADO POR RELEVANCIA ---
                     
-                    // Solo enviamos WhatsApp automático si es prioridad HIGH y viene del sistema
+                    // Solo enviamos WhatsApp automatico si es prioridad HIGH y viene del sistema
                     if (priority === 'high') {
                         const cleanMsg = action.text.replace(/\*\*(.*?)\*\*/g, '$1');
                         
-                        // Disparo asíncrono a Supabase Edge Function
+                        // Disparo asincrono a Supabase Edge Function
                         supabase.functions.invoke('enviar-whatsapp', {
                             body: {
                                 numero: '573113836939',
@@ -74,24 +74,24 @@ export const useAIStore = create<AIState>()(
                             }
                         }).then(({ data, error }) => {
                             if (error) {
-                                console.error('Error enviando WhatsApp automático:', error);
-                                // Notificación discreta de fallo técnico
+                                console.error('Error enviando WhatsApp automatico:', error);
+                                // Notificacion discreta de fallo tecnico
                                 showTacticalToast({
                                     title: 'Falla de Comunicaciones',
                                     message: 'Enlace WhatsApp interrumpido. Verifique Supabase Edge Functions.',
                                     type: 'error'
                                 });
                             } else {
-                                console.log('WhatsApp automático enviado correctamente:', data);
+                                console.log('WhatsApp automatico enviado correctamente:', data);
                             }
                         });
                     }
                     
-                    // 1. ALTA PRIORIDAD: Toast táctico expandido (Máxima visibilidad)
+                    // 1. ALTA PRIORIDAD: Toast tactico expandido (Maxima visibilidad)
                     if (priority === 'high') {
                         let rawText = action.text.replace(/\*\*(.*?)\*\*/g, '$1');
                         showTacticalToast({
-                            title: 'Protocolo Crítico',
+                            title: 'Protocolo Critico',
                             message: rawText,
                             type: 'ai',
                             duration: 10000,
@@ -101,7 +101,7 @@ export const useAIStore = create<AIState>()(
                             }
                         });
                     } 
-                    // 2. MEDIA PRIORIDAD: Toast táctico refinado (Informativo pero premium)
+                    // 2. MEDIA PRIORIDAD: Toast tactico refinado (Informativo pero premium)
                     else if (priority === 'medium') {
                         let rawText = action.text.replace(/\*\*(.*?)\*\*/g, '$1');
                         showTacticalToast({
@@ -112,7 +112,22 @@ export const useAIStore = create<AIState>()(
                         });
                     }
                     // 3. BAJA PRIORIDAD: Silencioso (Solo badge en la campana)
-                    // No hace nada, el usuario lo verá al abrir el panel o por el contador de Topbar.
+                    // No hace nada, el usuario lo vera al abrir el panel o por el contador de Topbar.
+                }
+
+                // --- SYNC TO SUPABASE (NOVEDADES) ---
+                if (isFromAI && priority !== 'low') {
+                    const rawText = action.text.replace(/\*\*(.*?)\*\*/g, '$1');
+                    supabase.from('novedades').insert({
+                        empresa_id: EMPRESA_ID,
+                        tipo: 'IA_INSIGHT',
+                        titulo: priority === 'high' ? 'ALERTA CRITICA CORAZAI' : 'Aviso Operativo',
+                        descripcion: rawText,
+                        gravedad: priority === 'high' ? 'alta' : 'media',
+                        estado: 'pendiente'
+                    }).then(({ error }) => {
+                        if (error) console.error('Error syncing AI novelty to Supabase:', error);
+                    });
                 }
 
                 return {

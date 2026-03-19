@@ -65,8 +65,8 @@ function App() {
   };
   
   React.useEffect(() => {
-    addLog('Iniciando sesión segura...');
-    checkSession().then(() => addLog('Sesión verificada.'));
+    addLog('Iniciando sesion segura...');
+    checkSession().then(() => addLog('Sesion verificada.'));
     
     // Emergency timeout for initial data load
     const timer = setTimeout(() => {
@@ -92,9 +92,9 @@ function App() {
       <div className="min-h-screen bg-[#050A14] flex flex-col items-center justify-center p-8 space-y-6">
         <div className="p-10 bg-danger/10 border border-danger/30 rounded-[40px] text-center max-w-lg">
           <span className="material-symbols-outlined text-danger text-5xl mb-4">report</span>
-          <h2 className="text-2xl font-black text-white uppercase tracking-widest">Error de Sincronización</h2>
+          <h2 className="text-2xl font-black text-white uppercase tracking-widest">Error de Sincronizacion</h2>
           <p className="text-slate-400 font-bold mt-4">
-            El sistema no pudo completar la conexión con la base de datos de Coraza.
+            El sistema no pudo completar la conexion con la base de datos de Coraza.
           </p>
           <div className="mt-8 flex gap-4 justify-center">
             <button 
@@ -107,7 +107,7 @@ function App() {
               onClick={() => { useAuthStore.getState().logout(); window.location.reload(); }}
               className="px-8 h-12 bg-danger text-white font-black rounded-2xl uppercase tracking-widest text-[11px] transition-all hover:scale-105"
             >
-              Resetear Sesión
+              Resetear Sesion
             </button>
           </div>
         </div>
@@ -120,7 +120,7 @@ function App() {
       <>
         <Login />
         <div className="fixed bottom-4 left-4 text-[9px] font-mono text-slate-500 uppercase">
-          Status: Ready · DB: {import.meta.env.VITE_SUPABASE_URL ? 'Connected' : 'Missing Config'}
+          Status: Ready - DB: {import.meta.env.VITE_SUPABASE_URL ? 'Connected' : 'Missing Config'}
         </div>
         <Toaster position="bottom-right" />
       </>

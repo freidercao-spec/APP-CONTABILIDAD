@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { Vigilante, Descargo } from '../../store/vigilanteStore';
 import { useVigilanteStore } from '../../store/vigilanteStore';
 import { usePuestoStore } from '../../store/puestoStore';
@@ -94,9 +95,9 @@ const GuardDetailModal = ({ isOpen, onClose, guard }: GuardDetailModalProps) => 
     const descargoTipoInfo = (tipo: Descargo['tipo']) =>
         TIPOS_DESCARGO.find(t => t.value === tipo) || TIPOS_DESCARGO[0];
 
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
-            <div className="absolute inset-0 bg-[#070d1d]/95 backdrop-blur-2xl"></div>
+    return createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300" onClick={onClose}>
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"></div>
 
             <div
                 className="relative w-full max-w-2xl bg-[#0b1424] border border-white/10 rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 max-h-[92vh] flex flex-col"
@@ -135,7 +136,7 @@ const GuardDetailModal = ({ isOpen, onClose, guard }: GuardDetailModalProps) => 
                                     <span className="material-symbols-outlined text-[16px] notranslate" translate="no">{isEditing ? 'visibility' : 'edit'}</span>
                                 </button>
                             </div>
-                            <p className="text-[10px] text-primary font-bold uppercase tracking-[0.2em] font-mono">{guard.id} · {guard.rango}</p>
+                            <p className="text-[10px] text-primary font-bold uppercase tracking-[0.2em] font-mono">{guard.id} - {guard.rango}</p>
                             <div className="flex items-center gap-3 mt-1.5">
                                 <div className="flex items-center gap-2">
                                     <span className={`size-1.5 rounded-full ${guard.estado === 'activo' ? 'bg-success' : guard.estado === 'disponible' ? 'bg-primary' : 'bg-danger'}`}></span>
@@ -149,7 +150,7 @@ const GuardDetailModal = ({ isOpen, onClose, guard }: GuardDetailModalProps) => 
                                         const action = newStatus === 'disponible' ? 'pasar a disponible (reserva)' : 'activar (operativo)';
                                         const ok = await confirm({
                                             title: `${newStatus === 'disponible' ? 'Pasar a Disponible' : 'Activar'} Vigilante`,
-                                            message: `¿Confirma que desea ${action} a ${guard.nombre}? Este cambio afectará la cobertura operativa si está asignado a un puesto.`,
+                                            message: `¿Confirma que desea ${action} a ${guard.nombre}? Este cambio afectara la cobertura operativa si esta asignado a un puesto.`,
                                             confirmLabel: newStatus === 'disponible' ? 'Pasar a Disponible' : 'Activar Operativo',
                                             variant: newStatus === 'disponible' ? 'warning' : 'success',
                                             requireInput: newStatus === 'disponible',
@@ -234,7 +235,7 @@ const GuardDetailModal = ({ isOpen, onClose, guard }: GuardDetailModalProps) => 
 
                                 {/* Cedula */}
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Cédula Ciudadana *</label>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Cedula Ciudadana *</label>
                                     <input
                                         value={editData.cedula}
                                         onChange={e => setEditData({...editData, cedula: e.target.value})}
@@ -256,7 +257,7 @@ const GuardDetailModal = ({ isOpen, onClose, guard }: GuardDetailModalProps) => 
 
                                 {/* Telefono */}
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Teléfono de Contacto</label>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Telefono de Contacto</label>
                                     <input
                                         value={editData.telefono}
                                         onChange={e => setEditData({...editData, telefono: e.target.value})}
@@ -278,7 +279,7 @@ const GuardDetailModal = ({ isOpen, onClose, guard }: GuardDetailModalProps) => 
 
                                 {/* Email */}
                                 <div className="space-y-1.5 col-span-2">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Correo Electrónico</label>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Correo Electronico</label>
                                     <input
                                         value={editData.email}
                                         onChange={e => setEditData({...editData, email: e.target.value})}
@@ -373,7 +374,7 @@ const GuardDetailModal = ({ isOpen, onClose, guard }: GuardDetailModalProps) => 
                                 <div className="text-center py-16 opacity-40">
                                     <span className="material-symbols-outlined text-4xl notranslate" translate="no">history_off</span>
                                     <p className="text-xs font-bold uppercase tracking-widest mt-3">Sin historial registrado</p>
-                                    <p className="text-[10px] text-slate-500 mt-1">Los eventos se registran automáticamente al asignar o modificar al vigilante</p>
+                                    <p className="text-[10px] text-slate-500 mt-1">Los eventos se registran automaticamente al asignar o modificar al vigilante</p>
                                 </div>
                             )}
                         </div>
@@ -421,19 +422,19 @@ const GuardDetailModal = ({ isOpen, onClose, guard }: GuardDetailModalProps) => 
                                             onChange={e => setDescPuestoId(e.target.value)}
                                             className="w-full bg-[#0d1a2e] border border-white/8 rounded-xl py-2.5 px-4 text-xs text-white outline-none focus:border-primary/50 appearance-none"
                                         >
-                                            <option value="">Sin puesto específico</option>
-                                            {puestos.map(p => <option key={p.id} value={p.id}>{p.id} — {p.nombre}</option>)}
+                                            <option value="">Sin puesto especifico</option>
+                                            {puestos.map(p => <option key={p.id} value={p.id}>{p.id} - {p.nombre}</option>)}
                                         </select>
                                     </div>
 
-                                    {/* Descripción */}
+                                    {/* Descripcion */}
                                     <div className="space-y-1">
-                                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest ml-1">Descripción del Descargo *</label>
+                                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest ml-1">Descripcion del Descargo *</label>
                                         <textarea
                                             value={descDescripcion}
                                             onChange={e => setDescDescripcion(e.target.value)}
                                             className="w-full bg-[#0d1a2e] border border-white/8 rounded-xl py-3 px-4 text-xs text-white outline-none focus:border-primary/50 h-20 resize-none"
-                                            placeholder="Describa en detalle la situación..."
+                                            placeholder="Describa en detalle la situacion..."
                                         />
                                     </div>
 
@@ -495,7 +496,7 @@ const GuardDetailModal = ({ isOpen, onClose, guard }: GuardDetailModalProps) => 
                                 <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5 space-y-3">
                                     <div className="flex items-center gap-2 mb-1">
                                         <span className="material-symbols-outlined text-primary notranslate text-xl" translate="no">beach_access</span>
-                                        <p className="text-[11px] font-black text-primary uppercase tracking-widest">Período Programado</p>
+                                        <p className="text-[11px] font-black text-primary uppercase tracking-widest">Periodo Programado</p>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
@@ -525,7 +526,7 @@ const GuardDetailModal = ({ isOpen, onClose, guard }: GuardDetailModalProps) => 
                                 </div>
                             )}
 
-                            {/* Formulario nueva vacación */}
+                            {/* Formulario nueva vacacion */}
                             <button
                                 onClick={() => setShowVacForm(!showVacForm)}
                                 className="w-full py-3 rounded-xl border border-white/10 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white/5 transition-all flex items-center justify-center gap-2"
@@ -562,7 +563,7 @@ const GuardDetailModal = ({ isOpen, onClose, guard }: GuardDetailModalProps) => 
                                             value={vacMotivo}
                                             onChange={e => setVacMotivo(e.target.value)}
                                             className="w-full bg-[#0d1a2e] border border-white/8 rounded-xl py-2.5 px-4 text-xs text-white outline-none focus:border-primary/50"
-                                            placeholder="Ej: Vacaciones anuales, licencia médica..."
+                                            placeholder="Ej: Vacaciones anuales, licencia medica..."
                                         />
                                     </div>
                                     <button
@@ -588,7 +589,8 @@ const GuardDetailModal = ({ isOpen, onClose, guard }: GuardDetailModalProps) => 
             </div>
 
             <ConfirmDialog {...dialogProps} />
-        </div>
+        </div>,
+        document.body
     );
 };
 

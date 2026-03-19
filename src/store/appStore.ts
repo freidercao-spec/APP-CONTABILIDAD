@@ -59,7 +59,7 @@ export const useAppStore = create<AppState>()(
                 accentColor: '#4318FF',
             },
             shiftPresets: [
-                { id: '1', label: 'MAÑANA', value: '06:00', color: '#f59e0b' },
+                { id: '1', label: 'MANANA', value: '06:00', color: '#f59e0b' },
                 { id: '2', label: 'TARDE', value: '14:00', color: '#3b82f6' },
                 { id: '3', label: 'NOCHE', value: '18:00', color: '#8b5cf6' },
                 { id: '4', label: 'RELEVO', value: '22:00', color: '#6366f1' },

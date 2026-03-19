@@ -11,7 +11,7 @@ const Inteligencia = () => {
     const vigilantes = useVigilanteStore(s => s.vigilantes);
     const programaciones = useProgramacionStore(s => s.programaciones);
 
-    // Obtener alertas críticas reales desde el Motor de Inteligencia
+    // Obtener alertas criticas reales desde el Motor de Inteligencia
     const iaAlertas = useMemo(() => 
         actions.filter(a => a.type === 'notification' && a.sender === 'ai' && (a.priority === 'high' || a.priority === 'medium')).reverse()
     , [actions]);
@@ -69,9 +69,9 @@ const Inteligencia = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2">
                 <div>
                     <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">
-                        <span>Comando Táctico</span>
+                        <span>Comando TACTICO</span>
                         <span className="material-symbols-outlined text-[14px] notranslate" translate="no">chevron_right</span>
-                        <span className="text-primary font-black">Análisis de Predicción</span>
+                        <span className="text-primary font-black">Analisis de Prediccion</span>
                     </div>
                     <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">Inteligencia <span className="text-primary">Operativa</span></h1>
                 </div>
@@ -79,11 +79,11 @@ const Inteligencia = () => {
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => {
-                            if (window.confirm('¿Seguro que desea purgar el historial táctico?')) {
+                            if (window.confirm('¿Seguro que desea purgar el historial tactico?')) {
                                 clearHistory();
                                 showTacticalToast({
                                     title: 'Historial Purgado',
-                                    message: 'La memoria táctica del sistema ha sido restablecida.',
+                                    message: 'La memoria tactica del sistema ha sido restablecida.',
                                     type: 'info'
                                 });
                             }
@@ -107,7 +107,7 @@ const Inteligencia = () => {
 
                     <div className="p-8 flex items-center justify-between gap-4 border-b border-white/5 relative z-10 bg-slate-950/50 backdrop-blur-md">
                         <div className="flex items-center gap-4">
-                            <h2 className="text-sm font-black text-white uppercase tracking-[0.3em]">Registro de Actividad Táctica</h2>
+                            <h2 className="text-sm font-black text-white uppercase tracking-[0.3em]">Registro de Actividad Tactica</h2>
                             <span className="px-3 py-1 rounded-full bg-primary/20 text-primary-light text-[10px] font-black border border-primary/20">{actions.length} EVENTOS</span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -167,7 +167,7 @@ const Inteligencia = () => {
                         {actions.length === 0 && (
                             <div className="flex flex-col items-center justify-center h-full text-slate-700 space-y-6">
                                 <span className="material-symbols-outlined text-8xl opacity-10">biotech</span>
-                                <p className="text-xs font-black uppercase tracking-[0.4em] opacity-30">Silencio Táctico en el Sector</p>
+                                <p className="text-xs font-black uppercase tracking-[0.4em] opacity-30">Silencio TACTICO en el Sector</p>
                             </div>
                         )}
                     </div>
@@ -176,7 +176,7 @@ const Inteligencia = () => {
                 {/* Right Insights Sidebar (35%) */}
                 <div className="lg:col-span-4 space-y-8">
                     <div className="flex items-center gap-4 px-2">
-                        <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.3em]">Núcleo de Inteligencia</h2>
+                        <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.3em]">Nucleo de Inteligencia</h2>
                     </div>
 
                     <div className="section-card p-10 bg-slate-900 border-none relative overflow-hidden group shadow-2xl">
@@ -195,7 +195,7 @@ const Inteligencia = () => {
                         <div className="space-y-8 relative z-10">
                             <div className="grid grid-cols-2 gap-5">
                                 <div className="p-5 bg-white/5 rounded-[20px] border border-white/5">
-                                    <p className="text-[10px] font-black text-slate-500 uppercase mb-2">Analítica</p>
+                                    <p className="text-[10px] font-black text-slate-500 uppercase mb-2">Analitica</p>
                                     <p className="text-xl font-mono font-black text-white">99.8%</p>
                                 </div>
                                 <div className="p-5 bg-white/5 rounded-[20px] border border-white/5">
@@ -226,7 +226,7 @@ const Inteligencia = () => {
                                     <div className="flex items-center gap-3">
                                         <span className={`size-3 rounded-full ${alerta.priority === 'high' ? 'bg-danger pulse-danger' : 'bg-warning'}`}></span>
                                         <span className={`text-[9px] font-black uppercase tracking-widest ${alerta.priority === 'high' ? 'text-danger' : 'text-warning'}`}>
-                                            {alerta.priority === 'high' ? 'PRIORIDAD CRÍTICA' : 'ATENCIÓN REQUERIDA'}
+                                            {alerta.priority === 'high' ? 'PRIORIDAD CRITICA' : 'ATENCION REQUERIDA'}
                                         </span>
                                     </div>
                                     <p className="text-[11px] font-bold text-slate-800 leading-snug">
@@ -244,15 +244,15 @@ const Inteligencia = () => {
                             )) : (
                                 <div className="text-center py-8 bg-success/10 rounded-2xl border border-success/20 border-dashed">
                                     <span className="material-symbols-outlined text-success text-3xl mb-2">verified</span>
-                                    <p className="text-[11px] text-success/80 font-black uppercase tracking-widest">Sistemas Óptimos</p>
-                                    <p className="text-[10px] text-success/60 mt-1">Garantía total de operatividad.</p>
+                                    <p className="text-[11px] text-success/80 font-black uppercase tracking-widest">Sistemas Optimos</p>
+                                    <p className="text-[10px] text-success/60 mt-1">Garantia total de operatividad.</p>
                                 </div>
                             )}
                         </div>
                     </div>
 
                     <div className="section-card p-8 border-slate-200 bg-white">
-                        <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-6">Sugerencias Estratégicas</h4>
+                        <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-6">Sugerencias Estrategicas</h4>
                         <div className="space-y-5">
                             <div className="flex gap-5 p-4 rounded-2xl hover:bg-slate-50 transition-all cursor-pointer group border border-transparent hover:border-slate-100">
                                 <div className="size-10 rounded-xl bg-warning/10 flex items-center justify-center shrink-0">
@@ -264,7 +264,7 @@ const Inteligencia = () => {
                                 <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                                     <span className="material-symbols-outlined text-primary text-xl group-hover:scale-110 transition-transform">verified_user</span>
                                 </div>
-                                <p className="text-[12px] text-slate-600 font-bold leading-snug">Nueva certificación disponible para agentes de nivel 2.</p>
+                                <p className="text-[12px] text-slate-600 font-bold leading-snug">Nueva certificacion disponible para agentes de nivel 2.</p>
                             </div>
                         </div>
                     </div>

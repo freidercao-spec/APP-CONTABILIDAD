@@ -8,9 +8,9 @@ interface PuestoDetailModalProps {
 }
 
 const ACTION_CONFIG: Record<HistorialPuesto['action'], { label: string; color: string; icon: string }> = {
-    creacion:  { label: 'Creación',    color: 'bg-primary/10 text-primary border-primary/20',   icon: 'add_circle' },
-    asignacion:{ label: 'Asignación',  color: 'bg-success/10 text-success border-success/20',   icon: 'person_add' },
-    remocion:  { label: 'Remoción',    color: 'bg-danger/10 text-danger border-danger/20',       icon: 'person_remove' },
+    creacion:  { label: 'Creacion',    color: 'bg-primary/10 text-primary border-primary/20',   icon: 'add_circle' },
+    asignacion:{ label: 'Asignacion',  color: 'bg-success/10 text-success border-success/20',   icon: 'person_add' },
+    remocion:  { label: 'Remocion',    color: 'bg-danger/10 text-danger border-danger/20',       icon: 'person_remove' },
     cambio:    { label: 'Cambio',      color: 'bg-warning/10 text-warning border-warning/20',   icon: 'swap_horiz' },
     cobertura: { label: 'Cobertura',   color: 'bg-blue-100 text-blue-600 border-blue-200',      icon: 'schedule' },
 };
@@ -37,7 +37,7 @@ const PuestoDetailModal = ({ isOpen, onClose, puesto }: PuestoDetailModalProps) 
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
-            <div className="absolute inset-0 bg-[#070d1d]/95 backdrop-blur-2xl" />
+            <div className="absolute inset-0 bg-[#070d1d]/60 backdrop-blur-md" />
 
             <div
                 className="relative w-full max-w-2xl bg-[#0b1424] border border-white/10 rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 max-h-[92vh] flex flex-col"
@@ -51,7 +51,7 @@ const PuestoDetailModal = ({ isOpen, onClose, puesto }: PuestoDetailModalProps) 
                         </div>
                         <div>
                             <h4 className="text-base font-black text-white uppercase tracking-tight">{puesto.nombre}</h4>
-                            <p className="text-[10px] text-primary font-bold uppercase tracking-[0.2em] font-mono">{puesto.id} · {puesto.tipo}</p>
+                            <p className="text-[10px] text-primary font-bold uppercase tracking-[0.2em] font-mono">{puesto.id} - {puesto.tipo}</p>
                             <div className="flex items-center gap-2 mt-1">
                                 <span className={`size-1.5 rounded-full ${puesto.estado === 'cubierto' ? 'bg-success' : puesto.estado === 'alerta' ? 'bg-warning animate-pulse' : 'bg-danger animate-pulse'}`} />
                                 <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">{puesto.estado}</span>
@@ -82,7 +82,7 @@ const PuestoDetailModal = ({ isOpen, onClose, puesto }: PuestoDetailModalProps) 
                                     const [ih, im] = t.horaInicio.split(':').map(Number);
                                     const [fh, fm] = t.horaFin.split(':').map(Number);
                                     const durMin = (fh * 60 + fm) - (ih * 60 + im);
-                                    const dur = durMin > 0 ? `${Math.floor(durMin / 60)}h ${durMin % 60 > 0 ? durMin % 60 + 'm' : ''}` : '–';
+                                    const dur = durMin > 0 ? `${Math.floor(durMin / 60)}h ${durMin % 60 > 0 ? durMin % 60 + 'm' : ''}` : 'a';
                                     return (
                                         <div key={t.vigilanteId} className="flex items-center justify-between gap-3 bg-white/5 border border-white/5 rounded-2xl p-4 hover:border-primary/20 transition-colors">
                                             <div className="flex items-center gap-3">
@@ -95,7 +95,7 @@ const PuestoDetailModal = ({ isOpen, onClose, puesto }: PuestoDetailModalProps) 
                                                 </div>
                                                 <div>
                                                     <p className="text-[12px] font-bold text-white">{t.nombre}</p>
-                                                    <p className="text-[9px] font-mono text-slate-500">{t.vigilanteId} · {t.v?.rango || 'N/A'}</p>
+                                                    <p className="text-[9px] font-mono text-slate-500">{t.vigilanteId} - {t.v?.rango || 'N/A'}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2 text-right">

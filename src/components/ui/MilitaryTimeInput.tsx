@@ -8,7 +8,7 @@ interface MilitaryTimeInputProps {
 }
 
 /**
- * 100% PERSONALIZABLE: Entrada de tiempo militar con presets dinámicos y selector táctico.
+ * 100% PERSONALIZABLE: Entrada de tiempo militar con presets dinamicos y selector tactico.
  */
 export const MilitaryTimeInput: React.FC<MilitaryTimeInputProps> = ({ value, onChange, className }) => {
     const [localValue, setLocalValue] = useState(value);

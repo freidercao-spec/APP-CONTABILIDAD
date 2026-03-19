@@ -16,9 +16,9 @@ const MapLibreGL = () => {
     const map = new maplibre.Map({
       container: mapContainer.current,
       style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-      center: [-75.5667, 6.2308], // Centrado en Medellín (Coraza CTA)
+      center: [-75.5667, 6.2308], // Centrado en Medellin (Coraza CTA)
       zoom: 12.5,
-      pitch: 45, // Ángulo táctico
+      pitch: 45, // Angulo tactico
       bearing: -17
     });
 
@@ -97,7 +97,7 @@ const MapLibreGL = () => {
   return (
     <div className="relative w-full h-[400px] xl:h-full rounded-2xl overflow-hidden shadow-2xl">
       <div ref={mapContainer} className="h-full w-full" />
-      {/* Capa táctica decorativa */}
+      {/* Capa tactica decorativa */}
       <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_80px_rgba(0,0,0,0.5)] bg-gradient-to-b from-transparent via-transparent to-black/30" />
 
       {/* Bordes de escaneo */}

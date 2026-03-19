@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { usePuestoStore } from '../../store/puestoStore';
 
-// ─── Tipos de geocodificación ─────────────────────────────────────────────────
+// ─── Tipos de geocodificacion ─────────────────────────────────────────────────
 interface GeocodeResult {
     name: string;
     display_name: string;
@@ -60,7 +60,7 @@ const searchNominatim = async (query: string, lat: number, lon: number): Promise
 
 // ─── Google Maps Places Autocomplete (Primary Engine) ─────────────────────────
 const searchGooglePlaces = async (query: string, lat: number, lon: number): Promise<GeocodeResult[]> => {
-    // Google Places Text Search (New) — requires API KEY
+    // Google Places Text Search (New) - requires API KEY
     const GOOGLE_API_KEY = (window as any).__GOOGLE_MAPS_API_KEY || import.meta.env?.VITE_GOOGLE_MAPS_API_KEY || '';
     if (!GOOGLE_API_KEY) throw new Error('No Google API key configured');
 
@@ -102,7 +102,7 @@ const searchGooglePlaces = async (query: string, lat: number, lon: number): Prom
     }));
 };
 
-// ─── Configuración ────────────────────────────────────────────────────────────
+// ─── Configuracion ────────────────────────────────────────────────────────────
 interface PuestoModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -112,12 +112,12 @@ interface PuestoModalProps {
 }
 
 const TIPOS = [
-    { value: 'hospital', label: 'Hospital / Clínica' },
-    { value: 'comando', label: 'Comando de Policía' },
-    { value: 'torre', label: 'Torre de Control / Vigía' },
+    { value: 'hospital', label: 'Hospital / Clinica' },
+    { value: 'comando', label: 'Comando de Policia' },
+    { value: 'torre', label: 'Torre de Control / Vigia' },
     { value: 'edificio', label: 'Edificio Corporativo' },
     { value: 'retail', label: 'Comercio / Retail' },
-    { value: 'logistica', label: 'Centro Logístico' },
+    { value: 'logistica', label: 'Centro Logistico' },
     { value: 'banco', label: 'Entidad Financiera' },
     { value: 'puerto', label: 'Puerto / Aduana' },
 ];
@@ -154,11 +154,11 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
     const nextIdNumber = usePuestoStore((state) => state.nextIdNumber);
     const formattedPreview = `MED-${String(nextIdNumber).padStart(4, '0')}`;
 
-    // ======== Motor de Búsqueda Triple (Google Places → Photon → Nominatim) ========
+    // ======== Motor de Busqueda Triple (Google Places → Photon → Nominatim) ========
     const handleSearch = (query: string) => {
         setNombre(query);
 
-        // Cancelar búsqueda anterior
+        // Cancelar busqueda anterior
         if (debounceRef.current) clearTimeout(debounceRef.current);
         if (abortRef.current) abortRef.current.abort();
 
@@ -184,7 +184,7 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                     const withManual = [...googleResults, {
                         name: query,
                         display_name: query,
-                        address: 'Registrar esta ubicación manualmente',
+                        address: 'Registrar esta ubicacion manualmente',
                         lat: curLat, lon: curLon,
                         type: 'manual', class: 'custom', isCustom: true,
                     }];
@@ -207,7 +207,7 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                     const withManual = [...photonResults, {
                         name: query,
                         display_name: query,
-                        address: 'Registrar esta ubicación manualmente',
+                        address: 'Registrar esta ubicacion manualmente',
                         lat: curLat, lon: curLon,
                         type: 'manual', class: 'custom', isCustom: true,
                     }];
@@ -228,7 +228,7 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                 const withManual: GeocodeResult[] = [...nominatimResults, {
                     name: query,
                     display_name: query,
-                    address: nominatimResults.length === 0 ? 'Registrar manualmente (no encontrado)' : 'Registrar esta ubicación manualmente',
+                    address: nominatimResults.length === 0 ? 'Registrar manualmente (no encontrado)' : 'Registrar esta ubicacion manualmente',
                     lat: curLat, lon: curLon,
                     type: 'manual', class: 'custom', isCustom: true,
                 }];
@@ -239,7 +239,7 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                 setSuggestions([{
                     name: query,
                     display_name: query,
-                    address: 'Sin conexión — Registrar manualmente',
+                    address: 'Sin conexion - Registrar manualmente',
                     lat: curLat, lon: curLon,
                     type: 'manual', class: 'custom', isCustom: true,
                 }]);
@@ -254,7 +254,7 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
         setNombre(s.name);
         setLat(s.lat.toFixed(6));
         setLng(s.lon.toFixed(6));
-        if (s.address && s.address !== 'Registrar esta ubicación manualmente') {
+        if (s.address && s.address !== 'Registrar esta ubicacion manualmente') {
             setDireccion(s.display_name || s.address);
         }
         const autoTipo = mapOSMTypeToPuestoType(s.type, s.class);
@@ -344,15 +344,15 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
         }
     };
 
-    const engineLabel = searchStatus === 'google' ? 'Google Places · Maps API'
-        : searchStatus === 'photon' ? 'Photon · OSM Global'
-        : searchStatus === 'nominatim' ? 'Nominatim · OpenStreetMap'
-        : searchStatus === 'done' ? 'Motor de Búsqueda Activo'
+    const engineLabel = searchStatus === 'google' ? 'Google Places - Maps API'
+        : searchStatus === 'photon' ? 'Photon - OSM Global'
+        : searchStatus === 'nominatim' ? 'Nominatim - OpenStreetMap'
+        : searchStatus === 'done' ? 'Motor de Busqueda Activo'
         : 'Geocodificador Triple';
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" onClick={onClose}>
-            <div className="absolute inset-0 bg-[#070d1d]/95 backdrop-blur-xl"></div>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/40" onClick={onClose}>
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"></div>
 
             <div
                 className="relative w-full max-w-lg bg-[#0b1424] border border-white/10 rounded-[28px] shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-300 max-h-[90vh] flex flex-col"
@@ -366,7 +366,7 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                         </div>
                         <div>
                             <h4 className="text-lg font-bold text-white uppercase tracking-tight">Recrear <span className="text-primary">Puesto</span></h4>
-                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">Escala Real + Elevación</p>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">Escala Real + Elevacion</p>
                         </div>
                     </div>
                     <button
@@ -383,7 +383,7 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                     {/* Scrollable Body */}
                     <div className="flex-1 overflow-y-auto p-8 pt-5 custom-scrollbar space-y-5">
                         <div className="bg-black/30 border border-primary/20 rounded-2xl px-5 py-3 flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Código Instancia</span>
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Codigo Instancia</span>
                             <span className="font-mono text-primary font-bold text-lg tracking-widest">{formattedPreview}</span>
                         </div>
 
@@ -407,10 +407,10 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                                 </div>
                             </div>
 
-                            {/* ── CAMPO DE BÚSQUEDA ── */}
+                            {/* ── CAMPO DE BUSQUEDA ── */}
                             <div className="col-span-2 space-y-1.5 relative">
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">
-                                    Nombre / Dirección del Puesto <span className="text-danger">*</span>
+                                    Nombre / Direccion del Puesto <span className="text-danger">*</span>
                                 </label>
                                 <div className="relative group">
                                     <input
@@ -421,7 +421,7 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                                         onKeyDown={handleKeyDown}
                                         onChange={(e) => handleSearch(e.target.value)}
                                         className="w-full bg-[#0d1a2e] border border-white/8 rounded-xl py-3.5 pl-12 pr-12 text-sm text-white focus:border-primary/60 focus:ring-1 focus:ring-primary/20 outline-none transition-all placeholder:text-slate-600 shadow-inner"
-                                        placeholder="Ej: Clínica Las Américas, Cra 81 Calasanz..."
+                                        placeholder="Ej: Clinica Las Americas, Cra 81 Calasanz..."
                                     />
                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors">
                                         <span className="material-symbols-outlined text-xl notranslate" translate="no">search</span>
@@ -446,7 +446,7 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                                 {nombre.length === 0 && (
                                     <p className="text-[9px] text-slate-600 ml-1 flex items-center gap-1">
                                         <span className="material-symbols-outlined text-[12px] text-primary/60">travel_explore</span>
-                                        Escribe el nombre del lugar, barrio, dirección o empresa
+                                        Escribe el nombre del lugar, barrio, direccion o empresa
                                     </p>
                                 )}
 
@@ -495,13 +495,13 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                                                 </span>
                                             </div>
                                             <span className="text-[8px] text-slate-600 font-mono">
-                                                {suggestions.filter(s => !s.isCustom).length} resultados · ↑↓ navegar · Enter seleccionar
+                                                {suggestions.filter(s => !s.isCustom).length} resultados - ↑↓ navegar - Enter seleccionar
                                             </span>
                                         </div>
                                     </div>
                                 )}
 
-                                {/* Estado: buscando sin resultados aún */}
+                                {/* Estado: buscando sin resultados aun */}
                                 {nombre.length > 2 && !isSearching && suggestions.length === 0 && searchStatus === 'done' && (
                                     <div className="absolute z-[210] top-[100%] left-0 right-0 mt-2 bg-[#0b1424] border border-white/10 rounded-2xl p-5 text-center shadow-2xl animate-in fade-in zoom-in-95">
                                         <span className="material-symbols-outlined text-2xl text-slate-600 mb-2 block">travel_explore</span>
@@ -510,10 +510,10 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                                     </div>
                                 )}
 
-                                {/* Campo de Dirección (Extraído de avanzado para visibilidad) */}
+                                {/* Campo de Direccion (Extraido de avanzado para visibilidad) */}
                                 <div className="mt-2 space-y-1.5 animate-in fade-in slide-in-from-top-1">
                                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                                        Dirección Específica / Detallada <span className="text-danger">*</span>
+                                        Direccion Especifica / Detallada <span className="text-danger">*</span>
                                     </label>
                                     <div className="relative">
                                         <input
@@ -559,7 +559,7 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                         <div className="flex items-center gap-3 bg-white/5 p-3 rounded-xl border border-white/5">
                             <span className="material-symbols-outlined text-primary text-[16px] notranslate" translate="no">height</span>
                             <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
-                                Offset Z aplicado automáticamente: <span className="text-white">+ 9.14m (30 pies)</span>
+                                Offset Z aplicado automaticamente: <span className="text-white">+ 9.14m (30 pies)</span>
                             </p>
                         </div>
 
@@ -571,7 +571,7 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                         >
                             <div className="flex items-center gap-3">
                                 <span className="material-symbols-outlined notranslate" translate="no">{showAdvanced ? 'settings_suggest' : 'add_circle'}</span>
-                                <span className="text-[10px] font-bold uppercase tracking-widest">Programación Operativa Avanzada</span>
+                                <span className="text-[10px] font-bold uppercase tracking-widest">CUADRO OPERATIVO Operativa Avanzada</span>
                             </div>
                             <span className="material-symbols-outlined notranslate" translate="no">{showAdvanced ? 'expand_less' : 'expand_more'}</span>
                         </button>
@@ -581,7 +581,7 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                                 {/* Campos de Contrato y Cliente */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 text-primary">Número de Contrato</label>
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 text-primary">Numero de Contrato</label>
                                         <input
                                             value={numeroContrato}
                                             onChange={e => setNumeroContrato(e.target.value)}
@@ -619,7 +619,7 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                                         />
                                     </div>
                                     <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 text-primary">Teléfono / Radio</label>
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 text-primary">Telefono / Radio</label>
                                         <input
                                             value={telefono}
                                             onChange={e => setTelefono(e.target.value)}
@@ -646,12 +646,12 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 text-primary">Instrucciones Tácticas</label>
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 text-primary">Instrucciones Tacticas</label>
                                     <textarea
                                         value={instrucciones}
                                         onChange={e => setInstrucciones(e.target.value)}
                                         className="w-full bg-[#0d1a2e] border border-white/8 rounded-xl py-3 px-4 text-xs text-white outline-none focus:border-primary/50 h-20 resize-none"
-                                        placeholder="Protocolos específicos para este punto..."
+                                        placeholder="Protocolos especificos para este punto..."
                                     />
                                 </div>
 

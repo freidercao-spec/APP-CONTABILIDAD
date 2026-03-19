@@ -36,6 +36,7 @@ export interface ProgramacionMensual {
     actualizadoEn: string;
     version: number;
     historialCambios: CambioProgramacion[];
+    syncStatus?: 'synced' | 'pending' | 'error';
 }
 
 export interface TemplateProgramacion {
@@ -66,7 +67,7 @@ export interface ResultadoValidacion {
 }
 
 // ── Utility ──────────────────────────────────────────────────────────────────
-export const esPeríodoBloqueadoVacaciones = (anio: number, mes: number): boolean => {
+export const esPeriodoBloqueadoVacaciones = (anio: number, mes: number): boolean => {
     if (mes === 11 || mes === 0) return true;
     return false;
 };
@@ -148,7 +149,7 @@ const translateToUuid = (id: string | null): string | null => {
 
 const translateFromDb = (dbId: string | null) => {
     if (!dbId) return null;
-    // Buscamos por dbId (UUID) o por id (shorthand si ya está convertido)
+    // Buscamos por dbId (UUID) o por id (shorthand si ya esta convertido)
     const v = useVigilanteStore.getState().vigilantes.find((v: any) => v.dbId === dbId || v.id === dbId);
     return v?.id || dbId;
 };
@@ -212,19 +213,27 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                 const serverVersion = existing.version || 1;
                 const localVersion = prog.version;
                 
-                // Only skip if server version is significantly newer (more than 1 version ahead)
-                // This prevents infinite loops while still protecting against stale overwrites
-                if (serverVersion > localVersion) {
-                    console.warn(`⚠️ [SYNC] Server has newer version (${serverVersion} > ${localVersion}) for prog ${dbId}. Skipping sync to prevent data loss.`);
+                // CRITICAL SAFETY CHECK:
+                // If local has 0 assignments but server has many, DO NOT OVERWRITE.
+                // This prevents the "empty store" issue from destroying real data.
+                const localAsigCount = prog.asignaciones.length;
+                const { data: serverAsigs } = await supabase.from('asignaciones_dia').select('id', { count: 'exact', head: true }).eq('programacion_id', existing.id);
+                const serverAsigCount = serverAsigs?.length || 0;
+                
+                if (localAsigCount === 0 && serverAsigCount > 10) {
+                    console.error(`🛑 [SYNC] Blocked overwrite of populated server record (${serverAsigCount} asigs) with empty local record.`);
+                    return { success: false, serverVersion, serverUpdatedAt: existing.updated_at };
+                }
+
+                // FIXED: Only block sync if server is MORE THAN 2 versions ahead
+                if (serverVersion > localVersion + 2) {
+                    console.warn(`⚠️ [SYNC] Server has much newer version (${serverVersion} >> ${localVersion}) for prog ${dbId}.`);
                     return { 
                         success: false, 
                         serverVersion: serverVersion, 
                         serverUpdatedAt: existing.updated_at 
                     };
                 }
-                
-                // If server version is same or only 1 ahead, allow sync (user's changes take precedence)
-                // This handles the case where user publishes, then local state has the new version
             }
 
             // 1. Upsert header using the resolved ID
@@ -276,10 +285,10 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                 }
             }
 
-            console.log(`✅ [SYNC] Programación ${prog.puestoId} sincronizada exitosamente.`);
+            console.log(`✅ [SYNC] CUADRO OPERATIVO ${prog.puestoId} sincronizada exitosamente.`);
             return { success: true, serverVersion: prog.version, serverUpdatedAt: new Date().toISOString() };
         } catch (err: any) {
-            console.error('❌ [SYNC] Error crítico en sincronización:', err.message || err);
+            console.error('❌ [SYNC] Error critico en sincronizacion:', err.message || err);
             throw err;
         } finally {
             activeSyncPromises.delete(prog.id);
@@ -300,24 +309,37 @@ const queueSync = (progId: string, set: any, get: any) => {
         const prog = get().programaciones.find((p: any) => p.id === progId);
         if (!prog) return;
         
-        // Don't sync if programacion is empty (just rehydrated, waiting for fetch)
+        // Don't sync if programacion is empty
         if (!prog.personal && !prog.asignaciones) return;
 
         set({ isSyncing: true, lastSyncError: null });
         try {
             const result = await syncProgramacionToDb(prog, set, get);
             
-            // If sync was skipped due to server having newer version, refetch from server
-            if (!result.success) {
+            if (result.success) {
+                // MARK AS SYNCED if successful
+                set((state: any) => ({
+                    programaciones: state.programaciones.map((p: any) => 
+                        p.id === progId ? { ...p, syncStatus: 'synced' as const } : p
+                    )
+                }));
+            } else if (result.serverVersion > prog.version) {
+                // If server is newer, refetch to merge
                 console.log(`🔄 [QUEUE] Fetching latest version from server for ${progId}`);
                 await get().fetchProgramaciones();
             }
             
             set({ isSyncing: false });
         } catch (err: any) {
-            set({ isSyncing: false, lastSyncError: err.message || 'Error de conexión' });
+            set((state: any) => ({
+                isSyncing: false, 
+                lastSyncError: err.message || 'Error de conexion',
+                programaciones: state.programaciones.map((p: any) => 
+                    p.id === progId ? { ...p, syncStatus: 'error' as const } : p
+                )
+            }));
         }
-    }, 1500);
+    }, 500); // REducir de 1500 a 500 para mayor agilidad
 
     pendingSyncs.set(progId, timeout);
 };
@@ -347,7 +369,9 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         .from('programacion_mensual')
                         .select('*')
                         .eq('empresa_id', EMPRESA_ID)
-                        .limit(5000);
+                        .order('anio', { ascending: false })
+                        .order('mes', { ascending: false })
+                        .limit(20000);
 
                     if (error) {
                         console.error('Error fetching programacion_mensual:', error);
@@ -415,8 +439,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                         return {
                             id: row.id,
-                            // MANTENEMOS EL UUID AQUÍ PARA EVITAR PROBLEMAS DE MAPEO
-                            // La traducción se hace en la capa de vista si es necesario
+                            // MANTENEMOS EL UUID AQUI PARA EVITAR PROBLEMAS DE MAPEO
+                            // La traduccion se hace en la capa de vista si es necesario
                             puestoId: row.puesto_id as string,
                             anio: row.anio,
                             mes: row.mes,
@@ -430,8 +454,24 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         };
                     });
 
-                    console.log(`✅ [FETCH] ${programaciones.length} progs loaded in ${Math.ceil(progIds.length/CHUNK_SIZE)} chunks`);
-                    set({ programaciones, loaded: true });
+                    // --- MEJORA: MERGE INTELIGENTE ---
+                    const localProgs = get().programaciones;
+                    const mergedProgramaciones = programaciones.map(remote => {
+                        const local = localProgs.find(lp => lp.id === remote.id);
+                        // Si tenemos una version local pendiente de sync y es MAS NUEVA, mantenerla
+                        if (local && local.syncStatus === 'pending' && (local.version > remote.version || local.actualizadoEn > remote.actualizadoEn)) {
+                            console.log(`💎 [FETCH] Preservando local unsynced: ${local.id} (v${local.version})`);
+                            return local;
+                        }
+                        return remote;
+                    });
+
+                    // Tambien añadir progs que esten en local pero NO en el fetch del server (nuevas progs no sync)
+                    const brandNew = localProgs.filter(lp => lp.syncStatus === 'pending' && !programaciones.find(rp => rp.id === lp.id));
+                    const finalProgs = [...mergedProgramaciones, ...brandNew];
+
+                    console.log(`✅ [FETCH] ${finalProgs.length} progs loaded/merged`);
+                    set({ programaciones: finalProgs, loaded: true });
                 } catch (err) {
                     console.error('CRITICAL: fetchProgramaciones crash:', err);
                     set({ loaded: true });
@@ -465,13 +505,40 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
 
             getProgramacion: (puestoId, anio, mes) => {
-                return get().programaciones.find(p => p.puestoId === puestoId && p.anio === anio && p.mes === mes);
+                // Robust lookup: search by UUID or shorthand ID
+                const pStore = usePuestoStore.getState().puestos;
+                const pRef = pStore.find(px => px.id === puestoId || px.dbId === puestoId);
+                const uuid = pRef?.dbId || puestoId;
+                const short = pRef?.id || puestoId;
+
+                return get().programaciones.find(p => 
+                    (p.puestoId === uuid || p.puestoId === short) && 
+                    p.anio === anio && 
+                    p.mes === mes
+                );
             },
 
             crearOObtenerProgramacion: (puestoId, anio, mes, usuario) => {
-                const dbPuestoId = translatePuestoToUuid(puestoId) || puestoId;
-                const existing = get().programaciones.find(p => (p.puestoId === dbPuestoId || p.puestoId === puestoId) && p.anio === anio && p.mes === mes);
+                // Use robust lookup first
+                const existing = get().getProgramacion(puestoId, anio, mes);
                 if (existing) return existing;
+
+                const dbPuestoId = translatePuestoToUuid(puestoId) || puestoId;
+                const daysInMonth = new Date(anio, mes + 1, 0).getDate();
+                const asignaciones: AsignacionDia[] = [];
+                const roles: RolPuesto[] = ['titular_a', 'titular_b', 'relevante'];
+
+                for (let dia = 1; dia <= daysInMonth; dia++) {
+                    roles.forEach(rol => {
+                        asignaciones.push({
+                            dia,
+                            vigilanteId: null,
+                            turno: 'AM',
+                            jornada: 'sin_asignar',
+                            rol,
+                        });
+                    });
+                }
 
                 const newProg: ProgramacionMensual = {
                     id: crypto.randomUUID(),
@@ -483,12 +550,13 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         { rol: 'titular_b', vigilanteId: null },
                         { rol: 'relevante', vigilanteId: null },
                     ],
-                    asignaciones: [], // Initial state is empty, it'll generate on first render or via helper
+                    asignaciones,
                     estado: 'borrador',
                     creadoEn: new Date().toISOString(),
                     actualizadoEn: new Date().toISOString(),
                     version: 1,
                     historialCambios: [],
+                    syncStatus: 'pending',
                 };
 
                 set(s => ({ programaciones: [...s.programaciones, newProg] }));
@@ -504,6 +572,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             ...p,
                             personal,
                             actualizadoEn: new Date().toISOString(),
+                            syncStatus: 'pending',
                             historialCambios: [
                                 ...p.historialCambios,
                                 { id: crypto.randomUUID(), timestamp: new Date().toISOString(), usuario, descripcion: 'Cambio de personal asignado', tipo: 'personal' }
@@ -516,7 +585,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
             actualizarAsignacion: (progId, dia, data, usuario) => {
                 const prog = get().programaciones.find(p => p.id === progId);
-                if (!prog) return { permitido: false, tipo: 'bloqueo', mensaje: 'Programación no encontrada' };
+                if (!prog) return { permitido: false, tipo: 'bloqueo', mensaje: 'CUADRO OPERATIVO no encontrada' };
 
                 const vigilanteId = data.vigilanteId ?? null;
                 const jornada = data.jornada ?? 'normal';
@@ -531,11 +600,11 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                 ...p,
                                 historialCambios: [...p.historialCambios, {
                                     id: crypto.randomUUID(), timestamp: new Date().toISOString(),
-                                    usuario, descripcion: `Vacación bloqueada — ${regla}`, tipo: 'rechazo_ia' as const, reglaViolada: regla,
+                                    usuario, descripcion: `Vacacion bloqueada - ${regla}`, tipo: 'rechazo_ia' as const, reglaViolada: regla,
                                 }]
                             })
                         }));
-                        logCambio(progId, usuario, `Vacación bloqueada — ${regla}`, 'rechazo_ia', regla);
+                        logCambio(progId, usuario, `Vacacion bloqueada - ${regla}`, 'rechazo_ia', regla);
                         return { permitido: false, tipo: 'bloqueo', mensaje: `🚫 ${regla}`, regla };
                     }
                     if (esSemanaSanta(prog.anio, prog.mes, dia)) {
@@ -554,7 +623,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                 (a.jornada === 'descanso_remunerado' || a.jornada === 'descanso_no_remunerado');
                         });
                         if (daysInQuincena.length >= 3) {
-                            const regla = 'Cada vigilante solo puede tener 3 días de descanso por quincena';
+                            const regla = 'Cada vigilante solo puede tener 3 dias de descanso por quincena';
                             return { permitido: false, tipo: 'bloqueo', mensaje: `🚫 ${regla}`, regla };
                         }
                         if (jornada === 'descanso_remunerado') {
@@ -578,10 +647,11 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 if (vigilanteId && jornada === 'normal') {
                     const conflicto = prog.asignaciones.find(a =>
                         a.dia === dia && a.vigilanteId === vigilanteId &&
-                        (a.jornada === 'descanso_remunerado' || a.jornada === 'descanso_no_remunerado')
+                        (a.jornada === 'descanso_remunerado' || a.jornada === 'descanso_no_remunerado') &&
+                        a.rol !== (data.rol ?? 'NONE')
                     );
                     if (conflicto) {
-                        const regla = 'El vigilante tiene un día de descanso programado en esta fecha';
+                        const regla = 'El vigilante tiene un dia de descanso programado en esta fecha';
                         return { permitido: false, tipo: 'bloqueo', mensaje: `🚫 ${regla}`, regla };
                     }
                 }
@@ -595,21 +665,40 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         a.rol !== (data.rol ?? 'NONE')
                     );
                     if (same) {
-                        const regla = 'El vigilante ya está asignado a este turno en este día en otro rol o puesto';
+                        const regla = 'El vigilante ya esta asignado a este turno en este dia en otro rol o puesto';
                         return { permitido: false, tipo: 'bloqueo', mensaje: `🚫 ${regla}`, regla };
                     }
                 }
 
                 // Apply change
                 const descripcion = vigilanteId
-                    ? `Día ${dia}: Asignado vigilante ${vigilanteId} (${turno} · ${jornada})`
-                    : `Día ${dia}: Celda limpiada`;
+                    ? `DIA ${dia}: Asignado vigilante ${vigilanteId} (${turno} - ${jornada})`
+                    : `DIA ${dia}: Celda limpiada`;
+
+                // --- AUTO-APPEND MISSING ROWS ---
+                let found = false;
+                const asignaciones = prog.asignaciones.map(a => {
+                    const match = a.dia === dia && a.rol === (data.rol ?? a.rol);
+                    if (match) {
+                        found = true;
+                        return { ...a, ...data };
+                    }
+                    return a;
+                });
+
+                if (!found) {
+                    asignaciones.push({
+                        dia,
+                        rol: (data.rol ?? 'relevante') as RolPuesto,
+                        vigilanteId: vigilanteId,
+                        turno: turno as TurnoHora,
+                        jornada: jornada as TipoJornada,
+                    });
+                }
 
                 const updatedProgData = {
                     ...prog,
-                    asignaciones: prog.asignaciones.map(a =>
-                        a.dia === dia && a.rol === (data.rol ?? a.rol) ? { ...a, ...data } : a
-                    ),
+                    asignaciones,
                     actualizadoEn: new Date().toISOString(),
                     historialCambios: [...prog.historialCambios, {
                         id: crypto.randomUUID(),
@@ -621,12 +710,15 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 };
 
                 set(s => ({
-                    programaciones: s.programaciones.map(p => (p.id !== progId) ? p : updatedProgData)
+                    programaciones: s.programaciones.map(p => (p.id !== progId) ? p : {
+                        ...updatedProgData,
+                        syncStatus: 'pending' as const
+                    })
                 }));
                 
                 queueSync(progId, set, get);
                 logCambio(progId, usuario, descripcion, 'asignacion');
-                return { permitido: true, tipo: 'ok', mensaje: 'Asignación actualizada' };
+                return { permitido: true, tipo: 'ok', mensaje: 'Asignacion actualizada' };
             },
 
             publicarProgramacion: (progId, usuario) => {
@@ -636,11 +728,12 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         estado: 'publicado' as const,
                         version: p.version + 1,
                         actualizadoEn: new Date().toISOString(),
+                        syncStatus: 'pending',
                         historialCambios: [...p.historialCambios, {
                             id: crypto.randomUUID(),
                             timestamp: new Date().toISOString(),
                             usuario,
-                            descripcion: 'Programación PUBLICADA como versión definitiva',
+                            descripcion: 'CUADRO OPERATIVO PUBLICADA como version definitiva',
                             tipo: 'publicacion' as const,
                         }],
                     })
@@ -660,7 +753,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         })
                         .catch(e => set({ isSyncing: false, lastSyncError: e.message }));
                     
-                    logCambio(prog.id, usuario, 'Programación PUBLICADA como versión definitiva', 'publicacion');
+                    logCambio(prog.id, usuario, 'CUADRO OPERATIVO PUBLICADA como version definitiva', 'publicacion');
                 }
             },
 
@@ -769,7 +862,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                 id: crypto.randomUUID(),
                                 timestamp: new Date().toISOString(),
                                 usuario,
-                                descripcion: `Plantilla "${tpl.nombre}" aplicada — datos copiados y listos para modificar`,
+                                descripcion: `Plantilla "${tpl.nombre}" aplicada - datos copiados y listos para modificar`,
                                 tipo: 'borrador' as const,
                             }],
                         })
@@ -793,7 +886,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             id: crypto.randomUUID(),
                             timestamp: new Date().toISOString(),
                             usuario,
-                            descripcion: `Programación creada desde plantilla "${tpl.nombre}" para ${MONTH_NAMES[mes]} ${anio}`,
+                            descripcion: `CUADRO OPERATIVO creada desde plantilla "${tpl.nombre}" para ${MONTH_NAMES[mes]} ${anio}`,
                             tipo: 'borrador',
                         }],
                     };
@@ -859,10 +952,12 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     version: r.version || 1,
                     creadoEn: r.created_at,
                     actualizadoEn: r.updated_at,
-                    personal: (pRes.data || []).map(p => ({ rol: p.rol as RolPuesto, vigilanteId: p.vigilante_id })),
+                    // CRITICAL: Use translateFromDb to convert UUID -> short ID (MED-XXX)
+                    // This must be consistent with fetchProgramaciones
+                    personal: (pRes.data || []).map(p => ({ rol: p.rol as RolPuesto, vigilanteId: translateFromDb(p.vigilante_id) })),
                     asignaciones: (aRes.data || []).map(a => ({ 
                         dia: a.dia, 
-                        vigilanteId: a.vigilante_id, 
+                        vigilanteId: translateFromDb(a.vigilante_id), 
                         turno: a.turno, 
                         jornada: a.jornada as TipoJornada, 
                         rol: a.rol as RolPuesto 
@@ -889,19 +984,32 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
         }),
         {
-            name: 'coraza-programacion-store-v1.3.6',
-            // Only persist templates and loaded state - programaciones come from server
+            name: 'coraza-programacion-store-v1.3.7',
+            // Persist templates AND programaciones as local cache.
+            // The fetch updates them from the server, but cache prevents blank screens on reload.
             partialize: (state) => ({ 
                 templates: state.templates,
+                programaciones: state.programaciones,
                 loaded: state.loaded,
             }),
             onRehydrateStorage: () => (state) => {
                 if (state) {
-                    // Clear programaciones on rehydration - they will be fetched fresh from server
-                    state.programaciones = [];
+                    // CRITICAL FIX: Keep cached programaciones as local fallback.
+                    // The fresh fetch will update them from Supabase.
+                    // Setting loaded=false ensures the init hook re-fetches from DB.
                     state.loaded = false;
                 }
-            }
+            },
+            // Migrate old store (v1.3.6) that had no programacion cache
+            migrate: (persistedState: any) => {
+                return {
+                    ...persistedState,
+                    programaciones: persistedState.programaciones || [],
+                    templates: persistedState.templates || [],
+                    loaded: false,
+                };
+            },
+            version: 2,
         }
     )
 );

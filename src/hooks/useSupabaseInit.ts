@@ -6,11 +6,12 @@ import { useAuditStore } from '../store/auditStore';
 
 /**
  * Hook para inicializar la carga de datos desde Supabase.
- * Se ejecuta UNA VEZ cuando el usuario está autenticado.
+ * CORRECCION CRITICA: Se garantiza que fetchProgramaciones siempre se ejecuta
+ * despues de que puestos y vigilantes esten listos, sin condiciones que lo bloqueen.
  */
 export function useSupabaseInit() {
     const didInit = useRef(false);
-    const [initialFetchDone, setInitialFetchDone] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
     const fetchVigilantes = useVigilanteStore(s => s.fetchVigilantes);
     const vigilantesLoaded = useVigilanteStore(s => s.loaded);
@@ -18,53 +19,54 @@ export function useSupabaseInit() {
     const puestosLoaded = usePuestoStore(s => s.loaded);
     const fetchProgramaciones = useProgramacionStore(s => s.fetchProgramaciones);
     const fetchTemplates = useProgramacionStore(s => s.fetchTemplates);
-    const programacionLoaded = useProgramacionStore(s => s.loaded);
     const fetchAudit = useAuditStore(s => s.fetchEntries);
 
     useEffect(() => {
-        if (!vigilantesLoaded || !puestosLoaded) return;
-        if (initialFetchDone && vigilantesLoaded && puestosLoaded) return;
-
-        if (didInit.current) {
-            // Re-fetch if data was cleared (e.g., after localStorage rehydration)
-            if (!programacionLoaded) {
-                console.log('[Coraza] 🔄 Re-fetching programaciones after rehydration...');
-                fetchProgramaciones();
-                fetchTemplates();
-            }
-            return;
-        }
-        
+        // Si ya se inicializo, no repetir
+        if (didInit.current) return;
         didInit.current = true;
 
-        console.log('[Coraza] 🔄 Inicializando datos desde Supabase...');
+        console.log('[Coraza] 🚀 Iniciando carga de datos desde Supabase...');
 
         const initBaseDatos = async () => {
             try {
-                // 1. MUST FETCH VIGILANTES FIRST
-                await fetchVigilantes();
-
-                // 2. MUST FETCH PUESTOS SECOND (required for programacion mapping)
-                await fetchPuestos();
+                setIsLoading(true);
                 
-                // 3. Fetch the rest safely
+                // 1. CRITICO: Cargar vigilantes primero (necesario para traducir IDs)
+                await fetchVigilantes();
+                console.log('[Coraza] ✅ Vigilantes cargados');
+
+                // 2. CRITICO: Cargar puestos segundo (necesario para mapear programaciones)
+                await fetchPuestos();
+                console.log('[Coraza] ✅ Puestos cargados');
+                
+                // 3. Cargar todo lo demas en paralelo
                 await Promise.all([
                     fetchProgramaciones(),
                     fetchTemplates(),
                     fetchAudit(),
                 ]);
                 
-                setInitialFetchDone(true);
-                console.log('[Coraza] ✅ Datos cargados exitosamente desde Supabase');
+                console.log('[Coraza] ✅ Todos los datos cargados exitosamente');
             } catch (err) {
-                console.warn('[Coraza] ⚠️ Algunos datos no pudieron cargarse. Usando cache local.', err);
+                console.error('[Coraza] ❌ Error al cargar datos desde Supabase:', err);
+            } finally {
+                setIsLoading(false);
             }
         };
 
         initBaseDatos();
-    }, [vigilantesLoaded, puestosLoaded, programacionLoaded]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Solo al montar - las dependencias estables se capturan por closure
 
-    return {
-        isLoading: !vigilantesLoaded || !puestosLoaded || !programacionLoaded,
-    };
+    // Cuando puestos y vigilantes ya esten listos, marcar como no-cargando
+    // (esto maneja el caso de cache local de Zustand que ya tenia datos)
+    useEffect(() => {
+        if (vigilantesLoaded && puestosLoaded) {
+            // Si los stores tenian cache y ya estan cargados, solo esperamos el fetch de programaciones
+            // que se inicio en el effect anterior
+        }
+    }, [vigilantesLoaded, puestosLoaded]);
+
+    return { isLoading };
 }

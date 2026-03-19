@@ -144,7 +144,7 @@ export const CorazaAI = () => {
                                     <span className="size-1 bg-primary/60 rounded-full animate-bounce [animation-delay:0.1s]"></span>
                                     <span className="size-1 bg-primary/40 rounded-full animate-bounce [animation-delay:0.2s]"></span>
                                 </span>
-                                Sistema de Supervisión Activo
+                                Sistema de Supervision Activo
                             </div>
                         </div>
                     </div>
@@ -180,8 +180,8 @@ export const CorazaAI = () => {
                         <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-500 space-y-4">
                             <span className="material-symbols-outlined text-5xl opacity-20 bg-primary/20 p-4 rounded-full">chat_bubble</span>
                             <div className="space-y-1">
-                                <p className="text-xs font-black text-slate-300 uppercase tracking-widest">Enlace con Programación</p>
-                                <p className="text-[10px] font-bold text-slate-500 uppercase leading-relaxed">Soy CorazAI. Estoy aquí para supervisar la programación y ayudarte con la asignación de personal.</p>
+                                <p className="text-xs font-black text-slate-300 uppercase tracking-widest">Enlace con CUADRO OPERATIVO</p>
+                                <p className="text-[10px] font-bold text-slate-500 uppercase leading-relaxed">Soy CorazAI. Estoy aqui para supervisar la programacion y ayudarte con la asignacion de personal.</p>
                             </div>
                         </div>
                     )}
@@ -213,9 +213,9 @@ export const CorazaAI = () => {
                                         <FormattedText text={act.text} />
                                     </div>
 
-                                    {act.sender === 'ai' && (act.priority === 'high' || act.text.toLowerCase().includes('alerta') || act.text.toLowerCase().includes('atención')) && (
+                                    {act.sender === 'ai' && (act.priority === 'high' || act.text.toLowerCase().includes('alerta') || act.text.toLowerCase().includes('atencion')) && (
                                         <a 
-                                            href={`https://wa.me/573113836939?text=${encodeURIComponent(`📢 REPORTE TÁCTICO CORAZAI:\n\n${act.text.replace(/\*\*/g, '')}`)}`}
+                                            href={`https://wa.me/573113836939?text=${encodeURIComponent(`📢 REPORTE TACTICO CORAZAI:\n\n${act.text.replace(/\*\*/g, '')}`)}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="mt-2 flex items-center justify-center gap-2 w-full py-2 bg-[#25D366] hover:bg-[#25D366]/90 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-[#25D366]/20"
@@ -231,7 +231,7 @@ export const CorazaAI = () => {
 
                     {isAnalyzing && (
                         <div className="flex flex-col items-start gap-1.5 animate-pulse">
-                            <div className="px-2 font-black text-[9px] text-primary uppercase tracking-widest">CorazAI analizando programación...</div>
+                            <div className="px-2 font-black text-[9px] text-primary uppercase tracking-widest">CorazAI analizando programacion...</div>
                             <div className="bg-[#1a1f2e] rounded-[24px] rounded-tl-none p-4 w-16 flex justify-center gap-1.5 items-center border border-primary/20">
                                 <div className="size-1.5 rounded-full bg-primary animate-bounce shadow-[0_0_8px_rgba(67,24,255,0.5)]"></div>
                                 <div className="size-1.5 rounded-full bg-primary animate-bounce shadow-[0_0_8px_rgba(67,24,255,0.5)]" style={{ animationDelay: '0.1s' }}></div>

@@ -54,7 +54,7 @@ const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
         const action = newStatus === 'disponible' ? 'pasar a disponible (reserva)' : 'activar (operativo)';
         const ok = await confirm({
             title: `${newStatus === 'disponible' ? 'Pasar a Disponible' : 'Activar'} Vigilante`,
-            message: `¿Confirma que desea ${action} a ${selectedGuard.nombre}? Este cambio afectará la cobertura operativa si está asignado a un puesto.`,
+            message: `¿Confirma que desea ${action} a ${selectedGuard.nombre}? Este cambio afectara la cobertura operativa si esta asignado a un puesto.`,
             confirmLabel: newStatus === 'disponible' ? 'Pasar a Disponible' : 'Activar Operativo',
             variant: newStatus === 'disponible' ? 'warning' : 'success',
             requireInput: newStatus === 'disponible',
@@ -69,8 +69,8 @@ const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
         if (!selectedGuard) return;
         const ok = await confirm({
             title: 'Dar de Baja Vigilante',
-            message: `¿Está seguro de eliminar permanentemente a ${selectedGuard.nombre} (${selectedGuard.id})? Esta acción no se puede deshacer y el registro se perderá.`,
-            confirmLabel: 'Sí, dar de baja',
+            message: `¿Esta seguro de eliminar permanentemente a ${selectedGuard.nombre} (${selectedGuard.id})? Esta accion no se puede deshacer y el registro se perdera.`,
+            confirmLabel: 'Si, dar de baja',
             variant: 'danger',
         });
         if (ok) {
@@ -182,9 +182,9 @@ const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
 
                             {/* Info Row */}
                             <div className="mt-10 w-full bg-slate-50 border border-slate-200/50 rounded-[32px] p-8 space-y-5 text-left shadow-inner">
-                                <InfoRow label="Cédula Ciudadana" value={selectedGuard.cedula} mono />
-                                <InfoRow label="Incorporación" value={new Date(selectedGuard.fechaIngreso).toLocaleDateString('es-CO', { dateStyle: 'long' })} />
-                                <InfoRow label="Ultima Actividad" value={(selectedGuard.historial || [])[((selectedGuard.historial || []).length || 1) - 1]?.action ?? '—'} highlight />
+                                <InfoRow label="Cedula Ciudadana" value={selectedGuard.cedula} mono />
+                                <InfoRow label="Incorporacion" value={new Date(selectedGuard.fechaIngreso).toLocaleDateString('es-CO', { dateStyle: 'long' })} />
+                                <InfoRow label="Ultima Actividad" value={(selectedGuard.historial || [])[((selectedGuard.historial || []).length || 1) - 1]?.action ?? '-'} highlight />
                             </div>
 
                             {/* Action Buttons */}
@@ -245,7 +245,7 @@ const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
                         <p className="text-[12px] text-slate-500 leading-relaxed font-medium">
                             {countByStatus('activo') > 0
                                 ? `${countByStatus('activo')} unidades en campo. ${countByStatus('disponible')} en base. Fuerza operativa al ${Math.round((countByStatus('activo') / (vigilantes.length || 1)) * 100)}%.`
-                                : 'Sin despliegues activos. Registre personal para iniciar gestión operativa.'}
+                                : 'Sin despliegues activos. Registre personal para iniciar gestion operativa.'}
                         </p>
                     </div>
                 </div>
@@ -303,7 +303,7 @@ const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
                                 <span className="material-symbols-outlined text-4xl text-slate-300 notranslate" translate="no">sentiment_neutral</span>
                             </div>
                             <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
-                                {searchQuery ? 'Búsqueda sin coincidencias operativas' : 'Directorio vacío'}
+                                {searchQuery ? 'Busqueda sin coincidencias operativas' : 'Directorio vacio'}
                             </p>
                             {searchQuery && (
                                 <button

@@ -22,7 +22,7 @@ const Sidebar = () => {
         disponibles: vigilantes.filter(v => v.estado === 'disponible').length
     }), [vigilantes]);
 
-    // Obtener alertas de la IA generadas por el Motor que aún requieren atención
+    // Obtener alertas de la IA generadas por el Motor que aun requieren atencion
     const alertasPrioritarias = useMemo(() => 
         actions.filter(a => a.type === 'notification' && a.sender === 'ai' && (a.priority === 'high' || a.priority === 'medium')).length
     , [actions]);
@@ -56,7 +56,7 @@ const Sidebar = () => {
                     </div>
                     <div className="mt-6 text-center z-10">
                         <h1 className="text-2xl font-black text-white tracking-[0.2em] mb-1 group-hover:text-primary-light transition-colors duration-300">CORAZA <span className="text-primary-light group-hover:text-white transition-colors duration-300">CTA</span></h1>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.4em] group-hover:text-primary-light transition-colors duration-300">Seguridad de Élite</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.4em] group-hover:text-primary-light transition-colors duration-300">Seguridad de Elite</p>
                     </div>
 
                     {/* Sync Status Badge */}
@@ -68,8 +68,8 @@ const Sidebar = () => {
 
                 {/* Navigation - Ultra Clean Layout */}
                 <nav className="flex-1 py-8 overflow-y-auto custom-scrollbar space-y-8 pb-12">
-                    <NavSection title="Programación">
-                        <NavItem to="/" icon="dashboard" label="Estadísticas" />
+                    <NavSection title="CUADRO OPERATIVO">
+                        <NavItem to="/" icon="dashboard" label="Estadisticas" />
                         <NavItem to="/vigilantes" icon="local_police" label="Vigilantes" extras={
                             counts.activos > 0 ? (
                                 <span className="ml-auto bg-primary-light/20 text-white text-[9px] font-black px-2 py-0.5 rounded-full border border-white/10">
@@ -102,7 +102,7 @@ const Sidebar = () => {
 
                     <NavSection title="Control Central">
                         <NavItem to="/configuracion" icon="settings" label="Sistema Central" />
-                        <NavItem to="/auditoria" icon="policy" label="Auditoría Interna" />
+                        <NavItem to="/auditoria" icon="policy" label="Auditoria Interna" />
                     </NavSection>
                 </nav>
 
@@ -120,7 +120,7 @@ const Sidebar = () => {
                         </div>
                         <button
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowLogoutConfirm(true); }}
-                            title="Cerrar Sesión"
+                            title="Cerrar Sesion"
                             className="size-9 rounded-xl bg-white/5 hover:bg-danger/20 border border-white/5 hover:border-danger/40 text-slate-500 hover:text-danger transition-all flex items-center justify-center active:scale-90 shrink-0"
                         >
                             <span className="material-symbols-outlined text-[18px]">logout</span>
@@ -136,11 +136,11 @@ const Sidebar = () => {
                         <div className="size-16 rounded-full bg-danger/10 flex items-center justify-center mx-auto mb-6">
                             <span className="material-symbols-outlined text-4xl text-danger">logout</span>
                         </div>
-                        <h3 className="text-xl font-black text-white text-center mb-2 uppercase tracking-tight">¿Cerrar Sesión?</h3>
-                        <p className="text-slate-400 text-center text-[13px] font-medium mb-8 leading-relaxed">Estás a punto de salir del sistema Coraza CTA. Tendrás que volver a ingresar tus credenciales para acceder a tus operaciones.</p>
+                        <h3 className="text-xl font-black text-white text-center mb-2 uppercase tracking-tight">¿Cerrar Sesion?</h3>
+                        <p className="text-slate-400 text-center text-[13px] font-medium mb-8 leading-relaxed">Estas a punto de salir del sistema Coraza CTA. Tendras que volver a ingresar tus credenciales para acceder a tus operaciones.</p>
                         <div className="flex gap-3">
                             <button onClick={() => setShowLogoutConfirm(false)} className="flex-1 py-3.5 rounded-2xl bg-white/5 text-white font-bold hover:bg-white/10 transition-all border border-white/10 uppercase tracking-widest text-[11px]">Cancelar</button>
-                            <button onClick={() => { setShowLogoutConfirm(false); logout(); }} className="flex-1 py-3.5 rounded-2xl bg-danger text-white font-black hover:brightness-110 shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all uppercase tracking-widest text-[11px]">Sí, Salir</button>
+                            <button onClick={() => { setShowLogoutConfirm(false); logout(); }} className="flex-1 py-3.5 rounded-2xl bg-danger text-white font-black hover:brightness-110 shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all uppercase tracking-widest text-[11px]">Si, Salir</button>
                         </div>
                     </div>
                 </div>

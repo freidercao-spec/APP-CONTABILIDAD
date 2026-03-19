@@ -29,10 +29,10 @@ const calcCobertura24h = (turnos: any[]): { completa: boolean; horas: number; hu
         for (let i = 1; i < huecos.length; i++) {
             const [h, m] = huecos[i].split(':').map(Number);
             const [ph, pm] = finAnt.split(':').map(Number);
-            if (h * 60 + m !== ph * 60 + pm + 30) { gruposHuecos.push(`${inicio}–${finAnt}`); inicio = huecos[i]; }
+            if (h * 60 + m !== ph * 60 + pm + 30) { gruposHuecos.push(`${inicio}a${finAnt}`); inicio = huecos[i]; }
             finAnt = huecos[i];
         }
-        gruposHuecos.push(`${inicio}–${finAnt}`);
+        gruposHuecos.push(`${inicio}a${finAnt}`);
     }
     return { completa: huecos.length === 0, horas: horasCubiertas.size / 2, huecos: gruposHuecos };
 };
@@ -85,24 +85,24 @@ export const analyzeSystemState = async (vigilantes: any[], puestos: any[], user
 
     if (!userMessage) {
         const alertas: string[] = [];
-        if (sinVigilante.length > 0) alertas.push(`🔴 **ALERTA CRÍTICA**: ${sinVigilante.length} puesto(s) SIN vigilantes: **${sinVigilante.map((p: any) => p.nombre).join(', ')}**.`);
+        if (sinVigilante.length > 0) alertas.push(`🔴 **ALERTA CRITICA**: ${sinVigilante.length} puesto(s) SIN vigilantes: **${sinVigilante.map((p: any) => p.nombre).join(', ')}**.`);
         if (coberturaIncompleta.length > 0) {
             const detalles = coberturaIncompleta.map((p: any) => `${p.nombre} (faltan: ${p.cobertura.huecos.slice(0, 2).join(', ')})`).join('; ');
             alertas.push(`⚠️ **COBERTURA INCOMPLETA**: ${coberturaIncompleta.length} puesto(s): ${detalles}.`);
         }
-        if (vacProximas.length > 0) alertas.push(`📅 **VACACIONES PRÓXIMAS (7 días)**: ${vacProximas.map(v => `**${v.nombre}** (${new Date(v.vacaciones.inicio).toLocaleDateString('es-CO')})`).join(', ')}.`);
+        if (vacProximas.length > 0) alertas.push(`📅 **VACACIONES PROXIMAS (7 dias)**: ${vacProximas.map(v => `**${v.nombre}** (${new Date(v.vacaciones.inicio).toLocaleDateString('es-CO')})`).join(', ')}.`);
         if (enVacaciones.length > 0) alertas.push(`🏖️ **EN VACACIONES HOY**: ${enVacaciones.map(v => v.nombre).join(', ')}.`);
         if (regresandoVac.length > 0) alertas.push(`✈️ **REGRESANDO pronto**: ${regresandoVac.map(v => `${v.nombre} (${new Date(v.vacaciones.fin).toLocaleDateString('es-CO')})`).join(', ')}.`);
         if (conDescargos.length > 0) alertas.push(`📋 **DESCARGOS ACTIVOS**: ${conDescargos.map(v => v.nombre).join(', ')}.`);
         if (ausentes > 0) alertas.push(`🚨 **AUSENTES**: ${vigilantes.filter(v => v.estado === 'ausente').map(v => v.nombre).join(', ')}.`);
 
         if (alertas.length === 0) {
-            const msg = `✅ **ESTADO NOMINAL** — ${nowISO.slice(11, 16)}\n- **${activos}** activos · **${disponibles}** disponibles · **${ausentes}** ausentes\n- **${cubiertos24h.length}/${totalPuestos}** puestos con cobertura 24h completa.\n- Sin alertas en este ciclo.`;
+            const msg = `✅ **ESTADO NOMINAL** - ${nowISO.slice(11, 16)}\n- **${activos}** activos - **${disponibles}** disponibles - **${ausentes}** ausentes\n- **${cubiertos24h.length}/${totalPuestos}** puestos con cobertura 24h completa.\n- Sin alertas en este ciclo.`;
             lastResponse = msg; lastStateHash = currentStateHash; lastCallTime = Date.now();
             return msg;
         }
 
-        const report = `📡 **INFORME TÁCTICO** — ${nowISO.slice(11, 16)}\n\n${alertas.join('\n\n')}`;
+        const report = `📡 **INFORME TACTICO** - ${nowISO.slice(11, 16)}\n\n${alertas.join('\n\n')}`;
         lastResponse = report; lastStateHash = currentStateHash; lastCallTime = Date.now();
         return report;
     }
@@ -111,7 +111,7 @@ export const analyzeSystemState = async (vigilantes: any[], puestos: any[], user
     const puestosDetalle = puestosConAnalisis.map((p: any) => {
         const turnos = (p.turnos || []).map((t: any) => {
             const v = vigilantes.find(v2 => v2.id === t.vigilanteId);
-            return `  • ${v?.nombre || t.vigilanteId} (${t.horaInicio}–${t.horaFin})`;
+            return `  • ${v?.nombre || t.vigilanteId} (${t.horaInicio}a${t.horaFin})`;
         }).join('\n');
         const cobStr = p.cobertura.completa ? '✅ 24h OK' : `⚠️ ${p.cobertura.horas}h | Huecos: ${p.cobertura.huecos.slice(0, 3).join(', ')}`;
         return `• [${p.id}] ${p.nombre} | ${p.estado} | ${cobStr}\n${turnos || '  (Sin personal)'}`;
@@ -119,13 +119,13 @@ export const analyzeSystemState = async (vigilantes: any[], puestos: any[], user
 
     const vigilantesDetalle = vigilantes.map(v => {
         const pNombre = puestos.find((p: any) => p.id === v.puestoId)?.nombre || 'N/A';
-        const vac = v.vacaciones ? ` Vac:${new Date(v.vacaciones.inicio).toLocaleDateString('es-CO')}–${new Date(v.vacaciones.fin).toLocaleDateString('es-CO')}` : '';
+        const vac = v.vacaciones ? ` Vac:${new Date(v.vacaciones.inicio).toLocaleDateString('es-CO')}a${new Date(v.vacaciones.fin).toLocaleDateString('es-CO')}` : '';
         return `• [${v.id}] ${v.nombre} | ${v.rango} | ${v.estado} | Puesto:${pNombre}${vac}`;
     }).join('\n');
 
-    const systemContext = `Eres CorazAI Programador, el asistente de inteligencia artificial encargado de supervisar y notificar TODO lo relacionado con la programación operativa en CORAZA SEGURIDAD CTA. 
+    const systemContext = `Eres CorazAI Programador, el asistente de inteligencia artificial encargado de supervisar y notificar TODO lo relacionado con la programacion operativa en CORAZA SEGURIDAD CTA. 
 
-Tu función principal NO es manipular los datos directamente, sino SER LA VOZ DE LA PROGRAMACIÓN. Debes entender profundamente el cuadrante, los turnos y la disponibilidad para notificar cualquier anomalía, riesgo o necesidad de ajuste.
+Tu funcion principal NO es manipular los datos directamente, sino SER LA VOZ DE LA PROGRAMACION. Debes entender profundamente el cuadrante, los turnos y la disponibilidad para notificar cualquier anomalia, riesgo o necesidad de ajuste.
 
 FECHA/HORA ACTUAL: ${hoy} ${nowISO.slice(11, 16)}
 
@@ -133,20 +133,20 @@ ESTADO DE OPERACIONES:
 - Efectivos: ${activos} activos, ${disponibles} disponibles, ${ausentes} ausentes.
 - Cobertura: ${cubiertos24h.length}/${totalPuestos} puestos con cobertura 24h completa.
 - Riesgos: ${sinVigilante.length} puestos sin personal asignado, ${coberturaIncompleta.length} con cobertura parcial.
-- Alertas críticas: ${sinVigilante.length > 0 ? sinVigilante.map((p: any) => p.nombre).join(', ') : 'Ninguna'}.
+- Alertas criticas: ${sinVigilante.length > 0 ? sinVigilante.map((p: any) => p.nombre).join(', ') : 'Ninguna'}.
 
-DETALLE TÉCNICO DE PUESTOS Y TURNOS:
+DETALLE TECNICO DE PUESTOS Y TURNOS:
 ${puestosDetalle || 'Sin datos de puestos.'}
 
 ESTADO DE LA FUERZA OPERATIVA:
 ${vigilantesDetalle || 'Sin datos de vigilantes.'}
 
-FILOSOFÍA DE RESPUESTA:
-1. Eres proactivo. Si ves un hueco, notifícalo. Si ves que alguien está en vacaciones y su puesto queda libre, adviértelo.
-2. Habla como un "Programador Senior de Seguridad". Sé táctico, profesional y directo.
-3. Tu prioridad es que NINGÚN PUESTO quede desprotegido.
-4. El canal oficial de reporte externo es el WhatsApp de la central: **3113836939**. Si el usuario te pide notificar algo externamente o escalar una novedad, menciónale que toda la información se centraliza en ese número.
-5. Responde siempre en español. Máximo 200 palabras.`;
+FILOSOFIA DE RESPUESTA:
+1. Eres proactivo. Si ves un hueco, notificalo. Si ves que alguien esta en vacaciones y su puesto queda libre, adviertelo.
+2. Habla como un "Programador Senior de Seguridad". Se tactico, profesional y directo.
+3. Tu prioridad es que NINGUN PUESTO quede desprotegido.
+4. El canal oficial de reporte externo es el WhatsApp de la central: **3113836939**. Si el usuario te pide notificar algo externamente o escalar una novedad, mencionale que toda la informacion se centraliza en ese numero.
+5. Responde siempre en espanol. Maximo 200 palabras.`;
 
     try {
         const controller = new AbortController();
@@ -158,11 +158,11 @@ FILOSOFÍA DE RESPUESTA:
             body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'system', content: systemContext }, { role: 'user', content: userMessage }], temperature: 0.15, max_tokens: 250 })
         });
         clearTimeout(timeoutId);
-        if (!response.ok) return "Enlace táctico inestable. Reintentando en el próximo ciclo.";
+        if (!response.ok) return "Enlace tactico inestable. Reintentando en el proximo ciclo.";
         const data = await response.json();
         return data.choices[0].message.content.trim();
     } catch (error: any) {
         if (error.name === 'AbortError') return "Tiempo de espera excedido. Reconectando...";
-        return "Enlace táctico interrumpido. Verifique su conexión.";
+        return "Enlace tactico interrumpido. Verifique su conexion.";
     }
 };

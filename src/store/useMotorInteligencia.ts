@@ -11,14 +11,14 @@ export const useMotorInteligencia = () => {
     const addAction = useAIStore(s => s.addAction);
     const actions = useAIStore(s => s.actions);
 
-    // Guardar logs que ya alertamos para no hacer spam (en memoria ram mientras la app está abierta)
+    // Guardar logs que ya alertamos para no hacer spam (en memoria ram mientras la app esta abierta)
     const alertasEmitidas = useRef<Set<string>>(new Set());
 
     useEffect(() => {
-        // Ejecutar análisis cada vez que cambie algo, pero con un pequeño debounce táctico
+        // Ejecutar analisis cada vez que cambie algo, pero con un pequeno debounce tactico
         const timer = setTimeout(() => {
             analizarSistema();
-        }, 3000); // 3 segundos después del cambio
+        }, 3000); // 3 segundos despues del cambio
 
         return () => clearTimeout(timer);
     }, [puestos, vigilantes, programaciones]);
@@ -26,9 +26,9 @@ export const useMotorInteligencia = () => {
     const dispararAlerta = (id: string, texto: string, priority: 'high' | 'medium' | 'low') => {
         if (alertasEmitidas.current.has(id)) return;
         
-        // Cooldown dinámico basado en prioridad (Más estricto para no saturar)
+        // Cooldown dinamico basado en prioridad (Mas estricto para no saturar)
         const now = Date.now();
-        // High: 1 hora (crítico). Medium: 8 horas. Low: 24 horas (una vez al día).
+        // High: 1 hora (critico). Medium: 8 horas. Low: 24 horas (una vez al dia).
         const cooldown = priority === 'high' ? 1000 * 60 * 60 : priority === 'medium' ? 1000 * 60 * 60 * 8 : 1000 * 60 * 60 * 24;
         
         const yaExiste = actions.some(a => 
@@ -58,22 +58,24 @@ export const useMotorInteligencia = () => {
 
         // --- 1. COBERTURA DE PUESTOS (ALTA CRITICIDAD) ---
         const puestosIncompletos = puestos.filter(p => {
-            const vigis = vigilantes.filter(v => v.puestoId === p.dbId); // Compare UUID
+            const vigis = vigilantes.filter(v => 
+                v.puestoId === p.dbId || v.puestoId === p.id
+            ); // Compare UUID or Shorthand
             return vigis.length < 3;
         });
 
         if (puestosIncompletos.length > 0) {
-            // Solo alertar si el déficit es significativo (> 20% de los puestos) o si es un solo puesto crítico
+            // Solo alertar si el deficit es significativo (> 20% de los puestos) o si es un solo puesto critico
             if (puestosIncompletos.length === 1) {
                 dispararAlerta(
                     `deficit_puesto_${puestosIncompletos[0].id}`,
-                    `**REPORTE DE CORAZAI:** El puesto "${puestosIncompletos[0].nombre}" está incompleto. Como supervisor de programación, noto que falta personal para garantizar la seguridad total.`,
+                    `**REPORTE DE CORAZAI:** El puesto "${puestosIncompletos[0].nombre}" esta incompleto. Como supervisor de programacion, noto que falta personal para garantizar la seguridad total.`,
                     'high'
                 );
             } else if (puestosIncompletos.length > 3) {
                 dispararAlerta(
                     `deficit_puestos_masivo`,
-                    `**ALERTA DE PROGRAMACIÓN:** Detecto un fallo sistémico. ${puestosIncompletos.length} puestos tienen huecos en sus cuadrantes. CorazAI recomienda reasignar personal disponible inmediatamente.`,
+                    `**ALERTA DE PROGRAMACION:** Detecto un fallo sistemico. ${puestosIncompletos.length} puestos tienen huecos en sus cuadrantes. CorazAI recomienda reasignar personal disponible inmediatamente.`,
                     'high'
                 );
             }
@@ -87,20 +89,20 @@ export const useMotorInteligencia = () => {
                     const puesto = puestos.find(p => p.dbId === v.puestoId); // Compare UUID
                     dispararAlerta(
                         `ausente_${v.id}`,
-                        `**NOVEDAD OPERATIVA:** CorazAI informa que ${v.nombre} está ausente en "${puesto?.nombre || 'Puesto'}". Esto afecta mi planificación de turnos.`,
+                        `**NOVEDAD OPERATIVA:** CorazAI informa que ${v.nombre} esta ausente en "${puesto?.nombre || 'Puesto'}". Esto afecta mi planificacion de turnos.`,
                         'high'
                     );
                 });
             } else {
                 dispararAlerta(
                     `ausentes_multiples`,
-                    `**CRISIS DE COBERTURA:** Tengo ${ausentes.length} ausencias reportadas. CorazAI está analizando el impacto en la programación mensual.`,
+                    `**CRISIS DE COBERTURA:** Tengo ${ausentes.length} ausencias reportadas. CorazAI esta analizando el impacto en la programacion mensual.`,
                     'high'
                 );
             }
         }
 
-        // --- 3. PROGRAMACIÓN (TRABAJO ADMINISTRATIVO - MENOS INTRUSIVO) ---
+        // --- 3. PROGRAMACION (TRABAJO ADMINISTRATIVO - MENOS INTRUSIVO) ---
         const progsMes = programaciones.filter(p => p.anio === anioActual && p.mes === mesActual);
         const puestosSinProg = puestos.filter(p => !progsMes.some(prog => prog.puestoId === p.dbId)); // Use UUID
 
@@ -111,30 +113,30 @@ export const useMotorInteligencia = () => {
             if (esUrgente) {
                 dispararAlerta(
                     `sin_prog_critical`,
-                    `**URGENCIA CORAZAI:** ${puestosIncompletos.length} puestos carecen de programación oficial. Como encargado de los turnos, exijo regularizar estos cuadrantes.`,
+                    `**URGENCIA CORAZAI:** ${puestosIncompletos.length} puestos carecen de programacion oficial. Como encargado de los turnos, exijo regularizar estos cuadrantes.`,
                     'high'
                 );
             } else if (hoy > 15 && puestosSinProg.length > 0) {
-                // Notificación de media prioridad solo a mitad de mes
+                // Notificacion de media prioridad solo a mitad de mes
                 dispararAlerta(
                     `sin_prog_advice`,
-                    `**MONITOREO PREVENTIVO:** CorazAI ha detectado que faltan ${puestosSinProg.length} cuadrantes. Sugiero iniciar la programación para evitar cuellos de botella.`,
+                    `**MONITOREO PREVENTIVO:** CorazAI ha detectado que faltan ${puestosSinProg.length} cuadrantes. Sugiero iniciar la programacion para evitar cuellos de botella.`,
                     'medium'
                 );
             }
         }
 
-        // --- 4. TRÁMITES (ESTADÍSTICAS SILENCIOSAS) ---
+        // --- 4. TRAMITES (ESTADISTICAS SILENCIOSAS) ---
         const borradoresCount = progsMes.filter(p => p.estado === 'borrador').length;
-        if (borradoresCount > 5) { // Solo avisar si hay una acumulación real
+        if (borradoresCount > 5) { // Solo avisar si hay una acumulacion real
             dispararAlerta(
                 `borradores_acumulados`,
-                `**FLUJO DE TRABAJO:** Tienes ${borradoresCount} programaciones en borrador. Considere publicarlas para formalizar la operación.`,
+                `**FLUJO DE TRABAJO:** Tienes ${borradoresCount} programaciones en borrador. Considere publicarlas para formalizar la operacion.`,
                 'low'
             );
         }
 
-        // --- 5. ANÁLISIS PREDICTIVO (AGOTAMIENTO Y FATIGA) ---
+        // --- 5. ANALISIS PREDICTIVO (AGOTAMIENTO Y FATIGA) ---
         vigilantes.forEach(v => {
             const misProgs = progsMes.map(p => ({
                 puesto: puestos.find(pst => pst.dbId === p.puestoId), // Use UUID
@@ -143,24 +145,24 @@ export const useMotorInteligencia = () => {
 
             if (misProgs.length === 0) return;
 
-            // a. Horas acumuladas (Días * 12h)
+            // a. Horas acumuladas (DIAs * 12h)
             const diasTotales = misProgs.reduce((acc, curr) => acc + curr.asigs.filter(a => a.jornada === 'normal').length, 0);
             if (diasTotales > 20) {
                 dispararAlerta(
                     `exceso_horas_${v.id}`,
-                    `**ALERTA PREDICTIVA:** ${v.nombre} ha superado los 20 turnos este mes (${diasTotales * 12} horas). Detecto riesgo de fatiga crónica que pondrá en peligro la seguridad del puesto. CorazAI sugiere descanso inmediato.`,
+                    `**ALERTA PREDICTIVA:** ${v.nombre} ha superado los 20 turnos este mes (${diasTotales * 12} horas). Detecto riesgo de fatiga cronica que pondra en peligro la seguridad del puesto. CorazAI sugiere descanso inmediato.`,
                     'high'
                 );
             } else if (diasTotales > 17) {
                 dispararAlerta(
                     `limite_horas_${v.id}`,
-                    `**INSIGHT OPERATIVO:** ${v.nombre} se acerca al límite legal de horas. Recomiendo no asignar más turnos extras para este vigilante.`,
+                    `**INSIGHT OPERATIVO:** ${v.nombre} se acerca al limite legal de horas. Recomiendo no asignar mas turnos extras para este vigilante.`,
                     'medium'
                 );
             }
 
-            // b. Días consecutivos (Fatiga acumulada)
-            // Agrupamos todas sus asignaciones del mes y las ordenamos por día
+            // b. DIAs consecutivos (Fatiga acumulada)
+            // Agrupamos todas sus asignaciones del mes y las ordenamos por dia
             const todasAsigs = misProgs.flatMap(p => p.asigs).sort((a, b) => a.dia - b.dia);
             
             let consecutivos = 0;
@@ -178,7 +180,7 @@ export const useMotorInteligencia = () => {
             if (maxConsecutivos >= 6) {
                 dispararAlerta(
                     `consecutivos_critico_${v.id}`,
-                    `**ALERTA DE SEGURIDAD:** ${v.nombre} lleva ${maxConsecutivos} días seguidos trabajando sin descanso. Mi análisis predice una caída en su capacidad de alerta táctica. Exijo programar un día de descanso.`,
+                    `**ALERTA DE SEGURIDAD:** ${v.nombre} lleva ${maxConsecutivos} dias seguidos trabajando sin descanso. Mi analisis predice una caida en su capacidad de alerta tactica. Exijo programar un dia de descanso.`,
                     'high'
                 );
             }

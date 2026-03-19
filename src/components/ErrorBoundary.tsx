@@ -30,7 +30,7 @@ class ErrorBoundary extends Component<Props, State> {
                     </div>
                     <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-2">Error de Enlace Detectado</h1>
                     <p className="text-slate-500 max-w-md mb-8 font-medium">
-                        Se ha detectado una anomalía en el núcleo de la aplicación. Los sistemas de seguridad han aislado el error para proteger sus datos.
+                        Se ha detectado una anomalia en el nucleo de la aplicacion. Los sistemas de seguridad han aislado el error para proteger sus datos.
                     </p>
                     <button
                         onClick={() => window.location.reload()}

@@ -75,13 +75,13 @@ const Dashboard = () => {
 
     const handleForceSync = async () => {
         try {
-            toast.loading('Iniciando sincronización forzada...', { id: 'sync' });
+            toast.loading('Iniciando sincronizacion forzada...', { id: 'sync' });
             await Promise.all([
                 useProgramacionStore.getState().forceSync(),
                 usePuestoStore.getState().fetchPuestos(),
                 useVigilanteStore.getState().fetchVigilantes()
             ]);
-            toast.success('Sincronización completada con éxito', { id: 'sync' });
+            toast.success('Sincronizacion completada con exito', { id: 'sync' });
         } catch (e) {
             toast.error('Error al sincronizar datos', { id: 'sync' });
         }
@@ -95,13 +95,13 @@ const Dashboard = () => {
                 <div>
                     <div className="flex items-center gap-3 mb-1">
                         <div className="size-2.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]"></div>
-                        <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.35em]">Sistema Operativo · En Línea</span>
+                        <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.35em]">Sistema Operativo - En Linea</span>
                     </div>
                     <h1 className="text-3xl xl:text-4xl font-black text-slate-900 uppercase tracking-tighter leading-none">
                         Control <span className="text-primary">Operativo</span>
                     </h1>
                     <p className="text-[13px] text-slate-500 font-semibold mt-1">
-                        Panel de Mando – {MESES[CURR_MES]} {CURR_ANIO} · CORAZA Seguridad Privada CTA
+                        Panel de Mando a {MESES[CURR_MES]} {CURR_ANIO} - CORAZA Seguridad Privada CTA
                     </p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
@@ -111,7 +111,7 @@ const Dashboard = () => {
                             className="px-5 h-10 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.1em] shadow-lg shadow-red-600/20 hover:scale-105 transition-all flex items-center gap-2"
                         >
                             <span className="material-symbols-outlined text-[18px]">sync</span>
-                            Forzar Sincronización
+                            Forzar Sincronizacion
                         </button>
                         <div className="bg-white border border-slate-200 px-4 py-2.5 rounded-2xl flex items-center gap-2 shadow-sm">
                             <span className="material-symbols-outlined text-[16px] text-amber-500">schedule</span>
@@ -119,7 +119,7 @@ const Dashboard = () => {
                         </div>
                     </div>
                     <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">
-                        v.1.2.7 - Sincronización Robusta
+                        v.1.2.7 - Sincronizacion Robusta
                     </span>
                 </div>
             </div>
@@ -141,7 +141,7 @@ const Dashboard = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <HealthOrb label="Fuerza Laboral" pct={S.saludPersonal} sub={`${S.vTotal} / ${S.personalReq} req.`} color="#4f46e5" />
                         <HealthOrb label="Cobertura Puestos" pct={S.indiceCobertura} sub={`${S.pCub} cubiertos de ${S.pTotal}`} color="#10b981" />
-                        <HealthOrb label="Programación Mes" pct={S.cobPromedioMes} sub={`${S.progPublicadas} publicadas`} color="#8b5cf6" />
+                        <HealthOrb label="CUADRO OPERATIVO Mes" pct={S.cobPromedioMes} sub={`${S.progPublicadas} publicadas`} color="#8b5cf6" />
                     </div>
                 </div>
 

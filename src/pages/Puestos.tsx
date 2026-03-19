@@ -90,7 +90,7 @@ const makeFlagIcon = (color: [number, number, number], isAlerta: boolean) => {
       <path d="M40 110 C40 110 12 60 12 36 C12 16 22 6 40 6 C58 6 68 16 68 36 C68 60 40 110 40 110 Z"
             fill="url(#body-grad)" stroke="#${hex}" stroke-width="2" />
 
-      <!-- Círculo Central Oscuro Premium -->
+      <!-- Circulo Central Oscuro Premium -->
       <circle cx="40" cy="36" r="19" fill="#0f172a" stroke="#${hex}" stroke-width="1.5" filter="url(#glow-inner)"/>
       
       ${isAlerta ? `<circle cx="40" cy="36" r="13" fill="#${hex}" opacity="0.3">
@@ -196,7 +196,7 @@ const Puestos = () => {
 
     const addNotification = useCallback((msg: string, type: 'error' | 'warning') => {
         showTacticalToast({
-            title: type === 'error' ? 'Falla Crítica' : 'Alerta Técnica',
+            title: type === 'error' ? 'Falla Critica' : 'Alerta Tecnica',
             message: msg,
             type: type === 'error' ? 'error' : 'warning'
         });
@@ -264,7 +264,7 @@ const Puestos = () => {
             lng: -75.596207,
             tipo: 'comando',
             estado: 'cubierto',
-            direccion: 'Cra. 81 #49 - 24, Calasanz, Medellín, La América, Antioquia',
+            direccion: 'Cra. 81 #49 - 24, Calasanz, Medellin, La America, Antioquia',
             contacto: 'Control Central',
             telefono: '311 3836939',
             elevacion: 120,
@@ -284,7 +284,7 @@ const Puestos = () => {
             getTargetPosition: () => [hq.lng, hq.lat, 60],
             getSourceColor: (d: Puesto) => {
                 const index = currentPuestos.findIndex(p => p.id === d.id);
-                const h = (index * 137.5) % 360; // Usar el ángulo dorado para máxima distinción de color
+                const h = (index * 137.5) % 360; // Usar el angulo dorado para maxima distincion de color
                 const [r, g, b] = hslToRgb(h, 100, 55); 
                 return [r, g, b, 255];
             },
@@ -292,7 +292,7 @@ const Puestos = () => {
                 const index = currentPuestos.findIndex(p => p.id === d.id);
                 const h = (index * 137.5) % 360;
                 const [r, g, b] = hslToRgb(h, 100, 65); 
-                return [r, g, b, 255]; // Toda la línea usa el mismo color distinto por puesto
+                return [r, g, b, 255]; // Toda la linea usa el mismo color distinto por puesto
             },
             getWidth: () => 3,
             getHeight: 0.4,
@@ -419,7 +419,7 @@ const Puestos = () => {
                         </div>
                         <div>
                             <div className="flex items-center gap-2 md:gap-3 mb-1 md:mb-2">
-                                <span className="text-[9px] md:text-[11px] font-black text-slate-400 uppercase tracking-[0.4em]">Misión Crítica</span>
+                                <span className="text-[9px] md:text-[11px] font-black text-slate-400 uppercase tracking-[0.4em]">Mision Critica</span>
                                 <span className="h-1 w-1 rounded-full bg-primary/30"></span>
                                 <span className="text-[9px] md:text-[11px] font-black text-primary uppercase tracking-[0.4em] hidden sm:inline">Red Operativa Coraza</span>
                             </div>
@@ -517,7 +517,7 @@ const Puestos = () => {
                                                 {isSel && <span className="text-[9px] font-bold text-white bg-primary px-1.5 py-0.5 rounded-lg uppercase tracking-wider">Foco</span>}
                                             </div>
                                             <h4 className="text-[14px] font-bold text-slate-900 truncate leading-tight">{p.nombre}</h4>
-                                            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-1">{p.tipo} · {p.elevacion}m</p>
+                                            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-1">{p.tipo} - {p.elevacion}m</p>
                                         </div>
 
                                         <div className="flex flex-col items-end gap-1.5 shrink-0">
@@ -604,7 +604,7 @@ const Puestos = () => {
                         <MapControlBtn icon="add" title="Acercar" onClick={() => handleZoom(1)} />
                         <MapControlBtn icon="remove" title="Alejar" onClick={() => handleZoom(-1)} />
                         <MapControlBtn icon="3d_rotation" title="Vista 3D" onClick={() => handlePitch(viewState.pitch > 10 ? -60 : 60)} active={viewState.pitch > 10} />
-                        <MapControlBtn icon="explore" title="Reset Brújula" onClick={() => setViewState((p: any) => ({ ...p, bearing: 0, transitionDuration: 300 }))} />
+                        <MapControlBtn icon="explore" title="Reset Brujula" onClick={() => setViewState((p: any) => ({ ...p, bearing: 0, transitionDuration: 300 }))} />
                         <MapControlBtn icon="my_location" title="Reset Vista" onClick={() => setViewState({ ...INITIAL_VIEW_STATE, transitionDuration: 800 })} accent />
                     </div>
 
@@ -726,7 +726,7 @@ const Puestos = () => {
                                         </div>
                                         <div className="pt-3 border-t">
                                             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Instrucciones</p>
-                                            <p className="text-[10px] text-slate-600 italic">"{selectedPuesto.instrucciones || 'Sin instrucciones tácticas'}"</p>
+                                            <p className="text-[10px] text-slate-600 italic">"{selectedPuesto.instrucciones || 'Sin instrucciones tacticas'}"</p>
                                         </div>
                                         <button 
                                             onClick={() => setDetailPuesto(selectedPuesto)}
@@ -811,8 +811,8 @@ const Puestos = () => {
             <ConfirmDialog
                 isOpen={!!confirmDelete}
                 title="Eliminar Puesto"
-                message={`¿Confirmas la remoción de "${confirmDelete?.nombre}" de la red operativa? Esta acción es irreversible y se perderá todo el historial asociado.`}
-                confirmLabel="Sí, eliminar"
+                message={`¿Confirmas la remocion de "${confirmDelete?.nombre}" de la red operativa? Esta accion es irreversible y se perdera todo el historial asociado.`}
+                confirmLabel="Si, eliminar"
                 variant="danger"
                 onConfirm={() => {
                     if (confirmDelete) {

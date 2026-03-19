@@ -28,8 +28,8 @@ const Configuracion = () => {
 
     const handleSave = () => {
         showTacticalToast({
-            title: 'Configuración Guardada',
-            message: 'Los parámetros del sistema han sido actualizados exitosamente.',
+            title: 'Configuracion Guardada',
+            message: 'Los parametros del sistema han sido actualizados exitosamente.',
             type: 'success'
         });
         setEdited(false);
@@ -48,7 +48,7 @@ const Configuracion = () => {
         setIsEditingProfile(false);
         showTacticalToast({
             title: 'Perfil Actualizado',
-            message: 'Información de identidad sincronizada con el núcleo.',
+            message: 'Informacion de identidad sincronizada con el nucleo.',
             type: 'success'
         });
     };
@@ -66,7 +66,7 @@ const Configuracion = () => {
         });
         showTacticalToast({
             title: 'Restablecimiento',
-            message: 'Configuraciones devueltas a valores de fábrica.',
+            message: 'Configuraciones devueltas a valores de fabrica.',
             type: 'info'
         });
     };
@@ -161,18 +161,18 @@ const Configuracion = () => {
                                     <span className="material-symbols-outlined text-[16px] notranslate">edit</span> Editar Perfil
                                 </button>
                                 <button className="py-4 bg-slate-100 text-slate-500 text-[10px] font-bold rounded-2xl uppercase tracking-widest hover:bg-slate-200 transition-all flex items-center justify-center gap-2">
-                                    <span className="material-symbols-outlined text-[16px] notranslate" translate="no">vpn_key</span> Contraseña
+                                    <span className="material-symbols-outlined text-[16px] notranslate" translate="no">vpn_key</span> Contrasena
                                 </button>
                             </>
                         )}
                     </div>
                 </div>
 
-                {/* Personalización de la Barra - 100% Editable */}
+                {/* Personalizacion de la Barra - 100% Editable */}
                 <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm flex flex-col gap-8">
                     <div className="flex items-center gap-3">
                         <span className="material-symbols-outlined text-primary notranslate" translate="no" style={{ color: topbarConfig.accentColor }}>palette</span>
-                        <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Personalización de la Barra</h3>
+                        <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Personalizacion de la Barra</h3>
                     </div>
 
                     <div className="space-y-6">
@@ -228,18 +228,18 @@ const Configuracion = () => {
                     </div>
                 </div>
 
-                {/* Gestión de Turnos Maestros (100% Personalizable) */}
+                {/* GESTION de Turnos Maestros (100% Personalizable) */}
                 <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm flex flex-col gap-8">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <span className="material-symbols-outlined text-primary notranslate" translate="no" style={{ color: topbarConfig.accentColor }}>history_toggle_off</span>
-                            <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Gestión de Turnos Maestros</h3>
+                            <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">GESTION de Turnos Maestros</h3>
                         </div>
                         <button 
                             className="text-[9px] font-black text-primary uppercase tracking-widest border-b-2 border-primary/20 hover:border-primary transition-all pb-0.5"
                             style={{ color: topbarConfig.accentColor, borderColor: `${topbarConfig.accentColor}33` }}
                         >
-                            + Añadir Turno
+                            + Anadir Turno
                         </button>
                     </div>
 
@@ -289,8 +289,8 @@ const Configuracion = () => {
                     <div className="space-y-4">
                         {[
                             { label: 'Modo de Alto Contraste', desc: 'Optimizado para centros de monitoreo nocturnos.', value: altaContraste, toggle: () => { setAltaContraste(v => !v); showTacticalToast({ title: 'Ajuste Visual', message: 'Contraste de interfaz modificado.', type: 'info' }); } },
-                            { label: 'Alertas Sonoras Críticas', desc: 'Notificaciones auditivas para incidentes Nivel 3.', value: soundEnabled, toggle: () => { toggleSound(); showTacticalToast({ title: 'Control de Audio', message: `Alertas sonoras ${!soundEnabled ? 'activadas' : 'desactivadas'}.`, type: 'info' }); } },
-                            { label: 'Hardware Acceleration', desc: 'Renderizado de mapas 3D mediante GPU.', value: hardwareAccel, toggle: () => { setHardwareAccel(v => !v); showTacticalToast({ title: 'Rendimiento Técnico', message: 'Aceleración por hardware aplicada.', type: 'info' }); } },
+                            { label: 'Alertas Sonoras Criticas', desc: 'Notificaciones auditivas para incidentes Nivel 3.', value: soundEnabled, toggle: () => { toggleSound(); showTacticalToast({ title: 'Control de Audio', message: `Alertas sonoras ${!soundEnabled ? 'activadas' : 'desactivadas'}.`, type: 'info' }); } },
+                            { label: 'Hardware Acceleration', desc: 'Renderizado de mapas 3D mediante GPU.', value: hardwareAccel, toggle: () => { setHardwareAccel(v => !v); showTacticalToast({ title: 'Rendimiento Tecnico', message: 'Aceleracion por hardware aplicada.', type: 'info' }); } },
                         ].map(pref => (
                             <div key={pref.label} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-primary/20 transition-all">
                                 <div>
@@ -343,7 +343,7 @@ const Configuracion = () => {
                         className={`py-5 rounded-[24px] uppercase tracking-[0.3em] transition-all mt-4 text-[11px] font-black ${edited ? 'bg-primary text-white shadow-2xl shadow-primary/20 hover:brightness-110 active:scale-[0.99]' : 'bg-slate-100 text-slate-400 cursor-default'}`}
                         style={{ backgroundColor: edited ? topbarConfig.accentColor : undefined }}
                     >
-                        {edited ? '✓ Guardar Configuración' : 'Sin cambios pendientes'}
+                        {edited ? '✓ Guardar Configuracion' : 'Sin cambios pendientes'}
                     </button>
                 </div>
             </div>

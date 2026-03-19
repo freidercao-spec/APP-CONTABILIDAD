@@ -33,7 +33,7 @@ export const useAuthStore = create<AuthState>()(
                     console.warn('[AUTH] 🚨 Acceso mediante bypass de emergencia activado.');
                     set({
                         isAuthenticated: true,
-                        username: 'Soporte Técnico Coraza',
+                        username: 'Soporte Tecnico Coraza',
                         role: 'admin',
                         userId: 'emergency-fix-id',
                         loading: false,
@@ -48,9 +48,9 @@ export const useAuthStore = create<AuthState>()(
                     });
 
                     if (error) {
-                        // Si falla Supabase, intentamos el bypass de nuevo por si acaso el usuario usó la clave maestra
+                        // Si falla Supabase, intentamos el bypass de nuevo por si acaso el usuario uso la clave maestra
                         if (email === 'freidercardenas12@gmail.com' && password === 'coraza123') {
-                             set({ isAuthenticated: true, username: 'Freider Cárdenas (Bypass)', role: 'admin', userId: 'bypass-id', loading: false });
+                             set({ isAuthenticated: true, username: 'Freider Cardenas (Bypass)', role: 'admin', userId: 'bypass-id', loading: false });
                              return { success: true };
                         }
                         set({ loading: false, error: error.message });
@@ -78,7 +78,7 @@ export const useAuthStore = create<AuthState>()(
                     });
                     return { success: true };
                 } catch (err: any) {
-                    const msg = err.message || 'Error de conexión desconocido';
+                    const msg = err.message || 'Error de conexion desconocido';
                     set({ loading: false, error: msg });
                     return { success: false, message: msg };
                 }
@@ -101,7 +101,7 @@ export const useAuthStore = create<AuthState>()(
             updateProfile: (username, role) => set({ username, role }),
 
             checkSession: async () => {
-                // Si ya tenemos una sesión de emergencia, no la pises con Supabase
+                // Si ya tenemos una sesion de emergencia, no la pises con Supabase
                 const current = get();
                 if (current.isAuthenticated && (current.userId === 'emergency-fix-id' || current.userId === 'bypass-id')) {
                     set({ loading: false });
@@ -133,7 +133,7 @@ export const useAuthStore = create<AuthState>()(
             },
         }),
         {
-            name: 'coraza-auth-v6', // Incremento de versión para forzar limpieza
+            name: 'coraza-auth-v6', // Incremento de version para forzar limpieza
             onRehydrateStorage: () => (state) => {
                 if (state) state.loading = true; // Iniciar cargando hasta que checkSession termine
             }

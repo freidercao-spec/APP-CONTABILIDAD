@@ -1,18 +1,65 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useVigilanteStore } from '../store/vigilanteStore';
 import { usePuestoStore } from '../store/puestoStore';
 
+import { supabase } from '../lib/supabase';
+
 const Novedades = () => {
     const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+    const [dbNovedades, setDbNovedades] = useState<any[]>([]);
+    const [loadingNovedades, setLoadingNovedades] = useState(true);
     const vigilantes = useVigilanteStore(s => s.vigilantes);
     const puestos = usePuestoStore(s => s.puestos);
     const now = new Date();
+
+    // Fetch from Supabase novedades table
+    useEffect(() => {
+        const fetchDbNovedades = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('novedades')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+                if (data) setDbNovedades(data);
+            } catch (err) {
+                console.error('Error fetching db novedades:', err);
+            } finally {
+                setLoadingNovedades(false);
+            }
+        };
+        fetchDbNovedades();
+    }, []);
 
     // Aggregated history from all guards
     const allHistory = vigilantes
         .flatMap(v => v.historial.map(h => ({ ...h, guardName: v.nombre, guardId: v.id })))
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    const recentNovedades = allHistory.slice(0, 8);
+    
+    // Combine local guard history with strategic DB novedades
+    const combinedNovedades = useMemo(() => {
+        const historyMapped = allHistory.slice(0, 10).map(h => ({
+            id: h.id,
+            timestamp: h.timestamp,
+            title: h.guardName,
+            details: h.details,
+            action: h.action,
+            type: 'GUARD_HISTORY' as const,
+            severity: 'info'
+        }));
+
+        const dbMapped = dbNovedades.map(n => ({
+            id: n.id,
+            timestamp: n.created_at,
+            title: n.titulo || 'Alerta de Sistema',
+            details: n.descripcion,
+            action: n.tipo === 'IA_INSIGHT' ? 'CorazAI Insight' : n.tipo,
+            type: 'DB_NOVELTY' as const,
+            severity: n.gravedad === 'alta' ? 'critical' : 'warning'
+        }));
+
+        return [...dbMapped, ...historyMapped].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 12);
+    }, [allHistory, dbNovedades]);
 
     // Vacation intelligence
     const enVacacionesHoy = useMemo(() => vigilantes.filter(v => {
@@ -60,7 +107,7 @@ const Novedades = () => {
                 </div>
             </div>
 
-            {/* IA Novedades Críticas */}
+            {/* IA Novedades Criticas */}
             {(puestosAlerta.length > 0 || puestosSinCoverage.length > 0 || ausentes.length > 0 || enVacacionesHoy.length > 0) && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {puestosSinCoverage.length > 0 && (
@@ -84,7 +131,7 @@ const Novedades = () => {
                     {vacProximas.length > 0 && (
                         <div className="bg-primary/10 border border-primary/20 rounded-2xl p-5 flex gap-3 items-start">
                             <span className="size-8 rounded-xl bg-primary/20 flex items-center justify-center text-primary shrink-0"><span className="material-symbols-outlined text-[18px]">calendar_today</span></span>
-                            <div><p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">Vacaciones próximas (7d)</p><p className="text-sm font-black text-slate-900">{vacProximas.length} Vigilantes</p><p className="text-[10px] text-slate-500 mt-1">{vacProximas.map(v=>v.nombre).join(', ')}</p></div>
+                            <div><p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">Vacaciones proximas (7d)</p><p className="text-sm font-black text-slate-900">{vacProximas.length} Vigilantes</p><p className="text-[10px] text-slate-500 mt-1">{vacProximas.map(v=>v.nombre).join(', ')}</p></div>
                         </div>
                     )}
                 </div>
@@ -107,8 +154,8 @@ const Novedades = () => {
                                 <span className="px-3 py-1 bg-success/10 text-success text-[10px] font-black uppercase tracking-widest rounded-xl border border-success/10">Regreso</span>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{new Date(v.vacaciones!.fin).toLocaleDateString('es-CO')}</span>
                             </div>
-                            <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">{v.nombre} — Regresa de vacaciones</h3>
-                            <p className="text-slate-500 text-sm leading-relaxed font-medium">El vigilante <strong>{v.nombre}</strong> finaliza su período de vacaciones el <strong>{new Date(v.vacaciones!.fin).toLocaleDateString('es-CO', { dateStyle: 'long' })}</strong>. Prepare su reincorporación y asignación de turno.</p>
+                            <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">{v.nombre} - Regresa de vacaciones</h3>
+                            <p className="text-slate-500 text-sm leading-relaxed font-medium">El vigilante <strong>{v.nombre}</strong> finaliza su periodo de vacaciones el <strong>{new Date(v.vacaciones!.fin).toLocaleDateString('es-CO', { dateStyle: 'long' })}</strong>. Prepare su reincorporacion y asignacion de turno.</p>
                         </div>
                     ))}
 
@@ -118,28 +165,29 @@ const Novedades = () => {
                                 <span className="px-3 py-1 bg-warning/10 text-warning text-[10px] font-black uppercase tracking-widest rounded-xl border border-warning/10">Vacaciones</span>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Inicia: {new Date(v.vacaciones!.inicio).toLocaleDateString('es-CO')}</span>
                             </div>
-                            <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">{v.nombre} — Vacaciones próximas</h3>
+                            <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">{v.nombre} - Vacaciones proximas</h3>
                             <p className="text-slate-500 text-sm leading-relaxed font-medium">El vigilante <strong>{v.nombre}</strong> inicia vacaciones el <strong>{new Date(v.vacaciones!.inicio).toLocaleDateString('es-CO', { dateStyle: 'long' })}</strong>. Asegure cobertura del turno correspondiente antes de esa fecha.</p>
                         </div>
                     ))}
 
                     {/* Real Dynamic History */}
-                    {recentNovedades.map((h, i) => (
-                        <div key={h.id} className={`bg-white border border-slate-100 rounded-[32px] p-7 border-l-8 ${i === 0 ? 'border-l-primary shadow-md' : 'border-l-slate-200'} group hover:border-primary/40 transition-all ${i > 3 ? 'opacity-60' : ''} shadow-sm`}>
+                    {combinedNovedades.map((n, i) => (
+                        <div key={n.id} className={`bg-white border border-slate-100 rounded-[32px] p-7 border-l-8 ${n.severity === 'critical' ? 'border-l-danger bg-danger/5' : n.severity === 'warning' ? 'border-l-warning' : (i === 0 ? 'border-l-primary shadow-md' : 'border-l-slate-200')} group hover:border-primary/40 transition-all ${i > 5 ? 'opacity-60' : ''} shadow-sm`}>
                             <div className="flex items-center gap-3 mb-3">
-                                <span className={`px-3 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-lg ${i === 0 ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}>
-                                    {h.action}
+                                <span className={`px-3 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-lg ${n.severity === 'critical' ? 'bg-danger/10 text-danger border border-danger/20' : i === 0 ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}>
+                                    {n.action}
                                 </span>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                    {new Date(h.timestamp).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })} · {new Date(h.timestamp).toLocaleDateString('es-CO')}
+                                    {new Date(n.timestamp).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })} - {new Date(n.timestamp).toLocaleDateString('es-CO')}
                                 </span>
+                                {n.type === 'DB_NOVELTY' && <span className="material-symbols-outlined text-[14px] text-primary">psychology</span>}
                             </div>
-                            <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tighter">{h.guardName}</h3>
-                            <p className="text-slate-500 text-sm leading-relaxed font-medium">{h.details}</p>
+                            <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tighter">{n.title}</h3>
+                            <p className="text-slate-500 text-sm leading-relaxed font-medium">{n.details}</p>
                         </div>
                     ))}
 
-                    {recentNovedades.length === 0 && vacProximas.length === 0 && regresandoProx.length === 0 && (
+                    {combinedNovedades.length === 0 && vacProximas.length === 0 && regresandoProx.length === 0 && (
                         <div className="text-center py-24 text-slate-300">
                             <span className="material-symbols-outlined text-5xl notranslate">plagiarism</span>
                             <p className="mt-4 text-[11px] font-black uppercase tracking-widest">Sin novedades registradas</p>
@@ -158,7 +206,7 @@ const Novedades = () => {
                             <div className="flex justify-between items-end mb-4">
                                 <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Estado Global</h4>
                                 <span className={`text-xs font-bold uppercase tracking-widest ${ausentes.length > 0 || puestosSinCoverage.length > 0 ? 'text-warning' : 'text-success'}`}>
-                                    {ausentes.length > 0 || puestosSinCoverage.length > 0 ? 'Requiere Atención' : 'Estable'}
+                                    {ausentes.length > 0 || puestosSinCoverage.length > 0 ? 'Requiere Atencion' : 'Estable'}
                                 </span>
                             </div>
                             <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -166,7 +214,7 @@ const Novedades = () => {
                             </div>
                         </div>
 
-                        {/* Próximas vacaciones panel */}
+                        {/* Proximas vacaciones panel */}
                         <div className="space-y-3">
                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2">Calendario Operativo</p>
                             {enVacacionesHoy.length === 0 && vacProximas.length === 0 && regresandoProx.length === 0 ? (
@@ -222,12 +270,12 @@ const Novedades = () => {
                         </div>
                         <div className="p-10 space-y-6 max-h-[450px] overflow-y-auto bg-slate-50/30">
                             <div className="bg-white p-6 rounded-[28px] rounded-tl-none border border-slate-100 max-w-[90%] shadow-sm">
-                                <p className="text-[14px] text-slate-700 leading-relaxed mb-4 font-medium">⚠️ AVISO: {puestosSinCoverage.length > 0 ? `${puestosSinCoverage.length} puestos sin personal asignado.` : 'Sin alertas críticas activas.'}</p>
+                                <p className="text-[14px] text-slate-700 leading-relaxed mb-4 font-medium">⚠️ AVISO: {puestosSinCoverage.length > 0 ? `${puestosSinCoverage.length} puestos sin personal asignado.` : 'Sin alertas criticas activas.'}</p>
                                 <p className="text-[10px] font-black text-slate-300 text-right uppercase tracking-widest">{new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })}</p>
                             </div>
                             {vacProximas.map(v => (
                                 <div key={v.id} className="bg-white p-6 rounded-[28px] rounded-tl-none border border-slate-100 max-w-[90%] shadow-sm opacity-80">
-                                    <p className="text-[14px] text-slate-700 leading-relaxed mb-2 font-medium">📅 Próximas vacaciones: {v.nombre} inicia el {new Date(v.vacaciones!.inicio).toLocaleDateString('es-CO')}.</p>
+                                    <p className="text-[14px] text-slate-700 leading-relaxed mb-2 font-medium">📅 Proximas vacaciones: {v.nombre} inicia el {new Date(v.vacaciones!.inicio).toLocaleDateString('es-CO')}.</p>
                                 </div>
                             ))}
                         </div>

@@ -204,9 +204,9 @@ export const usePuestoStore = create<PuestoState>()(
                             direccion: row.direccion || undefined,
                             conArmamento: row.con_armamento || false,
                             coberturas: [],
-                            turnosConfig: [],
-                            jornadasCustom: [],
-                            plantillaRecurrente: null,
+                            turnosConfig: row.turnos_config || [],
+                            jornadasCustom: row.jornadas_custom || [],
+                            plantillaRecurrente: row.plantilla_recurrente || null,
                         };
                     });
 
@@ -257,6 +257,8 @@ export const usePuestoStore = create<PuestoState>()(
                     }
 
                     const codigo = inserted.codigo;
+                    const { useAuditStore } = await import('./auditStore');
+                    useAuditStore.getState().logAction('PUESTOS', 'Nuevo Puesto', `Puesto ${codigo} (${nombre}) registrado en red.`, 'success');
 
                     await supabase.from('historial_puesto').insert({
                         puesto_id: inserted.id,
@@ -270,7 +272,7 @@ export const usePuestoStore = create<PuestoState>()(
                     return codigo;
                 } catch (err) {
                     console.error('Error adding puesto:', err);
-                    showTacticalToast({ title: 'Error', message: 'Error de conexión al crear puesto.', type: 'error' });
+                    showTacticalToast({ title: 'Error', message: 'Error de conexion al crear puesto.', type: 'error' });
                     return '';
                 }
             },
@@ -316,10 +318,10 @@ export const usePuestoStore = create<PuestoState>()(
             },
 
             updatePuesto: async (id, changes) => {
-                const puesto = get().puestos.find(p => p.id === id);
+                const puesto = get().puestos.find(p => p.id === id || p.dbId === id);
 
                 set((state) => ({
-                    puestos: state.puestos.map(p => p.id === id ? { ...p, ...changes } : p)
+                    puestos: state.puestos.map(p => (p.id === id || p.dbId === id) ? { ...p, ...changes } : p)
                 }));
 
                 if (puesto?.dbId) {
@@ -335,8 +337,13 @@ export const usePuestoStore = create<PuestoState>()(
                     if (changes.tipoServicio !== undefined) dbUpdates.tipo_servicio = changes.tipoServicio;
                     if (changes.direccion !== undefined) dbUpdates.direccion = changes.direccion;
                     if (changes.conArmamento !== undefined) dbUpdates.con_armamento = changes.conArmamento;
+                    if (changes.turnosConfig !== undefined) dbUpdates.turnos_config = changes.turnosConfig;
+                    if (changes.jornadasCustom !== undefined) dbUpdates.jornadas_custom = changes.jornadasCustom;
+                    if (changes.plantillaRecurrente !== undefined) dbUpdates.plantilla_recurrente = changes.plantillaRecurrente;
 
                     if (Object.keys(dbUpdates).length > 0) {
+                        const { useAuditStore } = await import('./auditStore');
+                        useAuditStore.getState().logAction('PUESTOS', 'Edicion Puesto', `Actualizacion de parametros para el puesto ${id}.`, 'info');
                         await supabase.from('puestos').update(dbUpdates).eq('id', puesto.dbId);
                     }
                 }
@@ -344,7 +351,7 @@ export const usePuestoStore = create<PuestoState>()(
 
             assignGuard: async (puestoId, vigilanteId, horaInicio, horaFin) => {
                 if (horaInicio >= horaFin) {
-                    showTacticalToast({ title: 'Inconsistencia de Tiempo', message: 'La hora de inicio debe ser cronológicamente anterior a la de fin.', type: 'error' });
+                    showTacticalToast({ title: 'Inconsistencia de Tiempo', message: 'La hora de inicio debe ser cronologicamente anterior a la de fin.', type: 'error' });
                     return;
                 }
 
@@ -376,7 +383,7 @@ export const usePuestoStore = create<PuestoState>()(
                 );
 
                 if (isInvalid) {
-                    showTacticalToast({ title: 'Conflicto Táctico', message: 'Solapamiento de horarios detectado en la red de efectivos.', type: 'error' });
+                    showTacticalToast({ title: 'Conflicto TACTICO', message: 'Solapamiento de horarios detectado en la red de efectivos.', type: 'error' });
                     return;
                 }
 
@@ -427,11 +434,13 @@ export const usePuestoStore = create<PuestoState>()(
                         vigilante_id: dbVigilanteId,
                         detalles: wasAssigned ? `Horario modificado: ${horaInicio} - ${horaFin}` : `Nuevo vigilante asignado: ${horaInicio} - ${horaFin}`,
                     });
+                    const { useAuditStore } = await import('./auditStore');
+                    useAuditStore.getState().logAction('PUESTOS', wasAssigned ? 'Modificacion Turno' : 'Asignacion Turno', `${wasAssigned ? 'Modificado' : 'Asignado'} vigilante ${vigilanteId} al puesto ${puestoId}.`, 'info');
                 }
 
                 showTacticalToast({
                     title: wasAssigned ? 'Horario Modificado' : 'Efectivo Desplegado',
-                    message: wasAssigned ? 'Cronograma actualizado para el puesto.' : 'Nuevo vigilante incorporado a la línea.',
+                    message: wasAssigned ? 'Cronograma actualizado para el puesto.' : 'Nuevo vigilante incorporado a la linea.',
                     type: 'success'
                 });
             },
@@ -467,7 +476,7 @@ export const usePuestoStore = create<PuestoState>()(
                     });
                 }
 
-                showTacticalToast({ title: 'Efectivo Retirado', message: 'El vigilante ha sido removido de su posición actual.', type: 'info' });
+                showTacticalToast({ title: 'Efectivo Retirado', message: 'El vigilante ha sido removido de su posicion actual.', type: 'info' });
             },
 
             getCobertura24Horas: (puestoId) => {

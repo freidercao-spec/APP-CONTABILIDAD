@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useVigilanteStore } from '../../store/vigilanteStore';
 import { usePuestoStore } from '../../store/puestoStore';
 import { MilitaryTimeInput } from '../ui/MilitaryTimeInput';
@@ -9,7 +10,7 @@ interface GuardModalProps {
 }
 
 const RANGOS = [
-    { value: 'Vigilante', label: 'Vigilante Estándar' },
+    { value: 'Vigilante', label: 'Vigilante Estandar' },
     { value: 'Vigilante Senior', label: 'Vigilante Senior' },
     { value: 'Supervisor', label: 'Supervisor de Zona' },
     { value: 'Operador', label: 'Operador de Medios' },
@@ -24,7 +25,7 @@ const GuardModal = ({ isOpen, onClose }: GuardModalProps) => {
     const [horaInicio, setHoraInicio] = useState('06:00');
     const [horaFin, setHoraFin] = useState('18:00');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    // Módulo: 'disponible' o 'activo'
+    // Modulo: 'disponible' o 'activo'
     const [modulo, setModulo] = useState<'disponible' | 'activo'>('disponible');
     const [justificacion, setJustificacion] = useState('');
     const [asignarPuesto, setAsignarPuesto] = useState(false);
@@ -81,12 +82,12 @@ const GuardModal = ({ isOpen, onClose }: GuardModalProps) => {
         }
     };
 
-    return (
+    return createPortal(
         <div
-            className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300"
             onClick={onClose}
         >
-            <div className="absolute inset-0 bg-[#070d1d]/95 backdrop-blur-xl"></div>
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"></div>
 
             <div
                 className="relative w-full max-w-lg bg-[#0b1424] border border-white/10 rounded-[28px] shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-300 max-h-[90vh] flex flex-col"
@@ -118,7 +119,7 @@ const GuardModal = ({ isOpen, onClose }: GuardModalProps) => {
                     <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-5">
                         {/* Code Preview Banner */}
                         <div className="bg-black/30 border border-primary/20 rounded-2xl px-5 py-3 flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Código Táctico Asignado</span>
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Codigo TACTICO Asignado</span>
                             <span className="font-mono text-primary font-bold text-lg tracking-widest">{formattedPreview}</span>
                         </div>
 
@@ -132,14 +133,14 @@ const GuardModal = ({ isOpen, onClose }: GuardModalProps) => {
                                 value={nombre}
                                 onChange={(e) => setNombre(e.target.value)}
                                 className="w-full bg-[#0d1a2e] border border-white/8 rounded-xl py-3.5 px-5 text-sm text-white focus:border-primary/60 focus:ring-1 focus:ring-primary/20 outline-none transition-all placeholder:text-slate-700"
-                                placeholder="Ej: Juan Carlos Pérez"
+                                placeholder="Ej: Juan Carlos Perez"
                             />
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">
-                                    Número de Cédula <span className="text-danger">*</span>
+                                    Numero de Cedula <span className="text-danger">*</span>
                                 </label>
                                 <input
                                     required
@@ -168,14 +169,14 @@ const GuardModal = ({ isOpen, onClose }: GuardModalProps) => {
                             </div>
                         </div>
 
-                        {/* ── Módulo de destino ── */}
+                        {/* ── Modulo de destino ── */}
                         <div className="bg-[#111c44] border border-primary/20 rounded-[24px] p-5 space-y-4 shadow-2xl">
                             <p className="text-[11px] font-black text-white uppercase tracking-widest flex items-center gap-2">
                                 <span className="material-symbols-outlined text-primary text-lg notranslate" translate="no">hub</span>
-                                Módulo de Destino
+                                Modulo de Destino
                             </p>
 
-                            {/* Tabs Módulo */}
+                            {/* Tabs Modulo */}
                             <div className="grid grid-cols-2 gap-2">
                                 <button
                                     type="button"
@@ -198,15 +199,15 @@ const GuardModal = ({ isOpen, onClose }: GuardModalProps) => {
                             {modulo === 'disponible' && (
                                 <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
                                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                                        Justificación de Disponibilidad <span className="text-danger">*</span>
+                                        Justificacion de Disponibilidad <span className="text-danger">*</span>
                                     </label>
                                     <textarea
                                         value={justificacion}
                                         onChange={e => setJustificacion(e.target.value)}
                                         className="w-full bg-[#0d2020] border border-success/30 rounded-xl py-3 px-4 text-xs text-white outline-none focus:border-success/60 h-16 resize-none placeholder:text-slate-600"
-                                        placeholder="Ej: En período de inducción, próximo a iniciar turno, licencia médica..."
+                                        placeholder="Ej: En periodo de induccion, proximo a iniciar turno, licencia medica..."
                                     />
-                                    <p className="text-[9px] text-slate-500 ml-1">Campo obligatorio para módulo Disponibles</p>
+                                    <p className="text-[9px] text-slate-500 ml-1">Campo obligatorio para modulo Disponibles</p>
                                 </div>
                             )}
 
@@ -233,7 +234,7 @@ const GuardModal = ({ isOpen, onClose }: GuardModalProps) => {
                                                 >
                                                     <option value="">Seleccione Puesto...</option>
                                                     {puestos.map(p => (
-                                                        <option key={p.id} value={p.id}>{p.id} — {p.nombre}</option>
+                                                        <option key={p.id} value={p.id}>{p.id} - {p.nombre}</option>
                                                     ))}
                                                 </select>
                                                 <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none notranslate" translate="no">expand_more</span>
@@ -288,7 +289,8 @@ const GuardModal = ({ isOpen, onClose }: GuardModalProps) => {
                     </div>
                 </form>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

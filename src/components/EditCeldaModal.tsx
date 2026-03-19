@@ -30,7 +30,7 @@ const EditCeldaModal: React.FC<EditCeldaModalProps> = ({ asig, vigilantes, titul
         const slots = ocupados.get(vid) || [];
         if (slots.includes(`${asig.dia}-${t}`)) {
             const v = vigilantes.find(gv => gv.id === vid || gv.dbId === vid);
-            return `${v?.nombre || 'Efectivo'} ya tiene turno el día ${asig.dia} (${t})`;
+            return `${v?.nombre || 'Efectivo'} ya tiene turno el dia ${asig.dia} (${t})`;
         }
         return null;
     };
@@ -53,8 +53,8 @@ const EditCeldaModal: React.FC<EditCeldaModalProps> = ({ asig, vigilantes, titul
                 <div className="p-8 flex-1 space-y-6">
                     <div className="flex justify-between items-start mb-2">
                         <div>
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2">Editor de Asignación</p>
-                            <h3 className="text-xl font-black text-slate-900 uppercase">Día {asig.dia} · {asig.turno}</h3>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2">Editor de Asignacion</p>
+                            <h3 className="text-xl font-black text-slate-900 uppercase">DIA {asig.dia} - {asig.turno}</h3>
                         </div>
                         <button onClick={onClose} className="size-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 transition-colors">
                             <span className="material-symbols-outlined text-[18px]">close</span>
@@ -76,7 +76,7 @@ const EditCeldaModal: React.FC<EditCeldaModalProps> = ({ asig, vigilantes, titul
                                 onChange={e => { setVigilanteId(e.target.value || null); setError(null); }}
                                 className="w-full h-12 bg-slate-50 border-2 border-slate-100 rounded-2xl px-4 text-sm font-bold text-slate-900 outline-none focus:border-primary/30 focus:bg-white transition-all shadow-sm"
                             >
-                                <option value="">— Sin Vigilante —</option>
+                                <option value="">- Sin Vigilante -</option>
                                 <optgroup label="TITULARES DEL PUESTO">
                                     {vigilantes.filter(v => titularesId.includes(v.id) || (v.dbId && titularesId.includes(v.dbId))).map(v => (
                                         <option key={v.id} value={v.id}>⭐ {v.nombre}</option>

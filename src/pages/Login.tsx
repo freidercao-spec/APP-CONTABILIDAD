@@ -15,7 +15,7 @@ const Login = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        if (!email || !password) { setError('Por favor ingrese correo y contraseña.'); return; }
+        if (!email || !password) { setError('Por favor ingrese correo y contrasena.'); return; }
         
         setLoading(true);
 
@@ -23,17 +23,17 @@ const Login = () => {
             const result = await login(email, password);
             if (result.success) {
                 setAuditUser(email);
-                logAction('LOGIN', 'Inicio de sesión', `Acceso concedido para: ${email}`, 'success');
+                logAction('LOGIN', 'Inicio de sesion', `Acceso concedido para: ${email}`, 'success');
             } else {
                 const msg = result.message || 'Error de acceso desconocido';
                 // Traducir errores comunes de Supabase a mensajes amigables
                 let friendly = msg;
                 if (msg === 'Invalid login credentials') {
-                    friendly = 'Correo o contraseña incorrectos.';
+                    friendly = 'Correo o contrasena incorrectos.';
                 } else if (msg.includes('Email logins are disabled') || msg.includes('email_provider_disabled')) {
-                    friendly = '⚠️ El sistema de login está temporalmente desactivado. Contacte al administrador para activar el proveedor de Email en Supabase.';
+                    friendly = '⚠️ El sistema de login esta temporalmente desactivado. Contacte al administrador para activar el proveedor de Email en Supabase.';
                 } else if (msg.includes('Email not confirmed')) {
-                    friendly = 'Cuenta pendiente de confirmación. Revise su correo.';
+                    friendly = 'Cuenta pendiente de confirmacion. Revise su correo.';
                 } else if (msg.includes('Too many requests')) {
                     friendly = 'Demasiados intentos. Espere unos minutos e intente de nuevo.';
                 } else if (msg.includes('User not found')) {
@@ -43,7 +43,7 @@ const Login = () => {
                 logAction('LOGIN', 'Error de acceso', `Fallo al autenticar "${email}": ${msg}`, 'warning');
             }
         } catch (err: any) {
-            setError('Error de conexión con el servidor. Verifique su internet.');
+            setError('Error de conexion con el servidor. Verifique su internet.');
         } finally {
             setLoading(false);
         }
@@ -63,7 +63,7 @@ const Login = () => {
                         </div>
                     </div>
                     <h1 className="text-4xl font-black text-white tracking-widest uppercase">CORAZA</h1>
-                    <p className="text-primary-light text-[11px] font-black uppercase tracking-[0.3em] mt-3">SISTEMA DE PROGRAMACIÓN</p>
+                    <p className="text-primary-light text-[11px] font-black uppercase tracking-[0.3em] mt-3">SISTEMA DE PROGRAMACION</p>
                 </div>
 
                 <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[40px] p-10 shadow-2xl">
@@ -80,7 +80,7 @@ const Login = () => {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">CONTRASEÑA</label>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">CONTRASENA</label>
                             <div className="relative">
                                 <input
                                     type={showPass ? 'text' : 'password'}
@@ -115,7 +115,7 @@ const Login = () => {
                     </form>
                 </div>
                 <div className="absolute inset-x-0 bottom-8 text-center text-[10px] font-black text-primary/30 uppercase tracking-[0.4em] pointer-events-none">
-            MOD v1.3.5 · DATABASE SYNC FIX
+            MOD v1.3.5 - DATABASE SYNC FIX
           </div>
             </div>
         </div>

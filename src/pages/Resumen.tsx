@@ -82,7 +82,7 @@ const Resumen = () => {
     // ── PDF Generation: Schedule Grid Style ──────────────────────────────
     const generateSchedulePDF = async () => {
         setIsGenerating(true);
-        logAction('RESUMEN', 'Generación de PDF', `Programación de ${monthNames[scheduleMonth]} ${scheduleYear} para ${filterPuesto === 'todos' ? 'todos los puestos' : filterPuesto}`, 'info');
+        logAction('RESUMEN', 'Generacion de PDF', `CUADRO OPERATIVO de ${monthNames[scheduleMonth]} ${scheduleYear} para ${filterPuesto === 'todos' ? 'todos los puestos' : filterPuesto}`, 'info');
 
         try {
             const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -155,7 +155,7 @@ const Resumen = () => {
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(255, 255, 255);
-                doc.text('PROGRAMACIÓN CORAZA SEGURIDAD CTA', rightX, 12);
+                doc.text('PROGRAMACION CORAZA SEGURIDAD CTA', rightX, 12);
                 
                 doc.setFontSize(8);
                 doc.setFont('helvetica', 'normal');
@@ -167,12 +167,12 @@ const Resumen = () => {
 
                 doc.setFont('helvetica', 'normal');
                 doc.setTextColor(180, 200, 255);
-                doc.text(`DIRECCIÓN:`, rightX, 22);
+                doc.text(`DIRECCION:`, rightX, 22);
                 doc.setTextColor(255, 255, 255);
-                doc.text(puesto.direccion || 'CRA. 81 #49-24, CALASANZ, MEDELLÍN', rightX + gap, 22);
+                doc.text(puesto.direccion || 'CRA. 81 #49-24, CALASANZ, MEDELLIN', rightX + gap, 22);
 
                 doc.setTextColor(180, 200, 255);
-                doc.text(`TELÉFONO:`, rightX, 27);
+                doc.text(`TELEFONO:`, rightX, 27);
                 doc.setTextColor(255, 255, 255);
                 doc.text('3113836939', rightX + gap, 27);
                 
@@ -197,7 +197,7 @@ const Resumen = () => {
                 doc.setTextColor(255, 255, 255);
                 doc.text('CEDULA', 8 + colW_cedula / 2, tableStartY + 5.5, { align: 'center' });
                 doc.text('APELLIDOS Y NOMBRES', 8 + colW_cedula + colW_nombre / 2, tableStartY + 5.5, { align: 'center' });
-                doc.text('AÑO', 8 + colW_cedula + colW_nombre + colW_anio / 2, tableStartY + 5.5, { align: 'center' });
+                doc.text('ANO', 8 + colW_cedula + colW_nombre + colW_anio / 2, tableStartY + 5.5, { align: 'center' });
                 doc.text('MES', 8 + colW_cedula + colW_nombre + colW_anio + colW_mes / 2, tableStartY + 5.5, { align: 'center' });
 
                 let xDay = 8 + colW_cedula + colW_nombre + colW_anio + colW_mes;
@@ -216,7 +216,7 @@ const Resumen = () => {
                     doc.setTextColor(200, 80, 80);
                     doc.setFontSize(7);
                     doc.setFont('helvetica', 'italic');
-                    doc.text('⚠ Sin personal asignado para este período operativo', 14, yRow + 6.5);
+                    doc.text('⚠ Sin personal asignado para este periodo operativo', 14, yRow + 6.5);
                     yRow += rowH;
                 } else {
                     puesto.turnosDetalle.forEach((t, tIdx) => {
@@ -284,7 +284,7 @@ const Resumen = () => {
                 doc.setFontSize(7);
                 doc.setTextColor(160, 160, 180);
                 doc.text(
-                    `CORAZA SEGURIDAD CTA — Cra. 81 #49-24, Medellín — Tel: 311 3836939 — Página ${puestoIdx + 1} de ${filteredData.length}`,
+                    `CORAZA SEGURIDAD CTA - Cra. 81 #49-24, Medellin - Tel: 311 3836939 - PAGINA ${puestoIdx + 1} de ${filteredData.length}`,
                     pageW / 2,
                     pageH - 6,
                     { align: 'center' }
@@ -293,8 +293,8 @@ const Resumen = () => {
 
             doc.save(`CORAZA_Programacion_${monthNames[scheduleMonth]}_${scheduleYear}.pdf`);
             showTacticalToast({
-                title: 'Exportación Exitosa',
-                message: `La programación de ${monthNames[scheduleMonth]} ha sido generada correctamente.`,
+                title: 'Exportacion Exitosa',
+                message: `La programacion de ${monthNames[scheduleMonth]} ha sido generada correctamente.`,
                 type: 'success'
             });
             setGenerated(true);
@@ -302,7 +302,7 @@ const Resumen = () => {
         } catch (error) {
             console.error('PDF Generation Error:', error);
             showTacticalToast({
-                title: 'Error de Exportación',
+                title: 'Error de Exportacion',
                 message: 'No se pudo generar el archivo PDF. Verifique la integridad de los datos.',
                 type: 'error'
             });
@@ -324,7 +324,7 @@ const Resumen = () => {
                     <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tight">
                         Resumen <span className="text-primary">Programado</span>
                     </h3>
-                    <p className="text-sm text-slate-400 mt-1 font-medium">Programación de vigilantes por puesto · Exportable en PDF</p>
+                    <p className="text-sm text-slate-400 mt-1 font-medium">CUADRO OPERATIVO de vigilantes por puesto - Exportable en PDF</p>
                 </div>
                 <button
                     onClick={generateSchedulePDF}
@@ -336,7 +336,7 @@ const Resumen = () => {
                     ) : generated ? (
                         <><span className="material-symbols-outlined text-[22px] notranslate">check_circle</span>PDF Descargado</>
                     ) : (
-                        <><span className="material-symbols-outlined text-[22px] notranslate">picture_as_pdf</span>Descargar Programación</>
+                        <><span className="material-symbols-outlined text-[22px] notranslate">picture_as_pdf</span>Descargar CUADRO OPERATIVO</>
                     )}
                 </button>
             </div>
@@ -363,7 +363,7 @@ const Resumen = () => {
             <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm mb-6 space-y-4">
                 <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                     <span className="material-symbols-outlined text-[16px] text-primary notranslate">tune</span>
-                    Filtros de Exportación
+                    Filtros de Exportacion
                 </h3>
                 <div className="flex flex-wrap gap-4 items-end">
                     <div className="flex items-center gap-2">
@@ -371,7 +371,7 @@ const Resumen = () => {
                         <select value={filterPuesto} onChange={e => setFilterPuesto(e.target.value)}
                             className="bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 text-sm font-bold text-slate-700 outline-none focus:border-primary/30">
                             <option value="todos">Todos</option>
-                            {puestos.map(p => <option key={p.id} value={p.id}>{p.id} — {p.nombre}</option>)}
+                            {puestos.map(p => <option key={p.id} value={p.id}>{p.id} - {p.nombre}</option>)}
                         </select>
                     </div>
                     <div className="flex items-center gap-2">
@@ -387,7 +387,7 @@ const Resumen = () => {
 
                     {/* Schedule period */}
                     <div className="flex items-center gap-2 ml-auto">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Período del PDF:</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Periodo del PDF:</label>
                         <select value={scheduleMonth} onChange={e => setScheduleMonth(Number(e.target.value))}
                             className="bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 text-sm font-bold text-slate-700 outline-none focus:border-primary/30">
                             {monthNames.map((m, i) => <option key={i} value={i}>{m}</option>)}
@@ -424,7 +424,7 @@ const Resumen = () => {
                                                 {p.numeroContrato && <span className="text-[9px] text-slate-400 font-bold bg-slate-100 px-2 py-0.5 rounded-full">Contrato: {p.numeroContrato}</span>}
                                             </div>
                                             <h4 className="text-base font-bold text-slate-900">{p.nombre}</h4>
-                                            {(p.cliente || p.tipoServicio) && <p className="text-[10px] text-slate-400 font-medium">{p.cliente}{p.cliente && p.tipoServicio ? ' · ' : ''}{p.tipoServicio}</p>}
+                                            {(p.cliente || p.tipoServicio) && <p className="text-[10px] text-slate-400 font-medium">{p.cliente}{p.cliente && p.tipoServicio ? ' - ' : ''}{p.tipoServicio}</p>}
                                         </div>
                                     </div>
                                     <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full ${p.coberturaCompleta ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
@@ -437,9 +437,9 @@ const Resumen = () => {
                                     <table className="text-[10px] w-full border-collapse">
                                         <thead>
                                             <tr>
-                                                <th className="text-left px-3 py-2 bg-slate-50 border border-slate-100 font-black text-slate-400 uppercase tracking-widest w-28">Cédula</th>
+                                                <th className="text-left px-3 py-2 bg-slate-50 border border-slate-100 font-black text-slate-400 uppercase tracking-widest w-28">Cedula</th>
                                                 <th className="text-left px-3 py-2 bg-slate-50 border border-slate-100 font-black text-slate-400 uppercase tracking-widest w-48">Vigilante</th>
-                                                <th className="px-2 py-2 bg-slate-50 border border-slate-100 font-black text-slate-400 uppercase tracking-widest w-14">Año</th>
+                                                <th className="px-2 py-2 bg-slate-50 border border-slate-100 font-black text-slate-400 uppercase tracking-widest w-14">Ano</th>
                                                 <th className="px-2 py-2 bg-slate-50 border border-slate-100 font-black text-slate-400 uppercase tracking-widest w-16">Mes</th>
                                                 {dayNumbers.map(d => (
                                                     <th key={d} className="px-1 py-2 bg-slate-50 border border-slate-100 font-black text-slate-400 text-center" style={{ minWidth: '30px' }}>{d}</th>
@@ -480,7 +480,7 @@ const Resumen = () => {
                                 {/* Legend for this post */}
                                 <div className="px-6 pb-4 flex flex-wrap gap-3 items-center">
                                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-2">Leyenda:</span>
-                                    {[['D12', 'Diurno 06–18', pColorStr, '#fff'], ['N12', 'Nocturno 18–06', '#0b1437', '#fff']].map(([code, label, bg, fg]) => (
+                                    {[['D12', 'Diurno 06a18', pColorStr, '#fff'], ['N12', 'Nocturno 18a06', '#0b1437', '#fff']].map(([code, label, bg, fg]) => (
                                         <div key={code} className="flex items-center gap-1.5">
                                             <div className="px-2 py-0.5 rounded text-[9px] font-black" style={{ background: bg, color: fg }}>{code}</div>
                                             <span className="text-[9px] text-slate-500">{label}</span>
