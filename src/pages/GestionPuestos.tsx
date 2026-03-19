@@ -658,7 +658,6 @@ const PanelMensualPuesto = ({
   );
   const getAlertas = useProgramacionStore((s) => s.getAlertas);
 
-  const allProgramaciones = useProgramacionStore((s) => s.programaciones);
   const getProgramacion = useProgramacionStore((s) => s.getProgramacion);
   const prog = useMemo(
     () => getProgramacion(puestoId, anio, mes),
