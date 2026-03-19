@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+﻿import { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   usePuestoStore,
@@ -2617,13 +2617,13 @@ const PanelMensualPuesto = ({
               </h3>
               <ul className="space-y-2 text-[12px] text-slate-700 font-medium">
                 {[
-                  "✖ Un vigilante no puede estar en dos puestos al mismo tiempo en el mismo turno",
-                  "ðŸš« Máximo 3 días de descanso por quincena por vigilante",
-                  "ðŸš« Los 3 descansos deben ser: 2 remunerados + 1 no remunerado exactamente",
-                  "ðŸš« No se aprueban vacaciones en diciembre, enero ni Semana Santa",
-                  "ðŸš« Si el vigilante tiene descanso, no puede ser asignado a otro puesto ese día",
-                  "âš ï¸ El relevante con días vacíos recibirá sugerencia de asignación alterna",
-                  "âš ï¸ Días sin cobertura generan alerta de puesto desprotegido",
+                  "X Un vigilante no puede estar en dos puestos al mismo tiempo en el mismo turno",
+                  "! Máximo 3 días de descanso por quincena por vigilante",
+                  "! Los 3 descansos deben ser: 2 remunerados + 1 no remunerado exactamente",
+                  "! No se aprueban vacaciones en diciembre, enero ni Semana Santa",
+                  "! Si el vigilante tiene descanso, no puede ser asignado a otro puesto ese día",
+                  "! El relevante con días vacíos recibirá sugerencia de asignación alterna",
+                  "! Días sin cobertura generan alerta de puesto desprotegido",
                 ].map((r, i) => (
                   <li key={i} className="flex items-start gap-2">
                     <span className="mt-0.5">→</span> {r}
@@ -3305,3 +3305,4 @@ const GestionPuestos = () => {
 };
 
 export default GestionPuestos;
+
