@@ -1,0 +1,11 @@
+Retrieving project…
+Deploying freidercao-specs-projects/coraza-cta-app
+Uploading [--------------------] (0.0B/49.9KB)
+Uploading [======--------------] (16.1KB/49.9KB)
+Uploading [============--------] (32.1KB/49.9KB)
+Uploading [===================-] (48.1KB/49.9KB)
+Uploading [====================] (49.9KB/49.9KB)
+Inspect: https://vercel.com/freidercao-specs-projects/coraza-cta-app/5GCUUfcDrhgr9vejYKDknHWQuTba [5s]
+Production: https://coraza-cta-bo35cxx2g-freidercao-specs-projects.vercel.app [5s]
+https://coraza-cta-bo35cxx2g-freidercao-specs-projects.vercel.appBuilding...
+Error: Unexpected error. Please try again later. ()
