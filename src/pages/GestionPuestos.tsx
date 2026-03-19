@@ -126,7 +126,8 @@ const JORNADA_COLORS: Record<
 const getRolForTurno = (tConf: TurnoConfig, tIdx: number): RolPuesto => {
   if (tIdx === 0) return "titular_a";
   if (tIdx === 1) return "titular_b";
-  // For any extra rows, use the specific turno ID to prevent collisions
+  if (tIdx === 2) return "relevante";
+  // For any extra rows (4, 5, etc.), use the specific turno ID to prevent collisions
   return tConf.id as RolPuesto;
 };
 
