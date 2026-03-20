@@ -1,69 +1,125 @@
 import { useState, useMemo } from 'react';
 import { usePuestoStore } from '../store/puestoStore';
 import { useVigilanteStore } from '../store/vigilanteStore';
+import { useProgramacionStore, type ProgramacionMensual } from '../store/programacionStore';
 import { useAuditStore } from '../store/auditStore';
 import { showTacticalToast } from '../utils/tacticalToast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-// Vivid colors for each puesto
-const PUESTO_COLORS = [
+// ── Config ────────────────────────────────────────────────────────────────────
+
+const PUESTO_COLORS: [number, number, number][] = [
     [67, 24, 255],   // Primary purple
     [0, 179, 119],   // Green
-    [255, 77, 77],   // Red
-    [255, 160, 0],   // Amber
-    [0, 153, 255],   // Blue
-    [180, 0, 255],   // Violet
-    [255, 100, 50],  // Orange
-    [0, 210, 180],   // Teal
-    [220, 20, 100],  // Crimson
-    [100, 200, 0],   // Lime
+    [220, 38, 38],   // Red
+    [245, 158, 11],  // Amber
+    [14, 165, 233],  // Blue
+    [139, 92, 246],  // Violet
+    [249, 115, 22],  // Orange
+    [20, 184, 166],  // Teal
+    [219, 39, 119],  // Pink
+    [132, 204, 22],  // Lime
 ];
 
-const SHIFT_ABBREVS: Record<string, string> = {
-    'diurno': 'D12',
-    'nocturno': 'N12',
-    'disponible': 'Dis',
-    'descanso': 'Des',
+const MONTH_NAMES = [
+    'Enero','Febrero','Marzo','Abril','Mayo','Junio',
+    'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre',
+];
+
+// ── Jornada display labels ─────────────────────────────────────────────────────
+const JORNADA_SHORT: Record<string, string> = {
+    'normal':                'N',
+    'descanso_remunerado':   'DR',
+    'descanso_no_remunerado':'DNR',
+    'vacacion':              'VAC',
+    'sin_asignar':           '-',
+    'AM':                    'D',
+    'PM':                    'N',
+    '24H':                   '24',
 };
 
-const getShiftAbbrev = (inicio: string, fin: string): string => {
-    const [ih] = inicio.split(':').map(Number);
-    const [fh] = fin.split(':').map(Number);
-    const hours = fh > ih ? fh - ih : (24 - ih + fh);
-    if (ih >= 6 && ih < 18) return `D${hours}`;
-    return `N${hours}`;
+const JORNADA_COLORS_PDF: Record<string, [number, number, number]> = {
+    'normal':                [67, 24, 255],
+    'descanso_remunerado':   [0, 179, 119],
+    'descanso_no_remunerado':[255, 149, 0],
+    'vacacion':              [139, 92, 246],
+    'sin_asignar':           [229, 229, 229],
+    'AM':                    [67, 24, 255],
+    'PM':                    [11, 20, 65],
+    '24H':                   [0, 150, 136],
 };
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 const Resumen = () => {
     const puestos = usePuestoStore(s => s.puestos);
     const vigilantes = useVigilanteStore(s => s.vigilantes);
+    const programaciones = useProgramacionStore(s => s.programaciones);
     const getCobertura24Horas = usePuestoStore(s => s.getCobertura24Horas);
     const logAction = useAuditStore(s => s.logAction);
 
-    // Date filter for schedule
     const now = new Date();
     const [filterPuesto, setFilterPuesto] = useState('todos');
     const [filterEstado, setFilterEstado] = useState('todos');
     const [scheduleYear, setScheduleYear] = useState(now.getFullYear());
-    const [scheduleMonth, setScheduleMonth] = useState(now.getMonth()); // 0-indexed
+    const [scheduleMonth, setScheduleMonth] = useState(now.getMonth());
     const [isGenerating, setIsGenerating] = useState(false);
     const [generated, setGenerated] = useState(false);
 
-    const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
     const daysInMonth = new Date(scheduleYear, scheduleMonth + 1, 0).getDate();
     const dayNumbers = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
+    // ── Build Summary data using programacionStore ────────────────────────────
     const resumenData = useMemo(() => {
         return puestos.map((p, idx) => {
             const cobertura = getCobertura24Horas(p.id);
-            const turnosConNombres = (p.turnos || []).map(t => {
-                const v = vigilantes.find(v => v.id === t.vigilanteId);
-                return { ...t, nombre: v?.nombre || 'Sin nombre', cedula: v?.cedula || '-', rango: v?.rango || '-', color: PUESTO_COLORS[idx % PUESTO_COLORS.length] };
-            });
-            return { ...p, turnosDetalle: turnosConNombres, coberturaCompleta: cobertura.completa, horasDescubiertas: cobertura.huecos, colorIdx: idx };
+
+            // Find the programacion for this puesto in the selected month
+            const prog = programaciones.find(pr =>
+                (pr.puestoId === p.id || pr.puestoId === p.dbId) &&
+                pr.anio === scheduleYear &&
+                pr.mes === scheduleMonth
+            );
+
+            // Build rows: one per vigilante assigned in the personal list
+            const rows = (prog?.personal || [])
+                .filter(per => per.vigilanteId)
+                .map(per => {
+                    const vig = vigilantes.find(v =>
+                        v.id === per.vigilanteId || v.dbId === per.vigilanteId
+                    );
+                    // Get asignaciones for this vigilante, sorted by day
+                    const asigs = (prog?.asignaciones || [])
+                        .filter(a =>
+                            a.vigilanteId === per.vigilanteId ||
+                            a.vigilanteId === vig?.dbId
+                        )
+                        .sort((a, b) => a.dia - b.dia);
+                    return {
+                        rol: per.rol,
+                        vigilanteId: per.vigilanteId,
+                        nombre: vig?.nombre || 'Sin nombre',
+                        cedula: vig?.cedula || '-',
+                        rango: vig?.rango || '-',
+                        asigs,
+                    };
+                });
+
+            return {
+                id: p.id,
+                nombre: p.nombre,
+                direccion: p.direccion,
+                estado: p.estado,
+                colorIdx: idx,
+                coberturaCompleta: cobertura.completa,
+                horasDescubiertas: cobertura.huecos,
+                prog,
+                rows,
+                turnosLegacy: p.turnos || [],
+            };
         });
-    }, [puestos, vigilantes, getCobertura24Horas]);
+    }, [puestos, vigilantes, programaciones, scheduleYear, scheduleMonth, getCobertura24Horas]);
 
     const filteredData = useMemo(() => {
         let data = resumenData;
@@ -76,241 +132,320 @@ const Resumen = () => {
         total: puestos.length,
         cubiertos: resumenData.filter(p => p.coberturaCompleta).length,
         sinCobertura: resumenData.filter(p => !p.coberturaCompleta).length,
-        totalVigilantesDesplegados: puestos.reduce((acc, p) => acc + (p.turnos?.length || 0), 0),
+        totalVigilantesDesplegados: resumenData.reduce((acc, p) => acc + p.rows.length, 0),
     }), [puestos, resumenData]);
 
-    // ── PDF Generation: Schedule Grid Style ──────────────────────────────
+    // ── Load logo as base64 ───────────────────────────────────────────────────
+    const getBase64Image = (url: string): Promise<string> =>
+        new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                if (ctx) { ctx.drawImage(img, 0, 0); resolve(canvas.toDataURL('image/png')); }
+                else reject();
+            };
+            img.onerror = reject;
+            img.src = url;
+        });
+
+    // ── PDF Generation ────────────────────────────────────────────────────────
     const generateSchedulePDF = async () => {
         setIsGenerating(true);
-        logAction('RESUMEN', 'Generacion de PDF', `CUADRO OPERATIVO de ${monthNames[scheduleMonth]} ${scheduleYear} para ${filterPuesto === 'todos' ? 'todos los puestos' : filterPuesto}`, 'info');
+        logAction('RESUMEN', 'Generacion de PDF', `CUADRO OPERATIVO ${MONTH_NAMES[scheduleMonth]} ${scheduleYear}`, 'info');
 
         try {
             const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
             const pageW = doc.internal.pageSize.getWidth();
             const pageH = doc.internal.pageSize.getHeight();
-            const fecha = new Date().toLocaleDateString('es-CO', { dateStyle: 'long' });
+            const fecha = now.toLocaleDateString('es-CO', { dateStyle: 'long' });
+            const logoBase64 = await getBase64Image('/logo.png').catch(() => null);
 
-            // ── Helper to convert image to Base64 (Reliable Rendering) ──
-            const getBase64Image = (url: string): Promise<string> => {
-                return new Promise((resolve, reject) => {
-                    const img = new Image();
-                    img.crossOrigin = 'Anonymous';
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        canvas.width = img.width;
-                        canvas.height = img.height;
-                        const ctx = canvas.getContext('2d');
-                        if (ctx) {
-                            ctx.drawImage(img, 0, 0);
-                            resolve(canvas.toDataURL('image/png'));
-                        } else reject();
-                    };
-                    img.onerror = reject;
-                    img.src = url;
-                });
-            };
-
-            const logoBase64 = await getBase64Image('/logo_premium.png').catch(() => null);
-
-            // Helper to add logo
             const addLogo = (x: number, y: number, w: number, h: number) => {
                 doc.setFillColor(255, 255, 255);
-                doc.roundedRect(x, y, w, h, 3, 3, 'F');
+                doc.roundedRect(x, y, w, h, 2, 2, 'F');
                 if (logoBase64) {
-                    try {
-                        doc.addImage(logoBase64, 'PNG', x + 1, y + 1, w - 2, h - 2);
-                    } catch (e) { /* fallback below */ }
-                } else {
-                    doc.setFontSize(6);
-                    doc.setTextColor(11, 20, 60);
-                    doc.setFont('helvetica', 'bold');
-                    doc.text('CORAZA', x + w/2, y + h/2 - 1, { align: 'center' });
-                    doc.text('SEGURIDAD', x + w/2, y + h/2 + 2, { align: 'center' });
+                    try { doc.addImage(logoBase64, 'PNG', x + 1, y + 1, w - 2, h - 2); }
+                    catch { /* silent */ }
                 }
             };
 
             filteredData.forEach((puesto, puestoIdx) => {
                 if (puestoIdx > 0) doc.addPage();
+                const pColor = PUESTO_COLORS[puesto.colorIdx % PUESTO_COLORS.length];
 
-                const pColor = PUESTO_COLORS[puesto.colorIdx % PUESTO_COLORS.length] as [number, number, number];
-
-                // ── Header ─────────────────────────────────────────────────────
+                // ── Dark header bar ──────────────────────────────────────────
                 doc.setFillColor(11, 20, 65);
-                doc.rect(0, 0, pageW, 35, 'F');
+                doc.rect(0, 0, pageW, 36, 'F');
 
-                addLogo(8, 4, 27, 27);
+                addLogo(8, 4, 28, 28);
 
-                // Date info (Left side)
-                doc.setFontSize(8);
+                // Title
+                doc.setFontSize(11);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(255, 255, 255);
-                doc.text(`MES OPERATIVO:`, 40, 15);
-                doc.setFont('helvetica', 'normal');
-                doc.text(`${monthNames[scheduleMonth].toUpperCase()} ${scheduleYear}`, 68, 15);
+                doc.text('CUADRO OPERATIVO DE PROGRAMACION', pageW / 2, 11, { align: 'center' });
 
-                // Info box (right side)
-                const rightX = 145;
-                const gap = 20;
-
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor(255, 255, 255);
-                doc.text('PROGRAMACION CORAZA SEGURIDAD CTA', rightX, 12);
-                
                 doc.setFontSize(8);
                 doc.setFont('helvetica', 'normal');
                 doc.setTextColor(180, 200, 255);
-                doc.text(`PUESTO:`, rightX, 17);
+                doc.text('CORAZA SEGURIDAD PRIVADA CTA', pageW / 2, 16, { align: 'center' });
+
+                // Month badge
+                doc.setFillColor(...pColor);
+                doc.roundedRect(pageW / 2 - 30, 18, 60, 8, 2, 2, 'F');
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(255, 255, 255);
+                doc.text(`${MONTH_NAMES[scheduleMonth].toUpperCase()} ${scheduleYear}`, pageW / 2, 23.5, { align: 'center' });
+
+                // Right info
+                doc.setFontSize(7);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(180, 200, 255);
+                doc.text(`PUESTO:`, pageW - 70, 12);
                 doc.setTextColor(255, 255, 255);
                 doc.setFont('helvetica', 'bold');
-                doc.text(puesto.nombre, rightX + gap, 17);
+                doc.text(puesto.nombre, pageW - 55, 12);
 
                 doc.setFont('helvetica', 'normal');
                 doc.setTextColor(180, 200, 255);
-                doc.text(`DIRECCION:`, rightX, 22);
+                doc.text(`DIRECCION:`, pageW - 70, 17);
                 doc.setTextColor(255, 255, 255);
-                doc.text(puesto.direccion || 'CRA. 81 #49-24, CALASANZ, MEDELLIN', rightX + gap, 22);
+                doc.text((puesto.direccion || 'N/A').slice(0, 35), pageW - 52, 17);
 
                 doc.setTextColor(180, 200, 255);
-                doc.text(`TELEFONO:`, rightX, 27);
+                doc.text(`FECHA:`, pageW - 70, 22);
                 doc.setTextColor(255, 255, 255);
-                doc.text('3113836939', rightX + gap, 27);
-                
-                doc.setTextColor(255, 255, 255);
-                doc.text(fecha, pageW - 8, 27, { align: 'right' });
+                doc.text(fecha, pageW - 57, 22);
 
-                // ── Column Headers (days) ─────────────────────────────────────
-                const tableStartY = 38;
-                const colW_cedula = 22;
-                const colW_nombre = 52;
-                const colW_anio = 10;
-                const colW_mes = 14;
-                const fixedW = colW_cedula + colW_nombre + colW_anio + colW_mes + 8; // 8 = margin
-                const availW = pageW - 16 - fixedW;
-                const colW_day = Math.max(4, availW / daysInMonth);
+                doc.setTextColor(180, 200, 255);
+                doc.text(`PAG:`, pageW - 70, 30);
+                doc.setTextColor(255, 255, 255);
+                doc.text(`${puestoIdx + 1} / ${filteredData.length}`, pageW - 61, 30);
+
+                // ── Column setup ─────────────────────────────────────────────
+                const tableY = 39;
+                const MARGIN = 8;
+                const COL_ROL    = 16;
+                const COL_CED    = 24;
+                const COL_NOMBRE = 48;
+                const fixedW = MARGIN + COL_ROL + COL_CED + COL_NOMBRE;
+                const availW = pageW - fixedW - MARGIN;
+                const COL_DAY = Math.max(3.5, availW / daysInMonth);
 
                 // Header row
+                const headerH = 7;
                 doc.setFillColor(...pColor);
-                doc.rect(8, tableStartY, pageW - 16, 8, 'F');
-                doc.setFontSize(6.5);
+                doc.rect(MARGIN, tableY, pageW - MARGIN * 2, headerH, 'F');
+                doc.setFontSize(5.5);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(255, 255, 255);
-                doc.text('CEDULA', 8 + colW_cedula / 2, tableStartY + 5.5, { align: 'center' });
-                doc.text('APELLIDOS Y NOMBRES', 8 + colW_cedula + colW_nombre / 2, tableStartY + 5.5, { align: 'center' });
-                doc.text('ANO', 8 + colW_cedula + colW_nombre + colW_anio / 2, tableStartY + 5.5, { align: 'center' });
-                doc.text('MES', 8 + colW_cedula + colW_nombre + colW_anio + colW_mes / 2, tableStartY + 5.5, { align: 'center' });
 
-                let xDay = 8 + colW_cedula + colW_nombre + colW_anio + colW_mes;
+                doc.text('ROL', MARGIN + COL_ROL / 2, tableY + 4.8, { align: 'center' });
+                doc.text('CEDULA', MARGIN + COL_ROL + COL_CED / 2, tableY + 4.8, { align: 'center' });
+                doc.text('APELLIDOS Y NOMBRES', MARGIN + COL_ROL + COL_CED + COL_NOMBRE / 2, tableY + 4.8, { align: 'center' });
+
+                let xDay = fixedW;
                 dayNumbers.forEach(d => {
-                    doc.text(String(d).padStart(2, '0'), xDay + colW_day / 2, tableStartY + 5.5, { align: 'center' });
-                    xDay += colW_day;
+                    doc.text(String(d).padStart(2, '0'), xDay + COL_DAY / 2, tableY + 4.8, { align: 'center' });
+                    xDay += COL_DAY;
                 });
 
-                // ── Data Rows ─────────────────────────────────────────────────
-                const rowH = 10;
-                let yRow = tableStartY + 8;
+                // ── Data rows ─────────────────────────────────────────────────
+                const ROW_H = 9;
+                let yRow = tableY + headerH;
 
-                if (puesto.turnosDetalle.length === 0) {
-                    doc.setFillColor(255, 240, 240);
-                    doc.rect(8, yRow, pageW - 16, rowH, 'F');
-                    doc.setTextColor(200, 80, 80);
-                    doc.setFontSize(7);
-                    doc.setFont('helvetica', 'italic');
-                    doc.text('⚠ Sin personal asignado para este periodo operativo', 14, yRow + 6.5);
-                    yRow += rowH;
+                if (puesto.rows.length === 0) {
+                    // No programacion data - try legacy turnos as fallback
+                    if (puesto.turnosLegacy.length > 0) {
+                        puesto.turnosLegacy.forEach((t, ti) => {
+                            const vig = vigilantes.find(v => v.id === t.vigilanteId);
+                            const bgColor: [number,number,number] = ti % 2 === 0 ? [245, 247, 255] : [255, 255, 255];
+                            doc.setFillColor(...bgColor);
+                            doc.rect(MARGIN, yRow, pageW - MARGIN * 2, ROW_H, 'F');
+
+                            doc.setFontSize(6);
+                            doc.setFont('helvetica', 'normal');
+                            doc.setTextColor(30, 30, 60);
+                            doc.text('Titular', MARGIN + COL_ROL / 2, yRow + 6, { align: 'center' });
+                            doc.text(vig?.cedula || '-', MARGIN + COL_ROL + COL_CED / 2, yRow + 6, { align: 'center' });
+                            doc.text((vig?.nombre || 'Sin nombre').toUpperCase(), MARGIN + COL_ROL + COL_CED + 2, yRow + 6);
+
+                            const turnoKey = t.horaInicio >= '06:00' && t.horaInicio < '18:00' ? 'AM' : 'PM';
+                            const cellColor: [number,number,number] = turnoKey === 'AM' ? pColor : [11, 20, 65];
+                            let xD = fixedW;
+                            dayNumbers.forEach(() => {
+                                doc.setFillColor(...cellColor);
+                                doc.rect(xD + 0.3, yRow + 1.5, COL_DAY - 0.6, ROW_H - 3, 'F');
+                                doc.setTextColor(255, 255, 255);
+                                doc.setFontSize(5);
+                                doc.text(turnoKey === 'AM' ? 'D12' : 'N12', xD + COL_DAY / 2, yRow + 6, { align: 'center' });
+                                xD += COL_DAY;
+                            });
+                            doc.setTextColor(30, 30, 60);
+                            yRow += ROW_H;
+                        });
+                    } else {
+                        doc.setFillColor(255, 240, 240);
+                        doc.rect(MARGIN, yRow, pageW - MARGIN * 2, ROW_H, 'F');
+                        doc.setTextColor(200, 80, 80);
+                        doc.setFontSize(7);
+                        doc.setFont('helvetica', 'italic');
+                        doc.text('Sin personal asignado para este periodo operativo', MARGIN + 4, yRow + 6);
+                        yRow += ROW_H;
+                    }
                 } else {
-                    puesto.turnosDetalle.forEach((t, tIdx) => {
-                        const bgColor: [number, number, number] = tIdx % 2 === 0 ? [245, 247, 255] : [255, 255, 255];
-                        doc.setFillColor(...bgColor);
-                        doc.rect(8, yRow, pageW - 16, rowH, 'F');
+                    // ── Sort rows: titular_a first, then titular_b, then relevante ──
+                    const ROL_ORDER: Record<string, number> = { 'titular_a': 0, 'titular_b': 1, 'relevante': 2 };
+                    const sortedRows = [...puesto.rows].sort((a, b) =>
+                        (ROL_ORDER[a.rol] ?? 99) - (ROL_ORDER[b.rol] ?? 99)
+                    );
 
-                        doc.setTextColor(30, 30, 60);
-                        doc.setFontSize(6.5);
-                        doc.setFont('helvetica', 'normal');
-                        doc.text(t.cedula || '-', 8 + colW_cedula / 2, yRow + 6.5, { align: 'center' });
-                        doc.text(t.nombre.toUpperCase(), 8 + colW_cedula + 2, yRow + 6.5);
-                        doc.text(String(scheduleYear), 8 + colW_cedula + colW_nombre + colW_anio / 2, yRow + 6.5, { align: 'center' });
-                        doc.text(monthNames[scheduleMonth].substring(0, 3).toUpperCase(), 8 + colW_cedula + colW_nombre + colW_anio + colW_mes / 2, yRow + 6.5, { align: 'center' });
+                    const ROL_LABELS: Record<string, string> = {
+                        'titular_a': 'TIT-A',
+                        'titular_b': 'TIT-B',
+                        'relevante': 'REL',
+                    };
 
-                        // Fill each day cell with shift code
-                        const shiftCode = getShiftAbbrev(t.horaInicio, t.horaFin);
-                        const isNight = shiftCode.startsWith('N');
-                        const [sr, sg, sb] = isNight ? [11, 20, 60] : pColor;
-                        
-                        let xD = 8 + colW_cedula + colW_nombre + colW_anio + colW_mes;
-                        dayNumbers.forEach(() => {
-                            doc.setFillColor(sr, sg, sb);
-                            doc.rect(xD + 0.5, yRow + 1.5, colW_day - 1, rowH - 3, 'F');
+                    sortedRows.forEach((row, ri) => {
+                        // Check if new page needed
+                        if (yRow + ROW_H > pageH - 22) {
+                            doc.addPage();
+                            // Re-draw minimal header on continuation page
+                            doc.setFillColor(11, 20, 65);
+                            doc.rect(0, 0, pageW, 10, 'F');
+                            doc.setFontSize(7);
+                            doc.setFont('helvetica', 'bold');
                             doc.setTextColor(255, 255, 255);
+                            doc.text(`${puesto.nombre} — ${MONTH_NAMES[scheduleMonth]} ${scheduleYear} (CONTINUACION)`, MARGIN, 7);
+                            yRow = 14;
+
+                            // Re-draw column headers
+                            doc.setFillColor(...pColor);
+                            doc.rect(MARGIN, yRow, pageW - MARGIN * 2, headerH, 'F');
                             doc.setFontSize(5.5);
                             doc.setFont('helvetica', 'bold');
-                            doc.text(shiftCode, xD + colW_day / 2, yRow + 6.5, { align: 'center' });
-                            xD += colW_day;
+                            doc.setTextColor(255, 255, 255);
+                            doc.text('ROL', MARGIN + COL_ROL / 2, yRow + 4.8, { align: 'center' });
+                            doc.text('CEDULA', MARGIN + COL_ROL + COL_CED / 2, yRow + 4.8, { align: 'center' });
+                            doc.text('APELLIDOS Y NOMBRES', MARGIN + COL_ROL + COL_CED + COL_NOMBRE / 2, yRow + 4.8, { align: 'center' });
+                            let xDh = fixedW;
+                            dayNumbers.forEach(d => {
+                                doc.text(String(d).padStart(2, '0'), xDh + COL_DAY / 2, yRow + 4.8, { align: 'center' });
+                                xDh += COL_DAY;
+                            });
+                            yRow += headerH;
+                        }
+
+                        const bgColor: [number,number,number] = ri % 2 === 0 ? [246, 248, 255] : [255, 255, 255];
+                        doc.setFillColor(...bgColor);
+                        doc.rect(MARGIN, yRow, pageW - MARGIN * 2, ROW_H, 'F');
+
+                        doc.setFontSize(5.5);
+                        doc.setFont('helvetica', 'bold');
+                        doc.setTextColor(67, 24, 255);
+                        doc.text(ROL_LABELS[row.rol] || row.rol, MARGIN + COL_ROL / 2, yRow + 6, { align: 'center' });
+
+                        doc.setFont('helvetica', 'normal');
+                        doc.setTextColor(30, 30, 60);
+                        doc.text(row.cedula, MARGIN + COL_ROL + COL_CED / 2, yRow + 6, { align: 'center' });
+                        doc.text(row.nombre.toUpperCase().slice(0, 28), MARGIN + COL_ROL + COL_CED + 2, yRow + 6);
+
+                        // Day cells — use asignacion data per day
+                        let xD = fixedW;
+                        dayNumbers.forEach(d => {
+                            const asig = row.asigs.find(a => a.dia === d);
+                            const jornada = asig?.jornada || 'sin_asignar';
+                            const turno = asig?.turno || '-';
+                            const hasData = asig && asig.vigilanteId && jornada !== 'sin_asignar';
+
+                            if (hasData) {
+                                const cellRgb = JORNADA_COLORS_PDF[jornada] || JORNADA_COLORS_PDF[turno] || [200, 200, 200];
+                                doc.setFillColor(...cellRgb);
+                                doc.rect(xD + 0.3, yRow + 1.5, COL_DAY - 0.6, ROW_H - 3, 'F');
+                                doc.setTextColor(255, 255, 255);
+                                doc.setFontSize(4.5);
+                                doc.setFont('helvetica', 'bold');
+                                const label = JORNADA_SHORT[jornada] || JORNADA_SHORT[turno] || turno.slice(0, 3);
+                                doc.text(label, xD + COL_DAY / 2, yRow + 6, { align: 'center' });
+                            } else {
+                                doc.setFillColor(245, 245, 245);
+                                doc.rect(xD + 0.3, yRow + 1.5, COL_DAY - 0.6, ROW_H - 3, 'F');
+                                doc.setTextColor(200, 200, 200);
+                                doc.setFontSize(4);
+                                doc.text('-', xD + COL_DAY / 2, yRow + 6, { align: 'center' });
+                            }
+                            xD += COL_DAY;
                         });
 
-                        doc.setTextColor(30, 30, 60); // reset
-                        yRow += rowH;
+                        doc.setTextColor(30, 30, 60);
+                        yRow += ROW_H;
                     });
                 }
 
-                // ── Legend ──────────────────────────────────────────────────
-                const legendY = pageH - 22;
-                const shifts: [string, string, [number, number, number]][] = [
-                    ['D12', 'TURNO DIURNO 12H (06:00 - 18:00)', pColor],
-                    ['N12', 'TURNO NOCTURNO 12H (18:00 - 06:00)', [11, 20, 60]],
-                    ['Dis', 'DISPONIBLE / APOYO', [100, 120, 180]],
-                    ['Des', 'DESCANSO PROGRAMADO', [180, 180, 180]],
-                ];
-                
-                doc.setFontSize(7);
+                // ── Separator line ───────────────────────────────────────────
+                doc.setDrawColor(...pColor);
+                doc.setLineWidth(0.4);
+                doc.line(MARGIN, yRow + 2, pageW - MARGIN, yRow + 2);
+
+                // ── Legend ───────────────────────────────────────────────────
+                const legendY = pageH - 20;
+                doc.setFontSize(6);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(50, 50, 80);
-                doc.text('LEYENDA OPERATIVA:', 8, legendY - 2);
+                doc.text('LEYENDA:', MARGIN, legendY - 1);
 
-                let xLeg = 8;
-                shifts.forEach(([code, label, color]) => {
-                    doc.setFillColor(...color as [number, number, number]);
-                    doc.rect(xLeg, legendY, 10, 6, 'F');
+                const legendItems: [string, string, [number, number, number]][] = [
+                    ['N',   'Normal',              [67, 24, 255]],
+                    ['DR',  'Desc. Remunerado',    [0, 179, 119]],
+                    ['DNR', 'Desc. No Rem.',        [255, 149, 0]],
+                    ['VAC', 'Vacacion',             [139, 92, 246]],
+                    ['-',   'Sin Asignar',          [229, 229, 229]],
+                ];
+
+                let xLeg = MARGIN + 20;
+                legendItems.forEach(([code, label, color]) => {
+                    doc.setFillColor(...color);
+                    doc.rect(xLeg, legendY - 4, 8, 5.5, 'F');
                     doc.setTextColor(255, 255, 255);
-                    doc.text(code, xLeg + 5, legendY + 4.2, { align: 'center' });
-                    doc.setTextColor(50, 50, 80);
-                    doc.setFont('helvetica', 'normal');
-                    doc.setFontSize(6);
-                    doc.text(label, xLeg + 12, legendY + 4);
-                    xLeg += 68;
+                    doc.setFontSize(5);
+                    doc.text(code, xLeg + 4, legendY - 0.5, { align: 'center' });
+                    doc.setTextColor(60, 60, 80);
+                    doc.setFontSize(5.5);
+                    doc.text(label, xLeg + 10, legendY - 0.5);
+                    xLeg += 44;
                 });
 
-                // Footer
-                doc.setFontSize(7);
+                // ── Footer ───────────────────────────────────────────────────
+                doc.setFontSize(6);
                 doc.setTextColor(160, 160, 180);
                 doc.text(
-                    `CORAZA SEGURIDAD CTA - Cra. 81 #49-24, Medellin - Tel: 311 3836939 - PAGINA ${puestoIdx + 1} de ${filteredData.length}`,
-                    pageW / 2,
-                    pageH - 6,
-                    { align: 'center' }
+                    `CORAZA SEGURIDAD CTA — ${MONTH_NAMES[scheduleMonth]} ${scheduleYear} — Tel: 311 3836939 — Pagina ${puestoIdx + 1} de ${filteredData.length}`,
+                    pageW / 2, pageH - 5, { align: 'center' }
                 );
             });
 
-            doc.save(`CORAZA_Programacion_${monthNames[scheduleMonth]}_${scheduleYear}.pdf`);
+            doc.save(`CORAZA_Programacion_${MONTH_NAMES[scheduleMonth]}_${scheduleYear}.pdf`);
             showTacticalToast({
-                title: 'Exportacion Exitosa',
-                message: `La programacion de ${monthNames[scheduleMonth]} ha sido generada correctamente.`,
+                title: 'PDF Generado',
+                message: `Cuadro Operativo de ${MONTH_NAMES[scheduleMonth]} ${scheduleYear} descargado correctamente.`,
                 type: 'success'
             });
             setGenerated(true);
-            setTimeout(() => setGenerated(false), 3000);
+            setTimeout(() => setGenerated(false), 4000);
         } catch (error) {
-            console.error('PDF Generation Error:', error);
-            showTacticalToast({
-                title: 'Error de Exportacion',
-                message: 'No se pudo generar el archivo PDF. Verifique la integridad de los datos.',
-                type: 'error'
-            });
+            console.error('PDF Error:', error);
+            showTacticalToast({ title: 'Error de Exportacion', message: 'No se pudo generar el PDF.', type: 'error' });
         } finally {
             setIsGenerating(false);
         }
     };
 
+    // ── JSX ───────────────────────────────────────────────────────────────────
     return (
         <div className="page-container animate-in fade-in duration-500 pb-24">
 
@@ -321,22 +456,26 @@ const Resumen = () => {
                         <span className="size-2 bg-primary animate-pulse rounded-full shadow-[0_0_10px_rgba(67,24,255,0.5)]" />
                         <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.3em]">Centro de Reportes</p>
                     </div>
-                    <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tight">
+                    <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">
                         Resumen <span className="text-primary">Programado</span>
-                    </h3>
-                    <p className="text-sm text-slate-400 mt-1 font-medium">CUADRO OPERATIVO de vigilantes por puesto - Exportable en PDF</p>
+                    </h1>
+                    <p className="text-sm text-slate-400 mt-1 font-medium">Cuadro operativo de vigilantes por puesto — Exportable en PDF</p>
                 </div>
                 <button
+                    id="btn-exportar-pdf"
                     onClick={generateSchedulePDF}
                     disabled={isGenerating || filteredData.length === 0}
-                    className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-[12px] transition-all active:scale-95 shadow-xl ${generated ? 'bg-success text-white shadow-success/30' : 'bg-primary text-white shadow-primary/30 hover:bg-primary/90'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                    className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-[12px] transition-all active:scale-95 shadow-xl ${
+                        generated ? 'bg-success text-white shadow-success/30' :
+                        'bg-primary text-white shadow-primary/30 hover:brightness-110'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                     {isGenerating ? (
-                        <><span className="material-symbols-outlined text-[22px] animate-spin notranslate">progress_activity</span>Generando PDF...</>
+                        <><span className="material-symbols-outlined text-[22px] animate-spin">progress_activity</span>Generando PDF...</>
                     ) : generated ? (
-                        <><span className="material-symbols-outlined text-[22px] notranslate">check_circle</span>PDF Descargado</>
+                        <><span className="material-symbols-outlined text-[22px]">check_circle</span>PDF Descargado</>
                     ) : (
-                        <><span className="material-symbols-outlined text-[22px] notranslate">picture_as_pdf</span>Descargar CUADRO OPERATIVO</>
+                        <><span className="material-symbols-outlined text-[22px]">picture_as_pdf</span>Descargar Cuadro Operativo</>
                     )}
                 </button>
             </div>
@@ -351,7 +490,7 @@ const Resumen = () => {
                 ].map(s => (
                     <div key={s.label} className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
                         <div className={`${s.bg} size-10 rounded-2xl flex items-center justify-center mb-3`}>
-                            <span className={`material-symbols-outlined ${s.color} notranslate`}>{s.icon}</span>
+                            <span className={`material-symbols-outlined ${s.color}`}>{s.icon}</span>
                         </div>
                         <p className={`text-3xl font-black ${s.color}`}>{s.value}</p>
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{s.label}</p>
@@ -362,7 +501,7 @@ const Resumen = () => {
             {/* Filtros */}
             <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm mb-6 space-y-4">
                 <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[16px] text-primary notranslate">tune</span>
+                    <span className="material-symbols-outlined text-[16px] text-primary">tune</span>
                     Filtros de Exportacion
                 </h3>
                 <div className="flex flex-wrap gap-4 items-end">
@@ -385,12 +524,11 @@ const Resumen = () => {
                         </select>
                     </div>
 
-                    {/* Schedule period */}
                     <div className="flex items-center gap-2 ml-auto">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Periodo del PDF:</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Mes / Año:</label>
                         <select value={scheduleMonth} onChange={e => setScheduleMonth(Number(e.target.value))}
                             className="bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 text-sm font-bold text-slate-700 outline-none focus:border-primary/30">
-                            {monthNames.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                            {MONTH_NAMES.map((m, i) => <option key={i} value={i}>{m}</option>)}
                         </select>
                         <input type="number" value={scheduleYear} onChange={e => setScheduleYear(Number(e.target.value))}
                             min={2024} max={2030}
@@ -399,98 +537,121 @@ const Resumen = () => {
                 </div>
             </div>
 
-            {/* Preview: Schedule Grid */}
+            {/* Preview Grid */}
             <div className="space-y-6">
                 {filteredData.length === 0 ? (
                     <div className="text-center py-24 text-slate-300">
-                        <span className="material-symbols-outlined text-5xl notranslate">plagiarism</span>
+                        <span className="material-symbols-outlined text-5xl">plagiarism</span>
                         <p className="mt-4 text-[11px] font-black uppercase tracking-widest">Sin datos para mostrar</p>
                     </div>
-                ) : (
-                    filteredData.map((p, idx) => {
-                        const pColor = PUESTO_COLORS[p.colorIdx % PUESTO_COLORS.length];
-                        const pColorStr = `rgb(${pColor[0]},${pColor[1]},${pColor[2]})`;
-                        return (
-                            <div key={p.id} className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm animate-in slide-in-from-bottom-2 fade-in" style={{ animationDelay: `${idx * 40}ms` }}>
-                                {/* Post header */}
-                                <div className="px-6 py-4 flex items-center justify-between" style={{ background: `linear-gradient(135deg, ${pColorStr}22 0%, transparent 100%)`, borderBottom: `2px solid ${pColorStr}33` }}>
-                                    <div className="flex items-center gap-4">
-                                        <div className="size-10 rounded-xl flex items-center justify-center" style={{ background: `${pColorStr}20` }}>
-                                            <span className="material-symbols-outlined notranslate" style={{ color: pColorStr }}>hub</span>
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-mono text-[10px] font-bold" style={{ color: pColorStr }}>{p.id}</span>
-                                                {p.numeroContrato && <span className="text-[9px] text-slate-400 font-bold bg-slate-100 px-2 py-0.5 rounded-full">Contrato: {p.numeroContrato}</span>}
-                                            </div>
-                                            <h4 className="text-base font-bold text-slate-900">{p.nombre}</h4>
-                                            {(p.cliente || p.tipoServicio) && <p className="text-[10px] text-slate-400 font-medium">{p.cliente}{p.cliente && p.tipoServicio ? ' - ' : ''}{p.tipoServicio}</p>}
-                                        </div>
+                ) : filteredData.map((p, idx) => {
+                    const pColor = PUESTO_COLORS[p.colorIdx % PUESTO_COLORS.length];
+                    const pColorStr = `rgb(${pColor[0]},${pColor[1]},${pColor[2]})`;
+                    const ROL_ORDER: Record<string, number> = { 'titular_a': 0, 'titular_b': 1, 'relevante': 2 };
+                    const sortedRows = [...p.rows].sort((a, b) => (ROL_ORDER[a.rol] ?? 99) - (ROL_ORDER[b.rol] ?? 99));
+
+                    return (
+                        <div key={p.id} className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm animate-in slide-in-from-bottom-2 fade-in" style={{ animationDelay: `${idx * 40}ms` }}>
+                            {/* Puesto header */}
+                            <div className="px-6 py-4 flex items-center justify-between" style={{ background: `linear-gradient(135deg, ${pColorStr}15 0%, transparent 100%)`, borderBottom: `2px solid ${pColorStr}30` }}>
+                                <div className="flex items-center gap-4">
+                                    <div className="size-10 rounded-xl flex items-center justify-center" style={{ background: `${pColorStr}20` }}>
+                                        <span className="material-symbols-outlined" style={{ color: pColorStr }}>hub</span>
                                     </div>
+                                    <div>
+                                        <span className="font-mono text-[10px] font-bold" style={{ color: pColorStr }}>{p.id}</span>
+                                        <h4 className="text-base font-bold text-slate-900">{p.nombre}</h4>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    {p.prog ? (
+                                        <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full border ${
+                                            p.prog.estado === 'publicado'
+                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                : 'bg-amber-50 text-amber-700 border-amber-200'
+                                        }`}>
+                                            {p.prog.estado === 'publicado' ? '✓ Publicado' : '⏳ Borrador'}
+                                        </span>
+                                    ) : (
+                                        <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full bg-red-50 text-red-600 border border-red-200">
+                                            Sin Programacion
+                                        </span>
+                                    )}
                                     <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full ${p.coberturaCompleta ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
-                                        {p.coberturaCompleta ? '✓ 24H Completas' : `${p.horasDescubiertas.length} franjas sin cubrir`}
+                                        {p.coberturaCompleta ? '24H OK' : 'Con huecos'}
                                     </span>
                                 </div>
-
-                                {/* Schedule Preview Grid */}
-                                <div className="overflow-x-auto p-4">
-                                    <table className="text-[10px] w-full border-collapse">
-                                        <thead>
-                                            <tr>
-                                                <th className="text-left px-3 py-2 bg-slate-50 border border-slate-100 font-black text-slate-400 uppercase tracking-widest w-28">Cedula</th>
-                                                <th className="text-left px-3 py-2 bg-slate-50 border border-slate-100 font-black text-slate-400 uppercase tracking-widest w-48">Vigilante</th>
-                                                <th className="px-2 py-2 bg-slate-50 border border-slate-100 font-black text-slate-400 uppercase tracking-widest w-14">Ano</th>
-                                                <th className="px-2 py-2 bg-slate-50 border border-slate-100 font-black text-slate-400 uppercase tracking-widest w-16">Mes</th>
-                                                {dayNumbers.map(d => (
-                                                    <th key={d} className="px-1 py-2 bg-slate-50 border border-slate-100 font-black text-slate-400 text-center" style={{ minWidth: '30px' }}>{d}</th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {p.turnosDetalle.length === 0 ? (
-                                                <tr>
-                                                    <td colSpan={4 + daysInMonth} className="px-4 py-6 text-center text-warning font-bold bg-orange-50 border border-slate-100">
-                                                        ⚠ Sin vigilantes asignados
-                                                    </td>
-                                                </tr>
-                                            ) : p.turnosDetalle.map((t, ti) => {
-                                                const shiftCode = getShiftAbbrev(t.horaInicio, t.horaFin);
-                                                const isNight = shiftCode.startsWith('N');
-                                                const cellBg = isNight ? '#0b1437' : pColorStr;
-                                                return (
-                                                    <tr key={t.vigilanteId} className={ti % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
-                                                        <td className="px-3 py-2 border border-slate-100 font-mono font-bold text-slate-600">{t.cedula}</td>
-                                                        <td className="px-3 py-2 border border-slate-100 font-bold text-slate-900">{t.nombre}</td>
-                                                        <td className="px-2 py-2 border border-slate-100 text-center text-slate-500">{scheduleYear}</td>
-                                                        <td className="px-2 py-2 border border-slate-100 text-center text-slate-500 font-bold">{monthNames[scheduleMonth].slice(0, 3).toUpperCase()}</td>
-                                                        {dayNumbers.map(d => (
-                                                            <td key={d} className="border border-slate-100 text-center p-0">
-                                                                <div className="px-0.5 py-1" style={{ background: cellBg }}>
-                                                                    <span className="text-[9px] font-black" style={{ color: 'white' }}>{shiftCode}</span>
-                                                                </div>
-                                                            </td>
-                                                        ))}
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                {/* Legend for this post */}
-                                <div className="px-6 pb-4 flex flex-wrap gap-3 items-center">
-                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-2">Leyenda:</span>
-                                    {[['D12', 'Diurno 06a18', pColorStr, '#fff'], ['N12', 'Nocturno 18a06', '#0b1437', '#fff']].map(([code, label, bg, fg]) => (
-                                        <div key={code} className="flex items-center gap-1.5">
-                                            <div className="px-2 py-0.5 rounded text-[9px] font-black" style={{ background: bg, color: fg }}>{code}</div>
-                                            <span className="text-[9px] text-slate-500">{label}</span>
-                                        </div>
-                                    ))}
-                                </div>
                             </div>
-                        );
-                    })
-                )}
+
+                            {/* Schedule Grid */}
+                            <div className="overflow-x-auto p-4">
+                                <table className="text-[10px] w-full border-collapse">
+                                    <thead>
+                                        <tr>
+                                            <th className="text-left px-2 py-2 bg-slate-50 border border-slate-100 font-black text-slate-400 uppercase tracking-wider w-14">Rol</th>
+                                            <th className="text-left px-2 py-2 bg-slate-50 border border-slate-100 font-black text-slate-400 uppercase tracking-wider w-24">Cedula</th>
+                                            <th className="text-left px-2 py-2 bg-slate-50 border border-slate-100 font-black text-slate-400 uppercase tracking-wider w-44">Vigilante</th>
+                                            {dayNumbers.map(d => (
+                                                <th key={d} className="px-0.5 py-2 bg-slate-50 border border-slate-100 font-black text-slate-400 text-center" style={{ minWidth: '28px' }}>{d}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {sortedRows.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={3 + daysInMonth} className="px-4 py-6 text-center text-warning font-bold bg-orange-50 border border-slate-100">
+                                                    Sin vigilantes asignados en este mes
+                                                </td>
+                                            </tr>
+                                        ) : sortedRows.map((row, ri) => (
+                                            <tr key={row.vigilanteId} className={ri % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                                                <td className="px-2 py-2 border border-slate-100">
+                                                    <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded" style={{ background: pColorStr + '20', color: pColorStr }}>
+                                                        {row.rol === 'titular_a' ? 'TIT-A' : row.rol === 'titular_b' ? 'TIT-B' : 'REL'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-2 py-2 border border-slate-100 font-mono text-[10px] text-slate-500">{row.cedula}</td>
+                                                <td className="px-2 py-2 border border-slate-100 font-bold text-slate-900">{row.nombre}</td>
+                                                {dayNumbers.map(d => {
+                                                    const asig = row.asigs.find(a => a.dia === d);
+                                                    const jornada = asig?.jornada ?? 'sin_asignar';
+                                                    const hasData = asig?.vigilanteId && jornada !== 'sin_asignar';
+                                                    const bgColor = hasData
+                                                        ? `rgb(${(JORNADA_COLORS_PDF[jornada] || pColor).join(',')})`
+                                                        : '#f5f5f5';
+                                                    const label = hasData ? (JORNADA_SHORT[jornada] || '-') : '';
+                                                    return (
+                                                        <td key={d} className="border border-slate-100 text-center p-0">
+                                                            <div className="px-0.5 py-1" style={{ background: bgColor }}>
+                                                                <span className="text-[8px] font-black" style={{ color: hasData ? 'white' : '#ccc' }}>{label || '—'}</span>
+                                                            </div>
+                                                        </td>
+                                                    );
+                                                })}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Legend */}
+                            <div className="px-6 pb-4 flex flex-wrap gap-3 items-center border-t border-slate-100 pt-3">
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-2">Leyenda:</span>
+                                {[
+                                    ['N', 'Normal', `rgb(${pColor.join(',')})`, '#fff'],
+                                    ['DR', 'Desc. Rem.', '#00b377', '#fff'],
+                                    ['DNR', 'Desc. N/Rem.', '#ff9500', '#fff'],
+                                    ['VAC', 'Vacacion', '#8b5cf6', '#fff'],
+                                ].map(([code, label, bg, fg]) => (
+                                    <div key={code} className="flex items-center gap-1.5">
+                                        <div className="px-2 py-0.5 rounded text-[9px] font-black" style={{ background: bg, color: fg }}>{code}</div>
+                                        <span className="text-[9px] text-slate-500">{label}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );

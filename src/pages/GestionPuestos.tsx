@@ -741,7 +741,7 @@ const PanelMensualPuesto = ({
       if (isSyncing) {
         e.preventDefault();
         e.returnValue =
-          "Hay cambios guardándose en la nube. Â¿Deseas salir de todas formas?";
+          "Hay cambios guardándose en la nube. ¿Deseas salir de todas formas?";
       }
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
@@ -842,7 +842,7 @@ const PanelMensualPuesto = ({
       if (alertasDisparadas.current.has(key)) return;
       alertasDisparadas.current.add(key);
       addAIAction({
-        text: `**ASIGNACIÃ“N INCOMPLETA:** El puesto "${puestoNombre}" tiene ${progAsignacionesCountForEffect} turnos sin vigilante asignado para ${MONTH_NAMES[mes]}.`,
+        text: `**ASIGNACIÁ“N INCOMPLETA:** El puesto "${puestoNombre}" tiene ${progAsignacionesCountForEffect} turnos sin vigilante asignado para ${MONTH_NAMES[mes]}.`,
         type: "notification",
         sender: "ai",
         priority: "medium",
@@ -1086,12 +1086,12 @@ const PanelMensualPuesto = ({
         );
         doc.setFontSize(7);
         doc.text(
-          `MES: ${MONTH_NAMES[mes].toUpperCase()} ${anio} · EMISIÃ“N: ${shortTimestamp}`,
+          `MES: ${MONTH_NAMES[mes].toUpperCase()} ${anio} · EMISIÁ“N: ${shortTimestamp}`,
           margin + 34,
           16,
         );
         doc.text(
-          `RESPONSABLE: ${username?.toUpperCase() || "CENTRAL"} · PÃGINA: ${pageNum}`,
+          `RESPONSABLE: ${username?.toUpperCase() || "CENTRAL"} · PÁGINA: ${pageNum}`,
           margin + 34,
           21,
         );
@@ -1106,14 +1106,14 @@ const PanelMensualPuesto = ({
       doc.setFont("helvetica", "bold");
       doc.setTextColor(255, 255, 255);
       doc.text(
-        "REPORTE TÃCTICO DE PROGRAMACIÃ“N — CORAZA SEGURIDAD CTA",
+        "REPORTE TÁCTICO DE PROGRAMACIÁ“N — CORAZA SEGURIDAD CTA",
         margin + 34,
         13,
       );
 
       doc.setFontSize(8);
       doc.setTextColor(180, 200, 255);
-      doc.text(`INSTALACIÃ“N: ${puestoNombre.toUpperCase()}`, margin + 34, 20);
+      doc.text(`INSTALACIÁ“N: ${puestoNombre.toUpperCase()}`, margin + 34, 20);
       doc.text(
         `MES OPERATIVO: ${MONTH_NAMES[mes].toUpperCase()} ${anio}`,
         margin + 34,
@@ -1128,7 +1128,7 @@ const PanelMensualPuesto = ({
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(7);
       doc.text(
-        `VERSIÃ“N: ${prog.version} · ESTADO: ${prog.estado.toUpperCase()}`,
+        `VERSIÁ“N: ${prog.version} · ESTADO: ${prog.estado.toUpperCase()}`,
         pageW - margin,
         13,
         { align: "right" },
@@ -1140,7 +1140,7 @@ const PanelMensualPuesto = ({
       doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(accentLight[0], accentLight[1], accentLight[2]);
-      doc.text("DETALLES TÃ‰CNICOS DEL PUESTO", margin + 5, curY + 7);
+      doc.text("DETALLES TÁ‰CNICOS DEL PUESTO", margin + 5, curY + 7);
       doc.setFontSize(7);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(60, 60, 90);
@@ -1178,9 +1178,9 @@ const PanelMensualPuesto = ({
       doc.setFontSize(6);
       const headersSummary = [
         "ROL",
-        "CÃ‰DULA / ID",
+        "CÁ‰DULA / ID",
         "NOMBRES Y APELLIDOS COMPLETOS",
-        "DÃAS T.",
+        "DÁAS T.",
         "Q1 (R/NR)",
         "Q2 (R/NR)",
         "TOTAL DESC.",
@@ -1275,7 +1275,7 @@ const PanelMensualPuesto = ({
       drawStickyHeader(gridY);
       gridY += headerRowH;
 
-      // â”€â”€ Render one row per (personal Ã— turno) combination â”€â”€
+      // â”€â”€ Render one row per (personal Á— turno) combination â”€â”€
       const allRows: Array<{
         per: (typeof prog.personal)[0];
         turno: TurnoConfig;
@@ -1414,12 +1414,12 @@ const PanelMensualPuesto = ({
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(7);
         doc.setFont("helvetica", "bold");
-        doc.text("PROGRAMACIÃ“N INDIVIDUAL DE TURNO", m + 26, 11);
+        doc.text("PROGRAMACIÁ“N INDIVIDUAL DE TURNO", m + 26, 11);
         doc.setFontSize(6);
         doc.setFont("helvetica", "normal");
         doc.text(`PUESTO / OBRA: ${puestoNombre.toUpperCase()}`, m + 26, 17);
         doc.text(`MES: ${MONTH_NAMES[mes].toUpperCase()} ${anio}`, m + 26, 22);
-        doc.text(`EMISIÃ“N: ${timestampStr.toUpperCase()}`, m + 26, 27);
+        doc.text(`EMISIÁ“N: ${timestampStr.toUpperCase()}`, m + 26, 27);
 
         // Big guard name box
         doc.setFillColor(accentLight[0], accentLight[1], accentLight[2]);
@@ -1433,7 +1433,7 @@ const PanelMensualPuesto = ({
         doc.setTextColor(200, 215, 255);
         doc.setFontSize(5.5);
         doc.text(
-          `CÃ‰D: ${vig.cedula || "—"}  ·  ROL: ${ROL_LABELS[per.rol]}  ·  EMPLEADOR: CORAZA SEGURIDAD CTA`,
+          `CÁ‰D: ${vig.cedula || "—"}  ·  ROL: ${ROL_LABELS[per.rol]}  ·  EMPLEADOR: CORAZA SEGURIDAD CTA`,
           pW / 2,
           40,
           { align: "center" },
@@ -1473,7 +1473,7 @@ const PanelMensualPuesto = ({
         doc.setFontSize(5.5);
         doc.setFont("helvetica", "bold");
         let hx = m + 2;
-        const headers = ["FECHA", "DÃA", "TURNO", "HORARIO", "JORNADA"];
+        const headers = ["FECHA", "DÁA", "TURNO", "HORARIO", "JORNADA"];
         const widths = [colDate, colDay, colTurno, colHoras, colJornada];
         headers.forEach((h, hi) => {
           doc.text(h, hx, cardY + 5);
@@ -1488,7 +1488,7 @@ const PanelMensualPuesto = ({
             (a.rol === per.rol && per.vigilanteId === vid),
         );
 
-        const weekdays = ["DOM", "LUN", "MAR", "MIÃ‰", "JUE", "VIE", "SÃB"];
+        const weekdays = ["DOM", "LUN", "MAR", "MIÁ‰", "JUE", "VIE", "SÁB"];
 
         dayNumbers.forEach((d, dIdx) => {
           if (cardY + tdH > pH - 40) {
@@ -1672,7 +1672,7 @@ const PanelMensualPuesto = ({
       doc.text("FIRMA RESPONSABLE CTA", margin + 40, sigY + 4, {
         align: "center",
       });
-      doc.text("VÂ°BÂ° CONTROL Y SUPERVISIÃ“N", pageW / 2, sigY + 4, {
+      doc.text("VÂ°BÂ° CONTROL Y SUPERVISIÁ“N", pageW / 2, sigY + 4, {
         align: "center",
       });
       doc.text("RECIBIDO VIGILANTE / CLIENTE", pageW - margin - 40, sigY + 4, {
