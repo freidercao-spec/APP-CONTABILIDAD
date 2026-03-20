@@ -3068,14 +3068,15 @@ const PanelMensualPuesto = ({
         const targetProg = allProgramaciones.find(p => p.id === editCell.progId) || prog;
         return createPortal(
           <EditCeldaModal
+            key={`${editCell.progId}-${editCell.asig.dia}-${editCell.asig.rol}-${editCell.asig.vigilanteId || 'new'}`}
             asig={editCell.asig}
             vigilantes={vigilantes}
-            titularesId={targetProg.personal
-              .filter((p) => p.vigilanteId)
-              .map((p) => p.vigilanteId!)}
+            titularesId={targetProg?.personal
+              ?.filter((p) => p.vigilanteId)
+              .map((p) => p.vigilanteId!) || []}
             ocupados={ocupados}
-            turnosConfig={targetProg.puestoId === prog.puestoId ? turnosConfig : (allPuestos.find(p => p.id === targetProg.puestoId || p.dbId === targetProg.puestoId)?.turnosConfig || DEFAULT_TURNOS)}
-            jornadasCustom={targetProg.puestoId === prog.puestoId ? jornadasCustom : (allPuestos.find(p => p.id === targetProg.puestoId || p.dbId === targetProg.puestoId)?.jornadasCustom || [])}
+            turnosConfig={targetProg?.puestoId === prog.puestoId ? turnosConfig : (allPuestos.find(p => p.id === targetProg?.puestoId || p.dbId === targetProg?.puestoId)?.turnosConfig || DEFAULT_TURNOS)}
+            jornadasCustom={targetProg?.puestoId === prog.puestoId ? jornadasCustom : (allPuestos.find(p => p.id === targetProg?.puestoId || p.dbId === targetProg?.puestoId)?.jornadasCustom || [])}
             onSave={handleSaveCell}
             onClose={() => setEditCell(null)}
             initialVigilanteId={editCell.preSelectVigilanteId}
@@ -3312,8 +3313,8 @@ const PanelMensualPuesto = ({
                             (a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === (vig as any)?.dbId)
                           );
 
-                          // 1. Ocupado en Puesto Origen (Barra Superior)
-                          const isOcupadoOrigen = !!(myAsig && myAsig.jornada === "normal" && myAsig.vigilanteId);
+                          // 1. Ocupado en Puesto Origen (Barra Superior) — Cualquier jornada asignada cuenta
+                          const isOcupadoOrigen = !!(myAsig && myAsig.vigilanteId && myAsig.jornada !== "sin_asignar");
                           
                           // 2. Ocupado en Puesto Destino (Ya está ahí)
                           const asigDest = cProg?.asignaciones.find(
@@ -3411,30 +3412,41 @@ const PanelMensualPuesto = ({
                               key={d}
                               title={tooltipText}
                                 onClick={() => {
-                                  // Re-obtener cProg de forma robusta al hacer clic para asegurar que estÃ¡ disponible
+                                  // Re-obtener cProg de forma robusta
                                   const cP = allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId);
                                   const currentCProg = cP ? getProgramacion(cP.id, anio, mes) : null;
                                   
                                   if (!currentCProg) {
                                     showTacticalToast({
-                                      title: "Cargando datos...",
-                                      message: "Aun consultando la programacion del puesto destino. Reintenta en un segundo.",
+                                      title: "⌛ Preparando Tablero",
+                                      message: "Creamos el espacio para el nuevo puesto. Haz clic una vez más para abrir.",
                                       type: "info"
                                     });
+                                    // Disparar creación si hace falta
+                                    if (cP) {
+                                      crearOObtenerProgramacion(cP.id, anio, mes, username || "Sistema");
+                                    }
                                     return;
                                   }
 
-                                  // Intentar encontrar una vacante para ese dÃa en el puesto destino
+                                  // Buscar vacante disponible (primero AM, luego PM, luego el resto)
                                   let targetAsig = currentCProg.asignaciones.find(a => a.dia === d && !a.vigilanteId);
                                   if (!targetAsig) {
-                                    // Si no hay vacante, abrir la primera de ese dÃa
+                                    // Si no hay vacante, abrimos la primera asignación que exista para ese día (para que el usuario decida a quién reemplazar)
                                     targetAsig = currentCProg.asignaciones.find(a => a.dia === d);
                                   }
+
                                   if (targetAsig) {
                                     setEditCell({ 
                                       asig: targetAsig, 
                                       progId: currentCProg.id,
                                       preSelectVigilanteId: vid 
+                                    });
+                                  } else {
+                                    showTacticalToast({
+                                      title: "❌ No se pudo abrir",
+                                      message: "Asegúrate de que el puesto destino tenga turnos configurados.",
+                                      type: "error"
                                     });
                                   }
                                 }}
