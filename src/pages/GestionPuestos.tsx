@@ -2068,7 +2068,14 @@ const PanelMensualPuesto = ({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-6">
+      <div
+        className="flex-1 overflow-auto p-6"
+        style={{
+          paddingBottom: activeTab === "calendario"
+            ? compareExpanded ? "316px" : "62px"
+            : "24px",
+        }}
+      >
         {/* — CALENDARIO —————————————————————————————————————————————————— */}
         {activeTab === "calendario" && (
           <div className="space-y-5">
