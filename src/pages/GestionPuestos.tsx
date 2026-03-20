@@ -747,6 +747,10 @@ const PanelMensualPuesto = ({
   const [tplNombre, setTplNombre] = useState("");
   const alertasDisparadas = useRef<Set<string>>(new Set());
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // --- Compare Panel State ---
+  const [comparePuestoId, setComparePuestoId] = useState<string | null>(null);
+  const [compareExpanded, setCompareExpanded] = useState(true);
   const fetchProgramacionById = useProgramacionStore(
     (s) => s.fetchProgramacionById,
   );
@@ -3057,6 +3061,250 @@ const PanelMensualPuesto = ({
           />,
           document.body,
         )}
+
+      {/* ====================================================================
+          COMPARE PANEL — sticky bottom bar for cross-puesto coordination
+          ==================================================================== */}
+      {activeTab === "calendario" && (
+        <div
+          className="fixed bottom-0 left-0 right-0 z-40 border-t-2 border-indigo-200 shadow-2xl"
+          style={{
+            background: "linear-gradient(180deg, #1e1b4b 0%, #0f172a 100%)",
+            maxHeight: compareExpanded ? "280px" : "44px",
+            transition: "max-height 0.35s cubic-bezier(0.4,0,0.2,1)",
+            overflow: "hidden",
+          }}
+        >
+          {/* Header bar — always visible */}
+          <div className="flex items-center gap-3 px-4 h-11 border-b border-white/10">
+            <span className="material-symbols-outlined text-indigo-400 text-[16px]">compare_arrows</span>
+            <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">
+              Panel Comparador de Puestos
+            </span>
+
+            {/* Puesto selector */}
+            <select
+              value={comparePuestoId || ""}
+              onChange={(e) => setComparePuestoId(e.target.value || null)}
+              className="ml-2 h-7 bg-white/10 border border-white/20 text-white text-[10px] font-bold rounded-lg px-2 outline-none focus:border-indigo-400 transition-all"
+              style={{ minWidth: "180px" }}
+            >
+              <option value="">— Seleccionar puesto a comparar —</option>
+              {allPuestos
+                .filter((p) => p.id !== puestoId && p.dbId !== puestoId)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>{p.nombre}</option>
+                ))}
+            </select>
+
+            {comparePuestoId && (
+              <span className="text-[9px] font-bold text-indigo-400 flex items-center gap-1">
+                <span className="size-2 rounded-full bg-emerald-400 inline-block animate-pulse" />
+                Comparando activo
+              </span>
+            )}
+
+            <div className="ml-auto flex items-center gap-2">
+              {comparePuestoId && (
+                <button
+                  onClick={() => setComparePuestoId(null)}
+                  className="text-[9px] font-black text-red-300 hover:text-red-200 px-2 py-1 rounded-lg hover:bg-red-500/20 transition-all"
+                >
+                  Limpiar
+                </button>
+              )}
+              <button
+                onClick={() => setCompareExpanded(!compareExpanded)}
+                className="size-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all"
+              >
+                <span className="material-symbols-outlined text-white text-[16px]">
+                  {compareExpanded ? "expand_more" : "expand_less"}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Compare content */}
+          {comparePuestoId && (() => {
+            const cPuesto = allPuestos.find((p) => p.id === comparePuestoId || p.dbId === comparePuestoId);
+            const cProg = allProgramaciones.find(
+              (p) =>
+                (p.puestoId === comparePuestoId ||
+                  p.puestoId === cPuesto?.dbId ||
+                  p.puestoId === cPuesto?.id) &&
+                p.anio === anio &&
+                p.mes === mes,
+            );
+
+            // Build a map: dia -> vigilanteId[] that are occupied in compare puesto
+            const compareOcupados = new Map<number, string[]>();
+            cProg?.asignaciones.forEach((a) => {
+              if (a.vigilanteId && a.jornada === "normal") {
+                const list = compareOcupados.get(a.dia) || [];
+                list.push(a.vigilanteId);
+                compareOcupados.set(a.dia, list);
+              }
+            });
+
+            // Guards in THIS puesto's personal
+            const myVigilanteIds = prog?.personal
+              .map((p) => p.vigilanteId)
+              .filter(Boolean) as string[];
+
+            const daysArr = Array.from({ length: new Date(anio, mes + 1, 0).getDate() }, (_, i) => i + 1);
+            const weekDayLetters = ["D", "L", "M", "X", "J", "V", "S"];
+
+            return (
+              <div className="px-4 pt-3 pb-4 overflow-x-auto">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-[11px] font-black text-white uppercase tracking-widest">
+                    {cPuesto?.nombre || comparePuestoId}
+                  </span>
+                  <span className="text-[9px] text-indigo-400 font-bold">
+                    {MONTH_NAMES[mes]} {anio}
+                  </span>
+                  {!cProg && (
+                    <span className="text-[9px] text-orange-300 font-bold bg-orange-400/10 px-2 py-0.5 rounded-full">
+                      Sin programacion este mes
+                    </span>
+                  )}
+                  {/* Legend */}
+                  <div className="ml-auto flex items-center gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <div className="size-2.5 rounded-sm bg-emerald-500" />
+                      <span className="text-[9px] text-slate-300 font-bold">Libre</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="size-2.5 rounded-sm bg-red-500" />
+                      <span className="text-[9px] text-slate-300 font-bold">Ocupado (conflicto)</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="size-2.5 rounded-sm bg-slate-600" />
+                      <span className="text-[9px] text-slate-300 font-bold">Sin asignar</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Per-vigilante mini-grid rows */}
+                <div className="space-y-1.5">
+                  {/* Day numbers header */}
+                  <div className="flex gap-0.5 items-center">
+                    <div style={{ minWidth: "130px" }} className="text-[8px] font-black text-slate-500 uppercase">
+                      Vigilante
+                    </div>
+                    {daysArr.map((d) => {
+                      const dow = new Date(anio, mes, d).getDay();
+                      const isW = dow === 0 || dow === 6;
+                      return (
+                        <div
+                          key={d}
+                          className={`text-center font-black text-[7px] flex flex-col items-center`}
+                          style={{ minWidth: "22px" }}
+                        >
+                          <span className={isW ? "text-indigo-400" : "text-slate-500"}>
+                            {weekDayLetters[dow]}
+                          </span>
+                          <span className={isW ? "text-indigo-300" : "text-slate-300"}>
+                            {d}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* One row per vigilante in THIS puesto */}
+                  {(prog?.personal || []).filter(p => p.vigilanteId).map((per) => {
+                    const vig = vigilantes.find(
+                      (v) => v.id === per.vigilanteId || v.dbId === per.vigilanteId,
+                    );
+                    const vid = per.vigilanteId!;
+
+                    return (
+                      <div key={per.rol} className="flex gap-0.5 items-center">
+                        {/* Guard name */}
+                        <div
+                          style={{ minWidth: "130px" }}
+                          className="text-[9px] font-black text-white truncate pr-2 flex items-center gap-1"
+                        >
+                          <span
+                            className="size-2 rounded-full shrink-0"
+                            style={{
+                              background:
+                                per.rol === "titular_a" ? "#4318FF" :
+                                per.rol === "titular_b" ? "#0ea5e9" : "#10b981",
+                            }}
+                          />
+                          {vig?.nombre.split(" ")[0] || vid}
+                        </div>
+
+                        {/* Day cells */}
+                        {daysArr.map((d) => {
+                          const compareVids = compareOcupados.get(d) || [];
+                          const isConflict = compareVids.includes(vid) ||
+                            (vig?.dbId ? compareVids.includes(vig.dbId) : false);
+
+                          const myAsig = prog?.asignaciones.find(
+                            (a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === vig?.dbId),
+                          );
+                          const myJornada = myAsig?.jornada || "sin_asignar";
+                          const isMyWork = myJornada === "normal";
+
+                          // What does the COMPARE puesto say this guard is doing?
+                          const compareAsig = cProg?.asignaciones.find(
+                            (a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === vig?.dbId),
+                          );
+                          const compareTurno = compareAsig?.turno || null;
+
+                          let cellColor = "#1e293b"; // default gray (not in compare puesto)
+                          let cellLabel = "";
+                          if (isConflict) {
+                            cellColor = "#dc2626"; // red = conflict
+                            cellLabel = compareTurno || "OCU";
+                          } else if (cProg && !isConflict) {
+                            cellColor = "#16a34a"; // green = free in compare puesto
+                            cellLabel = "LIB";
+                          }
+
+                          const dow = new Date(anio, mes, d).getDay();
+                          const isW = dow === 0 || dow === 6;
+
+                          return (
+                            <div
+                              key={d}
+                              title={`Dia ${d}: ${isConflict ? `CONFLICTO - trabajando en ${cPuesto?.nombre} (${compareTurno})` : "Libre en este puesto"}`}
+                              className="rounded-sm flex items-center justify-center text-[6px] font-black transition-all"
+                              style={{
+                                minWidth: "22px",
+                                height: "22px",
+                                background: isConflict ? cellColor : (cProg ? cellColor : (isW ? "#334155" : "#1e293b")),
+                                opacity: isW && !isConflict ? 0.7 : 1,
+                                color: "#fff",
+                                border: isMyWork && isConflict ? "2px solid #fbbf24" : "none",
+                              }}
+                            >
+                              {isConflict ? cellLabel : (cProg ? "+" : "")}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Empty state */}
+          {!comparePuestoId && compareExpanded && (
+            <div className="flex flex-col items-center justify-center h-28 gap-2">
+              <span className="material-symbols-outlined text-indigo-800 text-[36px]">compare_arrows</span>
+              <p className="text-[10px] font-bold text-indigo-600">
+                Selecciona un puesto para comparar programaciones y coordinar relevantes
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
