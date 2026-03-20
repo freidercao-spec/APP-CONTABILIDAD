@@ -3234,12 +3234,21 @@ const PanelMensualPuesto = ({
                   </div>
                   {daysArr.map((d) => {
                     const dow = new Date(anio, mes, d).getDay();
-                    const isW = dow === 0 || dow === 6;
                     const isSun = dow === 0;
+                    const isW = dow === 0 || dow === 6;
+                    
+                    // Calcular vacantes en destino
+                    const asigsDest = cProg?.asignaciones.filter(a => a.dia === d) || [];
+                    const hasVacancy = asigsDest.some(a => !a.vigilanteId);
+                    const isFull = asigsDest.length > 0 && !hasVacancy;
+
                     return (
-                      <div key={d} className="flex flex-col items-center" style={{ minWidth: "28px" }}>
+                      <div key={d} className="flex flex-col items-center relative" style={{ minWidth: "28px" }}>
                         <span className={`text-[7px] font-bold leading-none ${isSun ? "text-red-400" : isW ? "text-indigo-400" : "text-slate-600"}`}>{WD[dow]}</span>
                         <span className={`text-[10px] font-black leading-tight ${isSun ? "text-red-300" : isW ? "text-indigo-300" : "text-slate-300"}`}>{d}</span>
+                        {isFull && (
+                          <div className="absolute -top-1 size-1 rounded-full bg-red-500 animate-pulse" title="Puesto destino sin vacantes este día" />
+                        )}
                       </div>
                     );
                   })}
@@ -3282,24 +3291,37 @@ const PanelMensualPuesto = ({
 
                         {/* Day cells — Lógica de disponibilidad */}
                         {daysArr.map((d) => {
-                          // Buscar si el vigilante YA ESTÁ PROGRAMADO en el puesto SUPERIOR (barra superior) ese día
-                          const myAsig = prog?.asignaciones.find(
+                          // 1. Ocupado en Puesto Origen (Barra Superior)
+                          const isOcupadoOrigen = !!(myAsig && myAsig.jornada === "normal" && myAsig.vigilanteId);
+                          
+                          // 2. Ocupado en Puesto Destino (Ya está ahí)
+                          const asigDest = cProg?.asignaciones.find(
                             (a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === vig?.dbId)
                           );
-                          // Está "ocupado" si tiene jornada normal (trabajando) en el puesto actual de la barra superior
-                          const isOcupado = !!(myAsig && myAsig.jornada === "normal" && myAsig.vigilanteId);
-                          // Tiene descanso/vacación ese día en el puesto superior
+                          const isOcupadoDestino = !!(asigDest && asigDest.jornada === "normal");
+
+                          // 3. Ocupado en OTROS puestos (Mapa global)
+                          const slotsGlobales = ocupados.get(vid) || ocupados.get(vig?.dbId || "") || [];
+                          const ocupacionGlobal = slotsGlobales.find(s => s.slot.startsWith(`${d}-`));
+                          const isOcupadoGlobal = !!ocupacionGlobal;
+
+                          // 4. Descansos
                           const isDescanso = !!(myAsig && (
                             myAsig.jornada === "descanso_remunerado" ||
                             myAsig.jornada === "descanso_no_remunerado" ||
                             myAsig.jornada === "vacacion"
                           ));
-                          // Verif post-PM: si trabajó turno PM el día anterior, necesita descanso hoy
+
+                          // 5. Descanso post-PM
                           const prevAsig = prog?.asignaciones.find(
                             (a) => a.dia === d - 1 && (a.vigilanteId === vid || a.vigilanteId === vig?.dbId)
                           );
                           const isDescansoPM = !!(prevAsig && prevAsig.jornada === "normal" && prevAsig.turno === "PM");
-                          // Turno del día en el puesto superior (para chip)
+
+                          // 6. Vacantes en destino
+                          const asigsDestDia = cProg?.asignaciones.filter(a => a.dia === d) || [];
+                          const sinVacante = asigsDestDia.length > 0 && asigsDestDia.every(a => a.vigilanteId);
+
                           const myTurno = myAsig?.turno || null;
                           const dow = new Date(anio, mes, d).getDay();
                           const isW = dow === 0 || dow === 6;
@@ -3311,40 +3333,56 @@ const PanelMensualPuesto = ({
                           let glow: string;
                           let tooltipText: string;
 
-                          if (isOcupado) {
-                            // 🔴 ROJO — Ya tiene turno normal en el puesto superior ese día
+                          if (isOcupadoDestino) {
+                            // 🔵 AZUL — Ya está programado en el destino
+                            bg = "linear-gradient(135deg,#1e3a8a 0%,#1e40af 100%)";
+                            icon = "how_to_reg";
+                            iconColor = "#93c5fd";
+                            borderColor = "#3b82f6";
+                            glow = "0 0 8px rgba(59,130,246,0.5)";
+                            tooltipText = `DÍA ${d} | ${vig?.nombre}: YA PROGRAMADO AQUÍ (${cPuesto?.nombre}). Turno: ${asigDest?.turno}`;
+                          } else if (isOcupadoOrigen) {
+                            // 🔴 ROJO — Ocupado en origen
                             bg = "linear-gradient(135deg,#991b1b 0%,#7f1d1d 100%)";
                             icon = "block";
                             iconColor = "#fca5a5";
                             borderColor = "#ef444466";
-                            glow = "0 0 6px rgba(239,68,68,0.4)";
-                            tooltipText = `DÍA ${d} | ${vig?.nombre || vid}: YA PROGRAMADO en "${puestoNombre}" (${myTurno || ""}) — NO disponible para ${cPuesto?.nombre}`;
+                            glow = "none";
+                            tooltipText = `DÍA ${d} | ${vig?.nombre}: OCUPADO en origen (${puestoNombre})`;
+                          } else if (isOcupadoGlobal) {
+                            // 🟤 CAFÉ/TRANS — Ocupado en un TERCER puesto
+                            bg = "linear-gradient(135deg,#451a03 0%,#78350f 100%)";
+                            icon = "warning";
+                            iconColor = "#fbbf24";
+                            borderColor = "#b45309";
+                            glow = "none";
+                            tooltipText = `DÍA ${d} | ${vig?.nombre}: OCUPADO en "${ocupacionGlobal.puesto}" (${ocupacionGlobal.slot.split("-")[1]})`;
                           } else if (isDescanso) {
-                            // 🟠 NARANJA — Tiene descanso o vacación en el puesto superior
+                            // 🟠 NARANJA
                             bg = "linear-gradient(135deg,#7c2d12 0%,#431407 100%)";
                             icon = "bedtime";
                             iconColor = "#fdba74";
                             borderColor = "#f9731666";
                             glow = "none";
-                            tooltipText = `DÍA ${d} | ${vig?.nombre || vid}: ${myAsig?.jornada === "vacacion" ? "Vacación" : "Descanso"} en "${puestoNombre}" — Verificar disponibilidad`;
+                            tooltipText = `DÍA ${d} | ${vig?.nombre}: Descanso/Vacación en Origen`;
                           } else if (isDescansoPM) {
-                            // 🟡 AMARILLO — Descanso post-turno PM del día anterior
+                            // 🟡 AMARILLO (Post-PM)
                             bg = "linear-gradient(135deg,#713f12 0%,#854d0e 100%)";
                             icon = "schedule";
                             iconColor = "#fde68a";
                             borderColor = "#fbbf2466";
                             glow = "none";
-                            tooltipText = `DÍA ${d} | ${vig?.nombre || vid}: Descanso post-PM (vino de turno PM el día ${d-1})`;
+                            tooltipText = `DÍA ${d} | ${vig?.nombre}: Descanso post-PM`;
                           } else {
-                            // 🟢 VERDE — Libre, puede programarse en el otro puesto
-                            bg = isW
-                              ? "linear-gradient(135deg,#14532d 0%,#15803d 100%)"
-                              : "linear-gradient(135deg,#166534 0%,#15803d90 100%)";
-                            icon = "check_circle";
-                            iconColor = "#86efac";
-                            borderColor = "#22c55e55";
-                            glow = "0 0 5px rgba(34,197,94,0.3)";
-                            tooltipText = `DÍA ${d} | ${vig?.nombre || vid}: LIBRE — Puede programarse en "${cPuesto?.nombre}"`;
+                            // 🟢 VERDE — Disponible
+                            bg = sinVacante ? "rgba(255,255,255,0.05)" : (isW ? "linear-gradient(135deg,#14532d 0%,#15803d 100%)" : "linear-gradient(135deg,#166534 0%,#15803d90 100%)");
+                            icon = sinVacante ? "not_interested" : "check_circle";
+                            iconColor = sinVacante ? "#475569" : "#86efac";
+                            borderColor = sinVacante ? "transparent" : "#22c55e55";
+                            glow = sinVacante ? "none" : "0 0 5px rgba(34,197,94,0.3)";
+                            tooltipText = sinVacante 
+                              ? `DÍA ${d} | ${vig?.nombre}: LIBRE, pero ${cPuesto?.nombre} ya no tiene vacantes este día.`
+                              : `DÍA ${d} | ${vig?.nombre}: LIBRE y disponible para cubrir en ${cPuesto?.nombre}`;
                           }
 
                           return (
@@ -3379,8 +3417,8 @@ const PanelMensualPuesto = ({
                               <span className="material-symbols-outlined" style={{ fontSize: "12px", color: iconColor }}>{icon}</span>
                               <div className="absolute inset-0 bg-white/0 group-hover/cell:bg-white/10 transition-colors rounded-[inherit]" />
                               
-                              {/* Chip del turno cuando está ocupado */}
-                              {isOcupado && myTurno && (
+                              {/* Chip del turno cuando está ocupado en origen */}
+                              {isOcupadoOrigen && myTurno && (
                                 <span
                                   className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[5px] font-black px-1 rounded leading-[1.5]"
                                   style={{ background: "#dc2626", color: "#fff", whiteSpace: "nowrap shadow-sm" }}
