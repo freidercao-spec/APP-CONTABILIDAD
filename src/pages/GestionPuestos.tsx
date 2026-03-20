@@ -3152,14 +3152,7 @@ const PanelMensualPuesto = ({
                 p.anio === anio && p.mes === mes,
             );
 
-            const compareOcupados = new Map<number, string[]>();
-            cProg?.asignaciones.forEach((a) => {
-              if (a.vigilanteId && a.jornada === "normal") {
-                const list = compareOcupados.get(a.dia) || [];
-                list.push(a.vigilanteId);
-                compareOcupados.set(a.dia, list);
-              }
-            });
+            // cProg is available for future use or extended logic
 
             const daysArr = Array.from({ length: new Date(anio, mes + 1, 0).getDate() }, (_, i) => i + 1);
             const WD = ["D","L","M","X","J","V","S"];
@@ -3178,28 +3171,29 @@ const PanelMensualPuesto = ({
                   <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/20">
                     {MONTH_NAMES[mes]} {anio}
                   </span>
-                  {!cProg && (
-                    <span className="text-[8px] text-amber-300 font-bold bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-full">
-                      Sin programacion
-                    </span>
-                  )}
+                  {/* Instruction label */}
+                  <span className="text-[7px] font-bold px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-300 border border-slate-600/30">
+                    Disponibilidad según: <span className="text-indigo-300">{puestoNombre}</span>
+                  </span>
                   {/* Legend */}
-                  <div className="ml-auto flex items-center gap-4">
-                    {[
-                      { bg: "linear-gradient(135deg,#14532d,#15803d)", icon: "check", label: "Libre", color: "#86efac" },
-                      { bg: "linear-gradient(135deg,#7f1d1d,#991b1b)", icon: "block", label: "Conflicto", color: "#fca5a5" },
-                      { bg: "rgba(30,41,59,0.9)", icon: "", label: "Sin datos", color: "#475569" },
-                    ].map(({ bg, icon, label, color }) => (
-                      <div key={label} className="flex items-center gap-1.5">
-                        <div className="w-5 h-4 rounded-md flex items-center justify-center" style={{ background: bg }}>
-                          {icon && <span className="material-symbols-outlined text-white" style={{ fontSize: "9px" }}>{icon}</span>}
-                        </div>
-                        <span className="text-[8px] font-bold" style={{ color }}>{label}</span>
+                  <div className="ml-auto flex items-center gap-3 flex-shrink-0">
+                    <div className="flex items-center gap-1">
+                      <div className="w-5 h-4 rounded-md flex items-center justify-center" style={{ background: "linear-gradient(135deg,#166534,#15803d)" }}>
+                        <span className="material-symbols-outlined text-white" style={{ fontSize: "9px" }}>check_circle</span>
                       </div>
-                    ))}
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-5 h-4 rounded-md border-2 border-amber-400" style={{ background: "rgba(251,191,36,0.1)" }} />
-                      <span className="text-[8px] font-bold text-amber-300">Doble turno</span>
+                      <span className="text-[8px] font-bold text-emerald-400">Puede programarse</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-5 h-4 rounded-md flex items-center justify-center" style={{ background: "linear-gradient(135deg,#991b1b,#7f1d1d)" }}>
+                        <span className="material-symbols-outlined text-white" style={{ fontSize: "9px" }}>block</span>
+                      </div>
+                      <span className="text-[8px] font-bold text-red-400">Ya programado (OCUPADO)</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-5 h-4 rounded-md flex items-center justify-center" style={{ background: "linear-gradient(135deg,#713f12,#854d0e)" }}>
+                        <span className="material-symbols-outlined text-white" style={{ fontSize: "9px" }}>bedtime</span>
+                      </div>
+                      <span className="text-[8px] font-bold text-orange-300">Descanso/Vacación</span>
                     </div>
                   </div>
                 </div>
@@ -3250,40 +3244,77 @@ const PanelMensualPuesto = ({
                           </div>
                         </div>
 
-                        {/* Day cells */}
+                        {/* Day cells — Lógica de disponibilidad */}
                         {daysArr.map((d) => {
-                          const compareVids = compareOcupados.get(d) || [];
-                          const isConflict = compareVids.includes(vid) || (vig?.dbId ? compareVids.includes(vig.dbId) : false);
-                          const compareAsig = cProg?.asignaciones.find((a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === vig?.dbId));
-                          const compareTurno = compareAsig?.turno || null;
-                          const myAsig = prog?.asignaciones.find((a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === vig?.dbId));
-                          const doubleConflict = myAsig?.jornada === "normal" && isConflict;
+                          // Buscar si el vigilante YA ESTÁ PROGRAMADO en el puesto SUPERIOR (barra superior) ese día
+                          const myAsig = prog?.asignaciones.find(
+                            (a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === vig?.dbId)
+                          );
+                          // Está "ocupado" si tiene jornada normal (trabajando) en el puesto actual de la barra superior
+                          const isOcupado = !!(myAsig && myAsig.jornada === "normal" && myAsig.vigilanteId);
+                          // Tiene descanso/vacación ese día en el puesto superior
+                          const isDescanso = !!(myAsig && (
+                            myAsig.jornada === "descanso_remunerado" ||
+                            myAsig.jornada === "descanso_no_remunerado" ||
+                            myAsig.jornada === "vacacion"
+                          ));
+                          // Verif post-PM: si trabajó turno PM el día anterior, necesita descanso hoy
+                          const prevAsig = prog?.asignaciones.find(
+                            (a) => a.dia === d - 1 && (a.vigilanteId === vid || a.vigilanteId === vig?.dbId)
+                          );
+                          const isDescansoPM = !!(prevAsig && prevAsig.jornada === "normal" && prevAsig.turno === "PM");
+                          // Turno del día en el puesto superior (para chip)
+                          const myTurno = myAsig?.turno || null;
                           const dow = new Date(anio, mes, d).getDay();
                           const isW = dow === 0 || dow === 6;
 
-                          let bg = isW ? "rgba(30,41,59,0.8)" : "rgba(17,24,39,0.8)";
-                          let icon = "";
-                          let iconColor = "#fff";
-                          let borderColor = "rgba(255,255,255,0.04)";
-                          let glow = "none";
+                          let bg: string;
+                          let icon: string;
+                          let iconColor: string;
+                          let borderColor: string;
+                          let glow: string;
+                          let tooltipText: string;
 
-                          if (isConflict) {
+                          if (isOcupado) {
+                            // 🔴 ROJO — Ya tiene turno normal en el puesto superior ese día
                             bg = "linear-gradient(135deg,#991b1b 0%,#7f1d1d 100%)";
                             icon = "block";
                             iconColor = "#fca5a5";
-                            borderColor = doubleConflict ? "#fbbf24" : "#ef444455";
-                            glow = doubleConflict ? "0 0 8px rgba(251,191,36,0.5)" : "0 0 6px rgba(239,68,68,0.3)";
-                          } else if (cProg) {
-                            bg = "linear-gradient(135deg,#14532d 0%,#15803d66 100%)";
-                            icon = "check";
+                            borderColor = "#ef444466";
+                            glow = "0 0 6px rgba(239,68,68,0.4)";
+                            tooltipText = `DÍA ${d} | ${vig?.nombre || vid}: YA PROGRAMADO en "${puestoNombre}" (${myTurno || ""}) — NO disponible para ${cPuesto?.nombre}`;
+                          } else if (isDescanso) {
+                            // 🟠 NARANJA — Tiene descanso o vacación en el puesto superior
+                            bg = "linear-gradient(135deg,#7c2d12 0%,#431407 100%)";
+                            icon = "bedtime";
+                            iconColor = "#fdba74";
+                            borderColor = "#f9731666";
+                            glow = "none";
+                            tooltipText = `DÍA ${d} | ${vig?.nombre || vid}: ${myAsig?.jornada === "vacacion" ? "Vacación" : "Descanso"} en "${puestoNombre}" — Verificar disponibilidad`;
+                          } else if (isDescansoPM) {
+                            // 🟡 AMARILLO — Descanso post-turno PM del día anterior
+                            bg = "linear-gradient(135deg,#713f12 0%,#854d0e 100%)";
+                            icon = "schedule";
+                            iconColor = "#fde68a";
+                            borderColor = "#fbbf2466";
+                            glow = "none";
+                            tooltipText = `DÍA ${d} | ${vig?.nombre || vid}: Descanso post-PM (vino de turno PM el día ${d-1})`;
+                          } else {
+                            // 🟢 VERDE — Libre, puede programarse en el otro puesto
+                            bg = isW
+                              ? "linear-gradient(135deg,#14532d 0%,#15803d 100%)"
+                              : "linear-gradient(135deg,#166534 0%,#15803d90 100%)";
+                            icon = "check_circle";
                             iconColor = "#86efac";
-                            borderColor = "#22c55e33";
+                            borderColor = "#22c55e55";
+                            glow = "0 0 5px rgba(34,197,94,0.3)";
+                            tooltipText = `DÍA ${d} | ${vig?.nombre || vid}: LIBRE — Puede programarse en "${cPuesto?.nombre}"`;
                           }
 
                           return (
                             <div
                               key={d}
-                              title={`Dia ${d} | ${vig?.nombre || vid}: ${isConflict ? `CONFLICTO en ${cPuesto?.nombre} (${compareTurno || "otro turno"})` : cProg ? "Disponible este dia" : "Sin info del otro puesto"}`}
+                              title={tooltipText}
                               className="relative flex items-center justify-center rounded-md cursor-default transition-all hover:scale-125 hover:z-20"
                               style={{
                                 minWidth: "28px",
@@ -3293,17 +3324,14 @@ const PanelMensualPuesto = ({
                                 boxShadow: glow,
                               }}
                             >
-                              {icon
-                                ? <span className="material-symbols-outlined" style={{ fontSize: "12px", color: iconColor }}>{icon}</span>
-                                : <span style={{ fontSize: "7px", color: "#334155", fontWeight: 900 }}>{d}</span>
-                              }
-                              {/* Turno chip on conflict */}
-                              {isConflict && compareTurno && (
+                              <span className="material-symbols-outlined" style={{ fontSize: "12px", color: iconColor }}>{icon}</span>
+                              {/* Chip del turno cuando está ocupado */}
+                              {isOcupado && myTurno && (
                                 <span
                                   className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[5px] font-black px-1 rounded leading-[1.5]"
                                   style={{ background: "#dc2626", color: "#fff", whiteSpace: "nowrap" }}
                                 >
-                                  {compareTurno}
+                                  {myTurno}
                                 </span>
                               )}
                             </div>
