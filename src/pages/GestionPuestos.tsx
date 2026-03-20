@@ -1073,6 +1073,10 @@ const PanelMensualPuesto = ({
         pageNum: number,
         totalPages: number,
       ) => {
+        // Reset background
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, pageW, pageH, "F");
+
         doc.setFillColor(accent[0], accent[1], accent[2]);
         doc.rect(0, 0, pageW, 25, "F");
         addHeaderLogo(doc);
@@ -1097,7 +1101,10 @@ const PanelMensualPuesto = ({
         );
       };
 
-      // â”€â”€ PAGE 1: DETALLES Y RESUMEN â”€â”€
+      // ── PAGE 1: DETALLES Y RESUMEN ──
+      doc.setFillColor(255, 255, 255); // White background
+      doc.rect(0, 0, pageW, pageH, "F");
+      
       doc.setFillColor(accent[0], accent[1], accent[2]);
       doc.rect(0, 0, pageW, 34, "F");
       addHeaderLogo(doc);
@@ -1230,13 +1237,13 @@ const PanelMensualPuesto = ({
         curY += 7;
       });
 
-      // â”€â”€ PAGE 2+: CALENDAR GRID â”€â”€
+      // ── PAGE 2+: CALENDAR GRID ──
       doc.addPage("a4", "landscape");
       let currentPage = 2;
       addGridHeader(doc, currentPage, 0);
 
       let gridY = 32;
-      const colW = (pageW - margin * 2) / (daysInMonth + 4.5);
+      const colW = (pageW - margin * 2) / (daysInMonth + 5); // Added more space for names
       const headerRowH = 10;
       const dataRowH = 16;
 
@@ -1401,41 +1408,39 @@ const PanelMensualPuesto = ({
         const pH = doc.internal.pageSize.getHeight();
         const m = 12;
 
-        // â”€â”€ Card header banner â”€â”€
-        doc.setFillColor(accent[0], accent[1], accent[2]);
-        doc.rect(0, 0, pW, 42, "F");
-        if (logoBase64) {
-          try {
-            doc.addImage(logoBase64, "PNG", m, 6, 22, 22);
-          } catch (e) {
-            /* no logo */
-          }
-        }
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(7);
-        doc.setFont("helvetica", "bold");
-        doc.text("PROGRAMACIÁ“N INDIVIDUAL DE TURNO", m + 26, 11);
-        doc.setFontSize(6);
-        doc.setFont("helvetica", "normal");
-        doc.text(`PUESTO / OBRA: ${puestoNombre.toUpperCase()}`, m + 26, 17);
-        doc.text(`MES: ${MONTH_NAMES[mes].toUpperCase()} ${anio}`, m + 26, 22);
-        doc.text(`EMISIÁ“N: ${timestampStr.toUpperCase()}`, m + 26, 27);
+        // ── 100% WHITE BACKGROUND ──
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, pW, pH, "F");
 
-        // Big guard name box
-        doc.setFillColor(accentLight[0], accentLight[1], accentLight[2]);
-        doc.roundedRect(m + 26, 30, pW - m * 2 - 26, 9, 2, 2, "F");
-        doc.setTextColor(255, 255, 255);
+        // ── Clean Header (No blue box) ──
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.5);
+        doc.line(m, 32, pW - m, 32);
+
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.text("PROGRAMACION INDIVIDUAL DE TURNO", m, 11);
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "normal");
+        doc.text(`PUESTO: ${puestoNombre.toUpperCase()}`, m, 18);
+        doc.text(`MES: ${MONTH_NAMES[mes].toUpperCase()} ${anio}`, m, 23);
+        doc.text(`EMISION: ${timestampStr.toUpperCase()}`, m, 28);
+
+        // Guard Name Box (Light gray instead of blue)
+        doc.setFillColor(240, 240, 240);
+        doc.roundedRect(pW / 2 - 40, 35, 80, 8, 1, 1, "F");
+        doc.setTextColor(0, 0, 0);
         doc.setFontSize(9);
         doc.setFont("helvetica", "bold");
-        doc.text(vig.nombre.toUpperCase(), pW / 2, 35.5, { align: "center" });
+        doc.text(vig.nombre.toUpperCase(), pW / 2, 40.5, { align: "center" });
 
         // Sub info
-        doc.setTextColor(200, 215, 255);
-        doc.setFontSize(5.5);
+        doc.setFontSize(6);
         doc.text(
-          `CÁ‰D: ${vig.cedula || "—"}  ·  ROL: ${ROL_LABELS[per.rol]}  ·  EMPLEADOR: CORAZA SEGURIDAD CTA`,
+          `CED: ${vig.cedula || "—"}  |  EMPLEADOR: CORAZA SEGURIDAD CTA`,
           pW / 2,
-          40,
+          46,
           { align: "center" },
         );
 
@@ -1473,7 +1478,7 @@ const PanelMensualPuesto = ({
         doc.setFontSize(5.5);
         doc.setFont("helvetica", "bold");
         let hx = m + 2;
-        const headers = ["FECHA", "DÁA", "TURNO", "HORARIO", "JORNADA"];
+        const headers = ["FECHA", "DIA", "TURNO", "HORARIO", "JORNADA"];
         const widths = [colDate, colDay, colTurno, colHoras, colJornada];
         headers.forEach((h, hi) => {
           doc.text(h, hx, cardY + 5);
@@ -1488,7 +1493,7 @@ const PanelMensualPuesto = ({
             (a.rol === per.rol && per.vigilanteId === vid),
         );
 
-        const weekdays = ["DOM", "LUN", "MAR", "MIÁ‰", "JUE", "VIE", "SÁB"];
+        const weekdays = ["DOM", "LUN", "MAR", "MIE", "JUE", "VIE", "SAB"];
 
         dayNumbers.forEach((d, dIdx) => {
           if (cardY + tdH > pH - 40) {
@@ -1508,9 +1513,17 @@ const PanelMensualPuesto = ({
             cardY += thH;
           }
 
-          const asig = diasDelVig.find((a) => a.dia === d);
+          const dateObj2 = new Date(anio, mes, d);
+          const isWeekend2 = dateObj2.getDay() === 0 || dateObj2.getDay() === 6;
+
+          const asig = prog.asignaciones.find(
+            (a) =>
+              a.dia === d &&
+              (a.vigilanteId === vid || a.vigilanteId === vig?.dbId) &&
+              (a.rol === per.rol)
+          );
+          
           const jornada = asig?.jornada ?? "sin_asignar";
-          const jCfg2 = getJornada(jornada, jornadasCustom);
           const tCfg2 = asig?.turno
             ? turnosConfig.find((t) => t.id === asig.turno)
             : null;
