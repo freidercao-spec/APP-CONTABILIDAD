@@ -198,14 +198,9 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                 .maybeSingle();
 
             if (existing && existing.id !== prog.id) {
-                console.warn(`🔄 [SYNC] Resolviendo discrepancia de ID: ${prog.id} -> ${existing.id}`);
+                // Conflict: The DB already has a record for this Puesto/Month/Year with a different UUID.
+                // We MUST adopt the DB's UUID to maintain consistency across devices.
                 dbId = existing.id;
-                // Update local store to match DB ID for future operations
-                set((state: any) => ({
-                    programaciones: state.programaciones.map((p: any) => 
-                        p.id === prog.id ? { ...p, id: dbId } : p
-                    )
-                }));
             }
 
             // CRITICAL FIX: Check if server has newer version before overwriting

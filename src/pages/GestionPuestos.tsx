@@ -146,11 +146,24 @@ const hexToRgb = (hex: string): [number, number, number] => {
   return [r, g, b];
 };
 
+const TURNO_VISUAL: Record<string, { bg: string; bgGrad: string; text: string; icon: string; label: string; border: string }> = {
+  AM:  { bg: '#2563EB', bgGrad: 'linear-gradient(145deg, #3b82f6 0%, #1d4ed8 100%)', text: '#fff', icon: 'light_mode', label: 'DIA', border: '#60a5fa' },
+  PM:  { bg: '#1e1b4b', bgGrad: 'linear-gradient(145deg, #312e81 0%, #0f0a3c 100%)', text: '#c7d2fe', icon: 'dark_mode', label: 'NOCHE', border: '#6366f1' },
+  '24H': { bg: '#7c3aed', bgGrad: 'linear-gradient(145deg, #8b5cf6 0%, #6d28d9 100%)', text: '#fff', icon: 'schedule', label: '24H', border: '#a78bfa' },
+};
+
+const getTurnoVisual = (turnoId: string) => {
+  if (turnoId in TURNO_VISUAL) return TURNO_VISUAL[turnoId];
+  // Heuristic: if start hour is before 14:00 treat as AM-ish, else PM-ish
+  return TURNO_VISUAL['AM'];
+};
+
 const CeldaCalendario = ({
   asig,
   vigilanteNombre,
   onEdit,
   jornadasCustom,
+  turnosConfig,
 }: CeldaCalendarioProps) => {
   const jList = jornadasCustom?.length ? jornadasCustom : DEFAULT_JORNADAS;
   const j = jList.find((x) => x.id === asig.jornada) ?? DEFAULT_JORNADAS[4];
@@ -159,12 +172,17 @@ const CeldaCalendario = ({
   const nameParts = (vigilanteNombre || "").trim().split(" ");
   const firstName = nameParts[0] || "";
   const lastName = nameParts.slice(1).join(" ");
+  
+  // Determine turno visual style
+  const turnoConf = turnosConfig?.find(t => t.id === asig.turno);
+  const tv = getTurnoVisual(asig.turno);
+  const isDescanso = asig.jornada === 'descanso_remunerado' || asig.jornada === 'descanso_no_remunerado' || asig.jornada === 'vacacion';
 
   if (isSinAsignar) {
     return (
       <button
         onClick={onEdit}
-        title={`Día ${asig.dia} · Sin asignar — Click para asignar`}
+        title={`Dia ${asig.dia} - Sin asignar - Click para asignar`}
         className="w-full h-full rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-red-300 bg-red-50 hover:bg-red-100 hover:border-red-500 transition-all group"
         style={{ minHeight: "72px" }}
       >
@@ -178,25 +196,48 @@ const CeldaCalendario = ({
     );
   }
 
+  // For descansos/vacaciones, use jornada color but STILL show turno indicator
+  const cellBg = isDescanso ? j.color : tv.bg;
+  const cellGrad = isDescanso ? `linear-gradient(145deg, ${j.color} 0%, ${j.color}cc 100%)` : tv.bgGrad;
+  const cellText = isDescanso ? j.textColor : tv.text;
+  const turnoIcon = tv.icon;
+
   return (
     <button
       onClick={onEdit}
-      title={`${vigilanteNombre} · ${j.nombre}`}
-      className="w-full h-full rounded-lg flex flex-col items-center justify-center border border-white/20 shadow-sm hover:scale-105 hover:shadow-md hover:z-10 relative transition-all px-1 py-1.5"
-      style={{ background: j.color, minHeight: "72px" }}
+      title={`${vigilanteNombre} | ${turnoConf?.nombre || asig.turno} (${turnoConf?.inicio || ''}-${turnoConf?.fin || ''}) | ${j.nombre}`}
+      className="w-full h-full rounded-xl flex flex-col items-center justify-center shadow-sm hover:scale-105 hover:shadow-lg hover:z-10 relative transition-all px-1 py-1 overflow-hidden group"
+      style={{ background: cellGrad, minHeight: "72px", border: `2px solid ${isDescanso ? j.color : tv.border}44` }}
     >
+      {/* Turno icon indicator (top-left) */}
+      <span 
+        className="absolute top-1 left-1 material-symbols-outlined opacity-40 group-hover:opacity-70 transition-opacity"
+        style={{ fontSize: '11px', color: cellText }}
+      >
+        {turnoIcon}
+      </span>
+
+      {/* Turno label (top-right) */}
+      <span 
+        className="absolute top-1 right-1 text-[6px] font-black uppercase tracking-tight px-1 py-0.5 rounded-sm"
+        style={{ background: 'rgba(255,255,255,0.2)', color: cellText }}
+      >
+        {tv.label}
+      </span>
+
       {/* Jornada badge */}
       <span
-        className="text-[7px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-tight leading-none mb-1"
-        style={{ background: "rgba(0,0,0,0.25)", color: j.textColor }}
+        className="text-[7px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-tight leading-none mb-0.5 mt-2"
+        style={{ background: isDescanso ? 'rgba(0,0,0,0.25)' : j.color, color: '#fff' }}
       >
         {j.short}
       </span>
+
       {/* Vigilante first name */}
       {firstName && (
         <span
           className="text-[9px] font-black leading-tight text-center w-full px-0.5"
-          style={{ color: j.textColor }}
+          style={{ color: cellText }}
         >
           {firstName}
         </span>
@@ -204,10 +245,20 @@ const CeldaCalendario = ({
       {/* Vigilante last name (first word) */}
       {lastName && (
         <span
-          className="text-[8px] font-bold leading-none text-center w-full px-0.5 opacity-90"
-          style={{ color: j.textColor }}
+          className="text-[7px] font-bold leading-none text-center w-full px-0.5 opacity-80"
+          style={{ color: cellText }}
         >
           {lastName.split(" ")[0]}
+        </span>
+      )}
+
+      {/* Turno time footer */}
+      {turnoConf && (
+        <span 
+          className="text-[6px] font-bold mt-auto pt-0.5 opacity-60"
+          style={{ color: cellText }}
+        >
+          {turnoConf.inicio}-{turnoConf.fin}
         </span>
       )}
     </button>
@@ -1524,21 +1575,21 @@ const PanelMensualPuesto = ({
           );
           
           const jornada = asig?.jornada ?? "sin_asignar";
+          const jCfg2 = getJornada(jornada, jornadasCustom);
           const tCfg2 = asig?.turno
             ? turnosConfig.find((t) => t.id === asig.turno)
             : null;
           const isWork = jornada === "normal";
-          const dateObj2 = new Date(anio, mes, d);
-          const isWeekend2 = dateObj2.getDay() === 0 || dateObj2.getDay() === 6;
 
           // Row background
           let rowBg: [number, number, number] = isWork
-            ? hexToRgb(jCfg2.color + "22")
+            ? hexToRgb(jCfg2.color)
             : isWeekend2
               ? [248, 248, 255]
               : dIdx % 2 === 0
                 ? [252, 253, 255]
                 : [255, 255, 255];
+          if (isWork) rowBg = [rowBg[0], rowBg[1], rowBg[2]]; // Keep work color subtle
           doc.setFillColor(rowBg[0], rowBg[1], rowBg[2]);
           doc.rect(m, cardY, pW - m * 2, tdH, "F");
           doc.setDrawColor(230, 232, 240);
@@ -2072,10 +2123,29 @@ const PanelMensualPuesto = ({
               })}
             </div>
 
-            {/* — Legend + Jornadas —————————————————————————— */}
+            {/* -- Legend: Turnos + Jornadas --------------------------------- */}
             <div className="flex items-center gap-3 flex-wrap bg-white border border-slate-100 rounded-2xl px-4 py-3 shadow-sm">
               <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                Leyenda:
+                Turnos:
+              </span>
+              {/* AM/PM Visual */}
+              <div className="flex items-center gap-1.5">
+                <div className="size-5 rounded-md flex items-center justify-center shrink-0" style={{ background: TURNO_VISUAL.AM.bgGrad }}>
+                  <span className="material-symbols-outlined text-white" style={{ fontSize: '11px' }}>light_mode</span>
+                </div>
+                <span className="text-[10px] font-black text-blue-700">AM / DIA</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="size-5 rounded-md flex items-center justify-center shrink-0" style={{ background: TURNO_VISUAL.PM.bgGrad }}>
+                  <span className="material-symbols-outlined text-indigo-200" style={{ fontSize: '11px' }}>dark_mode</span>
+                </div>
+                <span className="text-[10px] font-black text-indigo-900">PM / NOCHE</span>
+              </div>
+
+              <div className="w-px h-5 bg-slate-200 mx-1" />
+              
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                Jornadas:
               </span>
               {(jornadasCustom.length ? jornadasCustom : DEFAULT_JORNADAS).map(
                 (j) => (
