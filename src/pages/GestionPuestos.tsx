@@ -3074,7 +3074,7 @@ const PanelMensualPuesto = ({
           ==================================================================== */}
       {activeTab === "calendario" && (
         <div
-          className="fixed bottom-0 left-0 right-0 z-40 shadow-2xl"
+          className="absolute bottom-0 left-0 right-0 z-50 shadow-[0_-20px_50px_rgba(0,0,0,0.4)]"
           style={{
             background: "linear-gradient(180deg, rgba(30,27,75,0.98) 0%, rgba(15,23,42,0.99) 100%)",
             backdropFilter: "blur(24px)",
