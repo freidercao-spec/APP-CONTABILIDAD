@@ -3063,80 +3063,95 @@ const PanelMensualPuesto = ({
         )}
 
       {/* ====================================================================
-          COMPARE PANEL — sticky bottom bar for cross-puesto coordination
+          COMPARE PANEL — Premium Glassmorphism Design
           ==================================================================== */}
       {activeTab === "calendario" && (
         <div
-          className="fixed bottom-0 left-0 right-0 z-40 border-t-2 border-indigo-200 shadow-2xl"
+          className="fixed bottom-0 left-0 right-0 z-40 shadow-2xl"
           style={{
-            background: "linear-gradient(180deg, #1e1b4b 0%, #0f172a 100%)",
-            maxHeight: compareExpanded ? "280px" : "44px",
-            transition: "max-height 0.35s cubic-bezier(0.4,0,0.2,1)",
+            background: "linear-gradient(180deg, rgba(30,27,75,0.98) 0%, rgba(15,23,42,0.99) 100%)",
+            backdropFilter: "blur(24px)",
+            borderTop: "1.5px solid rgba(99,102,241,0.3)",
+            maxHeight: compareExpanded ? "300px" : "46px",
+            transition: "max-height 0.4s cubic-bezier(0.4,0,0.2,1)",
             overflow: "hidden",
           }}
         >
-          {/* Header bar — always visible */}
-          <div className="flex items-center gap-3 px-4 h-11 border-b border-white/10">
-            <span className="material-symbols-outlined text-indigo-400 text-[16px]">compare_arrows</span>
-            <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">
-              Panel Comparador de Puestos
+          {/* ─── Header ─────────────────────────────────────────────────── */}
+          <div className="flex items-center gap-3 px-5 h-[46px] border-b border-white/8">
+            {/* Icon */}
+            <div className="size-6 rounded-lg bg-indigo-600/40 border border-indigo-500/30 flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-indigo-300" style={{ fontSize: "13px" }}>compare_arrows</span>
+            </div>
+            <span className="text-[9px] font-black text-indigo-300 uppercase tracking-widest shrink-0">
+              Coord. Relevantes
             </span>
 
-            {/* Puesto selector */}
+            {/* Current puesto */}
+            <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 bg-violet-500/15 border border-violet-500/20 rounded-full shrink-0">
+              <span className="size-1.5 rounded-full bg-violet-400" />
+              <span className="text-[8px] font-black text-violet-300 max-w-[90px] truncate">{puestoNombre}</span>
+            </div>
+
+            <span className="material-symbols-outlined text-slate-700 hidden sm:block text-[13px]">east</span>
+
+            {/* Selector */}
             <select
               value={comparePuestoId || ""}
               onChange={(e) => setComparePuestoId(e.target.value || null)}
-              className="ml-2 h-7 bg-white/10 border border-white/20 text-white text-[10px] font-bold rounded-lg px-2 outline-none focus:border-indigo-400 transition-all"
-              style={{ minWidth: "180px" }}
+              className="h-8 text-[10px] font-bold rounded-xl px-3 outline-none transition-all"
+              style={{
+                minWidth: "160px",
+                maxWidth: "220px",
+                background: comparePuestoId ? "rgba(99,102,241,0.2)" : "rgba(255,255,255,0.06)",
+                border: comparePuestoId ? "1.5px solid rgba(99,102,241,0.45)" : "1.5px solid rgba(255,255,255,0.1)",
+                color: "#e2e8f0",
+              }}
             >
-              <option value="">— Seleccionar puesto a comparar —</option>
-              {allPuestos
-                .filter((p) => p.id !== puestoId && p.dbId !== puestoId)
-                .map((p) => (
-                  <option key={p.id} value={p.id}>{p.nombre}</option>
-                ))}
+              <option value="" style={{ background: "#0f172a" }}>— Elegir puesto —</option>
+              {allPuestos.filter((p) => p.id !== puestoId && p.dbId !== puestoId).map((p) => (
+                <option key={p.id} value={p.id} style={{ background: "#0f172a" }}>{p.nombre}</option>
+              ))}
             </select>
 
             {comparePuestoId && (
-              <span className="text-[9px] font-bold text-indigo-400 flex items-center gap-1">
-                <span className="size-2 rounded-full bg-emerald-400 inline-block animate-pulse" />
-                Comparando activo
-              </span>
+              <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 bg-emerald-500/12 border border-emerald-500/25 rounded-full">
+                <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[7px] font-black text-emerald-300 uppercase tracking-wide">En vivo</span>
+              </div>
             )}
 
+            {/* Right */}
             <div className="ml-auto flex items-center gap-2">
               {comparePuestoId && (
                 <button
                   onClick={() => setComparePuestoId(null)}
-                  className="text-[9px] font-black text-red-300 hover:text-red-200 px-2 py-1 rounded-lg hover:bg-red-500/20 transition-all"
+                  className="h-6 px-2 rounded-lg text-[8px] font-black uppercase text-red-300 border border-red-500/20 hover:bg-red-500/20 transition-all"
                 >
                   Limpiar
                 </button>
               )}
               <button
                 onClick={() => setCompareExpanded(!compareExpanded)}
-                className="size-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all"
+                className="size-7 rounded-lg flex items-center justify-center border border-white/10 hover:bg-white/10 transition-all"
+                style={{ background: "rgba(255,255,255,0.05)" }}
               >
-                <span className="material-symbols-outlined text-white text-[16px]">
-                  {compareExpanded ? "expand_more" : "expand_less"}
+                <span className="material-symbols-outlined text-slate-300" style={{ fontSize: "16px" }}>
+                  {compareExpanded ? "keyboard_arrow_down" : "keyboard_arrow_up"}
                 </span>
               </button>
             </div>
           </div>
 
-          {/* Compare content */}
+          {/* ─── Grid Content ──────────────────────────────────────────── */}
           {comparePuestoId && (() => {
             const cPuesto = allPuestos.find((p) => p.id === comparePuestoId || p.dbId === comparePuestoId);
             const cProg = allProgramaciones.find(
               (p) =>
-                (p.puestoId === comparePuestoId ||
-                  p.puestoId === cPuesto?.dbId ||
-                  p.puestoId === cPuesto?.id) &&
-                p.anio === anio &&
-                p.mes === mes,
+                (p.puestoId === comparePuestoId || p.puestoId === cPuesto?.dbId || p.puestoId === cPuesto?.id) &&
+                p.anio === anio && p.mes === mes,
             );
 
-            // Build a map: dia -> vigilanteId[] that are occupied in compare puesto
             const compareOcupados = new Map<number, string[]>();
             cProg?.asignaciones.forEach((a) => {
               if (a.vigilanteId && a.jornada === "normal") {
@@ -3146,143 +3161,151 @@ const PanelMensualPuesto = ({
               }
             });
 
-            // Guards in THIS puesto's personal
-            const myVigilanteIds = prog?.personal
-              .map((p) => p.vigilanteId)
-              .filter(Boolean) as string[];
-
             const daysArr = Array.from({ length: new Date(anio, mes + 1, 0).getDate() }, (_, i) => i + 1);
-            const weekDayLetters = ["D", "L", "M", "X", "J", "V", "S"];
+            const WD = ["D","L","M","X","J","V","S"];
+            const ROL_GRAD: Record<string, string> = {
+              titular_a: "linear-gradient(135deg,#6366f1,#4338ca)",
+              titular_b: "linear-gradient(135deg,#0ea5e9,#0284c7)",
+              relevante: "linear-gradient(135deg,#10b981,#059669)",
+            };
 
             return (
-              <div className="px-4 pt-3 pb-4 overflow-x-auto">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-[11px] font-black text-white uppercase tracking-widest">
-                    {cPuesto?.nombre || comparePuestoId}
-                  </span>
-                  <span className="text-[9px] text-indigo-400 font-bold">
+              <div className="px-5 pt-3 pb-4 overflow-auto" style={{ maxHeight: "254px" }}>
+                {/* Sub-header */}
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="material-symbols-outlined text-indigo-400" style={{ fontSize: "13px" }}>location_on</span>
+                  <span className="text-[11px] font-black text-white uppercase tracking-wider">{cPuesto?.nombre}</span>
+                  <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/20">
                     {MONTH_NAMES[mes]} {anio}
                   </span>
                   {!cProg && (
-                    <span className="text-[9px] text-orange-300 font-bold bg-orange-400/10 px-2 py-0.5 rounded-full">
-                      Sin programacion este mes
+                    <span className="text-[8px] text-amber-300 font-bold bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-full">
+                      Sin programacion
                     </span>
                   )}
                   {/* Legend */}
-                  <div className="ml-auto flex items-center gap-3">
+                  <div className="ml-auto flex items-center gap-4">
+                    {[
+                      { bg: "linear-gradient(135deg,#14532d,#15803d)", icon: "check", label: "Libre", color: "#86efac" },
+                      { bg: "linear-gradient(135deg,#7f1d1d,#991b1b)", icon: "block", label: "Conflicto", color: "#fca5a5" },
+                      { bg: "rgba(30,41,59,0.9)", icon: "", label: "Sin datos", color: "#475569" },
+                    ].map(({ bg, icon, label, color }) => (
+                      <div key={label} className="flex items-center gap-1.5">
+                        <div className="w-5 h-4 rounded-md flex items-center justify-center" style={{ background: bg }}>
+                          {icon && <span className="material-symbols-outlined text-white" style={{ fontSize: "9px" }}>{icon}</span>}
+                        </div>
+                        <span className="text-[8px] font-bold" style={{ color }}>{label}</span>
+                      </div>
+                    ))}
                     <div className="flex items-center gap-1.5">
-                      <div className="size-2.5 rounded-sm bg-emerald-500" />
-                      <span className="text-[9px] text-slate-300 font-bold">Libre</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="size-2.5 rounded-sm bg-red-500" />
-                      <span className="text-[9px] text-slate-300 font-bold">Ocupado (conflicto)</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="size-2.5 rounded-sm bg-slate-600" />
-                      <span className="text-[9px] text-slate-300 font-bold">Sin asignar</span>
+                      <div className="w-5 h-4 rounded-md border-2 border-amber-400" style={{ background: "rgba(251,191,36,0.1)" }} />
+                      <span className="text-[8px] font-bold text-amber-300">Doble turno</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Per-vigilante mini-grid rows */}
-                <div className="space-y-1.5">
-                  {/* Day numbers header */}
-                  <div className="flex gap-0.5 items-center">
-                    <div style={{ minWidth: "130px" }} className="text-[8px] font-black text-slate-500 uppercase">
-                      Vigilante
-                    </div>
-                    {daysArr.map((d) => {
-                      const dow = new Date(anio, mes, d).getDay();
-                      const isW = dow === 0 || dow === 6;
-                      return (
-                        <div
-                          key={d}
-                          className={`text-center font-black text-[7px] flex flex-col items-center`}
-                          style={{ minWidth: "22px" }}
-                        >
-                          <span className={isW ? "text-indigo-400" : "text-slate-500"}>
-                            {weekDayLetters[dow]}
-                          </span>
-                          <span className={isW ? "text-indigo-300" : "text-slate-300"}>
-                            {d}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* One row per vigilante in THIS puesto */}
-                  {(prog?.personal || []).filter(p => p.vigilanteId).map((per) => {
-                    const vig = vigilantes.find(
-                      (v) => v.id === per.vigilanteId || v.dbId === per.vigilanteId,
+                {/* Day header */}
+                <div className="flex gap-1 items-end mb-1">
+                  <div style={{ minWidth: "164px" }} className="pl-2 text-[8px] font-black text-slate-600 uppercase tracking-widest">Efectivo</div>
+                  {daysArr.map((d) => {
+                    const dow = new Date(anio, mes, d).getDay();
+                    const isW = dow === 0 || dow === 6;
+                    const isSun = dow === 0;
+                    return (
+                      <div key={d} className="flex flex-col items-center" style={{ minWidth: "28px" }}>
+                        <span className={`text-[7px] font-bold leading-none ${isSun ? "text-red-400" : isW ? "text-indigo-400" : "text-slate-600"}`}>{WD[dow]}</span>
+                        <span className={`text-[10px] font-black leading-tight ${isSun ? "text-red-300" : isW ? "text-indigo-300" : "text-slate-300"}`}>{d}</span>
+                      </div>
                     );
+                  })}
+                </div>
+
+                {/* Guard rows */}
+                <div className="space-y-2">
+                  {(prog?.personal || []).filter(p => p.vigilanteId).map((per) => {
+                    const vig = vigilantes.find((v) => v.id === per.vigilanteId || v.dbId === per.vigilanteId);
                     const vid = per.vigilanteId!;
+                    const initials = vig?.nombre.trim().split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "?";
 
                     return (
-                      <div key={per.rol} className="flex gap-0.5 items-center">
-                        {/* Guard name */}
+                      <div key={per.rol} className="flex gap-1 items-center group/row">
+                        {/* Avatar + name */}
                         <div
-                          style={{ minWidth: "130px" }}
-                          className="text-[9px] font-black text-white truncate pr-2 flex items-center gap-1"
+                          className="shrink-0 flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all group-hover/row:bg-white/5"
+                          style={{ minWidth: "164px" }}
                         >
-                          <span
-                            className="size-2 rounded-full shrink-0"
-                            style={{
-                              background:
-                                per.rol === "titular_a" ? "#4318FF" :
-                                per.rol === "titular_b" ? "#0ea5e9" : "#10b981",
-                            }}
-                          />
-                          {vig?.nombre.split(" ")[0] || vid}
+                          <div
+                            className="size-8 rounded-xl flex items-center justify-center font-black text-white text-[10px] shrink-0 shadow-lg"
+                            style={{ background: ROL_GRAD[per.rol] || ROL_GRAD.titular_a }}
+                          >
+                            {initials}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[10px] font-black text-white truncate leading-tight">
+                              {vig?.nombre.split(" ").slice(0, 2).join(" ") || vid}
+                            </p>
+                            <p className="text-[7px] font-bold uppercase tracking-widest leading-tight text-indigo-400">
+                              {ROL_LABELS[per.rol as RolPuesto] || per.rol}
+                            </p>
+                          </div>
                         </div>
 
                         {/* Day cells */}
                         {daysArr.map((d) => {
                           const compareVids = compareOcupados.get(d) || [];
-                          const isConflict = compareVids.includes(vid) ||
-                            (vig?.dbId ? compareVids.includes(vig.dbId) : false);
-
-                          const myAsig = prog?.asignaciones.find(
-                            (a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === vig?.dbId),
-                          );
-                          const myJornada = myAsig?.jornada || "sin_asignar";
-                          const isMyWork = myJornada === "normal";
-
-                          // What does the COMPARE puesto say this guard is doing?
-                          const compareAsig = cProg?.asignaciones.find(
-                            (a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === vig?.dbId),
-                          );
+                          const isConflict = compareVids.includes(vid) || (vig?.dbId ? compareVids.includes(vig.dbId) : false);
+                          const compareAsig = cProg?.asignaciones.find((a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === vig?.dbId));
                           const compareTurno = compareAsig?.turno || null;
-
-                          let cellColor = "#1e293b"; // default gray (not in compare puesto)
-                          let cellLabel = "";
-                          if (isConflict) {
-                            cellColor = "#dc2626"; // red = conflict
-                            cellLabel = compareTurno || "OCU";
-                          } else if (cProg && !isConflict) {
-                            cellColor = "#16a34a"; // green = free in compare puesto
-                            cellLabel = "LIB";
-                          }
-
+                          const myAsig = prog?.asignaciones.find((a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === vig?.dbId));
+                          const doubleConflict = myAsig?.jornada === "normal" && isConflict;
                           const dow = new Date(anio, mes, d).getDay();
                           const isW = dow === 0 || dow === 6;
+
+                          let bg = isW ? "rgba(30,41,59,0.8)" : "rgba(17,24,39,0.8)";
+                          let icon = "";
+                          let iconColor = "#fff";
+                          let borderColor = "rgba(255,255,255,0.04)";
+                          let glow = "none";
+
+                          if (isConflict) {
+                            bg = "linear-gradient(135deg,#991b1b 0%,#7f1d1d 100%)";
+                            icon = "block";
+                            iconColor = "#fca5a5";
+                            borderColor = doubleConflict ? "#fbbf24" : "#ef444455";
+                            glow = doubleConflict ? "0 0 8px rgba(251,191,36,0.5)" : "0 0 6px rgba(239,68,68,0.3)";
+                          } else if (cProg) {
+                            bg = "linear-gradient(135deg,#14532d 0%,#15803d66 100%)";
+                            icon = "check";
+                            iconColor = "#86efac";
+                            borderColor = "#22c55e33";
+                          }
 
                           return (
                             <div
                               key={d}
-                              title={`Dia ${d}: ${isConflict ? `CONFLICTO - trabajando en ${cPuesto?.nombre} (${compareTurno})` : "Libre en este puesto"}`}
-                              className="rounded-sm flex items-center justify-center text-[6px] font-black transition-all"
+                              title={`Dia ${d} | ${vig?.nombre || vid}: ${isConflict ? `CONFLICTO en ${cPuesto?.nombre} (${compareTurno || "otro turno"})` : cProg ? "Disponible este dia" : "Sin info del otro puesto"}`}
+                              className="relative flex items-center justify-center rounded-md cursor-default transition-all hover:scale-125 hover:z-20"
                               style={{
-                                minWidth: "22px",
-                                height: "22px",
-                                background: isConflict ? cellColor : (cProg ? cellColor : (isW ? "#334155" : "#1e293b")),
-                                opacity: isW && !isConflict ? 0.7 : 1,
-                                color: "#fff",
-                                border: isMyWork && isConflict ? "2px solid #fbbf24" : "none",
+                                minWidth: "28px",
+                                height: "28px",
+                                background: bg,
+                                border: `1.5px solid ${borderColor}`,
+                                boxShadow: glow,
                               }}
                             >
-                              {isConflict ? cellLabel : (cProg ? "+" : "")}
+                              {icon
+                                ? <span className="material-symbols-outlined" style={{ fontSize: "12px", color: iconColor }}>{icon}</span>
+                                : <span style={{ fontSize: "7px", color: "#334155", fontWeight: 900 }}>{d}</span>
+                              }
+                              {/* Turno chip on conflict */}
+                              {isConflict && compareTurno && (
+                                <span
+                                  className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[5px] font-black px-1 rounded leading-[1.5]"
+                                  style={{ background: "#dc2626", color: "#fff", whiteSpace: "nowrap" }}
+                                >
+                                  {compareTurno}
+                                </span>
+                              )}
                             </div>
                           );
                         })}
@@ -3296,10 +3319,22 @@ const PanelMensualPuesto = ({
 
           {/* Empty state */}
           {!comparePuestoId && compareExpanded && (
-            <div className="flex flex-col items-center justify-center h-28 gap-2">
-              <span className="material-symbols-outlined text-indigo-800 text-[36px]">compare_arrows</span>
-              <p className="text-[10px] font-bold text-indigo-600">
-                Selecciona un puesto para comparar programaciones y coordinar relevantes
+            <div className="flex flex-col items-center justify-center h-32 gap-3">
+              <div className="flex items-center gap-4">
+                <div className="size-12 rounded-2xl border border-indigo-800/50 bg-indigo-950/50 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-indigo-700 text-[22px]">apartment</span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  {[0,1,2].map(i => (
+                    <div key={i} className="size-1.5 rounded-full bg-indigo-800 animate-pulse" style={{ animationDelay: `${i * 150}ms` }} />
+                  ))}
+                </div>
+                <div className="size-12 rounded-2xl border border-dashed border-indigo-700/40 bg-indigo-950/30 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-indigo-800 text-[22px]">add_circle</span>
+                </div>
+              </div>
+              <p className="text-[10px] font-bold text-indigo-700/80 text-center max-w-xs">
+                Elige un puesto para ver conflictos de relevantes dia a dia
               </p>
             </div>
           )}
