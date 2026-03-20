@@ -3294,6 +3294,10 @@ const PanelMensualPuesto = ({
 
                         {/* Day cells — Lógica de disponibilidad */}
                         {daysArr.map((d) => {
+                          const myAsig = prog?.asignaciones.find(
+                            (a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === (vig as any)?.dbId)
+                          );
+
                           // 1. Ocupado en Puesto Origen (Barra Superior)
                           const isOcupadoOrigen = !!(myAsig && myAsig.jornada === "normal" && myAsig.vigilanteId);
                           
