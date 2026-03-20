@@ -3107,18 +3107,18 @@ const PanelMensualPuesto = ({
               <select
                 value={comparePuestoId || ""}
                 onChange={(e) => setComparePuestoId(e.target.value || null)}
-                className="h-8 text-[10px] font-bold rounded-xl px-3 outline-none transition-all"
+                className="h-10 text-[11px] font-black rounded-xl px-4 outline-none transition-all cursor-pointer shadow-sm"
                 style={{
-                  minWidth: "160px",
-                  maxWidth: "220px",
-                  background: comparePuestoId ? "rgba(16,185,129,0.15)" : "rgba(255,255,255,0.06)",
-                  border: comparePuestoId ? "1.5px solid rgba(16,185,129,0.45)" : "1.5px solid rgba(255,255,255,0.1)",
+                  minWidth: "180px",
+                  maxWidth: "280px",
+                  background: comparePuestoId ? "rgba(16,185,129,0.2)" : "rgba(255,255,255,0.08)",
+                  border: comparePuestoId ? "2px solid rgba(16,185,129,0.5)" : "2px solid rgba(255,255,255,0.15)",
                   color: comparePuestoId ? "#6ee7b7" : "#e2e8f0",
                 }}
               >
-                <option value="" style={{ background: "#0f172a" }}>— Seleccionar otro puesto —</option>
+                <option value="" style={{ background: "#0f172a" }}>— Elegir Puesto a Cubrir —</option>
                 {allPuestos.filter((p) => p.id !== puestoId && p.dbId !== puestoId).map((p) => (
-                  <option key={p.id} value={p.id} style={{ background: "#0f172a" }}>{p.nombre}</option>
+                  <option key={p.id} value={p.id} style={{ background: "#0f172a" }}>{p.nombre} ({p.id})</option>
                 ))}
               </select>
             </div>
@@ -3269,9 +3269,14 @@ const PanelMensualPuesto = ({
                             <p className="text-[10px] font-black text-white truncate leading-tight">
                               {vig?.nombre.split(" ").slice(0, 2).join(" ") || vid}
                             </p>
-                            <p className="text-[7px] font-bold uppercase tracking-widest leading-tight text-indigo-400">
-                              {ROL_LABELS[per.rol as RolPuesto] || per.rol}
-                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <p className="text-[7px] font-bold uppercase tracking-widest leading-tight text-indigo-400">
+                                {ROL_LABELS[per.rol as RolPuesto] || per.rol}
+                              </p>
+                              <span className="text-[7px] font-black bg-white/10 px-1.5 py-0.5 rounded text-indigo-200">
+                                {getDiasTrabajoVigilante(prog.id, vid)}d trabajados
+                              </span>
+                            </div>
                           </div>
                         </div>
 
