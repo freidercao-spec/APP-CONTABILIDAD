@@ -310,8 +310,9 @@ const EditCeldaModal = ({
   jornadasCustom,
   onSave,
   onClose,
-}: EditCeldaModalProps) => {
-  const [vigilanteId, setVigilanteId] = useState(asig.vigilanteId || "");
+  initialVigilanteId,
+}: EditCeldaModalProps & { initialVigilanteId?: string }) => {
+  const [vigilanteId, setVigilanteId] = useState(initialVigilanteId || asig.vigilanteId || "");
   const [turno, setTurno] = useState(asig.turno);
   const [jornada, setJornada] = useState<TipoJornada>(asig.jornada);
   const [conflicto, setConflicto] = useState<string | null>(null);
@@ -728,7 +729,7 @@ const PanelMensualPuesto = ({
     );
   }, [allTemplates, puestoId]);
 
-  const [editCell, setEditCell] = useState<AsignacionDia | null>(null);
+  const [editCell, setEditCell] = useState<{ asig: AsignacionDia; progId: string; preSelectVigilanteId?: string } | null>(null);
   const [activeTab, setActiveTab] = useState<
     | "calendario"
     | "personal"
@@ -993,10 +994,11 @@ const PanelMensualPuesto = ({
 
   const handleSaveCell = (data: Partial<AsignacionDia>) => {
     if (!editCell) return;
+    const { asig, progId } = editCell;
     const resultado = actualizarAsignacion(
-      prog.id,
-      editCell.dia,
-      { ...data, rol: editCell.rol },
+      progId,
+      asig.dia,
+      { ...data, rol: asig.rol },
       username || "Sistema",
     );
     if (!resultado.permitido) {
@@ -1014,7 +1016,7 @@ const PanelMensualPuesto = ({
     } else {
       showTacticalToast({
         title: "✅ Guardado Automático",
-        message: `Día ${editCell.dia} actualizado y sincronizado con la base de datos.`,
+        message: `Día ${asig.dia} actualizado y sincronizado con la base de datos.`,
         type: "success",
       });
       logAction(
@@ -3045,22 +3047,25 @@ const PanelMensualPuesto = ({
         </div>
       )}
       {/* Edit cell modal */}
-      {editCell &&
-        createPortal(
+      {editCell && (() => {
+        const targetProg = allProgramaciones.find(p => p.id === editCell.progId) || prog;
+        return createPortal(
           <EditCeldaModal
-            asig={editCell}
+            asig={editCell.asig}
             vigilantes={vigilantes}
-            titularesId={prog.personal
+            titularesId={targetProg.personal
               .filter((p) => p.vigilanteId)
               .map((p) => p.vigilanteId!)}
             ocupados={ocupados}
-            turnosConfig={turnosConfig}
-            jornadasCustom={jornadasCustom}
+            turnosConfig={targetProg.puestoId === prog.puestoId ? turnosConfig : (allPuestos.find(p => p.id === targetProg.puestoId || p.dbId === targetProg.puestoId)?.turnosConfig || DEFAULT_TURNOS)}
+            jornadasCustom={targetProg.puestoId === prog.puestoId ? jornadasCustom : (allPuestos.find(p => p.id === targetProg.puestoId || p.dbId === targetProg.puestoId)?.jornadasCustom || [])}
             onSave={handleSaveCell}
             onClose={() => setEditCell(null)}
+            initialVigilanteId={editCell.preSelectVigilanteId}
           />,
           document.body,
-        )}
+        );
+      })()}
 
       {/* ====================================================================
           COMPARE PANEL — Premium Glassmorphism Design
@@ -3338,10 +3343,26 @@ const PanelMensualPuesto = ({
                           }
 
                           return (
-                            <div
+                            <button
                               key={d}
                               title={tooltipText}
-                              className="relative flex items-center justify-center rounded-md cursor-default transition-all hover:scale-125 hover:z-20"
+                              onClick={() => {
+                                if (!cProg) return;
+                                // Intentar encontrar una vacante para ese día en el puesto destino
+                                let targetAsig = cProg.asignaciones.find(a => a.dia === d && !a.vigilanteId);
+                                if (!targetAsig) {
+                                  // Si no hay vacante, abrir la primera de ese día
+                                  targetAsig = cProg.asignaciones.find(a => a.dia === d);
+                                }
+                                if (targetAsig) {
+                                  setEditCell({ 
+                                    asig: targetAsig, 
+                                    progId: cProg.id,
+                                    preSelectVigilanteId: vid 
+                                  });
+                                }
+                              }}
+                              className="relative flex items-center justify-center rounded-md cursor-pointer transition-all hover:scale-125 hover:z-20 active:scale-95 group/cell shadow-sm"
                               style={{
                                 minWidth: "28px",
                                 height: "28px",
@@ -3351,16 +3372,18 @@ const PanelMensualPuesto = ({
                               }}
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: "12px", color: iconColor }}>{icon}</span>
+                              <div className="absolute inset-0 bg-white/0 group-hover/cell:bg-white/10 transition-colors rounded-[inherit]" />
+                              
                               {/* Chip del turno cuando está ocupado */}
                               {isOcupado && myTurno && (
                                 <span
                                   className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[5px] font-black px-1 rounded leading-[1.5]"
-                                  style={{ background: "#dc2626", color: "#fff", whiteSpace: "nowrap" }}
+                                  style={{ background: "#dc2626", color: "#fff", whiteSpace: "nowrap shadow-sm" }}
                                 >
                                   {myTurno}
                                 </span>
                               )}
-                            </div>
+                            </button>
                           );
                         })}
                       </div>
