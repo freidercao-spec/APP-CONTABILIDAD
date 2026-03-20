@@ -3072,7 +3072,7 @@ const PanelMensualPuesto = ({
             background: "linear-gradient(180deg, rgba(30,27,75,0.98) 0%, rgba(15,23,42,0.99) 100%)",
             backdropFilter: "blur(24px)",
             borderTop: "1.5px solid rgba(99,102,241,0.3)",
-            maxHeight: compareExpanded ? "300px" : "46px",
+            maxHeight: compareExpanded ? "360px" : "46px",
             transition: "max-height 0.4s cubic-bezier(0.4,0,0.2,1)",
             overflow: "hidden",
           }}
@@ -3087,32 +3087,36 @@ const PanelMensualPuesto = ({
               Coord. Relevantes
             </span>
 
-            {/* Current puesto */}
+            {/* Current puesto (SOURCE - where guards come from) */}
             <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 bg-violet-500/15 border border-violet-500/20 rounded-full shrink-0">
               <span className="size-1.5 rounded-full bg-violet-400" />
-              <span className="text-[8px] font-black text-violet-300 max-w-[90px] truncate">{puestoNombre}</span>
+              <span className="text-[7px] font-black text-violet-400 uppercase tracking-wide mr-0.5">PUESTO ORIGEN</span>
+              <span className="text-[8px] font-black text-violet-200 max-w-[90px] truncate">{puestoNombre}</span>
             </div>
 
-            <span className="material-symbols-outlined text-slate-700 hidden sm:block text-[13px]">east</span>
+            <span className="material-symbols-outlined text-emerald-600 hidden sm:block text-[16px] animate-pulse">arrow_forward</span>
 
-            {/* Selector */}
-            <select
-              value={comparePuestoId || ""}
-              onChange={(e) => setComparePuestoId(e.target.value || null)}
-              className="h-8 text-[10px] font-bold rounded-xl px-3 outline-none transition-all"
-              style={{
-                minWidth: "160px",
-                maxWidth: "220px",
-                background: comparePuestoId ? "rgba(99,102,241,0.2)" : "rgba(255,255,255,0.06)",
-                border: comparePuestoId ? "1.5px solid rgba(99,102,241,0.45)" : "1.5px solid rgba(255,255,255,0.1)",
-                color: "#e2e8f0",
-              }}
-            >
-              <option value="" style={{ background: "#0f172a" }}>— Elegir puesto —</option>
-              {allPuestos.filter((p) => p.id !== puestoId && p.dbId !== puestoId).map((p) => (
-                <option key={p.id} value={p.id} style={{ background: "#0f172a" }}>{p.nombre}</option>
-              ))}
-            </select>
+            {/* Selector (DESTINATION - where guards will go) */}
+            <div className="flex items-center gap-1.5">
+              <span className="hidden sm:block text-[7px] font-black text-emerald-400 uppercase tracking-wide whitespace-nowrap">CUBRIR EN:</span>
+              <select
+                value={comparePuestoId || ""}
+                onChange={(e) => setComparePuestoId(e.target.value || null)}
+                className="h-8 text-[10px] font-bold rounded-xl px-3 outline-none transition-all"
+                style={{
+                  minWidth: "160px",
+                  maxWidth: "220px",
+                  background: comparePuestoId ? "rgba(16,185,129,0.15)" : "rgba(255,255,255,0.06)",
+                  border: comparePuestoId ? "1.5px solid rgba(16,185,129,0.45)" : "1.5px solid rgba(255,255,255,0.1)",
+                  color: comparePuestoId ? "#6ee7b7" : "#e2e8f0",
+                }}
+              >
+                <option value="" style={{ background: "#0f172a" }}>— Seleccionar otro puesto —</option>
+                {allPuestos.filter((p) => p.id !== puestoId && p.dbId !== puestoId).map((p) => (
+                  <option key={p.id} value={p.id} style={{ background: "#0f172a" }}>{p.nombre}</option>
+                ))}
+              </select>
+            </div>
 
             {comparePuestoId && (
               <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 bg-emerald-500/12 border border-emerald-500/25 rounded-full">
@@ -3164,43 +3168,65 @@ const PanelMensualPuesto = ({
 
             return (
               <div className="px-5 pt-3 pb-4 overflow-auto" style={{ maxHeight: "254px" }}>
-                {/* Sub-header */}
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="material-symbols-outlined text-indigo-400" style={{ fontSize: "13px" }}>location_on</span>
-                  <span className="text-[11px] font-black text-white uppercase tracking-wider">{cPuesto?.nombre}</span>
-                  <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/20">
-                    {MONTH_NAMES[mes]} {anio}
-                  </span>
-                  {/* Instruction label */}
-                  <span className="text-[7px] font-bold px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-300 border border-slate-600/30">
-                    Disponibilidad según: <span className="text-indigo-300">{puestoNombre}</span>
-                  </span>
+                {/* ── Banner explicativo ────────────────────────────────── */}
+                <div
+                  className="flex items-center gap-3 mb-3 px-4 py-2 rounded-xl"
+                  style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)" }}
+                >
+                  {/* Flow */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex flex-col items-center">
+                      <span className="text-[6px] font-black text-violet-400 uppercase tracking-widest">Programado en</span>
+                      <span className="text-[9px] font-black text-violet-200 truncate max-w-[100px]">{puestoNombre}</span>
+                    </div>
+                    <span className="material-symbols-outlined text-emerald-500 text-[18px]">arrow_forward</span>
+                    <div className="flex flex-col items-center">
+                      <span className="text-[6px] font-black text-emerald-400 uppercase tracking-widest">¿Puede cubrir en?</span>
+                      <span className="text-[9px] font-black text-emerald-200 truncate max-w-[110px]">{cPuesto?.nombre}</span>
+                    </div>
+                  </div>
+
+                  {/* Separator */}
+                  <div className="w-px h-8 bg-white/10 shrink-0" />
+
                   {/* Legend */}
-                  <div className="ml-auto flex items-center gap-3 flex-shrink-0">
-                    <div className="flex items-center gap-1">
-                      <div className="w-5 h-4 rounded-md flex items-center justify-center" style={{ background: "linear-gradient(135deg,#166534,#15803d)" }}>
-                        <span className="material-symbols-outlined text-white" style={{ fontSize: "9px" }}>check_circle</span>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-6 h-5 rounded-md flex items-center justify-center" style={{ background: "linear-gradient(135deg,#166534,#15803d)" }}>
+                        <span className="material-symbols-outlined text-white" style={{ fontSize: "11px" }}>check_circle</span>
                       </div>
-                      <span className="text-[8px] font-bold text-emerald-400">Puede programarse</span>
+                      <div>
+                        <p className="text-[8px] font-black text-emerald-300 leading-none">DISPONIBLE</p>
+                        <p className="text-[7px] text-emerald-600 leading-none">Puede cubrir este día</p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-5 h-4 rounded-md flex items-center justify-center" style={{ background: "linear-gradient(135deg,#991b1b,#7f1d1d)" }}>
-                        <span className="material-symbols-outlined text-white" style={{ fontSize: "9px" }}>block</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-6 h-5 rounded-md flex items-center justify-center" style={{ background: "linear-gradient(135deg,#991b1b,#7f1d1d)" }}>
+                        <span className="material-symbols-outlined text-white" style={{ fontSize: "11px" }}>block</span>
                       </div>
-                      <span className="text-[8px] font-bold text-red-400">Ya programado (OCUPADO)</span>
+                      <div>
+                        <p className="text-[8px] font-black text-red-300 leading-none">OCUPADO</p>
+                        <p className="text-[7px] text-red-700 leading-none">Ya trabaja en {puestoNombre}</p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-5 h-4 rounded-md flex items-center justify-center" style={{ background: "linear-gradient(135deg,#713f12,#854d0e)" }}>
-                        <span className="material-symbols-outlined text-white" style={{ fontSize: "9px" }}>bedtime</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-6 h-5 rounded-md flex items-center justify-center" style={{ background: "linear-gradient(135deg,#7c2d12,#431407)" }}>
+                        <span className="material-symbols-outlined text-white" style={{ fontSize: "11px" }}>bedtime</span>
                       </div>
-                      <span className="text-[8px] font-bold text-orange-300">Descanso/Vacación</span>
+                      <div>
+                        <p className="text-[8px] font-black text-orange-300 leading-none">DESCANSO</p>
+                        <p className="text-[7px] text-orange-700 leading-none">Verificar disponibilidad</p>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Day header */}
                 <div className="flex gap-1 items-end mb-1">
-                  <div style={{ minWidth: "164px" }} className="pl-2 text-[8px] font-black text-slate-600 uppercase tracking-widest">Efectivo</div>
+                  <div style={{ minWidth: "164px" }} className="pl-2">
+                    <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Efectivo</p>
+                    <p className="text-[6px] text-slate-700 uppercase tracking-widest">de {puestoNombre}</p>
+                  </div>
                   {daysArr.map((d) => {
                     const dow = new Date(anio, mes, d).getDay();
                     const isW = dow === 0 || dow === 6;
@@ -3347,23 +3373,43 @@ const PanelMensualPuesto = ({
 
           {/* Empty state */}
           {!comparePuestoId && compareExpanded && (
-            <div className="flex flex-col items-center justify-center h-32 gap-3">
-              <div className="flex items-center gap-4">
-                <div className="size-12 rounded-2xl border border-indigo-800/50 bg-indigo-950/50 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-indigo-700 text-[22px]">apartment</span>
+            <div className="flex items-center justify-center h-36 gap-6 px-8">
+              {/* Puesto actual */}
+              <div className="flex flex-col items-center gap-1.5">
+                <div className="size-12 rounded-2xl border border-violet-700/50 bg-violet-950/50 flex items-center justify-center shadow-lg shadow-violet-900/20">
+                  <span className="material-symbols-outlined text-violet-500 text-[22px]">apartment</span>
                 </div>
-                <div className="flex flex-col items-center gap-1">
-                  {[0,1,2].map(i => (
-                    <div key={i} className="size-1.5 rounded-full bg-indigo-800 animate-pulse" style={{ animationDelay: `${i * 150}ms` }} />
-                  ))}
-                </div>
-                <div className="size-12 rounded-2xl border border-dashed border-indigo-700/40 bg-indigo-950/30 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-indigo-800 text-[22px]">add_circle</span>
+                <div className="text-center">
+                  <p className="text-[7px] font-black text-violet-500 uppercase tracking-widest">Puesto Origen</p>
+                  <p className="text-[8px] font-black text-violet-300 max-w-[100px] truncate">{puestoNombre}</p>
+                  <p className="text-[6px] text-violet-700">Guardas ya programados</p>
                 </div>
               </div>
-              <p className="text-[10px] font-bold text-indigo-700/80 text-center max-w-xs">
-                Elige un puesto para ver conflictos de relevantes dia a dia
-              </p>
+
+              {/* Arrow + instruction */}
+              <div className="flex flex-col items-center gap-2">
+                <div className="flex items-center gap-2">
+                  {[0,1,2].map(i => (
+                    <div key={i} className="size-1.5 rounded-full bg-emerald-700 animate-pulse" style={{ animationDelay: `${i * 200}ms` }} />
+                  ))}
+                  <span className="material-symbols-outlined text-emerald-600 text-[20px]">arrow_forward</span>
+                </div>
+                <div className="text-center px-3 py-1.5 rounded-lg" style={{ background: "rgba(16,185,129,0.07)", border: "1px dashed rgba(16,185,129,0.2)" }}>
+                  <p className="text-[8px] font-black text-emerald-400 uppercase tracking-wide">¿Dónde puede cubrir?</p>
+                  <p className="text-[7px] text-slate-500 mt-0.5">Selecciona el puesto destino<br/>en el selector de arriba →</p>
+                </div>
+              </div>
+
+              {/* Puesto destino */}
+              <div className="flex flex-col items-center gap-1.5">
+                <div className="size-12 rounded-2xl border border-dashed border-emerald-700/40 bg-emerald-950/20 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-emerald-800 text-[22px]">add_location</span>
+                </div>
+                <div className="text-center">
+                  <p className="text-[7px] font-black text-emerald-700 uppercase tracking-widest">Puesto Destino</p>
+                  <p className="text-[7px] text-slate-600">Aquí verás qué días<br/>puede cubrir cada guarda</p>
+                </div>
+              </div>
             </div>
           )}
         </div>
