@@ -1791,7 +1791,7 @@ const PanelMensualPuesto = ({
     .filter(Boolean);
 
   return (
-    <div className="absolute inset-x-0 top-0 bottom-0 z-[50] bg-slate-50 flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-8 duration-500 min-h-screen">
+    <div className="absolute inset-0 z-[50] bg-slate-50 flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-8 duration-500">
       {/* Top bar */}
       <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm z-10">
         <div className="flex items-center gap-4 w-full sm:w-auto">
@@ -2068,14 +2068,7 @@ const PanelMensualPuesto = ({
       </div>
 
       {/* Content */}
-      <div
-        className="flex-1 overflow-auto p-6"
-        style={{
-          paddingBottom: activeTab === "calendario"
-            ? compareExpanded ? "316px" : "62px"
-            : "24px",
-        }}
-      >
+      <div className="flex-1 overflow-auto p-6">
         {/* — CALENDARIO —————————————————————————————————————————————————— */}
         {activeTab === "calendario" && (
           <div className="space-y-5">
@@ -3074,7 +3067,7 @@ const PanelMensualPuesto = ({
           ==================================================================== */}
       {activeTab === "calendario" && (
         <div
-          className="absolute bottom-0 left-0 right-0 z-50 shadow-[0_-20px_50px_rgba(0,0,0,0.4)]"
+          className="z-50 shadow-[0_-20px_50px_rgba(0,0,0,0.4)] flex-shrink-0"
           style={{
             background: "linear-gradient(180deg, rgba(30,27,75,0.98) 0%, rgba(15,23,42,0.99) 100%)",
             backdropFilter: "blur(24px)",
