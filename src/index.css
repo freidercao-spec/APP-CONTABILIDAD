@@ -177,6 +177,30 @@
     border-radius: 16px;
   }
 
+  /* Section Title - consistent header across all pages */
+  .section-title {
+    font-size: 13px;
+    font-weight: 900;
+    color: var(--color-slate-900);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  /* Page Header utility */
+  .page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  /* Table row hover polish */
+  .table-row-hover:hover {
+    background: rgba(79, 70, 229, 0.02);
+  }
+
   /* ==================== BADGES & CHIPS ==================== */
 
   .badge {
@@ -239,7 +263,8 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
+    width: 5px;
+    height: 5px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-track {
