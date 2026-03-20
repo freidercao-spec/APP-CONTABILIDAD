@@ -2326,13 +2326,13 @@ const PanelMensualPuesto = ({
                                 style={{ minWidth: "72px" }}
                               >
                                 {asig ? (
-                                  <CeldaCalendario
-                                    asig={asig}
-                                    vigilanteNombre={cellVigName}
-                                    onEdit={() => setEditCell(asig)}
-                                    jornadasCustom={jornadasCustom}
-                                    turnosConfig={turnosConfig}
-                                  />
+                                    <CeldaCalendario
+                                      asig={asig}
+                                      vigilanteNombre={cellVigName}
+                                      onEdit={() => setEditCell({ asig: asig, progId: prog.id })}
+                                      jornadasCustom={jornadasCustom}
+                                      turnosConfig={turnosConfig}
+                                    />
                                 ) : (
                                   <CeldaVacia
                                     isWeekend={isW}
@@ -2343,15 +2343,18 @@ const PanelMensualPuesto = ({
                                         (a) => a.dia === d && a.rol === rol,
                                       );
                                       if (target) {
-                                        setEditCell(target);
+                                        setEditCell({ asig: target, progId: prog.id });
                                       } else {
                                         // VIRTUAL TARGET for new roles!
                                         setEditCell({
-                                          dia: d,
-                                          rol: rol,
-                                          vigilanteId: null,
-                                          turno: tConf.id as TurnoHora,
-                                          jornada: "sin_asignar" as TipoJornada,
+                                          asig: {
+                                            dia: d,
+                                            rol: rol,
+                                            vigilanteId: null,
+                                            turno: tConf.id as TurnoHora,
+                                            jornada: "sin_asignar" as TipoJornada,
+                                          },
+                                          progId: prog.id
                                         });
                                       }
                                     }}
