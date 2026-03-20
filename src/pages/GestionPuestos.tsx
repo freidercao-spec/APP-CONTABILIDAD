@@ -791,6 +791,20 @@ const PanelMensualPuesto = ({
     setTplNombre("");
   };
 
+  // Ensure the compared program exists
+  useEffect(() => {
+    if (comparePuestoId && !isRefreshing) {
+      // Robust lookup
+      const cp = allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId);
+      if (cp) {
+        const existing = getProgramacion(cp.id, anio, mes);
+        if (!existing) {
+          crearOObtenerProgramacion(cp.id, anio, mes, username || "Sistema");
+        }
+      }
+    }
+  }, [comparePuestoId, allPuestos, anio, mes, getProgramacion, crearOObtenerProgramacion, username, isRefreshing]);
+
   // Warn before closing if sync is pending
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -2329,7 +2343,7 @@ const PanelMensualPuesto = ({
                                     <CeldaCalendario
                                       asig={asig}
                                       vigilanteNombre={cellVigName}
-                                      onEdit={() => setEditCell({ asig: asig, progId: prog.id })}
+                                      onEdit={() => prog && setEditCell({ asig: asig, progId: prog.id })}
                                       jornadasCustom={jornadasCustom}
                                       turnosConfig={turnosConfig}
                                     />
@@ -3396,22 +3410,34 @@ const PanelMensualPuesto = ({
                             <button
                               key={d}
                               title={tooltipText}
-                              onClick={() => {
-                                if (!cProg) return;
-                                // Intentar encontrar una vacante para ese día en el puesto destino
-                                let targetAsig = cProg.asignaciones.find(a => a.dia === d && !a.vigilanteId);
-                                if (!targetAsig) {
-                                  // Si no hay vacante, abrir la primera de ese día
-                                  targetAsig = cProg.asignaciones.find(a => a.dia === d);
-                                }
-                                if (targetAsig) {
-                                  setEditCell({ 
-                                    asig: targetAsig, 
-                                    progId: cProg.id,
-                                    preSelectVigilanteId: vid 
-                                  });
-                                }
-                              }}
+                                onClick={() => {
+                                  // Re-obtener cProg de forma robusta al hacer clic para asegurar que estÃ¡ disponible
+                                  const cP = allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId);
+                                  const currentCProg = cP ? getProgramacion(cP.id, anio, mes) : null;
+                                  
+                                  if (!currentCProg) {
+                                    showTacticalToast({
+                                      title: "Cargando datos...",
+                                      message: "Aun consultando la programacion del puesto destino. Reintenta en un segundo.",
+                                      type: "info"
+                                    });
+                                    return;
+                                  }
+
+                                  // Intentar encontrar una vacante para ese dÃa en el puesto destino
+                                  let targetAsig = currentCProg.asignaciones.find(a => a.dia === d && !a.vigilanteId);
+                                  if (!targetAsig) {
+                                    // Si no hay vacante, abrir la primera de ese dÃa
+                                    targetAsig = currentCProg.asignaciones.find(a => a.dia === d);
+                                  }
+                                  if (targetAsig) {
+                                    setEditCell({ 
+                                      asig: targetAsig, 
+                                      progId: currentCProg.id,
+                                      preSelectVigilanteId: vid 
+                                    });
+                                  }
+                                }}
                               className="relative flex items-center justify-center rounded-md cursor-pointer transition-all hover:scale-125 hover:z-20 active:scale-95 group/cell shadow-sm"
                               style={{
                                 minWidth: "28px",
