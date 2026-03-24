@@ -136,6 +136,21 @@ const translatePuestoToUuid = (id: string | null): string | null => {
     return null;
 };
 
+const idsMatch = (id1: string | null, id2: string | null): boolean => {
+    if (!id1 || !id2) return false;
+    if (id1 === id2) return true;
+    
+    // Fallback: search in vigilante store to see if they refer to the same record (id vs dbId)
+    const vigilantes = useVigilanteStore.getState().vigilantes || [];
+    const v1 = vigilantes.find((vx: any) => vx.id === id1 || vx.dbId === id1);
+    const v2 = vigilantes.find((vx: any) => vx.id === id2 || vx.dbId === id2);
+    
+    if (v1 && v2) {
+        return (v1.dbId === v2.dbId || v1.id === v2.id);
+    }
+    return false;
+};
+
 interface SyncResult {
     success: boolean;
     serverVersion: number;
@@ -484,7 +499,11 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     asignaciones, estado: 'borrador', creadoEn: new Date().toISOString(), actualizadoEn: new Date().toISOString(),
                     version: 1, historialCambios: [], syncStatus: 'pending',
                 };
-                set(s => ({ programaciones: [...s.programaciones, newProg] }));
+                // CRITICAL: Ensure new program is injected into store for immediate 'actualizar' access
+                const current = get().programaciones;
+                if (!current.some(p => p.puestoId === dbPuestoId && p.anio === anio && p.mes === mes)) {
+                    set({ programaciones: [...current, newProg] });
+                }
                 queueSync(newProg.id, set, get);
                 return newProg;
             },
