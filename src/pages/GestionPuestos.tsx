@@ -3200,14 +3200,19 @@ const PanelMensualPuesto = ({
                           {daysArr.map((d) => {
                             const idsMatch = (id1: string | null, id2: string | null) => {
                               if (!id1 || !id2) return false;
+                              const clean1 = String(id1).trim().toLowerCase();
+                              const clean2 = String(id2).trim().toLowerCase();
+                              if (clean1 === clean2) return true;
                               const v1 = vigilantes.find(vx => vx.id === id1 || vx.dbId === id1);
                               const v2 = vigilantes.find(vx => vx.id === id2 || vx.dbId === id2);
-                              return (id1 === id2) || (v1 && v2 && (v1.dbId === v2.dbId || v1.id === v2.id || v1.dbId === v2.id || v1.id === v2.dbId));
+                              return (v1 && v2 && (v1.dbId === v2.dbId || v1.id === v2.id));
                             };
 
+                            // FIND ANY assignment for this day and vigilante in ORIGIN
                             const myAsig = currentProg?.asignaciones.find(a => a.dia === d && idsMatch(a.vigilanteId, vid));
-                            const isOcupadoOrigen = !!(myAsig && myAsig.vigilanteId && myAsig.jornada === "normal");
-                            // FRESH destination lookup
+                            const isOcupadoOrigen = !!(myAsig && myAsig.vigilanteId && (myAsig.jornada !== 'sin_asignar'));
+
+                            // FIND ANY assignment for this day and vigilante in DESTINATION
                             const freshCProg = allProgramaciones.find(cp => cp.id === cProg?.id);
                             const asigDest = freshCProg?.asignaciones.find(a => a.dia === d && idsMatch(a.vigilanteId, vid));
                             const isAlreadyInDest = !!(asigDest && asigDest.jornada !== "sin_asignar");
