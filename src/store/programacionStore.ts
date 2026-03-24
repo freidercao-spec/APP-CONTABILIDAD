@@ -109,14 +109,13 @@ const translateToUuid = (id: string | null): string | null => {
     const isUuid = id.length >= 32 || (id.length >= 20 && id.includes('-'));
     if (isUuid) return id;
     
-    // Attempt lookup in current vigilantes
     const vigilantes = useVigilanteStore.getState().vigilantes || [];
     const v = vigilantes.find((v: any) => v.id === id || v.dbId === id || v.nombre === id);
     if (v?.dbId && (v.dbId.length >= 32 || v.dbId.includes('-'))) return v.dbId;
     if (v?.id && (v.id.length >= 32 || v.id.includes('-'))) return v.id;
     
-    // Crucial constraint: If we cannot find a UUID, we MUST return null to avoid crashing Supabase 'uuid' type columns
-    return null;
+    console.warn(`[Coraza] ⚠️ ID no UUID detectado: ${id}`);
+    return id; // Return as is, let Supabase decide
 };
 
 const translateFromDb = (dbId: string | null) => {
@@ -537,9 +536,20 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                 console.log(`[Coraza] 🚀 DESPLIEGUE TÁCTICO: Día ${dia} -> ${data.vigilanteId || 'VACANTE'}`);
 
+                // PERSISTENCE GUARD: Ensure vigilante exists in personal_puesto list for this month
+                let newPersonal = [...prog.personal];
+                if (data.vigilanteId && !newPersonal.some(p => idsMatch(p.vigilanteId, data.vigilanteId || ''))) {
+                    console.log(`[Coraza] ➕ Inyectando vigilante en nómina mensual: ${data.vigilanteId}`);
+                    newPersonal.push({ rol: data.rol || 'relevante', vigilanteId: data.vigilanteId });
+                }
+
                 set(s => ({
                     programaciones: s.programaciones.map(p => (p.id === prog.id) ? {
-                        ...p, asignaciones: newAsignaciones, actualizadoEn: new Date().toISOString(), syncStatus: 'pending'
+                        ...p, 
+                        personal: newPersonal,
+                        asignaciones: newAsignaciones, 
+                        actualizadoEn: new Date().toISOString(), 
+                        syncStatus: 'pending'
                     } : p)
                 }));
                 // CRITICAL: IMMEDIATE SYNC FOR TACTICAL OPERATIONS
