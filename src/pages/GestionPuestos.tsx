@@ -3121,10 +3121,10 @@ const PanelMensualPuesto = ({
                   setIsRefreshing(false);
                   showTacticalToast({ title: "Sincronización Completa", message: "Datos del núcleo actualizados.", type: "info" });
                 }}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-all text-[10px] font-black uppercase tracking-widest shadow-lg"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-orange-500 bg-orange-600 hover:bg-orange-500 text-white transition-all text-[11px] font-black uppercase tracking-widest shadow-[0_0_20px_rgba(234,88,12,0.4)] animate-pulse"
               >
-                <span className="material-symbols-outlined text-[16px] animate-spin-slow">sync</span>
-                Actualizar Datos
+                <span className="material-symbols-outlined text-[18px]">sync</span>
+                REFRESCAR NÚCLEO (V2.0)
               </button>
               <button
                 onClick={() => setCompareExpanded(!compareExpanded)}
