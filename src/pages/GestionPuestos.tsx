@@ -3358,7 +3358,7 @@ const PanelMensualPuesto = ({
                             className={`size-8 rounded-xl flex items-center justify-center font-black text-white text-[10px] shrink-0 shadow-lg transition-all ${
                               isSelected ? 'ring-2 ring-amber-300 scale-110' : ''
                             }`}
-                            style={{ background: ROL_GRAD[per.rol] || ROL_GRAD.titular_a }}
+                            style={{ background: ROL_GRAD[rol] || ROL_GRAD.titular_a }}
                           >
                             {isSelected ? (
                               <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>check_circle</span>
@@ -3372,7 +3372,7 @@ const PanelMensualPuesto = ({
                             </p>
                             <div className="flex items-center gap-2 mt-0.5">
                               <p className="text-[7px] font-bold uppercase tracking-widest leading-tight text-indigo-400">
-                                {ROL_LABELS[per.rol as RolPuesto] || per.rol}
+                                {ROL_LABELS[rol] || rol}
                               </p>
                               <span className="text-[7px] font-black bg-white/10 px-1.5 py-0.5 rounded text-indigo-200">
                                 {getDiasTrabajoVigilante(prog.id, vid)}d trabajados
