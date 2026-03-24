@@ -3323,16 +3323,26 @@ const PanelMensualPuesto = ({
                   </div>
                 )}
                 <div className="space-y-2">
-                  {(prog?.personal || []).filter(p => p.vigilanteId).map((per) => {
-                    const vig = vigilantes.find((v) => v.id === per.vigilanteId || v.dbId === per.vigilanteId);
-                    const vid = per.vigilanteId!;
+                  {/* Iterar sobre los 3 roles estándar para que la barra coincida con las 3 filas del calendario superior */}
+                  {(['titular_a', 'titular_b', 'relevante'] as RolPuesto[]).map((rol) => {
+                    // 1. Buscar quién es el titular según los ajustes del personal del puesto
+                    const titularSetting = prog?.personal?.find(p => p.rol === rol);
+                    
+                    // 2. BUSCAR quién está REALMENTE en el calendario (primer día con asignación o el titular por defecto)
+                    //    Esto asegura que si el usuario cambió al vigilante en las celdas, la barra sea de ese vigilante.
+                    const firstAsig = prog?.asignaciones.find(a => a.rol === rol && a.vigilanteId);
+                    const vid = firstAsig?.vigilanteId || titularSetting?.vigilanteId;
+                    
+                    if (!vid) return null; // Si no hay nadie asignado a este rol, no mostrar fila en la barra
+
+                    const vig = vigilantes.find((v) => v.id === vid || v.dbId === vid);
                     const initials = vig?.nombre.trim().split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "?";
                     const isSelected = compareVigilanteId === vid;
                     const isDimmed = compareVigilanteId && !isSelected;
 
                     return (
                       <div
-                        key={per.rol}
+                        key={rol}
                         className={`flex gap-1 items-center group/row transition-all duration-300 rounded-xl ${
                           isSelected ? 'ring-2 ring-amber-400/50 bg-amber-400/5' : isDimmed ? 'opacity-30' : ''
                         }`}
@@ -3371,10 +3381,10 @@ const PanelMensualPuesto = ({
                           </div>
                         </button>
 
-                        {/* Day cells — Lógica de disponibilidad */}
+                        {/* Day cells — Lógica de disponibilidad filtrada por ROL para total precisión */}
                         {daysArr.map((d) => {
                           const myAsig = prog?.asignaciones.find(
-                            (a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === (vig as any)?.dbId)
+                            (a) => a.dia === d && a.rol === rol && (a.vigilanteId === vid || a.vigilanteId === (vig as any)?.dbId)
                           );
 
                           // 4. Descansos en origen — evaluamos PRIMERO para no confundir con "ocupado"
