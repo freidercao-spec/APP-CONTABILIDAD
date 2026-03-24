@@ -654,6 +654,7 @@ interface PanelMensualProps {
   anio: number;
   mes: number;
   onClose: () => void;
+  onPuestoChange?: (id: string, nombre: string) => void;
 }
 
 const PanelMensualPuesto = ({
@@ -662,6 +663,7 @@ const PanelMensualPuesto = ({
   anio,
   mes,
   onClose,
+  onPuestoChange,
 }: PanelMensualProps) => {
   const { username } = useAuthStore();
   const vigilantes = useVigilanteStore((s) => s.vigilantes);
@@ -2363,7 +2365,44 @@ const PanelMensualPuesto = ({
                         </tr>
                       );
                     })}
-                  </tbody>
+                      {/* Dynamic Extra Rows for Tactical Reinforcements */}
+                      {(() => {
+                        const allAsignedRoles = Array.from(new Set(prog.asignaciones.map(a => a.rol)));
+                        const configRoles = turnosConfig.map((t, i) => getRolForTurno(t, i));
+                        const extraRoles = allAsignedRoles.filter(r => r && !configRoles.includes(r as any));
+                        
+                        return extraRoles.map((rExtra, erIdx) => {
+                          const col = "#64748b";
+                          return (
+                            <tr key={String(rExtra)} className="border-b border-slate-100 bg-slate-50/20">
+                              <td className="sticky left-0 z-20 bg-slate-50 px-4 py-2 border-r border-slate-100 shadow-[4px_0_12px_rgba(0,0,0,0.06)]" style={{ borderLeft: `4px solid ${col}` }}>
+                                <div className="flex flex-col">
+                                  <span className="text-[10px] font-black uppercase text-slate-500">REFUERZO / RELEVO</span>
+                                  <span className="text-[9px] font-bold text-slate-400 uppercase">{String(rExtra).replace('_', ' ')}</span>
+                                </div>
+                              </td>
+                              {dayNumbers.map(d => {
+                                const asig = prog.asignaciones.find(a => a.dia === d && a.rol === rExtra);
+                                const cellVigName = asig ? getVigilanteName(asig.vigilanteId) : undefined;
+                                return (
+                                  <td key={d} className={`p-1 border-r border-slate-50`}>
+                                    {asig && (
+                                      <CeldaCalendario 
+                                        asig={asig} 
+                                        vigilanteNombre={cellVigName} 
+                                        onEdit={() => setEditCell({ asig, progId: prog.id })} 
+                                        turnosConfig={turnosConfig}
+                                        jornadasCustom={jornadasCustom}
+                                      />
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        });
+                      })()}
+                    </tbody>
                 </table>
               </div>
 
@@ -3073,7 +3112,7 @@ const PanelMensualPuesto = ({
           ==================================================================== */}
       {activeTab === "calendario" && (
         <div
-          className="z-[45] shadow-[0_-20px_50px_rgba(0,0,0,0.4)] flex-shrink-0 relative"
+          className="z-[60] shadow-[0_-20px_50px_rgba(0,0,0,0.4)] flex-shrink-0 relative pointer-events-auto"
           style={{
             background: "linear-gradient(180deg, rgba(30,27,75,0.98) 0%, rgba(15,23,42,0.99) 100%)",
             backdropFilter: "blur(24px)",
@@ -3111,6 +3150,23 @@ const PanelMensualPuesto = ({
                   <option key={p.id} value={p.id}>{p.nombre}</option>
                 ))}
               </select>
+              {comparePuestoId && (
+                <button 
+                  onClick={() => {
+                    const target = allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId);
+                    if (target && onPuestoChange) {
+                      onPuestoChange(target.id, target.nombre);
+                      showTacticalToast({ title: "Sincronizado", message: `Tablero Maestro movido a ${target.nombre}`, type: "success" });
+                    }
+                  }}
+                  className="px-4 py-1.5 bg-emerald-500/20 border-2 border-emerald-500/40 rounded-xl text-[9px] font-black text-emerald-400 uppercase tracking-widest hover:bg-emerald-500/30 transition-all hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[14px]">sync_alt</span>
+                    SINCRONIZAR TABLERO ARRIBA
+                  </div>
+                </button>
+              )}
             </div>
 
             <div className="ml-auto flex items-center gap-2">
@@ -3423,6 +3479,7 @@ const GestionPuestos = () => {
         anio={anio}
         mes={mes}
         onClose={() => setPuestoSeleccionado(null)}
+        onPuestoChange={(id, nombre) => setPuestoSeleccionado({ id, nombre })}
       />
     );
   }
