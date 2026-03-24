@@ -3385,16 +3385,15 @@ const PanelMensualPuesto = ({
                           ));
 
                           // 1. Ocupado en Puesto Origen (Barra Superior) — SOLO jornada NORMAL activa cuenta
-                          //    Los descansos y vacaciones NO bloquean (se manejan por separado como DESCANSO)
                           const isOcupadoOrigen = !!(myAsig && myAsig.vigilanteId && myAsig.jornada === "normal" && !isDescanso);
                           
-                          // 2. Ocupado en Puesto Destino (Ya está ahí — cualquier jornada asignada)
+                          // 2. Ocupado en Puesto Destino (Ya está grabado en el destino)
                           const asigDest = cProg?.asignaciones.find(
                             (a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === vig?.dbId) && a.jornada !== "sin_asignar"
                           );
                           const isOcupadoDestino = !!(asigDest && asigDest.jornada !== "sin_asignar");
 
-                          // 3. Ocupado en OTROS puestos (Mapa global)
+                          // 3. Ocupado en OTROS puestos (Mapa global — EXCLUYE actual)
                           const slotsGlobales = ocupados.get(vid) || ocupados.get(vig?.dbId || "") || [];
                           const ocupacionGlobal = slotsGlobales.find(s => s.slot.startsWith(`${d}-`));
                           const isOcupadoGlobal = !!ocupacionGlobal;
@@ -3405,7 +3404,7 @@ const PanelMensualPuesto = ({
                           );
                           const isDescansoPM = !!(prevAsig && prevAsig.jornada === "normal" && prevAsig.turno === "PM");
 
-                          // 6. Vacantes en destino — solo bloquea si TODOS los slots del día tienen vigilante asignado (no sin_asignar)
+                          // 6. Vacantes en destino
                           const asigsDestDia = cProg?.asignaciones.filter(a => a.dia === d) || [];
                           const sinVacante = asigsDestDia.length > 0 && asigsDestDia.every(a => a.vigilanteId && a.jornada !== "sin_asignar");
 
@@ -3431,26 +3430,26 @@ const PanelMensualPuesto = ({
                             iconColor = "#93c5fd";
                             borderColor = "#3b82f6";
                             glow = "0 0 8px rgba(59,130,246,0.5)";
-                            tooltipText = `DÍA ${d} | ${vig?.nombre}: YA PROGRAMADO AQUÍ (${cPuesto?.nombre}). Turno: ${asigDest?.turno}`;
+                            tooltipText = `DÍA ${d} | YA ASIGNADO AQUÍ en "${cPuesto?.nombre}" (${asigDest?.turno})`;
                             // isBlocked = true; // No bloquear, dejar toast
                           } else if (isOcupadoOrigen) {
-                            // 🔴 ROJO — Ocupado en origen
-                            bg = "linear-gradient(135deg,#991b1b 0%,#7f1d1d 100%)";
+                            // 🔴 ROJO — Ocupado en el tablero de arriba (Origen)
+                            bg = "linear-gradient(135deg,rgb(185, 28, 28) 0%,rgb(127, 29, 29) 100%)";
                             icon = "block";
                             iconColor = "#fca5a5";
-                            borderColor = "#ef444466";
-                            glow = "none";
-                            tooltipText = `DÍA ${d} | ${vig?.nombre}: OCUPADO en origen (${puestoNombre})`;
+                            borderColor = "#ef444455";
+                            glow = "0 0 4px rgba(239, 68, 68, 0.2)";
+                            tooltipText = `DÍA ${d} | TRABAJA AQUÍ en "${puestoNombre}" (${myTurno})`;
                           } else if (isOcupadoGlobal) {
-                            // 🟤 CAFÉ/TRANS — Ocupado en un TERCER puesto
-                            bg = "linear-gradient(135deg,#451a03 0%,#78350f 100%)";
-                            icon = "warning";
-                            iconColor = "#fbbf24";
-                            borderColor = "#b45309";
+                            // 🟣 PÚRPURA — Ocupado en UN TERCER PUESTO (externo)
+                            bg = "linear-gradient(135deg,#581c87 0%,#4c1d95 100%)";
+                            icon = "tab_unselected";
+                            iconColor = "#d8b4fe";
+                            borderColor = "#a855f755";
                             glow = "none";
-                            tooltipText = `DÍA ${d} | ${vig?.nombre}: OCUPADO en "${ocupacionGlobal.puesto}" (${ocupacionGlobal.slot.split("-")[1]})`;
+                            tooltipText = `DÍA ${d} | OCUPADO en un puesto externo: "${ocupacionGlobal.puesto}"`;
                           } else if (isDescanso) {
-                            // 🟠 NARANJA
+                            // 🟠 NARANJA — Descanso programado
                             bg = "linear-gradient(135deg,#7c2d12 0%,#431407 100%)";
                             icon = "bedtime";
                             iconColor = "#fdba74";
