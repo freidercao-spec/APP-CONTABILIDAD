@@ -1019,7 +1019,7 @@ const PanelMensualPuesto = ({
     const { asig, progId } = editCell;
     
     // Resolve the target post name for accurate logging
-    const targetProg = programaciones.find(p => p.id === progId || p.dbId === progId);
+    const targetProg = allProgramaciones.find(p => p.id === progId || p.dbId === progId);
     const targetPuesto = allPuestos.find(p => p.id === targetProg?.puestoId || p.dbId === targetProg?.puestoId);
     const realPostName = targetPuesto?.nombre || puestoNombre;
 
