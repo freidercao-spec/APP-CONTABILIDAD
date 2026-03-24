@@ -10,7 +10,7 @@ import {
   useProgramacionStore,
   type AsignacionDia,
   type TipoJornada,
-  RolPuesto,
+  type RolPuesto,
   type TemplateProgramacion,
   type TurnoHora,
 } from "../store/programacionStore";
@@ -22,13 +22,13 @@ import { MilitaryTimeInput } from "../components/ui/MilitaryTimeInput";
 import { supabase } from "../lib/supabase";
 import jsPDF from "jspdf";
 
-// â”€â”€ Default turn config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Default turn config ────────────────────────────────────────────────────────
 const DEFAULT_TURNOS: TurnoConfig[] = [
   { id: "AM", nombre: "Turno AM", inicio: "06:00", fin: "18:00" },
   { id: "PM", nombre: "Turno PM", inicio: "18:00", fin: "06:00" },
 ];
 
-// â”€â”€ Default jornada colors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Default jornada colors ────────────────────────────────────────────────────
 const DEFAULT_JORNADAS: JornadaCustom[] = [
   {
     id: "normal",
@@ -93,7 +93,7 @@ const MONTH_NAMES = [
   "Diciembre",
 ];
 
-// â”€â”€ Legacy compat shim â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Legacy compat shim ────────────────────────────────────────────────────────
 const JORNADA_COLORS: Record<
   string,
   { bg: string; text: string; label: string; short: string }
@@ -120,7 +120,7 @@ const JORNADA_COLORS: Record<
   },
 };
 
-// â”€â”€ Subcomponents â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Subcomponents ──────────────────────────────────────────────────────────────
 
 // Helper to keep row keys unique even with many turnos (AM, PM, and custom ones)
 const getRolForTurno = (tConf: TurnoConfig, tIdx: number): RolPuesto => {
@@ -366,7 +366,7 @@ const EditCeldaModal = ({
         className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg shadow-2xl animate-in slide-in-from-bottom-5 duration-300 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* â”€â”€ Header â”€â”€ */}
+        {/* ── Header ── */}
         <div
           className="px-6 pt-6 pb-4 border-b border-slate-100"
           style={{
@@ -434,7 +434,7 @@ const EditCeldaModal = ({
           )}
         </div>
 
-        {/* â”€â”€ Conflict alert â”€â”€ */}
+        {/* ── Conflict alert ── */}
         {conflicto && (
           <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex gap-2 items-start">
             <span className="material-symbols-outlined text-red-500 text-[18px] mt-0.5 shrink-0">
@@ -445,7 +445,7 @@ const EditCeldaModal = ({
         )}
 
         <div className="p-6 space-y-5">
-          {/* â”€â”€ Turno selector â”€â”€ */}
+          {/* ── Turno selector ── */}
           <div>
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">
               Turno
@@ -488,7 +488,7 @@ const EditCeldaModal = ({
             </div>
           </div>
 
-          {/* â”€â”€ Jornada type â”€â”€ */}
+          {/* ── Jornada type ── */}
           <div>
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">
               Tipo de Jornada
@@ -517,7 +517,7 @@ const EditCeldaModal = ({
             </div>
           </div>
 
-          {/* â”€â”€ Vigilante quick-pick â”€â”€ */}
+          {/* ── Vigilante quick-pick ── */}
           {titularesId.length > 0 && (
             <div>
               <label className="text-[10px] font-black text-primary uppercase tracking-widest mb-2 block">
@@ -556,7 +556,7 @@ const EditCeldaModal = ({
             </div>
           )}
 
-          {/* â”€â”€ Full vigilante selector â”€â”€ */}
+          {/* ── Full vigilante selector ── */}
           <div>
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">
               Todos los Vigilantes
@@ -603,7 +603,7 @@ const EditCeldaModal = ({
           </div>
         </div>
 
-        {/* â”€â”€ Actions â”€â”€ */}
+        {/* ── Actions ── */}
         <div className="px-6 pb-6 flex gap-2">
           <button
             onClick={() =>
@@ -650,7 +650,7 @@ const EditCeldaModal = ({
   );
 };
 
-// â”€â”€ Panel de Programación Mensual â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Panel de Programación Mensual ──────────────────────────────────────────────
 interface PanelMensualProps {
   puestoId: string;
   puestoNombre: string;
@@ -751,6 +751,7 @@ const PanelMensualPuesto = ({
 
   // --- Compare Panel State ---
   const [comparePuestoId, setComparePuestoId] = useState<string | null>(null);
+  const [compareVigilanteId, setCompareVigilanteId] = useState<string | null>(null);
   const [compareExpanded, setCompareExpanded] = useState(true);
   const fetchProgramacionById = useProgramacionStore(
     (s) => s.fetchProgramacionById,
@@ -912,7 +913,7 @@ const PanelMensualPuesto = ({
       if (alertasDisparadas.current.has(key)) return;
       alertasDisparadas.current.add(key);
       addAIAction({
-        text: `**ASIGNACIÁ“N INCOMPLETA:** El puesto "${puestoNombre}" tiene ${progAsignacionesCountForEffect} turnos sin vigilante asignado para ${MONTH_NAMES[mes]}.`,
+        text: `**ASIGNACIÓN INCOMPLETA:** El puesto "${puestoNombre}" tiene ${progAsignacionesCountForEffect} turnos sin vigilante asignado para ${MONTH_NAMES[mes]}.`,
         type: "notification",
         sender: "ai",
         priority: "medium",
@@ -1085,7 +1086,7 @@ const PanelMensualPuesto = ({
     const accentLight: [number, number, number] = [67, 24, 255]; // Primary
     const margin = 8;
 
-    // â”€â”€ Helper to convert image to Base64 (Reliable Rendering) â”€â”€
+    // ── Helper to convert image to Base64 (Reliable Rendering) ──
     const getBase64Image = (url: string): Promise<string> => {
       return new Promise((resolve, reject) => {
         const img = new Image();
@@ -1161,12 +1162,12 @@ const PanelMensualPuesto = ({
         );
         doc.setFontSize(7);
         doc.text(
-          `MES: ${MONTH_NAMES[mes].toUpperCase()} ${anio} · EMISIÁ“N: ${shortTimestamp}`,
+          `MES: ${MONTH_NAMES[mes].toUpperCase()} ${anio} · EMISIÓN: ${shortTimestamp}`,
           margin + 34,
           16,
         );
         doc.text(
-          `RESPONSABLE: ${username?.toUpperCase() || "CENTRAL"} · PÁGINA: ${pageNum}`,
+          `RESPONSABLE: ${username?.toUpperCase() || "CENTRAL"} · PÁGINA: ${pageNum}`,
           margin + 34,
           21,
         );
@@ -1184,14 +1185,14 @@ const PanelMensualPuesto = ({
       doc.setFont("helvetica", "bold");
       doc.setTextColor(255, 255, 255);
       doc.text(
-        "REPORTE TÁCTICO DE PROGRAMACIÁ“N — CORAZA SEGURIDAD CTA",
+        "REPORTE TÁCTICO DE PROGRAMACIÓN — CORAZA SEGURIDAD CTA",
         margin + 34,
         13,
       );
 
-      doc.setFontSize(8);
-      doc.setTextColor(180, 200, 255);
-      doc.text(`INSTALACIÁ“N: ${puestoNombre.toUpperCase()}`, margin + 34, 20);
+      doc.setFontSize(9.5);
+      doc.setTextColor(200, 220, 255);
+      doc.text(`INSTALACIÓN: ${puestoNombre.toUpperCase()}`, margin + 34, 20);
       doc.text(
         `MES OPERATIVO: ${MONTH_NAMES[mes].toUpperCase()} ${anio}`,
         margin + 34,
@@ -1206,7 +1207,7 @@ const PanelMensualPuesto = ({
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(7);
       doc.text(
-        `VERSIÁ“N: ${prog.version} · ESTADO: ${prog.estado.toUpperCase()}`,
+        `VERSIÓN: ${prog.version} · ESTADO: ${prog.estado.toUpperCase()}`,
         pageW - margin,
         13,
         { align: "right" },
@@ -1218,7 +1219,7 @@ const PanelMensualPuesto = ({
       doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(accentLight[0], accentLight[1], accentLight[2]);
-      doc.text("DETALLES TÁ‰CNICOS DEL PUESTO", margin + 5, curY + 7);
+      doc.text("DETALLES TÉCNICOS DEL PUESTO", margin + 5, curY + 7);
       doc.setFontSize(7);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(60, 60, 90);
@@ -1256,9 +1257,9 @@ const PanelMensualPuesto = ({
       doc.setFontSize(6);
       const headersSummary = [
         "ROL",
-        "CÁ‰DULA / ID",
+        "CÉDULA / ID",
         "NOMBRES Y APELLIDOS COMPLETOS",
-        "DÁAS T.",
+        "DÍAS T.",
         "Q1 (R/NR)",
         "Q2 (R/NR)",
         "TOTAL DESC.",
@@ -1353,7 +1354,7 @@ const PanelMensualPuesto = ({
       drawStickyHeader(gridY);
       gridY += headerRowH;
 
-      // â”€â”€ Render one row per (personal Á— turno) combination â”€â”€
+      // ── Render one row per (personal Á— turno) combination ──
       const allRows: Array<{
         per: (typeof prog.personal)[0];
         turno: TurnoConfig;
@@ -1387,7 +1388,7 @@ const PanelMensualPuesto = ({
         doc.setDrawColor(220, 220, 225);
         doc.rect(margin, gridY, pageW - margin * 2, dataRowH, "S");
         doc.setTextColor(30, 30, 60);
-        doc.setFontSize(5.5);
+        doc.setFontSize(7);
         doc.setFont("helvetica", "bold");
         const label = `${vigNombre.toUpperCase()} · ${tRow.nombre.toUpperCase()} (${tRow.inicio}-${tRow.fin})`;
         let lines = doc.splitTextToSize(label, colW * 4.3);
@@ -1432,16 +1433,16 @@ const PanelMensualPuesto = ({
             doc.text("-", x + colW / 2, gridY + 9, { align: "center" });
           } else {
             doc.setTextColor(255, 255, 255);
-            doc.setFontSize(4);
+            doc.setFontSize(5.5);
             doc.text(jCfg.short, x + colW / 2, gridY + 3.8, {
               align: "center",
             });
-            doc.setFontSize(3);
+            doc.setFontSize(4.5);
             doc.setFont("helvetica", "bold");
             doc.text(`${tRow.inicio}-${tRow.fin}`, x + colW / 2, gridY + 7, {
               align: "center",
             });
-            doc.setFontSize(3.2);
+            doc.setFontSize(4.2);
             doc.setFont("helvetica", "bold");
             doc.text(displayName.toUpperCase(), x + colW / 2, gridY + 10.5, {
               align: "center",
@@ -1459,7 +1460,7 @@ const PanelMensualPuesto = ({
         gridY += dataRowH;
       });
 
-      // â”€â”€ PAGE 3+: INDIVIDUAL GUARD SCHEDULE CARDS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── PAGE 3+: INDIVIDUAL GUARD SCHEDULE CARDS ──────────────────────────────
       // One page per vigilante — the card they carry with them
       const personalConVigilante = prog.personal.filter(
         (per) => per.vigilanteId,
@@ -1516,7 +1517,7 @@ const PanelMensualPuesto = ({
         );
 
         let cardY = 48;
-        // â”€â”€ Section: Turnos configured â”€â”€
+        // ── Section: Turnos configured ──
         doc.setFillColor(240, 242, 252);
         doc.roundedRect(m, cardY, pW - m * 2, 16, 2, 2, "F");
         doc.setTextColor(accentLight[0], accentLight[1], accentLight[2]);
@@ -1532,7 +1533,7 @@ const PanelMensualPuesto = ({
         doc.text(turnosStr, m + 4, cardY + 12);
         cardY += 20;
 
-        // â”€â”€ Day-by-day table â”€â”€
+        // ── Day-by-day table ──
         // Header row
         const thH = 7;
         const tdH = 7;
@@ -1669,7 +1670,7 @@ const PanelMensualPuesto = ({
           cardY += tdH;
         });
 
-        // â”€â”€ Summary box â”€â”€
+        // ── Summary box ──
         cardY += 4;
         const diasTrabajados = diasDelVig.filter(
           (a) => a.jornada === "normal",
@@ -1698,7 +1699,7 @@ const PanelMensualPuesto = ({
           cardY += 20;
         }
 
-        // â”€â”€ Signature area at bottom â”€â”€
+        // ── Signature area at bottom ──
         const sigY2 = pH - 38;
         doc.setDrawColor(180, 180, 200);
         doc.line(m, sigY2, m + 70, sigY2);
@@ -1730,7 +1731,7 @@ const PanelMensualPuesto = ({
         );
         doc.text(`Firma: _______________________`, pW - m - 70, sigY2 + 19);
 
-        // â”€â”€ Footer note â”€â”€
+        // ── Footer note ──
         doc.setFontSize(5);
         doc.setTextColor(160, 160, 180);
         doc.text(
@@ -1741,7 +1742,7 @@ const PanelMensualPuesto = ({
         );
       }
 
-      // â”€â”€ SIGNATURES on last summary page â”€â”€
+      // ── SIGNATURES on last summary page ──
       doc.addPage("a4", "landscape");
       currentPage++;
       addGridHeader(doc, currentPage, 0);
@@ -1756,7 +1757,7 @@ const PanelMensualPuesto = ({
       doc.text("FIRMA RESPONSABLE CTA", margin + 40, sigY + 4, {
         align: "center",
       });
-      doc.text("VÂ°BÂ° CONTROL Y SUPERVISIÁ“N", pageW / 2, sigY + 4, {
+      doc.text("V°B° CONTROL Y SUPERVISIÓN", pageW / 2, sigY + 4, {
         align: "center",
       });
       doc.text("RECIBIDO VIGILANTE / CLIENTE", pageW - margin - 40, sigY + 4, {
@@ -2710,7 +2711,7 @@ const PanelMensualPuesto = ({
           </div>
         )}
 
-        {/* â”€â”€ ALERTAS IA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── ALERTAS IA ──────────────────────────────────────────────── */}
         {activeTab === "alertas" && (
           <div className="space-y-4">
             <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5">
@@ -2772,7 +2773,7 @@ const PanelMensualPuesto = ({
           </div>
         )}
 
-        {/* â”€â”€ CONFIG TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── CONFIG TAB ──────────────────────────────────────── */}
         {activeTab === "config" && (
           <div className="space-y-8 max-w-2xl">
             {/* Turnos Config */}
@@ -3148,11 +3149,49 @@ const PanelMensualPuesto = ({
               </div>
             )}
 
+            {/* ── VIGILANTE SELECTOR ──────────────────────────────────────── */}
+            {comparePuestoId && prog?.personal?.filter(p => p.vigilanteId).length > 0 && (
+              <>
+                <span className="material-symbols-outlined text-indigo-500 text-[14px] shrink-0">person_pin</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="hidden sm:block text-[7px] font-black text-amber-400 uppercase tracking-wide whitespace-nowrap">EFECTIVO:</span>
+                  <select
+                    value={compareVigilanteId || ""}
+                    onChange={(e) => setCompareVigilanteId(e.target.value || null)}
+                    className="h-10 text-[11px] font-black rounded-xl px-3 outline-none transition-all cursor-pointer shadow-sm"
+                    style={{
+                      minWidth: "160px",
+                      maxWidth: "230px",
+                      background: compareVigilanteId ? "rgba(251,191,36,0.2)" : "rgba(255,255,255,0.06)",
+                      border: compareVigilanteId ? "2px solid rgba(251,191,36,0.5)" : "2px solid rgba(255,255,255,0.12)",
+                      color: compareVigilanteId ? "#fde68a" : "#94a3b8",
+                    }}
+                  >
+                    <option value="" style={{ background: "#0f172a" }}>— Seleccionar Efectivo —</option>
+                    {(prog?.personal || []).filter(p => p.vigilanteId).map((per) => {
+                      const v = vigilantes.find(vv => vv.id === per.vigilanteId || vv.dbId === per.vigilanteId);
+                      return (
+                        <option key={per.rol} value={per.vigilanteId!} style={{ background: "#0f172a" }}>
+                          {v?.nombre || per.vigilanteId} · {ROL_LABELS[per.rol as RolPuesto] || per.rol}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                {compareVigilanteId && (
+                  <div className="flex items-center gap-1 px-2 py-1 rounded-full text-[7px] font-black text-amber-300 border border-amber-500/20" style={{ background: "rgba(251,191,36,0.08)" }}>
+                    <span className="material-symbols-outlined text-amber-400" style={{ fontSize: "11px" }}>visibility</span>
+                    Filtrado
+                  </div>
+                )}
+              </>
+            )}
+
             {/* Right */}
             <div className="ml-auto flex items-center gap-2">
-              {comparePuestoId && (
+              {(comparePuestoId || compareVigilanteId) && (
                 <button
-                  onClick={() => setComparePuestoId(null)}
+                  onClick={() => { setComparePuestoId(null); setCompareVigilanteId(null); }}
                   className="h-6 px-2 rounded-lg text-[8px] font-black uppercase text-red-300 border border-red-500/20 hover:bg-red-500/20 transition-all"
                 >
                   Limpiar
@@ -3273,27 +3312,52 @@ const PanelMensualPuesto = ({
                 </div>
 
                 {/* Guard rows */}
+                {/* Instrucción cuando hay puesto pero no vigilante seleccionado */}
+                {!compareVigilanteId && (
+                  <div className="flex items-center gap-3 mb-2 px-4 py-2 rounded-xl" style={{ background: "rgba(251,191,36,0.06)", border: "1px dashed rgba(251,191,36,0.2)" }}>
+                    <span className="material-symbols-outlined text-amber-400" style={{ fontSize: "16px" }}>touch_app</span>
+                    <div>
+                      <p className="text-[9px] font-black text-amber-300 uppercase tracking-wide">Selecciona un efectivo arriba ↑</p>
+                      <p className="text-[8px] text-slate-500 mt-0.5">O haz clic en su nombre para filtrar la vista por ese vigilante</p>
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-2">
                   {(prog?.personal || []).filter(p => p.vigilanteId).map((per) => {
                     const vig = vigilantes.find((v) => v.id === per.vigilanteId || v.dbId === per.vigilanteId);
                     const vid = per.vigilanteId!;
                     const initials = vig?.nombre.trim().split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+                    const isSelected = compareVigilanteId === vid;
+                    const isDimmed = compareVigilanteId && !isSelected;
 
                     return (
-                      <div key={per.rol} className="flex gap-1 items-center group/row">
-                        {/* Avatar + name */}
-                        <div
-                          className="shrink-0 flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all group-hover/row:bg-white/5"
+                      <div
+                        key={per.rol}
+                        className={`flex gap-1 items-center group/row transition-all duration-300 rounded-xl ${
+                          isSelected ? 'ring-2 ring-amber-400/50 bg-amber-400/5' : isDimmed ? 'opacity-30' : ''
+                        }`}
+                      >
+                        {/* Avatar + name — CLICKEABLE para seleccionar */}
+                        <button
+                          onClick={() => setCompareVigilanteId(isSelected ? null : vid)}
+                          className="shrink-0 flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all hover:bg-white/10 active:scale-95 cursor-pointer"
                           style={{ minWidth: "164px" }}
+                          title={isSelected ? `Deseleccionar ${vig?.nombre}` : `Filtrar por ${vig?.nombre}`}
                         >
                           <div
-                            className="size-8 rounded-xl flex items-center justify-center font-black text-white text-[10px] shrink-0 shadow-lg"
+                            className={`size-8 rounded-xl flex items-center justify-center font-black text-white text-[10px] shrink-0 shadow-lg transition-all ${
+                              isSelected ? 'ring-2 ring-amber-300 scale-110' : ''
+                            }`}
                             style={{ background: ROL_GRAD[per.rol] || ROL_GRAD.titular_a }}
                           >
-                            {initials}
+                            {isSelected ? (
+                              <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>check_circle</span>
+                            ) : initials}
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[10px] font-black text-white truncate leading-tight">
+                          <div className="min-w-0 flex-1 text-left">
+                            <p className={`text-[10px] font-black truncate leading-tight ${
+                              isSelected ? 'text-amber-300' : 'text-white'
+                            }`}>
                               {vig?.nombre.split(" ").slice(0, 2).join(" ") || vid}
                             </p>
                             <div className="flex items-center gap-2 mt-0.5">
@@ -3305,7 +3369,7 @@ const PanelMensualPuesto = ({
                               </span>
                             </div>
                           </div>
-                        </div>
+                        </button>
 
                         {/* Day cells — Lógica de disponibilidad */}
                         {daysArr.map((d) => {
@@ -3313,26 +3377,27 @@ const PanelMensualPuesto = ({
                             (a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === (vig as any)?.dbId)
                           );
 
-                          // 1. Ocupado en Puesto Origen (Barra Superior) — Cualquier jornada asignada cuenta
-                          const isOcupadoOrigen = !!(myAsig && myAsig.vigilanteId && myAsig.jornada !== "sin_asignar");
-                          
-                          // 2. Ocupado en Puesto Destino (Ya está ahí)
-                          const asigDest = cProg?.asignaciones.find(
-                            (a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === vig?.dbId)
-                          );
-                          const isOcupadoDestino = !!(asigDest && asigDest.jornada === "normal");
-
-                          // 3. Ocupado en OTROS puestos (Mapa global)
-                          const slotsGlobales = ocupados.get(vid) || ocupados.get(vig?.dbId || "") || [];
-                          const ocupacionGlobal = slotsGlobales.find(s => s.slot.startsWith(`${d}-`));
-                          const isOcupadoGlobal = !!ocupacionGlobal;
-
-                          // 4. Descansos
+                          // 4. Descansos en origen — evaluamos PRIMERO para no confundir con "ocupado"
                           const isDescanso = !!(myAsig && (
                             myAsig.jornada === "descanso_remunerado" ||
                             myAsig.jornada === "descanso_no_remunerado" ||
                             myAsig.jornada === "vacacion"
                           ));
+
+                          // 1. Ocupado en Puesto Origen (Barra Superior) — SOLO jornada NORMAL activa cuenta
+                          //    Los descansos y vacaciones NO bloquean (se manejan por separado como DESCANSO)
+                          const isOcupadoOrigen = !!(myAsig && myAsig.vigilanteId && myAsig.jornada === "normal" && !isDescanso);
+                          
+                          // 2. Ocupado en Puesto Destino (Ya está ahí — cualquier jornada asignada)
+                          const asigDest = cProg?.asignaciones.find(
+                            (a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === vig?.dbId) && a.jornada !== "sin_asignar"
+                          );
+                          const isOcupadoDestino = !!(asigDest && asigDest.jornada !== "sin_asignar");
+
+                          // 3. Ocupado en OTROS puestos (Mapa global)
+                          const slotsGlobales = ocupados.get(vid) || ocupados.get(vig?.dbId || "") || [];
+                          const ocupacionGlobal = slotsGlobales.find(s => s.slot.startsWith(`${d}-`));
+                          const isOcupadoGlobal = !!ocupacionGlobal;
 
                           // 5. Descanso post-PM
                           const prevAsig = prog?.asignaciones.find(
@@ -3340,9 +3405,9 @@ const PanelMensualPuesto = ({
                           );
                           const isDescansoPM = !!(prevAsig && prevAsig.jornada === "normal" && prevAsig.turno === "PM");
 
-                          // 6. Vacantes en destino
+                          // 6. Vacantes en destino — solo bloquea si TODOS los slots del día tienen vigilante asignado (no sin_asignar)
                           const asigsDestDia = cProg?.asignaciones.filter(a => a.dia === d) || [];
-                          const sinVacante = asigsDestDia.length > 0 && asigsDestDia.every(a => a.vigilanteId);
+                          const sinVacante = asigsDestDia.length > 0 && asigsDestDia.every(a => a.vigilanteId && a.jornada !== "sin_asignar");
 
                           const myTurno = myAsig?.turno || null;
                           const dow = new Date(anio, mes, d).getDay();
@@ -3354,6 +3419,10 @@ const PanelMensualPuesto = ({
                           let borderColor: string;
                           let glow: string;
                           let tooltipText: string;
+                          // También bloqueado si hay un filtro activo y este no es el vigilante seleccionado
+                          // NO DESACTIVAR EL BOTON, mejor manejarlo en el click o dejar que sea interactivo
+                          let isBlockedInFilter = !!(compareVigilanteId && compareVigilanteId !== vid);
+                          let isBlocked = false; // Por defecto permitir click para mostrar toasts o modal
 
                           if (isOcupadoDestino) {
                             // 🔵 AZUL — Ya está programado en el destino
@@ -3363,6 +3432,7 @@ const PanelMensualPuesto = ({
                             borderColor = "#3b82f6";
                             glow = "0 0 8px rgba(59,130,246,0.5)";
                             tooltipText = `DÍA ${d} | ${vig?.nombre}: YA PROGRAMADO AQUÍ (${cPuesto?.nombre}). Turno: ${asigDest?.turno}`;
+                            // isBlocked = true; // No bloquear, dejar toast
                           } else if (isOcupadoOrigen) {
                             // 🔴 ROJO — Ocupado en origen
                             bg = "linear-gradient(135deg,#991b1b 0%,#7f1d1d 100%)";
@@ -3411,46 +3481,104 @@ const PanelMensualPuesto = ({
                             <button
                               key={d}
                               title={tooltipText}
-                                onClick={() => {
-                                  // Re-obtener cProg de forma robusta
-                                  const cP = allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId);
-                                  const currentCProg = cP ? getProgramacion(cP.id, anio, mes) : null;
-                                  
-                                  if (!currentCProg) {
-                                    showTacticalToast({
-                                      title: "⌛ Preparando Tablero",
-                                      message: "Creamos el espacio para el nuevo puesto. Haz clic una vez más para abrir.",
-                                      type: "info"
-                                    });
-                                    // Disparar creación si hace falta
-                                    if (cP) {
-                                      crearOObtenerProgramacion(cP.id, anio, mes, username || "Sistema");
-                                    }
-                                    return;
-                                  }
+                              disabled={isBlockedInFilter}
+                              onClick={() => {
+                                // ─── AUTO-SELECCIONAR VIGILANTE SI NO HAY FILTRO ────────────────
+                                if (!compareVigilanteId) {
+                                  setCompareVigilanteId(vid);
+                                }
+                                
+                                // ─── BLOQUEAR DÍAS NO DISPONIBLES ───────────────────────────────
+                                if (isOcupadoOrigen) {
+                                  showTacticalToast({
+                                    title: "🚫 Día Ocupado en Origen",
+                                    message: `${vig?.nombre || 'El efectivo'} ya trabaja en "${puestoNombre}" el día ${d} (Turno ${myTurno}). No puede cubrir dos puestos simultáneamente.`,
+                                    type: "error"
+                                  });
+                                  return;
+                                }
+                                if (isOcupadoGlobal) {
+                                  showTacticalToast({
+                                    title: "⚠️ Ocupado en otro Puesto",
+                                    message: `${vig?.nombre || 'El efectivo'} está asignado en ese día. Verifique antes de programar.`,
+                                    type: "error"
+                                  });
+                                  return;
+                                }
+                                if (isDescanso || isDescansoPM) {
+                                  showTacticalToast({
+                                    title: "🛌 Día de Descanso/Vacación",
+                                    message: `${vig?.nombre || 'El efectivo'} tiene descanso programado el día ${d}. No se puede reprogramar.`,
+                                    type: "info"
+                                  });
+                                  return;
+                                }
+                                if (isOcupadoDestino) {
+                                  showTacticalToast({
+                                    title: "✅ Ya Programado en Destino",
+                                    message: `${vig?.nombre || 'El efectivo'} ya está en "${cPuesto?.nombre}" el día ${d}. Abre el calendario del puesto destino para editar.`,
+                                    type: "info"
+                                  });
+                                  return;
+                                }
+                                if (sinVacante) {
+                                  showTacticalToast({
+                                    title: "🔒 Sin Vacantes",
+                                    message: `"${cPuesto?.nombre}" ya tiene todos los turnos del día ${d} cubiertos.`,
+                                    type: "info"
+                                  });
+                                  return;
+                                }
 
-                                  // Buscar vacante disponible (primero AM, luego PM, luego el resto)
-                                  let targetAsig = currentCProg.asignaciones.find(a => a.dia === d && !a.vigilanteId);
-                                  if (!targetAsig) {
-                                    // Si no hay vacante, abrimos la primera asignación que exista para ese día (para que el usuario decida a quién reemplazar)
-                                    targetAsig = currentCProg.asignaciones.find(a => a.dia === d);
-                                  }
+                                // ─── DÍA DISPONIBLE ─────────────────────────────────────────────
+                                const cP = allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId);
+                                const currentCProg = cP ? getProgramacion(cP.id, anio, mes) : null;
+                                
+                                if (!currentCProg) {
+                                  showTacticalToast({
+                                    title: "⌛ Preparando Tablero",
+                                    message: "Creando espacio para el puesto destino. Intenta de nuevo en un momento.",
+                                    type: "info"
+                                  });
+                                  if (cP) crearOObtenerProgramacion(cP.id, anio, mes, username || "Sistema");
+                                  return;
+                                }
 
-                                  if (targetAsig) {
-                                    setEditCell({ 
-                                      asig: targetAsig, 
-                                      progId: currentCProg.id,
-                                      preSelectVigilanteId: vid 
-                                    });
-                                  } else {
-                                    showTacticalToast({
-                                      title: "❌ No se pudo abrir",
-                                      message: "Asegúrate de que el puesto destino tenga turnos configurados.",
-                                      type: "error"
-                                    });
-                                  }
-                                }}
-                              className="relative flex items-center justify-center rounded-md cursor-pointer transition-all hover:scale-125 hover:z-20 active:scale-95 group/cell shadow-sm"
+                                // ─── Detectar turno del vigilante en origen para sugerirlo ───────
+                                const turnoOrigen = (myAsig?.turno || "AM") as any;
+
+                                // Buscar vacante en destino — preferir misma turno que en origen
+                                let targetAsig = currentCProg.asignaciones.find(
+                                  a => a.dia === d && !a.vigilanteId && a.turno === turnoOrigen
+                                );
+                                if (!targetAsig) {
+                                  targetAsig = currentCProg.asignaciones.find(a => a.dia === d && !a.vigilanteId);
+                                }
+                                if (!targetAsig) {
+                                  targetAsig = currentCProg.asignaciones.find(a => a.dia === d);
+                                }
+
+                                if (targetAsig) {
+                                  setEditCell({ 
+                                    asig: { ...targetAsig, turno: turnoOrigen },
+                                    progId: currentCProg.id,
+                                    preSelectVigilanteId: vid 
+                                  });
+                                } else {
+                                  // Crear asignación virtual si el destino no tiene turnos
+                                  const firstRol = currentCProg.personal.find(p => !p.vigilanteId)?.rol || 'relevante';
+                                  setEditCell({
+                                    asig: { dia: d, rol: firstRol, vigilanteId: null, turno: turnoOrigen, jornada: "sin_asignar" as any },
+                                    progId: currentCProg.id,
+                                    preSelectVigilanteId: vid
+                                  });
+                                }
+                              }}
+                              className={`relative flex items-center justify-center rounded-md transition-all group/cell shadow-sm ${
+                                isBlocked
+                                  ? 'cursor-not-allowed'
+                                  : 'cursor-pointer hover:scale-125 hover:z-20 active:scale-95'
+                              }`}
                               style={{
                                 minWidth: "28px",
                                 height: "28px",
@@ -3460,15 +3588,24 @@ const PanelMensualPuesto = ({
                               }}
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: "12px", color: iconColor }}>{icon}</span>
-                              <div className="absolute inset-0 bg-white/0 group-hover/cell:bg-white/10 transition-colors rounded-[inherit]" />
+                              <div className={`absolute inset-0 ${isBlocked ? 'bg-white/0' : 'bg-white/0 group-hover/cell:bg-white/10'} transition-colors rounded-[inherit]`} />
                               
-                              {/* Chip del turno cuando está ocupado en origen */}
+                              {/* Chip turno cuando OCUPADO en origen */}
                               {isOcupadoOrigen && myTurno && (
                                 <span
                                   className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[5px] font-black px-1 rounded leading-[1.5]"
-                                  style={{ background: "#dc2626", color: "#fff", whiteSpace: "nowrap shadow-sm" }}
+                                  style={{ background: "#dc2626", color: "#fff", whiteSpace: "nowrap" }}
                                 >
                                   {myTurno}
+                                </span>
+                              )}
+                              {/* Chip verde de turno cuando LIBRE y el vigilante tiene turno asignado ese día en origen */}
+                              {!isBlocked && myAsig?.turno && (
+                                <span
+                                  className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[5px] font-black px-1 rounded leading-[1.5]"
+                                  style={{ background: "#16a34a", color: "#fff", whiteSpace: "nowrap" }}
+                                >
+                                  {myAsig.turno}
                                 </span>
                               )}
                             </button>
@@ -3529,7 +3666,7 @@ const PanelMensualPuesto = ({
   );
 };
 
-// â”€â”€ MAIN PAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── MAIN PAGE ──────────────────────────────────────────────────────────────────
 
 const GestionPuestos = () => {
   const puestos = usePuestoStore((s) => s.puestos);
