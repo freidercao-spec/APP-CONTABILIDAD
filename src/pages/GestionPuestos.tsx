@@ -3416,13 +3416,15 @@ const PanelMensualPuesto = ({
                           ));
 
                           // 1. Ocupado en Puesto Origen (Barra Superior) — SOLO jornada NORMAL activa cuenta
-                          const isOcupadoOrigen = !!(myAsig && myAsig.vigilanteId && myAsig.jornada === "normal" && !isDescanso);
+                          // Si Origen y Destino son el mismo, NO marcar como ocupado para permitir edición
+                          const isSamePuesto = !!(comparePuestoId && (comparePuestoId === puestoId || comparePuestoId === puesto?.dbId));
+                          const isOcupadoOrigen = !!(myAsig && myAsig.vigilanteId && myAsig.jornada === "normal" && !isDescanso && !isSamePuesto);
                           
                           // 2. Ocupado en Puesto Destino (Ya está grabado en el destino)
                           const asigDest = cProg?.asignaciones.find(
                             (a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === vig?.dbId) && a.jornada !== "sin_asignar"
                           );
-                          const isOcupadoDestino = !!(asigDest && asigDest.jornada !== "sin_asignar");
+                          const isOcupadoDestino = !!(asigDest && asigDest.jornada !== "sin_asignar" && !isSamePuesto);
 
                           // 3. Ocupado en OTROS puestos (Mapa global)
                           const slotsGlobales = ocupados.get(vid) || ocupados.get(vig?.id || "") || ocupados.get(vig?.dbId || "") || [];
@@ -3519,7 +3521,7 @@ const PanelMensualPuesto = ({
                                 }
                                 
                                 // ─── BLOQUEAR DÍAS NO DISPONIBLES ───────────────────────────────
-                                if (isOcupadoOrigen) {
+                                if (isOcupadoOrigen && !isSamePuesto) {
                                   showTacticalToast({
                                     title: "🚫 Día Ocupado en Origen",
                                     message: `${vig?.nombre || 'El efectivo'} ya trabaja en "${puestoNombre}" el día ${d} (Turno ${myTurno}). No puede cubrir dos puestos simultáneamente.`,
@@ -3535,7 +3537,7 @@ const PanelMensualPuesto = ({
                                   });
                                   return;
                                 }
-                                if (isDescanso || isDescansoPM) {
+                                if ((isDescanso || isDescansoPM) && !isSamePuesto) {
                                   showTacticalToast({
                                     title: "🛌 Día de Descanso/Vacación",
                                     message: `${vig?.nombre || 'El efectivo'} tiene descanso programado el día ${d}. No se puede reprogramar.`,
@@ -3543,7 +3545,7 @@ const PanelMensualPuesto = ({
                                   });
                                   return;
                                 }
-                                if (isOcupadoDestino) {
+                                if (isOcupadoDestino && !isSamePuesto) {
                                   showTacticalToast({
                                     title: "✅ Ya Programado en Destino",
                                     message: `${vig?.nombre || 'El efectivo'} ya está en "${cPuesto?.nombre}" el día ${d}. Abre el calendario del puesto destino para editar.`,
