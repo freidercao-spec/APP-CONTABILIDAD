@@ -3381,10 +3381,11 @@ const PanelMensualPuesto = ({
                           </div>
                         </button>
 
-                        {/* Day cells — Lógica de disponibilidad filtrada por ROL para total precisión */}
+                        {/* Day cells — Lógica de disponibilidad GLOBAL en el tablero superior */}
                         {daysArr.map((d) => {
+                          // BUSCAR si el vigilante trabaja en ESTE puesto en CUALQUIERA de los roles
                           const myAsig = prog?.asignaciones.find(
-                            (a) => a.dia === d && a.rol === rol && (a.vigilanteId === vid || a.vigilanteId === (vig as any)?.dbId)
+                            (a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === (vig as any)?.dbId)
                           );
 
                           // 4. Descansos en origen — evaluamos PRIMERO para no confundir con "ocupado"
