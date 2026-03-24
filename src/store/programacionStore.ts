@@ -269,12 +269,12 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     
                     console.log(`[Coraza] 🆘 MISIÓN DE RESCATE: Recuperando Marzo 2026 (Prio: ${mes + 1})...`);
 
-                    // 1. CARGA LÁSER: Solo mes actual y anterior para garantizar velocidad y éxito RLS
+                    // 1. CARGA BRUTA: Sin filtros complejos para evitar errores RLS
                     const { data: rows, error } = await supabase
                         .from('programacion_mensual')
                         .select('*')
-                        .or(`mes.eq.${mes},mes.eq.${mes-1}`)
-                        .eq('anio', anio);
+                        .eq('anio', anio)
+                        .eq('mes', mes);
 
                     if (error) throw error;
                     
@@ -607,7 +607,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
         }),
         {
-            name: 'coraza-programacion-store-v1.4.2',
+            name: 'coraza-programacion-store-v1.4.3',
             partialize: (state) => ({ templates: state.templates, programaciones: state.programaciones, loaded: state.loaded }),
             version: 3,
         }
