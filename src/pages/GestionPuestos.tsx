@@ -1840,7 +1840,7 @@ const PanelMensualPuesto = ({
             </span>
             <span className="text-[9px] font-black uppercase tracking-widest">
               {lastSyncError
-                ? "Error de red"
+                ? `Error: ${lastSyncError}`
                 : isSyncing
                   ? "Guardando..."
                   : "Sincronizado"}
