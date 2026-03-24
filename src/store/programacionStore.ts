@@ -106,9 +106,17 @@ const pendingSyncs = new Map<string, any>();
 
 const translateToUuid = (id: string | null): string | null => {
     if (!id) return null;
-    if (id && id.length > 20) return id; // Is a UUID
-    const v = useVigilanteStore.getState().vigilantes.find((v: any) => v.id === id || v.dbId === id);
-    return v?.dbId || id;
+    const isUuid = id.length >= 32 || (id.length >= 20 && id.includes('-'));
+    if (isUuid) return id;
+    
+    // Attempt lookup in current vigilantes
+    const vigilantes = useVigilanteStore.getState().vigilantes || [];
+    const v = vigilantes.find((v: any) => v.id === id || v.dbId === id || v.nombre === id);
+    if (v?.dbId && (v.dbId.length >= 32 || v.dbId.includes('-'))) return v.dbId;
+    if (v?.id && (v.id.length >= 32 || v.id.includes('-'))) return v.id;
+    
+    // Crucial constraint: If we cannot find a UUID, we MUST return null to avoid crashing Supabase 'uuid' type columns
+    return null;
 };
 
 const translateFromDb = (dbId: string | null) => {
@@ -119,10 +127,14 @@ const translateFromDb = (dbId: string | null) => {
 
 const translatePuestoToUuid = (id: string | null): string | null => {
     if (!id) return null;
-    if (id && id.length > 20) return id; // Is a UUID
-    const puestos = usePuestoStore.getState().puestos;
-    const p = puestos.find((pt: any) => pt.id === id || pt.dbId === id);
-    return p?.dbId || id;
+    const isUuid = id.length >= 32 || (id.length >= 20 && id.includes('-'));
+    if (isUuid) return id; 
+
+    const puestos = usePuestoStore.getState().puestos || [];
+    const p = puestos.find((pt: any) => pt.id === id || pt.dbId === id || pt.nombre === id);
+    if (p?.dbId && (p.dbId.length >= 32 || p.dbId.includes('-'))) return p.dbId;
+    if (p?.id && (p.id.length >= 32 || p.id.includes('-'))) return p.id;
+    return null;
 };
 
 interface SyncResult {
@@ -234,15 +246,20 @@ const queueSync = (progId: string, set: any, get: any, immediate = false) => {
         if (!prog) return;
         set({ isSyncing: true });
         try {
-            await syncProgramacionToDb(prog, set, get);
+            const res = await syncProgramacionToDb(prog, set, get);
+            if (res && res.success === false) {
+                console.warn('[Coraza] Sync rechazado por conflicto de versiones');
+            }
             set((state: any) => ({
                 programaciones: state.programaciones.map((p: any) => 
                     p.id === progId ? { ...p, syncStatus: 'synced' as const } : p
                 ),
                 isSyncing: false
             }));
-        } catch (err) {
-            set({ isSyncing: false });
+        } catch (err: any) {
+            console.error('[Coraza] ❌ ERROR EN LA NUBE:', err);
+            set({ isSyncing: false, lastSyncError: err?.message || 'Error de escritura' });
+            showTacticalToast({ title: "❌ Error Nube Destino", message: err?.message || "La base de datos rechazó el despliegue. Posible fallo de ID.", type: "error" });
         }
     };
 
