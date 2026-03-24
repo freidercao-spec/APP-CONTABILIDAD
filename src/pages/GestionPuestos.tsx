@@ -849,7 +849,7 @@ const PanelMensualPuesto = ({
     ? puesto.jornadasCustom
     : [];
 
-  // Cross-programacion occupied slots map — vigilanteId -> [{ slot: 'dia-turno', puesto: 'Name' }]
+// Cross-programacion occupied slots map — vigilanteId -> [{ slot: 'dia-turno', puesto: 'Name' }]
   const ocupados = useMemo(() => {
     const map = new Map<string, { slot: string; puesto: string }[]>();
     const pStore = usePuestoStore.getState().puestos;
@@ -879,7 +879,7 @@ const PanelMensualPuesto = ({
         });
       });
     return map;
-  }, [allProgramaciones.length, anio, mes, puestoId]); // Added .length to trigger on data fetch
+  }, [allProgramaciones, anio, mes, puestoId]); // Full array dependency for complete reactivity
 
   // Quincena rest counters — use stable string IDs as deps, not object references
   const progId = prog?.id;
@@ -3281,12 +3281,12 @@ const PanelMensualPuesto = ({
         </div>
       )}
 
-      {/* MODAL DE EDICIÓN (RESTAURADO) */}
+      {/* MODAL DE EDICIÓN (RESTAURADO + REACTIVO) */}
       {editCell && (
         <EditCeldaModal
           asig={editCell.asig}
           vigilantes={vigilantes}
-          titularesId={[]}
+          titularesId={allProgramaciones.find(p => p.id === editCell.progId)?.personal.map(p => p.vigilanteId || "") || []}
           ocupados={ocupados}
           turnosConfig={turnosConfig}
           jornadasCustom={jornadasCustom}
