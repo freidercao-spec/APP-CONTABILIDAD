@@ -7,11 +7,12 @@ interface AuthState {
     username: string | null;
     role: string | null;
     userId: string | null;
+    empresaId: string | null;
     loading: boolean;
     error: string | null;
     login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
     logout: () => Promise<void>;
-    updateProfile: (name: string, role: string) => void;
+    updateProfile: (name: string, role: string, empresaId?: string) => void;
     checkSession: () => Promise<void>;
 }
 
@@ -22,6 +23,7 @@ export const useAuthStore = create<AuthState>()(
             username: null,
             role: null,
             userId: null,
+            empresaId: null,
             loading: true,
             error: null,
 
@@ -36,6 +38,7 @@ export const useAuthStore = create<AuthState>()(
                         username: 'Soporte Tecnico Coraza',
                         role: 'admin',
                         userId: 'emergency-fix-id',
+                        empresaId: 'a0000000-0000-0000-0000-000000000001',
                         loading: false,
                     });
                     return { success: true };
@@ -50,7 +53,14 @@ export const useAuthStore = create<AuthState>()(
                     if (error) {
                         // Si falla Supabase, intentamos el bypass de nuevo por si acaso el usuario uso la clave maestra
                         if (email === 'freidercardenas12@gmail.com' && password === 'coraza123') {
-                             set({ isAuthenticated: true, username: 'Freider Cardenas (Bypass)', role: 'admin', userId: 'bypass-id', loading: false });
+                             set({ 
+                                isAuthenticated: true, 
+                                username: 'Freider Cardenas (Bypass)', 
+                                role: 'admin', 
+                                userId: 'bypass-id', 
+                                empresaId: 'a0000000-0000-0000-0000-000000000001',
+                                loading: false 
+                            });
                              return { success: true };
                         }
                         set({ loading: false, error: error.message });
@@ -65,7 +75,7 @@ export const useAuthStore = create<AuthState>()(
                     // Obtener perfil
                     const { data: profile } = await supabase
                         .from('usuarios')
-                        .select('nombre_completo, rol')
+                        .select('nombre_completo, rol, empresa_id')
                         .eq('id', data.user.id)
                         .single();
 
@@ -74,6 +84,7 @@ export const useAuthStore = create<AuthState>()(
                         username: profile?.nombre_completo || data.user.email || 'Usuario',
                         role: profile?.rol || 'coordinador',
                         userId: data.user.id,
+                        empresaId: profile?.empresa_id || 'a0000000-0000-0000-0000-000000000001',
                         loading: false,
                     });
                     return { success: true };
@@ -93,12 +104,17 @@ export const useAuthStore = create<AuthState>()(
                     username: null,
                     role: null,
                     userId: null,
+                    empresaId: null,
                     loading: false,
                     error: null,
                 });
             },
 
-            updateProfile: (username, role) => set({ username, role }),
+            updateProfile: (username, role, empresaId) => set((s) => ({ 
+                username, 
+                role, 
+                empresaId: empresaId || s.empresaId 
+            })),
 
             checkSession: async () => {
                 // Si ya tenemos una sesion de emergencia, no la pises con Supabase
@@ -113,7 +129,7 @@ export const useAuthStore = create<AuthState>()(
                     if (session?.user) {
                         const { data: profile } = await supabase
                             .from('usuarios')
-                            .select('nombre_completo, rol')
+                            .select('nombre_completo, rol, empresa_id')
                             .eq('id', session.user.id)
                             .single();
 
@@ -122,10 +138,11 @@ export const useAuthStore = create<AuthState>()(
                             username: profile?.nombre_completo || session.user.email || 'Usuario',
                             role: profile?.rol || 'coordinador',
                             userId: session.user.id,
+                            empresaId: profile?.empresa_id || 'a0000000-0000-0000-0000-000000000001',
                             loading: false,
                         });
                     } else {
-                        set({ isAuthenticated: false, loading: false });
+                        set({ isAuthenticated: false, empresaId: null, loading: false });
                     }
                 } catch {
                     set({ loading: false });

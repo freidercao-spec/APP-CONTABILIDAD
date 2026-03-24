@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { supabase, EMPRESA_ID } from '../lib/supabase';
 import { showTacticalToast } from '../utils/tacticalToast';
 import { useVigilanteStore } from './vigilanteStore';
+import { useAuthStore } from './authStore';
 
 export interface TurnoVigilante {
     vigilanteId: string;
@@ -121,10 +122,11 @@ export const usePuestoStore = create<PuestoState>()(
 
             fetchPuestos: async () => {
                 try {
+                    const currentEmpresaId = useAuthStore.getState().empresaId || EMPRESA_ID;
                     const { data: rows, error } = await supabase
                         .from('puestos')
                         .select('*')
-                        .eq('empresa_id', EMPRESA_ID)
+                        .eq('empresa_id', currentEmpresaId)
                         .limit(5000)
                         .eq('estado', 'Activo')
                         .order('codigo', { ascending: true });
@@ -228,10 +230,11 @@ export const usePuestoStore = create<PuestoState>()(
 
             addPuesto: async (nombre, tipo, lat, lng, elevacion, detalles) => {
                 try {
+                    const currentEmpresaId = useAuthStore.getState().empresaId || EMPRESA_ID;
                     const { data: inserted, error } = await supabase
                         .from('puestos')
                         .insert({
-                            empresa_id: EMPRESA_ID,
+                            empresa_id: currentEmpresaId,
                             nombre,
                             tipo,
                             latitud: lat,
@@ -414,6 +417,7 @@ export const usePuestoStore = create<PuestoState>()(
                 const dbVigilanteId = translateVigToUuid(vigilanteId);
 
                 if (dbPuestoId && dbVigilanteId) {
+                    const currentEmpresaId = useAuthStore.getState().empresaId || EMPRESA_ID;
                     if (wasAssigned) {
                         await supabase.from('turnos_puesto')
                             .update({ hora_inicio: horaInicio, hora_fin: horaFin })
@@ -421,7 +425,7 @@ export const usePuestoStore = create<PuestoState>()(
                             .eq('vigilante_id', dbVigilanteId);
                     } else {
                         await supabase.from('turnos_puesto').insert({
-                            empresa_id: EMPRESA_ID,
+                            empresa_id: currentEmpresaId,
                             puesto_id: dbPuestoId,
                             vigilante_id: dbVigilanteId,
                             hora_inicio: horaInicio,

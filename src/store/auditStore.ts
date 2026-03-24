@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase, EMPRESA_ID } from '../lib/supabase';
+import { useAuthStore } from './authStore';
 
 export type AuditModule =
     | 'LOGIN'
@@ -64,9 +65,10 @@ export const useAuditStore = create<AuditState>()(
 
                 // Write to Supabase
                 try {
+                    const currentEmpresaId = useAuthStore.getState().empresaId || EMPRESA_ID;
                     await supabase.from('auditoria').insert({
                         id: entry.id,
-                        empresa_id: EMPRESA_ID,
+                        empresa_id: currentEmpresaId,
                         modulo: module,
                         accion: action,
                         detalles: details,
@@ -82,10 +84,11 @@ export const useAuditStore = create<AuditState>()(
 
             fetchEntries: async () => {
                 try {
+                    const currentEmpresaId = useAuthStore.getState().empresaId || EMPRESA_ID;
                     const { data: rows } = await supabase
                         .from('auditoria')
                         .select('*')
-                        .eq('empresa_id', EMPRESA_ID)
+                        .eq('empresa_id', currentEmpresaId)
                         .order('created_at', { ascending: false })
                         .limit(500);
 

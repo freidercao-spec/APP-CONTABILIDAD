@@ -756,6 +756,16 @@ const PanelMensualPuesto = ({
   const fetchProgramacionById = useProgramacionStore(
     (s) => s.fetchProgramacionById,
   );
+  const fetchProgramacionesByMonth = useProgramacionStore(
+    (s) => s.fetchProgramacionesByMonth,
+  );
+
+  // Load ALL organizational data for this month to populate 'ocupados' map correctly
+  useEffect(() => {
+    if (compareExpanded && anio && mes !== undefined) {
+      fetchProgramacionesByMonth(anio, mes);
+    }
+  }, [compareExpanded, anio, mes, fetchProgramacionesByMonth]);
 
   // If prog not found in global store, try one targeted fetch before giving up
   useEffect(() => {
@@ -872,7 +882,7 @@ const PanelMensualPuesto = ({
         });
       });
     return map;
-  }, [allProgramaciones, anio, mes, puestoId]);
+  }, [allProgramaciones.length, anio, mes, puestoId]); // Added .length to trigger on data fetch
 
   // Quincena rest counters — use stable string IDs as deps, not object references
   const progId = prog?.id;
@@ -3822,14 +3832,13 @@ const PanelMensualPuesto = ({
 const GestionPuestos = () => {
   const puestos = usePuestoStore((s) => s.puestos);
   const programaciones = useProgramacionStore((s) => s.programaciones);
-  const getCoberturaPorcentaje = useProgramacionStore(
-    (s) => s.getCoberturaPorcentaje,
-  );
-  const getAlertas = useProgramacionStore((s) => s.getAlertas);
-  const crearOObtenerProgramacion = useProgramacionStore(
-    (s) => s.crearOObtenerProgramacion,
-  );
+  const loaded = useProgramacionStore((s) => s.loaded);
+  const isSyncing = useProgramacionStore((s) => s.isSyncing);
   const { username } = useAuthStore();
+  const crearOObtenerProgramacion = useProgramacionStore((s) => s.crearOObtenerProgramacion);
+  const fetchProgramacionesByMonth = useProgramacionStore((s) => s.fetchProgramacionesByMonth);
+  const getCoberturaPorcentaje = useProgramacionStore((s) => s.getCoberturaPorcentaje);
+  const getAlertas = useProgramacionStore((s) => s.getAlertas);
 
   const now = new Date();
   const [anio, setAnio] = useState(now.getFullYear());
@@ -3842,6 +3851,11 @@ const GestionPuestos = () => {
     id: string;
     nombre: string;
   } | null>(null);
+
+  // CRITICAL SYNC: Fetch month data when user changes the target period
+  useEffect(() => {
+    fetchProgramacionesByMonth(anio, mes);
+  }, [anio, mes, fetchProgramacionesByMonth]);
 
   const puestosConProg = useMemo(() => {
     return puestos.map((p) => {
@@ -4049,9 +4063,15 @@ const GestionPuestos = () => {
           <option value="completo">â‰¥80% Completo</option>
           <option value="incompleto">&lt;80% Incompleto</option>
         </select>
-        <span className="text-[10px] font-bold text-slate-400">
-          {puestosFiltrados.length} puestos
+        <span className="text-[10px] font-bold text-slate-400 font-mono">
+          {puestosFiltrados.length} puestos · {programaciones.length} programas recuperados de la nube
         </span>
+        {(!loaded || isSyncing) && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full animate-pulse border border-primary/20">
+            <div className="size-1.5 rounded-full bg-primary animate-bounce" />
+            <span className="text-[9px] font-black text-primary uppercase tracking-widest">Sincronizando Corazón...</span>
+          </div>
+        )}
       </div>
 
       {/* Puestos Grid */}
