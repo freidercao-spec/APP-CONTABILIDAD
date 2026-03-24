@@ -225,9 +225,10 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
     return syncPromise;
 }
 
-const queueSync = (progId: string, set: any, get: any) => {
+const queueSync = (progId: string, set: any, get: any, immediate = false) => {
     if (pendingSyncs.has(progId)) clearTimeout(pendingSyncs.get(progId)!);
-    const timeout = setTimeout(async () => {
+    
+    const runSync = async () => {
         pendingSyncs.delete(progId);
         const prog = get().programaciones.find((p: any) => p.id === progId);
         if (!prog) return;
@@ -243,8 +244,14 @@ const queueSync = (progId: string, set: any, get: any) => {
         } catch (err) {
             set({ isSyncing: false });
         }
-    }, 500);
-    pendingSyncs.set(progId, timeout);
+    };
+
+    if (immediate) {
+        runSync();
+    } else {
+        const timeout = setTimeout(runSync, 500);
+        pendingSyncs.set(progId, timeout);
+    }
 };
 
 // ── Store Logic ──────────────────────────────────────────────────────────────
@@ -518,7 +525,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         ...p, asignaciones: newAsignaciones, actualizadoEn: new Date().toISOString(), syncStatus: 'pending'
                     } : p)
                 }));
-                queueSync(prog.id, set, get);
+                // CRITICAL: IMMEDIATE SYNC FOR TACTICAL OPERATIONS
+                queueSync(prog.id, set, get, true);
                 return { permitido: true, tipo: 'ok', mensaje: 'Refuerzo asignado exitosamente' };
             },
 

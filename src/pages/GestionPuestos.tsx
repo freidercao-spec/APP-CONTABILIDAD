@@ -3115,6 +3115,18 @@ const PanelMensualPuesto = ({
 
             <div className="ml-auto flex items-center gap-2">
               <button
+                onClick={async () => {
+                  setIsRefreshing(true);
+                  await fetchProgramacionesByMonth(anio, mes);
+                  setIsRefreshing(false);
+                  showTacticalToast({ title: "Sincronización Completa", message: "Datos del núcleo actualizados.", type: "info" });
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-all text-[10px] font-black uppercase tracking-widest shadow-lg"
+              >
+                <span className="material-symbols-outlined text-[16px] animate-spin-slow">sync</span>
+                Actualizar Datos
+              </button>
+              <button
                 onClick={() => setCompareExpanded(!compareExpanded)}
                 className="size-8 rounded-xl flex items-center justify-center border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all bg-white/5 shadow-inner"
               >
