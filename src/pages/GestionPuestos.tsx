@@ -3152,14 +3152,17 @@ const PanelMensualPuesto = ({
 
                 <div className="space-y-2 pb-8">
                   {(() => {
+                    // CRITICAL: Get FRESH data from the global store directly to ensure 1:1 sync with the top board
+                    const currentProg = allProgramaciones.find(p => p.id === prog?.id) || prog;
+                    
                     const uniqueVids = Array.from(new Set([
-                      ...(prog?.personal || []).map(p => p.vigilanteId),
-                      ...(prog?.asignaciones || []).map(a => a.vigilanteId)
+                      ...(currentProg?.personal || []).map(p => p.vigilanteId),
+                      ...(currentProg?.asignaciones || []).map(a => a.vigilanteId)
                     ])).filter(Boolean) as string[];
 
                     return uniqueVids.map((vid) => {
                       const vig = vigilantes.find(v => v.id === vid || v.dbId === vid);
-                      const titRow = prog?.personal?.find(p => p.vigilanteId === vid);
+                      const titRow = currentProg?.personal?.find(p => p.vigilanteId === vid);
                       const displayRol = titRow?.rol || 'relevante';
 
                       return (
@@ -3182,12 +3185,14 @@ const PanelMensualPuesto = ({
                               if (!id1 || !id2) return false;
                               const v1 = vigilantes.find(vx => vx.id === id1 || vx.dbId === id1);
                               const v2 = vigilantes.find(vx => vx.id === id2 || vx.dbId === id2);
-                              return (id1 === id2) || (v1 && v2 && (v1.dbId === v2.dbId || v1.id === v2.id));
+                              return (id1 === id2) || (v1 && v2 && (v1.dbId === v2.dbId || v1.id === v2.id || v1.dbId === v2.id || v1.id === v2.dbId));
                             };
 
-                            const myAsig = prog?.asignaciones.find(a => a.dia === d && idsMatch(a.vigilanteId, vid));
+                            const myAsig = currentProg?.asignaciones.find(a => a.dia === d && idsMatch(a.vigilanteId, vid));
                             const isOcupadoOrigen = !!(myAsig && myAsig.vigilanteId && myAsig.jornada === "normal");
-                            const asigDest = cProg?.asignaciones.find(a => a.dia === d && idsMatch(a.vigilanteId, vid));
+                            // FRESH destination lookup
+                            const freshCProg = allProgramaciones.find(cp => cp.id === cProg?.id);
+                            const asigDest = freshCProg?.asignaciones.find(a => a.dia === d && idsMatch(a.vigilanteId, vid));
                             const isAlreadyInDest = !!(asigDest && asigDest.jornada !== "sin_asignar");
 
                             let bg = "rgba(255,255,255,0.03)";
