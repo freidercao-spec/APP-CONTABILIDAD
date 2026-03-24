@@ -3333,18 +3333,24 @@ const PanelMensualPuesto = ({
                     const firstAsig = prog?.asignaciones.find(a => a.rol === rol && a.vigilanteId);
                     const vid = firstAsig?.vigilanteId || titularSetting?.vigilanteId;
                     
-                    if (!vid) return null; // Si no hay nadie asignado a este rol, no mostrar fila en la barra
+                    if (!vid) return null;
 
                     const vig = vigilantes.find((v) => v.id === vid || v.dbId === vid);
-                    const initials = vig?.nombre.trim().split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "?";
-                    const isSelected = compareVigilanteId === vid;
-                    const isDimmed = compareVigilanteId && !isSelected;
+                    const initials = vig?.nombre?.trim().split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+                    // Normalizar IDs: comparar contra todas las variantes (shortId, UUID, dbId)
+                    const isSelected = !!(compareVigilanteId && (
+                      compareVigilanteId === vid ||
+                      compareVigilanteId === vig?.id ||
+                      compareVigilanteId === vig?.dbId
+                    ));
+                    // Si hay filtro activo y este NO es el vigilante seleccionado → ocultar fila
+                    if (compareVigilanteId && !isSelected) return null;
 
                     return (
                       <div
                         key={rol}
                         className={`flex gap-1 items-center group/row transition-all duration-300 rounded-xl ${
-                          isSelected ? 'ring-2 ring-amber-400/50 bg-amber-400/5' : isDimmed ? 'opacity-30' : ''
+                          isSelected ? 'ring-2 ring-amber-400/50 bg-amber-400/5' : ''
                         }`}
                       >
                         {/* Avatar + name — CLICKEABLE para seleccionar */}
@@ -3381,11 +3387,15 @@ const PanelMensualPuesto = ({
                           </div>
                         </button>
 
-                        {/* Day cells — Lógica de disponibilidad GLOBAL en el tablero superior */}
+                        {/* Day cells — Lee el tablero SUPERIOR (origen) para este vigilante */}
                         {daysArr.map((d) => {
-                          // BUSCAR si el vigilante trabaja en ESTE puesto en CUALQUIERA de los roles
+                          // Buscar si el vigilante aparece en el puesto origen en este día, cualquier rol
                           const myAsig = prog?.asignaciones.find(
-                            (a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === (vig as any)?.dbId)
+                            (a) => a.dia === d && (
+                              a.vigilanteId === vid ||
+                              a.vigilanteId === vig?.id ||
+                              a.vigilanteId === vig?.dbId
+                            )
                           );
 
                           // 4. Descansos en origen — evaluamos PRIMERO para no confundir con "ocupado"
@@ -3404,8 +3414,8 @@ const PanelMensualPuesto = ({
                           );
                           const isOcupadoDestino = !!(asigDest && asigDest.jornada !== "sin_asignar");
 
-                          // 3. Ocupado en OTROS puestos (Mapa global — EXCLUYE actual)
-                          const slotsGlobales = ocupados.get(vid) || ocupados.get(vig?.dbId || "") || [];
+                          // 3. Ocupado en OTROS puestos (Mapa global)
+                          const slotsGlobales = ocupados.get(vid) || ocupados.get(vig?.id || "") || ocupados.get(vig?.dbId || "") || [];
                           const ocupacionGlobal = slotsGlobales.find(s => s.slot.startsWith(`${d}-`));
                           const isOcupadoGlobal = !!ocupacionGlobal;
 
@@ -3624,6 +3634,137 @@ const PanelMensualPuesto = ({
                       </div>
                     );
                   })}
+                  {/* Fila fallback: si el vigilante seleccionado NO es titular de ningún rol */}
+                  {compareVigilanteId && (() => {
+                    // Verificar si ya fue mostrado en alguna de las 3 filas de roles
+                    const alreadyShown = (['titular_a', 'titular_b', 'relevante'] as RolPuesto[]).some((rol) => {
+                      const ts = prog?.personal?.find(p => p.rol === rol);
+                      const fa = prog?.asignaciones.find(a => a.rol === rol && a.vigilanteId);
+                      const rowVid = fa?.vigilanteId || ts?.vigilanteId;
+                      const rowVig = vigilantes.find(v => v.id === rowVid || v.dbId === rowVid);
+                      return rowVid && (
+                        compareVigilanteId === rowVid ||
+                        compareVigilanteId === rowVig?.id ||
+                        compareVigilanteId === rowVig?.dbId
+                      );
+                    });
+                    if (alreadyShown) return null;
+
+                    // El vigilante no es titular → mostrar fila dinámica con su disponibilidad
+                    const vig = vigilantes.find(v => v.id === compareVigilanteId || v.dbId === compareVigilanteId);
+                    if (!vig) return null;
+                    const vid = compareVigilanteId;
+                    const initials = vig.nombre.trim().split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+                    const rolOrigen = (prog?.personal?.find(p => p.vigilanteId === vid || p.vigilanteId === vig.dbId)?.rol
+                      || prog?.asignaciones?.find(a => a.vigilanteId === vid || a.vigilanteId === vig.dbId)?.rol
+                      || 'relevante') as RolPuesto;
+
+                    return (
+                      <div key="fallback-selected" className="flex gap-1 items-center group/row ring-2 ring-amber-400/50 bg-amber-400/5 rounded-xl">
+                        <button
+                          onClick={() => setCompareVigilanteId(null)}
+                          className="shrink-0 flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all hover:bg-white/10 active:scale-95 cursor-pointer"
+                          style={{ minWidth: "164px" }}
+                          title={`Deseleccionar ${vig.nombre}`}
+                        >
+                          <div
+                            className="size-8 rounded-xl flex items-center justify-center font-black text-white text-[10px] shrink-0 shadow-lg ring-2 ring-amber-300 scale-110"
+                            style={{ background: ROL_GRAD[rolOrigen] || ROL_GRAD.relevante }}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>check_circle</span>
+                          </div>
+                          <div className="min-w-0 flex-1 text-left">
+                            <p className="text-[10px] font-black truncate leading-tight text-amber-300">
+                              {vig.nombre.split(" ").slice(0, 2).join(" ")}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <p className="text-[7px] font-bold uppercase tracking-widest leading-tight text-indigo-400">
+                                {ROL_LABELS[rolOrigen] || rolOrigen}
+                              </p>
+                              <span className="text-[7px] font-black bg-white/10 px-1.5 py-0.5 rounded text-indigo-200">
+                                {getDiasTrabajoVigilante(prog.id, vid)}d trabajados
+                              </span>
+                            </div>
+                          </div>
+                        </button>
+                        {daysArr.map((d) => {
+                          const myAsig = prog?.asignaciones.find(
+                            (a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === vig.id || a.vigilanteId === vig.dbId)
+                          );
+                          const isDescanso = !!(myAsig && (myAsig.jornada === "descanso_remunerado" || myAsig.jornada === "descanso_no_remunerado" || myAsig.jornada === "vacacion"));
+                          const isOcupadoOrigen = !!(myAsig && myAsig.vigilanteId && myAsig.jornada === "normal" && !isDescanso);
+                          const asigDest = cProg?.asignaciones.find((a) => a.dia === d && (a.vigilanteId === vid || a.vigilanteId === vig.dbId) && a.jornada !== "sin_asignar");
+                          const isOcupadoDestino = !!asigDest;
+                          const slotsGlobales = ocupados.get(vid) || ocupados.get(vig.id || "") || ocupados.get(vig.dbId || "") || [];
+                          const ocupacionGlobal = slotsGlobales.find(s => s.slot.startsWith(`${d}-`));
+                          const isOcupadoGlobal = !!ocupacionGlobal;
+                          const prevAsig = prog?.asignaciones.find((a) => a.dia === d - 1 && (a.vigilanteId === vid || a.vigilanteId === vig.dbId));
+                          const isDescansoPM = !!(prevAsig && prevAsig.jornada === "normal" && prevAsig.turno === "PM");
+                          const asigsDestDia = cProg?.asignaciones.filter(a => a.dia === d) || [];
+                          const sinVacante = asigsDestDia.length > 0 && asigsDestDia.every(a => a.vigilanteId && a.jornada !== "sin_asignar");
+                          const myTurno = myAsig?.turno || null;
+                          const dow = new Date(anio, mes, d).getDay();
+                          const isW = dow === 0 || dow === 6;
+
+                          let bg: string, icon: string, iconColor: string, borderColor: string, glow: string, tooltipText: string;
+                          if (isOcupadoDestino) {
+                            bg = "linear-gradient(135deg,#1e3a8a 0%,#1e40af 100%)"; icon = "how_to_reg"; iconColor = "#93c5fd"; borderColor = "#3b82f6"; glow = "0 0 8px rgba(59,130,246,0.5)";
+                            tooltipText = `DÍA ${d} | YA PROGRAMADO en "${cPuesto?.nombre}"`;
+                          } else if (isOcupadoOrigen) {
+                            bg = "linear-gradient(135deg,#b91c1c 0%,#7f1d1d 100%)"; icon = "block"; iconColor = "#fca5a5"; borderColor = "#ef444455"; glow = "0 0 4px rgba(239,68,68,0.2)";
+                            tooltipText = `DÍA ${d} | TRABAJANDO en "${puestoNombre}" turno ${myTurno}`;
+                          } else if (isOcupadoGlobal) {
+                            bg = "linear-gradient(135deg,#581c87 0%,#4c1d95 100%)"; icon = "tab_unselected"; iconColor = "#d8b4fe"; borderColor = "#a855f755"; glow = "none";
+                            tooltipText = `DÍA ${d} | OCUPADO en puesto externo: "${ocupacionGlobal?.puesto}"`;
+                          } else if (isDescanso) {
+                            bg = "linear-gradient(135deg,#7c2d12 0%,#431407 100%)"; icon = "bedtime"; iconColor = "#fdba74"; borderColor = "#f9731644"; glow = "none";
+                            tooltipText = `DÍA ${d} | Descanso/Vacación programado`;
+                          } else if (isDescansoPM) {
+                            bg = "linear-gradient(135deg,#713f12 0%,#854d0e 100%)"; icon = "schedule"; iconColor = "#fde68a"; borderColor = "#fbbf2444"; glow = "none";
+                            tooltipText = `DÍA ${d} | Descanso post-turno nocturno`;
+                          } else {
+                            bg = sinVacante ? "rgba(255,255,255,0.05)" : (isW ? "linear-gradient(135deg,#14532d 0%,#16a34a 100%)" : "linear-gradient(135deg,#166534 0%,#15803d90 100%)");
+                            icon = sinVacante ? "not_interested" : "check_circle";
+                            iconColor = sinVacante ? "#4b5563" : "#86efac";
+                            borderColor = sinVacante ? "transparent" : "#22c55e44";
+                            glow = sinVacante ? "none" : "0 0 6px rgba(34,197,94,0.4)";
+                            tooltipText = sinVacante ? `DÍA ${d} | LIBRE, but no vacancies` : `DÍA ${d} | LIBRE ✓ Puede cubrir en "${cPuesto?.nombre}"`;
+                          }
+                          return (
+                            <button key={d} title={tooltipText}
+                              onClick={() => {
+                                if (isOcupadoOrigen) { showTacticalToast({ title: "🚫 Ocupado en Origen", message: `${vig.nombre} trabaja en "${puestoNombre}" el día ${d}`, type: "error" }); return; }
+                                if (isOcupadoGlobal) { showTacticalToast({ title: "⚠️ Ocupado en otro puesto", message: `${vig.nombre} ya está asignado en "${ocupacionGlobal?.puesto}"`, type: "error" }); return; }
+                                if (isDescanso || isDescansoPM) { showTacticalToast({ title: "🛌 Descanso", message: `${vig.nombre} tiene descanso el día ${d}`, type: "info" }); return; }
+                                if (isOcupadoDestino) { showTacticalToast({ title: "✅ Ya programado", message: `${vig.nombre} ya está en "${cPuesto?.nombre}" el día ${d}`, type: "info" }); return; }
+                                if (sinVacante) { showTacticalToast({ title: "🔒 Sin Vacantes", message: `"${cPuesto?.nombre}" ya tiene todos los turnos del día ${d} cubiertos.`, type: "info" }); return; }
+                                const cP = allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId);
+                                const currentCProg = cP ? getProgramacion(cP.id, anio, mes) : null;
+                                if (!currentCProg) { if (cP) crearOObtenerProgramacion(cP.id, anio, mes, username || "Sistema"); return; }
+                                const turnoOrigen = (myAsig?.turno || "AM") as any;
+                                let targetAsig = currentCProg.asignaciones.find(a => a.dia === d && !a.vigilanteId && a.turno === turnoOrigen)
+                                  || currentCProg.asignaciones.find(a => a.dia === d && !a.vigilanteId)
+                                  || currentCProg.asignaciones.find(a => a.dia === d);
+                                if (targetAsig) {
+                                  setEditCell({ asig: { ...targetAsig, turno: turnoOrigen }, progId: currentCProg.id, preSelectVigilanteId: vid });
+                                } else {
+                                  const firstRol = currentCProg.personal.find(p => !p.vigilanteId)?.rol || 'relevante';
+                                  setEditCell({ asig: { dia: d, rol: firstRol, vigilanteId: null, turno: turnoOrigen, jornada: "sin_asignar" as any }, progId: currentCProg.id, preSelectVigilanteId: vid });
+                                }
+                              }}
+                              className="relative flex items-center justify-center rounded-md cursor-pointer hover:scale-125 hover:z-20 active:scale-95 transition-all shadow-sm"
+                              style={{ minWidth: "28px", height: "28px", background: bg, border: `1.5px solid ${borderColor}`, boxShadow: glow }}
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: "12px", color: iconColor }}>{icon}</span>
+                              {isOcupadoOrigen && myTurno && (
+                                <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[5px] font-black px-1 rounded leading-[1.5]" style={{ background: "#dc2626", color: "#fff", whiteSpace: "nowrap" }}>{myTurno}</span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             );
