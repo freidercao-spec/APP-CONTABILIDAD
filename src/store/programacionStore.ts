@@ -477,29 +477,49 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
 
             actualizarAsignacion: (progId, dia, data, usuario) => {
-                // Robust lookup: search by local ID or DB UUID (p.id is usually the local UUID)
-                const prog = get().programaciones.find(p => p.id === progId || p.puestoId === progId);
+                const state = get();
+                // Robust lookup
+                const prog = state.programaciones.find(p => p.id === progId || p.puestoId === progId);
                 if (!prog) {
-                    console.error('[Coraza] ❌ Fallo al buscar programación:', progId);
+                    console.error('[Coraza] 🚨 CRÍTICO: Programación destino no hallada:', progId);
                     return { permitido: false, tipo: 'bloqueo', mensaje: 'Programación no encontrada' };
                 }
                 
-                // Flexible matching for roles and days
-                const asignaciones = prog.asignaciones.map(a => {
+                let found = false;
+                const newAsignaciones = prog.asignaciones.map(a => {
                     const matchDia = a.dia === dia;
-                    const matchRol = String(a.rol).toLowerCase().trim() === String(data.rol || '').toLowerCase().trim();
-                    return (matchDia && matchRol) ? { ...a, ...data } : a;
+                    const r1 = String(a.rol).toLowerCase().trim();
+                    const r2 = String(data.rol || '').toLowerCase().trim();
+                    if (matchDia && r1 === r2) {
+                        found = true;
+                        return { ...a, ...data };
+                    }
+                    return a;
                 });
 
-                console.log(`[Coraza] 💾 Guardando asignación: Día ${dia} - Rol ${data.rol} - Puesto ID ${progId}`);
+                // AGRESSIVE SAVE: If not found in the map (new role or slot), we FORCE it into the array
+                if (!found && data.rol) {
+                    console.warn('[Coraza] 🛠️ Inyectando nueva asignación táctica...');
+                    newAsignaciones.push({
+                        dia,
+                        vigilanteId: data.vigilanteId || null,
+                        turno: data.turno || 'AM',
+                        jornada: data.jornada || 'normal',
+                        rol: data.rol,
+                        inicio: data.inicio,
+                        fin: data.fin
+                    });
+                }
+
+                console.log(`[Coraza] 🚀 DESPLIEGUE TÁCTICO: Día ${dia} -> ${data.vigilanteId || 'VACANTE'}`);
 
                 set(s => ({
                     programaciones: s.programaciones.map(p => (p.id === prog.id) ? {
-                        ...p, asignaciones, actualizadoEn: new Date().toISOString(), syncStatus: 'pending'
+                        ...p, asignaciones: newAsignaciones, actualizadoEn: new Date().toISOString(), syncStatus: 'pending'
                     } : p)
                 }));
                 queueSync(prog.id, set, get);
-                return { permitido: true, tipo: 'ok', mensaje: 'Actualizada' };
+                return { permitido: true, tipo: 'ok', mensaje: 'Refuerzo asignado exitosamente' };
             },
 
             publicarProgramacion: (progId, usuario) => {
