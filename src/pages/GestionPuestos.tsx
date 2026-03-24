@@ -3152,17 +3152,22 @@ const PanelMensualPuesto = ({
 
                 <div className="space-y-2 pb-8">
                   {(() => {
-                    // CRITICAL: Get FRESH data from the global store directly to ensure 1:1 sync with the top board
+                    // CRITICAL: Get FRESH data from the global store for BOTH origin and destination
                     const currentProg = allProgramaciones.find(p => p.id === prog?.id) || prog;
+                    const freshCProg = allProgramaciones.find(cp => cp.id === cProg?.id);
                     
+                    // Unified list of vigilantes: include everyone assigned to ORIGIN or DESTINATION
                     const uniqueVids = Array.from(new Set([
                       ...(currentProg?.personal || []).map(p => p.vigilanteId),
-                      ...(currentProg?.asignaciones || []).map(a => a.vigilanteId)
+                      ...(currentProg?.asignaciones || []).map(a => a.vigilanteId),
+                      ...(freshCProg?.personal || []).map(p => p.vigilanteId),
+                      ...(freshCProg?.asignaciones || []).map(a => a.vigilanteId)
                     ])).filter(Boolean) as string[];
 
                     return uniqueVids.map((vid) => {
                       const vig = vigilantes.find(v => v.id === vid || v.dbId === vid);
-                      const titRow = currentProg?.personal?.find(p => p.vigilanteId === vid);
+                      // Search role in DESTINATION first if we are coordinating, fallback to ORIGIN
+                      const titRow = freshCProg?.personal?.find(p => p.vigilanteId === vid) || currentProg?.personal?.find(p => p.vigilanteId === vid);
                       const displayRol = titRow?.rol || 'relevante';
 
                       return (
