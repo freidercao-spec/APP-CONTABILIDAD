@@ -477,20 +477,28 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
 
             actualizarAsignacion: (progId, dia, data, usuario) => {
-                const prog = get().programaciones.find(p => p.id === progId);
-                if (!prog) return { permitido: false, tipo: 'bloqueo', mensaje: 'No encontrada' };
+                // Robust lookup: search by local ID or DB UUID (p.id is usually the local UUID)
+                const prog = get().programaciones.find(p => p.id === progId || p.puestoId === progId);
+                if (!prog) {
+                    console.error('[Coraza] ❌ Fallo al buscar programación:', progId);
+                    return { permitido: false, tipo: 'bloqueo', mensaje: 'Programación no encontrada' };
+                }
                 
-                // Simplified validation for brevity, usually has more checks
-                const asignaciones = prog.asignaciones.map(a => 
-                    (a.dia === dia && a.rol === data.rol) ? { ...a, ...data } : a
-                );
+                // Flexible matching for roles and days
+                const asignaciones = prog.asignaciones.map(a => {
+                    const matchDia = a.dia === dia;
+                    const matchRol = String(a.rol).toLowerCase().trim() === String(data.rol || '').toLowerCase().trim();
+                    return (matchDia && matchRol) ? { ...a, ...data } : a;
+                });
+
+                console.log(`[Coraza] 💾 Guardando asignación: Día ${dia} - Rol ${data.rol} - Puesto ID ${progId}`);
 
                 set(s => ({
-                    programaciones: s.programaciones.map(p => p.id !== progId ? p : {
+                    programaciones: s.programaciones.map(p => (p.id === prog.id) ? {
                         ...p, asignaciones, actualizadoEn: new Date().toISOString(), syncStatus: 'pending'
-                    })
+                    } : p)
                 }));
-                queueSync(progId, set, get);
+                queueSync(prog.id, set, get);
                 return { permitido: true, tipo: 'ok', mensaje: 'Actualizada' };
             },
 
