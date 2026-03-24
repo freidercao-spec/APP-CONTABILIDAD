@@ -18,6 +18,8 @@ export interface AsignacionDia {
     turno: TurnoHora | string;
     jornada: TipoJornada;
     rol: RolPuesto;
+    inicio?: string; // Nuevo: Entrada personalizada
+    fin?: string;    // Nuevo: Salida personalizada
 }
 
 export interface PersonalPuesto {
@@ -200,6 +202,8 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                 turno: a.turno,
                 jornada: a.jornada,
                 rol: a.rol,
+                inicio: a.inicio,
+                fin: a.fin
             }));
 
             if (asignacionRows.length > 0) {
@@ -365,6 +369,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             turno: a.turno,
                             jornada: (a.jornada || 'sin_asignar') as TipoJornada,
                             rol: (a.rol || 'titular_a') as RolPuesto,
+                            inicio: a.inicio || undefined,
+                            fin: a.fin || undefined
                         }));
 
                     const historialCambios = allHistorial
@@ -593,7 +599,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 ]);
                 const prog: ProgramacionMensual = {
                     id: r.id, puestoId: r.puesto_id, anio: r.anio, mes: r.mes, personal: (pRes.data || []).map(p => ({ rol: p.rol, vigilanteId: translateFromDb(p.vigilante_id) })),
-                    asignaciones: (aRes.data || []).map(a => ({ dia: a.dia, vigilanteId: translateFromDb(a.vigilante_id), turno: a.turno, jornada: a.jornada as TipoJornada, rol: a.rol as RolPuesto })),
+                    asignaciones: (aRes.data || []).map(a => ({ dia: a.dia, vigilanteId: translateFromDb(a.vigilante_id), turno: a.turno, jornada: a.jornada as TipoJornada, rol: a.rol as RolPuesto, inicio: a.inicio || undefined, fin: a.fin || undefined })),
                     estado: r.estado, version: r.version || 1, creadoEn: r.created_at, actualizadoEn: r.updated_at, historialCambios: []
                 };
                 set(s => {

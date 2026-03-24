@@ -1018,22 +1018,23 @@ const PanelMensualPuesto = ({
     if (!editCell) return;
     const { asig, progId } = editCell;
     
-    // Resolve the target post name for accurate logging (especially for the coordination bar)
+    // Resolve the target post name for accurate logging
     const targetProg = programaciones.find(p => p.id === progId || p.dbId === progId);
     const targetPuesto = allPuestos.find(p => p.id === targetProg?.puestoId || p.dbId === targetProg?.puestoId);
     const realPostName = targetPuesto?.nombre || puestoNombre;
 
-    // Use a fixed version of the day and data to ensure consistency
+    // We protect custom hours: if data doesn't have them but asig (current state) does, and we are just changing the guard
+    const finalData = {
+      ...data,
+      rol: data.rol || asig.rol,
+      inicio: data.inicio !== undefined ? data.inicio : (asig.inicio || undefined),
+      fin: data.fin !== undefined ? data.fin : (asig.fin || undefined)
+    };
+
     const resultado = actualizarAsignacion(
       progId,
       asig.dia,
-      { 
-        ...data, 
-        rol: data.rol || asig.rol,
-        // Carry over any custom times from the modal
-        inicio: data.inicio, 
-        fin: data.fin 
-      },
+      finalData,
       username || "Sistema",
     );
 
