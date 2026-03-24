@@ -3280,6 +3280,21 @@ const PanelMensualPuesto = ({
           )}
         </div>
       )}
+
+      {/* MODAL DE EDICIÓN (RESTAURADO) */}
+      {editCell && (
+        <EditCeldaModal
+          asig={editCell.asig}
+          vigilantes={vigilantes}
+          titularesId={[]}
+          ocupados={ocupados}
+          turnosConfig={turnosConfig}
+          jornadasCustom={jornadasCustom}
+          initialVigilanteId={editCell.preSelectVigilanteId}
+          onSave={handleSaveCell}
+          onClose={() => setEditCell(null)}
+        />
+      )}
     </div>
   );
 };
