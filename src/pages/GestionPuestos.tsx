@@ -768,6 +768,15 @@ const PanelMensualPuesto = ({
   // --- Compare Panel State ---
   const [comparePuestoId, setComparePuestoId] = useState<string | null>(null);
   const [compareVigilanteId, setCompareVigilanteId] = useState<string | null>(null);
+  
+  // Robust ID comparison helper
+  const idsMatch = (id1: string | null, id2: string | null) => {
+    if (!id1 || !id2) return false;
+    if (id1 === id2) return true;
+    const v1 = vigilantes.find(vx => vx.id === id1 || vx.dbId === id1);
+    const v2 = vigilantes.find(vx => vx.id === id2 || vx.dbId === id2);
+    return (v1 && v2 && (v1.dbId === v2.dbId || v1.id === v2.id)) || id1 === id2;
+  };
   const [compareExpanded, setCompareExpanded] = useState(true);
   const fetchProgramacionById = useProgramacionStore(
     (s) => s.fetchProgramacionById,
@@ -2372,20 +2381,16 @@ const PanelMensualPuesto = ({
                                     (p.puestoId === (cP?.dbId || comparePuestoId)) && p.anio === anio && p.mes === mes
                                   );
                                   
-                                  const idsMatchLocal = (id1: string | null, id2: string | null) => {
-                                    if (!id1 || !id2) return false;
-                                    const v1 = vigilantes.find(vx => vx.id === id1 || vx.dbId === id1);
-                                    const v2 = vigilantes.find(vx => vx.id === id2 || vx.dbId === id2);
-                                    return (v1 && v2 && (v1.dbId === v2.dbId || v1.id === v2.id)) || id1 === id2;
-                                  };
-
                                   const checkVigCompatibility = (vid: string) => {
                                     if (!vid) return false;
-                                    // Is he busy in his own post?
-                                    const busyInRef = cProg?.asignaciones.some(a => a.dia === d && idsMatchLocal(a.vigilanteId, vid) && a.jornada !== 'sin_asignar');
-                                    // Is he busy elsewhere?
-                                    const busyElsewhere = allProgramaciones.some(xp => (cProg && xp.id !== cProg.id) && xp.asignaciones.some(xa => xa.dia === d && idsMatchLocal(xa.vigilanteId, vid) && xa.jornada !== 'sin_asignar'));
-                                    return !busyInRef && !busyElsewhere;
+                                    // Is he busy in the SOURCE post? (The one in the bar)
+                                    const busyInSource = cProg?.asignaciones.some(a => a.dia === d && idsMatch(a.vigilanteId, vid) && a.jornada !== 'sin_asignar');
+                                    // Is he busy in OTHER posts (excluding destination and source)?
+                                    const busyElsewhere = allProgramaciones.some(xp => 
+                                      xp.id !== prog?.id && xp.id !== cProg?.id &&
+                                      xp.asignaciones.some(xa => xa.dia === d && idsMatch(xa.vigilanteId, vid) && xa.jornada !== 'sin_asignar')
+                                    );
+                                    return !busyInSource && !busyElsewhere;
                                   };
 
                                   const isCompatible = compareVigilanteId 
@@ -3254,7 +3259,7 @@ const PanelMensualPuesto = ({
                 className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-orange-500 bg-orange-600 hover:bg-orange-500 text-white transition-all text-[11px] font-black uppercase tracking-widest shadow-[0_0_20px_rgba(234,88,12,0.4)] animate-pulse"
               >
                 <span className="material-symbols-outlined text-[18px]">sync</span>
-                REFRESCAR NÚCLEO (V3.2)
+                REFRESCAR NÚCLEO (V3.3)
               </button>
               <div className="flex items-center gap-4 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 shadow-inner">
                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Origen Activo:</span>
@@ -3319,14 +3324,6 @@ const PanelMensualPuesto = ({
                     const freshCProg = allProgramaciones.find(cp => cp.id === cProg?.id);
                     
                     // Unified list of vigilantes: include everyone assigned to ORIGIN or DESTINATION
-                    const idsMatchGlobal = (id1: string | null, id2: string | null) => {
-                      if (!id1 || !id2) return false;
-                      const v1 = vigilantes.find(vx => vx.id === id1 || vx.dbId === id1);
-                      const v2 = vigilantes.find(vx => vx.id === id2 || vx.dbId === id2);
-                      return (v1 && v2 && (v1.dbId === v2.dbId || v1.id === v2.id)) || id1 === id2;
-                    };
-
-                    // ADDITION: Include ALL system 'relevantes' to ensure visibility even if not assigned yet
                     const allRelevantes = (vigilantes || []).filter(v => 
                       String(v.rol || '').toLowerCase().includes('relev') || 
                       String(v.especialidad || '').toLowerCase().includes('relev')
@@ -3354,7 +3351,7 @@ const PanelMensualPuesto = ({
                     return sortedVids.map(vid => {
                       const vig = vigilantes.find(v => v.id === vid || v.dbId === vid);
                       const displayRol = (prog?.personal.find(p => p.vigilanteId === vid)?.rol || 'relevante') as RolPuesto;
-                      const isSelected = !!compareVigilanteId && idsMatchGlobal(compareVigilanteId, vid);
+                      const isSelected = !!compareVigilanteId && idsMatch(compareVigilanteId, vid);
 
                       return (
                         <div key={vid} className={`flex gap-1 items-center hover:bg-white/[0.04] transition-all rounded-xl group/row pr-4 py-1.5 relative shrink-0 ${isSelected ? 'bg-yellow-500/10 ring-2 ring-yellow-400/50' : ''}`}>
