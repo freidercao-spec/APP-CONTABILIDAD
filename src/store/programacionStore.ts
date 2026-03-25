@@ -108,16 +108,28 @@ const pendingSyncs = new Map<string, any>();
 const translateToUuid = (idRaw: string | null): string | null => {
     if (!idRaw) return null;
     const id = String(idRaw).trim();
-    const isUuid = id.length >= 32 || (id.length >= 20 && id.includes('-'));
-    if (isUuid) return id;
+    
+    // If it already looks like a UUID (8-4-4-4-12 format), return it directly
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(id)) return id;
     
     const vigilantes = useVigilanteStore.getState().vigilantes || [];
-    const v = vigilantes.find((v: any) => v.id === id || v.dbId === id || v.nombre === id);
-    if (v?.dbId && (v.dbId.length >= 32 || v.dbId.includes('-'))) return v.dbId;
-    if (v?.id && (v.id.length >= 32 || v.id.includes('-'))) return v.id;
+    // Robust search: check code, uuid, and full name (case insensitive)
+    const v = vigilantes.find((vx: any) => 
+        vx.id === id || 
+        vx.dbId === id || 
+        String(vx.nombre || '').toLowerCase() === id.toLowerCase()
+    );
     
-    console.warn(`[Coraza] ⚠️ ID no UUID detectado: ${id}`);
-    return id; // Return as is, let Supabase decide
+    if (v?.dbId) return v.dbId;
+    if (v?.id && uuidRegex.test(v.id)) return v.id;
+    
+    // If not found in store, but the ID was already provided as a raw string, we keep it 
+    // to avoid losing data if the store isn't fully hydrated, UNLESS it's a known non-UUID format
+    if (id.length > 30) return id; 
+
+    console.warn(`[Coraza] ⚠️ ID no mapeado a UUID: ${id}`);
+    return null;
 };
 
 const translateFromDb = (dbId: string | null) => {
@@ -129,28 +141,36 @@ const translateFromDb = (dbId: string | null) => {
 const translatePuestoToUuid = (idRaw: string | null): string | null => {
     if (!idRaw) return null;
     const id = String(idRaw).trim();
-    const isUuid = id.length >= 32 || (id.length >= 20 && id.includes('-'));
-    if (isUuid) return id; 
+    if (id.includes('-') && id.length > 20) return id; 
 
     const puestos = usePuestoStore.getState().puestos || [];
-    const p = puestos.find((pt: any) => pt.id === id || pt.dbId === id || pt.nombre === id);
-    if (p?.dbId && (p.dbId.length >= 32 || p.dbId.includes('-'))) return p.dbId;
-    if (p?.id && (p.id.length >= 32 || p.id.includes('-'))) return p.id;
+    const p = puestos.find((pt: any) => 
+        pt.id === id || 
+        pt.dbId === id || 
+        String(pt.nombre || '').toLowerCase() === id.toLowerCase()
+    );
+    if (p?.dbId) return p.dbId;
+    if (p?.id && (p.id.includes('-'))) return p.id;
     return null;
 };
 
 const idsMatch = (id1: string | null, id2: string | null): boolean => {
     if (!id1 || !id2) return false;
-    if (id1 === id2) return true;
+    const str1 = String(id1).trim().toLowerCase();
+    const str2 = String(id2).trim().toLowerCase();
+    if (str1 === str2) return true;
     
-    // Fallback: search in vigilante store to see if they refer to the same record (id vs dbId)
     const vigilantes = useVigilanteStore.getState().vigilantes || [];
-    const v1 = vigilantes.find((vx: any) => vx.id === id1 || vx.dbId === id1);
-    const v2 = vigilantes.find((vx: any) => vx.id === id2 || vx.dbId === id2);
+    const v1 = vigilantes.find((vx: any) => vx.id === id1 || vx.dbId === id1 || (vx.nombre && vx.nombre.toLowerCase() === str1));
+    const v2 = vigilantes.find((vx: any) => vx.id === id2 || vx.dbId === id2 || (vx.nombre && vx.nombre.toLowerCase() === str2));
     
     if (v1 && v2) {
         return (v1.dbId === v2.dbId || v1.id === v2.id);
     }
+    // Cross-match: check if one ID matches the other's property
+    if (v1 && (v1.dbId === id2 || v1.id === id2)) return true;
+    if (v2 && (v2.dbId === id1 || v2.id === id1)) return true;
+
     return false;
 };
 
@@ -161,17 +181,22 @@ interface SyncResult {
 }
 
 async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: any): Promise<SyncResult> {
+    // If a sync is already running for this prog, wait for it to finish first
     if (activeSyncPromises.has(prog.id)) {
-        await activeSyncPromises.get(prog.id);
+        try { await activeSyncPromises.get(prog.id); } catch {}
     }
 
     const syncPromise = (async (): Promise<SyncResult> => {
         try {
             let dbId = String(prog.id).trim();
             const dbPuestoId = translatePuestoToUuid(prog.puestoId);
-            if (!dbPuestoId) throw new Error("ID de puesto no encontrado");
+            if (!dbPuestoId) {
+                console.error(`[Coraza] 🚨 No se pudo resolver puesto UUID para: ${prog.puestoId}`);
+                throw new Error("ID de puesto no encontrado en el directorio local");
+            }
             const cleanPuestoId = String(dbPuestoId).trim();
 
+            // Check if there's already a record for this puesto/month in DB
             const { data: existing } = await supabase
                 .from('programacion_mensual')
                 .select('id, version, updated_at')
@@ -180,26 +205,21 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                 .eq('mes', prog.mes)
                 .maybeSingle();
 
+            const originalLocalId = prog.id;
+            // Reconciliation: If DB ID is different, update local state before proceeding
             if (existing && String(existing.id).trim() !== dbId) {
-                dbId = String(existing.id).trim();
-            }
-
-            if (existing) {
-                const serverVersion = existing.version || 1;
-                const localVersion = prog.version;
-                const localAsigCount = prog.asignaciones.length;
-                const { data: serverAsigs } = await supabase.from('asignaciones_dia').select('id').eq('programacion_id', existing.id);
-                const serverAsigCount = serverAsigs?.length || 0;
-                
-                if (localAsigCount === 0 && serverAsigCount > 10) {
-                    return { success: false, serverVersion, serverUpdatedAt: existing.updated_at };
-                }
-                if (serverVersion > localVersion + 2) {
-                    return { success: false, serverVersion, serverUpdatedAt: existing.updated_at };
-                }
+                console.warn(`[Coraza] 🛠️ Sincronizando ID local ${originalLocalId} → ${dbId}`);
+                set((state: any) => ({
+                    programaciones: state.programaciones.map((p: any) =>
+                        p.id === originalLocalId ? { ...p, id: dbId } : p
+                    )
+                }));
             }
 
             const currentEmpresaId = String(useAuthStore.getState().empresaId || EMPRESA_ID).trim();
+            const newVersion = (existing?.version || prog.version || 1) + 1;
+            
+            // ATOMIC UPSERT: Use reconciled ID
             const { error: upsertErr } = await supabase
                 .from('programacion_mensual')
                 .upsert({
@@ -209,43 +229,67 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                     anio: prog.anio,
                     mes: prog.mes,
                     estado: prog.estado,
-                    version: prog.version,
+                    version: newVersion,
                     updated_at: new Date().toISOString(),
-                });
+                }, { onConflict: 'id' });
 
-            if (upsertErr) throw upsertErr;
-
-            await supabase.from('personal_puesto').delete().eq('programacion_id', dbId);
-            const personalRows = prog.personal.filter(p => p.vigilanteId).map(p => ({
-                programacion_id: dbId,
-                rol: p.rol,
-                vigilante_id: translateToUuid(p.vigilanteId),
-            }));
-            if (personalRows.length > 0) {
-                await supabase.from('personal_puesto').insert(personalRows);
+            if (upsertErr) {
+                console.error('[Coraza] ❌ Upsert Error details:', upsertErr);
+                throw upsertErr;
             }
 
+            // Sync sequence: DELETE ASIGNACIONES FIRST to avoid FK violations
             await supabase.from('asignaciones_dia').delete().eq('programacion_id', dbId);
-            const asignacionRows = prog.asignaciones.map(a => ({
-                programacion_id: dbId,
-                dia: a.dia,
-                vigilante_id: translateToUuid(a.vigilanteId),
-                turno: a.turno,
-                jornada: a.jornada,
-                rol: a.rol,
-                inicio: a.inicio,
-                fin: a.fin
-            }));
+            await supabase.from('personal_puesto').delete().eq('programacion_id', dbId);
+
+            const personalRows = prog.personal
+                .filter(p => p.vigilanteId)
+                .map(p => {
+                    const mapped = translateToUuid(p.vigilanteId);
+                    return mapped ? {
+                        programacion_id: dbId,
+                        rol: p.rol,
+                        vigilante_id: mapped,
+                    } : null;
+                })
+                .filter(r => r !== null);
+            
+            if (personalRows.length > 0) {
+                const { error: pError } = await supabase.from('personal_puesto').insert(personalRows);
+                if (pError) console.error('[Coraza] ⚠️ Error personal_puesto:', pError.message);
+            }
+
+            // Sync asignaciones_dia: delete then batch-insert only non-empty slots
+            await supabase.from('asignaciones_dia').delete().eq('programacion_id', dbId);
+            const asignacionRows = prog.asignaciones
+                .filter(a => a.vigilanteId && a.jornada !== 'sin_asignar')
+                .map(a => ({
+                    programacion_id: dbId,
+                    dia: a.dia,
+                    vigilante_id: translateToUuid(a.vigilanteId),
+                    turno: a.turno,
+                    jornada: a.jornada,
+                    rol: a.rol,
+                    inicio: a.inicio || null,
+                    fin: a.fin || null,
+                }))
+                .filter(r => r.vigilante_id);
 
             if (asignacionRows.length > 0) {
                 for (let i = 0; i < asignacionRows.length; i += 100) {
-                    await supabase.from('asignaciones_dia').insert(asignacionRows.slice(i, i + 100));
+                    const chunk = asignacionRows.slice(i, i + 100);
+                    const { error: aError } = await supabase.from('asignaciones_dia').insert(chunk);
+                    if (aError) {
+                        console.error(`[Coraza] ❌ Error chunk asignaciones [${i}-${i+chunk.length}]:`, aError.message);
+                        throw aError;
+                    }
                 }
             }
 
-            return { success: true, serverVersion: prog.version, serverUpdatedAt: new Date().toISOString() };
+            console.log(`[Coraza] ✅ Sync OK: ${prog.id} | ${asignacionRows.length} asignaciones guardadas`);
+            return { success: true, serverVersion: newVersion, serverUpdatedAt: new Date().toISOString() };
         } catch (err: any) {
-            console.error('❌ Sync Error:', err);
+            console.error('[Coraza] ❌ Sync Error:', err?.message || err);
             throw err;
         } finally {
             activeSyncPromises.delete(prog.id);
@@ -565,45 +609,48 @@ export const useProgramacionStore = create<ProgramacionState>()(
             actualizarAsignacion: (progId, dia, data, usuario) => {
                 const state = get();
                 
-                // Robust lookup: ensure we have the UUID for the post
-                const dbPuestoId = translatePuestoToUuid(progId) || progId;
-                
-                const prog = state.programaciones.find(p => 
-                    p.id === progId || 
-                    p.puestoId === dbPuestoId || 
-                    p.puestoId === progId
-                );
+                // progId IS the UUID of the programacion — search ONLY by id
+                // Robust lookup: search by ID (case-insensitive) OR by (puesto, anio, mes) match
+                const prog = state.programaciones.find((p: any) => 
+                    String(p.id).toLowerCase() === String(progId).toLowerCase()
+                ) || state.getProgramacion(progId, state.programaciones[0]?.anio, state.programaciones[0]?.mes);
                 
                 if (!prog) {
-                    console.error('[Coraza] 🚨 CRÍTICO: Programación destino no hallada:', { progId, dbPuestoId });
-                    return { permitido: false, tipo: 'bloqueo', mensaje: 'Programación no encontrada' };
+                    console.error('[Coraza] 🚨 Programación no hallada localmente:', progId);
+                    return { permitido: false, tipo: 'bloqueo', mensaje: 'Error: Programación no sincronizada localmente' };
                 }
                 
-                let newAsignaciones = [...prog.asignaciones];
-                
-                // Precision fix: find specifically by dia, rol AND turno if provided.
-                const targetTurno = data.turno || 'AM'; // Default to 'AM' if not provided
                 const targetRol = data.rol;
-
                 if (!targetRol) {
-                    console.error('[Coraza] 🚨 CRÍTICO: Rol no proporcionado para actualizar asignación.');
+                    console.error('[Coraza] 🚨 Rol no proporcionado para actualizar asignación');
                     return { permitido: false, tipo: 'bloqueo', mensaje: 'Rol no proporcionado' };
                 }
 
-                const index = newAsignaciones.findIndex(a => 
-                    a.dia === dia && 
-                    String(a.rol).toLowerCase().trim() === String(targetRol || '').toLowerCase().trim() && 
-                    String(a.turno).toLowerCase().trim() === String(targetTurno).toLowerCase().trim()
+                let newAsignaciones = [...prog.asignaciones];
+
+                // KEY FIX: Search by (dia, rol) ONLY — turno is secondary and may differ between
+                // local state and what the modal sends. This prevents the "slot not found" problem.
+                const index = newAsignaciones.findIndex(a =>
+                    a.dia === dia &&
+                    String(a.rol).toLowerCase().trim() === String(targetRol).toLowerCase().trim()
                 );
 
                 if (index >= 0) {
-                    newAsignaciones[index] = { ...newAsignaciones[index], ...data, turno: targetTurno };
+                    // Merge: keep existing turno if caller doesn't provide one
+                    const mergedTurno = data.turno || newAsignaciones[index].turno || 'AM';
+                    newAsignaciones[index] = {
+                        ...newAsignaciones[index],
+                        ...data,
+                        turno: mergedTurno,
+                        rol: targetRol,
+                    };
                 } else {
-                    // Start by checking if we should initialize THE WHOLE MONTH for a completely new role
-                    const isNewRoleTypeForMonth = !prog.asignaciones.some(a => String(a.rol).toLowerCase().trim() === String(targetRol || '').toLowerCase().trim());
-                    
-                    if (isNewRoleTypeForMonth && targetRol) {
-                        console.warn('[Coraza] 🛠️ Inyectando nuevo rol táctico para todo el mes:', targetRol);
+                    // New slot for this dia/rol — either brand new role or missing slot
+                    const isNewRol = !prog.asignaciones.some(
+                        a => String(a.rol).toLowerCase().trim() === String(targetRol).toLowerCase().trim()
+                    );
+                    if (isNewRol) {
+                        // Initialize this new role for the entire month
                         const daysInMonth = new Date(prog.anio, prog.mes + 1, 0).getDate();
                         for (let d = 1; d <= daysInMonth; d++) {
                             newAsignaciones.push({
@@ -611,42 +658,49 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                 vigilanteId: d === dia ? (data.vigilanteId || null) : null,
                                 turno: d === dia ? (data.turno || 'AM') : 'AM',
                                 jornada: d === dia ? (data.jornada || 'normal') : 'sin_asignar',
-                                rol: targetRol
+                                rol: targetRol,
                             });
                         }
                     } else {
-                        // Just push the single missing slot
+                        // Just add the missing slot
                         newAsignaciones.push({
-                            dia: dia,
+                            dia,
                             vigilanteId: data.vigilanteId || null,
-                            turno: targetTurno,
+                            turno: data.turno || 'AM',
                             jornada: data.jornada || 'sin_asignar',
-                            rol: targetRol || 'relevante'
+                            rol: targetRol,
                         });
                     }
                 }
 
-                console.log(`[Coraza] 🚀 DESPLIEGUE TÁCTICO: Día ${dia} -> ${data.vigilanteId || 'VACANTE'}`);
+                console.log(`[Coraza] 🚀 DIA ${dia} ROL ${targetRol} → ${data.vigilanteId || 'VACANTE'} (prog: ${progId})`);
 
-                // PERSISTENCE GUARD: Ensure vigilante exists in personal_puesto list for this month
+                // Ensure guard is in the personal list for this month (foreign key requirement)
                 let newPersonal = [...prog.personal];
-                if (data.vigilanteId && !newPersonal.some(p => idsMatch(p.vigilanteId, data.vigilanteId || ''))) {
-                    console.log(`[Coraza] ➕ Inyectando vigilante en nómina mensual: ${data.vigilanteId}`);
-                    newPersonal.push({ rol: data.rol || 'relevante', vigilanteId: data.vigilanteId });
+                if (data.vigilanteId) {
+                    const alreadyInPersonal = newPersonal.some(p => 
+                        p.vigilanteId === data.vigilanteId ||
+                        idsMatch(p.vigilanteId, data.vigilanteId || '')
+                    );
+                    if (!alreadyInPersonal) {
+                        console.log(`[Coraza] ➕ Agregando a nómina: ${data.vigilanteId}`);
+                        newPersonal.push({ rol: targetRol, vigilanteId: data.vigilanteId });
+                    }
                 }
 
-                set(s => ({
-                    programaciones: s.programaciones.map(p => (p.id === prog.id) ? {
-                        ...p, 
+                set((s: any) => ({
+                    programaciones: s.programaciones.map((p: any) => p.id === prog.id ? {
+                        ...p,
                         personal: newPersonal,
-                        asignaciones: newAsignaciones, 
-                        actualizadoEn: new Date().toISOString(), 
-                        syncStatus: 'pending'
+                        asignaciones: newAsignaciones,
+                        actualizadoEn: new Date().toISOString(),
+                        syncStatus: 'pending',
                     } : p)
                 }));
-                // CRITICAL: IMMEDIATE SYNC FOR TACTICAL OPERATIONS
+
+                // Immediate sync for every assignment change
                 queueSync(prog.id, set, get, true);
-                return { permitido: true, tipo: 'ok', mensaje: 'Refuerzo asignado exitosamente' };
+                return { permitido: true, tipo: 'ok', mensaje: 'Asignación guardada exitosamente' };
             },
 
             publicarProgramacion: (progId, usuario) => {
@@ -718,21 +772,35 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
             getDiasTrabajoVigilante: (progId, vigilanteId) => {
                 const prog = get().programaciones.find(p => p.id === progId);
-                return prog ? prog.asignaciones.filter(a => a.vigilanteId === vigilanteId && a.jornada === 'normal').length : 0;
+                if (!prog) return 0;
+                // Count ALL active jornadas: normal work + paid rest + unpaid rest + vacation
+                // All of these represent days the guard is contracted/assigned (not unassigned)
+                return prog.asignaciones.filter(a => 
+                    idsMatch(a.vigilanteId, vigilanteId) && 
+                    (a.jornada === 'normal' || a.jornada === 'descanso_remunerado' || 
+                     a.jornada === 'descanso_no_remunerado' || a.jornada === 'vacacion')
+                ).length;
             },
 
             getDiasDescansoVigilante: (progId, vigilanteId) => {
                 const prog = get().programaciones.find(p => p.id === progId);
                 if (!prog) return { remunerados: 0, noRemunerados: 0 };
-                const as = prog.asignaciones.filter(a => a.vigilanteId === vigilanteId);
-                return { remunerados: as.filter(a => a.jornada === 'descanso_remunerado').length, noRemunerados: as.filter(a => a.jornada === 'descanso_no_remunerado').length };
+                const as = prog.asignaciones.filter(a => idsMatch(a.vigilanteId, vigilanteId));
+                return { 
+                    remunerados: as.filter(a => a.jornada === 'descanso_remunerado').length, 
+                    noRemunerados: as.filter(a => a.jornada === 'descanso_no_remunerado').length 
+                };
             },
 
             getCoberturaPorcentaje: (progId) => {
                 const prog = get().programaciones.find(p => p.id === progId);
                 if (!prog) return 0;
+                // Consider normal, paid rest and vacation as covered slots for the post
                 const total = prog.asignaciones.length;
-                const cubiertos = prog.asignaciones.filter(a => a.vigilanteId && a.jornada === 'normal').length;
+                const cubiertos = prog.asignaciones.filter(a => 
+                    a.vigilanteId && 
+                    (a.jornada === 'normal' || a.jornada === 'descanso_remunerado' || a.jornada === 'vacacion')
+                ).length;
                 return total === 0 ? 0 : Math.round((cubiertos / total) * 100);
             },
 
