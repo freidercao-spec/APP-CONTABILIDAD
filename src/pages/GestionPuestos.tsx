@@ -269,23 +269,33 @@ const CeldaCalendario = ({
 const CeldaVacia = ({
   onAdd,
   isWeekend,
+  isCompatible,
 }: {
   onAdd: () => void;
   isWeekend?: boolean;
+  isCompatible?: boolean;
 }) => (
   <button
     onClick={onAdd}
-    className={`w-full h-full rounded-lg flex items-center justify-center border border-dashed transition-all group ${
-      isWeekend
-        ? "border-slate-200 bg-slate-50/80"
-        : "border-slate-100 bg-slate-50/40"
+    className={`w-full h-full rounded-lg flex items-center justify-center border transition-all group relative ${
+      isCompatible 
+        ? "border-yellow-400 bg-yellow-400/10 shadow-[0_0_10px_rgba(250,204,21,0.2)]" 
+        : isWeekend
+          ? "border-slate-200 border-dashed bg-slate-50/80"
+          : "border-slate-100 border-dashed bg-slate-50/40"
     } hover:border-primary/40 hover:bg-primary/5`}
     style={{ minHeight: "72px" }}
-    title="Click para asignar este turno"
+    title={isCompatible ? "HUECO COMPATIBLE CON ORIGEN" : "Click para asignar este turno"}
   >
-    <span className="material-symbols-outlined text-[16px] text-slate-300 group-hover:text-primary/60 transition-colors">
-      add_circle
-    </span>
+    <div className="flex flex-col items-center gap-1">
+      <span className={`material-symbols-outlined text-[16px] transition-colors ${isCompatible ? 'text-yellow-500 animate-pulse' : 'text-slate-300 group-hover:text-primary/60'}`}>
+        {isCompatible ? 'stars' : 'add_circle'}
+      </span>
+      {isCompatible && <span className="text-[7px] font-black text-yellow-600 uppercase">Compatible</span>}
+    </div>
+    {isCompatible && (
+      <div className="absolute top-1 right-1 size-1.5 rounded-full bg-yellow-400 shadow-[0_0_5px_rgba(250,204,21,0.5)]" />
+    )}
   </button>
 );
 
@@ -710,6 +720,13 @@ const PanelMensualPuesto = ({
   const getAlertas = useProgramacionStore((s) => s.getAlertas);
 
   const getProgramacion = useProgramacionStore((s) => s.getProgramacion);
+  const [editCell, setEditCell] = useState<{
+    asig: AsignacionDia;
+    progId: string;
+    preSelectVigilanteId?: string;
+    sourceProgId?: string;
+    sourceRol?: string;   // NEW: For precise clearing
+  } | null>(null);
   const prog = useMemo(
     () => getProgramacion(puestoId, anio, mes),
     [allProgramaciones, getProgramacion, puestoId, anio, mes],
@@ -728,7 +745,7 @@ const PanelMensualPuesto = ({
     );
   }, [allTemplates, puestoId]);
 
-  const [editCell, setEditCell] = useState<{ asig: AsignacionDia; progId: string; preSelectVigilanteId?: string } | null>(null);
+
   const [activeTab, setActiveTab] = useState<
     | "calendario"
     | "personal"
@@ -1039,6 +1056,22 @@ const PanelMensualPuesto = ({
       finalData,
       username || "Sistema",
     );
+
+    // TACTICAL SYNC: If we are moving a guard from one post to another, clear him from the source
+    if (resultado.permitido && editCell.sourceProgId && editCell.sourceProgId !== progId && finalData.vigilanteId) {
+      console.log(`[Coraza] 🔄 Liberando vigilante del origen por despliegue táctico...`);
+      actualizarAsignacion(
+        editCell.sourceProgId,
+        asig.dia,
+        { 
+          vigilanteId: null, 
+          jornada: 'sin_asignar', 
+          rol: editCell.sourceRol // CRITICAL: Rol required for match in store
+        },
+        username || "Sistema"
+      );
+      showTacticalToast({ title: "Despliegue Completo", message: "Vigilante movido al destino y liberado del origen.", type: "success" });
+    }
 
     if (!resultado.permitido) {
       showTacticalToast({
@@ -2332,33 +2365,58 @@ const PanelMensualPuesto = ({
                                       jornadasCustom={jornadasCustom}
                                       turnosConfig={turnosConfig}
                                     />
-                                ) : (
-                                  <CeldaVacia
-                                    isWeekend={isW}
-                                    onAdd={() => {
-                                      // Find or create virtual target for new roles
-                                      const rol = getRolForTurno(tConf, tIdx);
-                                      const target = prog.asignaciones.find(
-                                        (a) => a.dia === d && a.rol === rol,
-                                      );
-                                      if (target) {
-                                        setEditCell({ asig: target, progId: prog.id });
-                                      } else {
-                                        // VIRTUAL TARGET for new roles!
-                                        setEditCell({
-                                          asig: {
+                                ) : (() => {
+                                  // IA LOGIC: Check if anyone (or current selected) in comparison post is free to fill this gap
+                                  const cP = allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId);
+                                  const cProg = allProgramaciones.find(p => 
+                                    (p.puestoId === (cP?.dbId || comparePuestoId)) && p.anio === anio && p.mes === mes
+                                  );
+                                  
+                                  const idsMatchLocal = (id1: string | null, id2: string | null) => {
+                                    if (!id1 || !id2) return false;
+                                    const v1 = vigilantes.find(vx => vx.id === id1 || vx.dbId === id1);
+                                    const v2 = vigilantes.find(vx => vx.id === id2 || vx.dbId === id2);
+                                    return (v1 && v2 && (v1.dbId === v2.dbId || v1.id === v2.id)) || id1 === id2;
+                                  };
+
+                                  const checkVigCompatibility = (vid: string) => {
+                                    if (!vid) return false;
+                                    // Is he busy in his own post?
+                                    const busyInRef = cProg?.asignaciones.some(a => a.dia === d && idsMatchLocal(a.vigilanteId, vid) && a.jornada !== 'sin_asignar');
+                                    // Is he busy elsewhere?
+                                    const busyElsewhere = allProgramaciones.some(xp => (cProg && xp.id !== cProg.id) && xp.asignaciones.some(xa => xa.dia === d && idsMatchLocal(xa.vigilanteId, vid) && xa.jornada !== 'sin_asignar'));
+                                    return !busyInRef && !busyElsewhere;
+                                  };
+
+                                  const isCompatible = compareVigilanteId 
+                                    ? checkVigCompatibility(compareVigilanteId)
+                                    : cProg?.personal.some(per => per.vigilanteId && checkVigCompatibility(per.vigilanteId));
+
+                                  return (
+                                    <CeldaVacia
+                                      isWeekend={isW}
+                                      isCompatible={!!isCompatible}
+                                      onAdd={() => {
+                                        const rol = getRolForTurno(tConf, tIdx);
+                                        const target = prog.asignaciones.find(
+                                          (a) => a.dia === d && a.rol === rol,
+                                        );
+                                        setEditCell({ 
+                                          asig: target || {
                                             dia: d,
                                             rol: rol,
                                             vigilanteId: null,
                                             turno: tConf.id as TurnoHora,
                                             jornada: "sin_asignar" as TipoJornada,
                                           },
-                                          progId: prog.id
+                                          progId: prog.id,
+                                          preSelectVigilanteId: isCompatible && compareVigilanteId ? compareVigilanteId : undefined
                                         });
-                                      }
-                                    }}
-                                  />
-                                )}
+                                      }}
+                                    />
+                                  );
+                                })()}
+                                })()}
                               </td>
                             );
                           })}
@@ -3155,8 +3213,18 @@ const PanelMensualPuesto = ({
                   onClick={() => {
                     const target = allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId);
                     if (target && onPuestoChange) {
+                      const oldPuestoId = puestoId;
+                      const oldPuestoNombre = puestoNombre;
+                      
+                      // SWAP: Bring target to top, move current to reference dropdown
                       onPuestoChange(target.id, target.nombre);
-                      showTacticalToast({ title: "Sincronizado", message: `Tablero Maestro movido a ${target.nombre}`, type: "success" });
+                      setComparePuestoId(oldPuestoId);
+                      
+                      showTacticalToast({ 
+                        title: "Sincronización Maestra", 
+                        message: `Tablero: ${target.nombre}. Referencia: ${oldPuestoNombre}.`, 
+                        type: "success" 
+                      });
                     }
                   }}
                   className="px-4 py-1.5 bg-emerald-500/20 border-2 border-emerald-500/40 rounded-xl text-[9px] font-black text-emerald-400 uppercase tracking-widest hover:bg-emerald-500/30 transition-all hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
@@ -3172,21 +3240,35 @@ const PanelMensualPuesto = ({
             <div className="ml-auto flex items-center gap-2">
               <button
                 onClick={async () => {
-                  setIsRefreshing(true);
-                  await fetchProgramacionesByMonth(anio, mes);
                   setIsRefreshing(false);
-                  showTacticalToast({ title: "Sincronización Completa", message: "Datos del núcleo actualizados.", type: "info" });
+                  const cP = allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId);
+                  const freshCProg = allProgramaciones.find(p => 
+                    (p.puestoId === comparePuestoId || p.puestoId === cP?.dbId) && p.anio === anio && p.mes === mes
+                  );
+                  const totalGaps = freshCProg?.asignaciones.filter(a => !a.vigilanteId || a.jornada === 'sin_asignar').length || 0;
+                  showTacticalToast({ 
+                    title: "Escaneo de Destino Completo", 
+                    message: `Se detectaron ${totalGaps} huecos pendientes en el tablero de destino (${cP?.nombre || 'Seleccionado'}).`, 
+                    type: "info" 
+                  });
                 }}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-orange-500 bg-orange-600 hover:bg-orange-500 text-white transition-all text-[11px] font-black uppercase tracking-widest shadow-[0_0_20px_rgba(234,88,12,0.4)] animate-pulse"
               >
                 <span className="material-symbols-outlined text-[18px]">sync</span>
-                REFRESCAR NÚCLEO (V2.0)
+                REFRESCAR NÚCLEO (V3.1)
               </button>
+              <div className="flex items-center gap-4 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 shadow-inner">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Origen Activo:</span>
+                <span className="text-[11px] font-black text-white truncate max-w-[200px]">
+                  {allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId)?.nombre || "SIN SELECCION"}
+                </span>
+                <div className="size-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)] animate-pulse" title="Sincronizado" />
+              </div>
               <button
                 onClick={() => setCompareExpanded(!compareExpanded)}
-                className="size-8 rounded-xl flex items-center justify-center border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all bg-white/5 shadow-inner"
+                className="size-10 rounded-xl flex items-center justify-center border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all bg-white/10 shadow-lg active:scale-95"
               >
-                <span className="material-symbols-outlined text-slate-300" style={{ fontSize: "18px" }}>
+                <span className="material-symbols-outlined text-white" style={{ fontSize: "20px" }}>
                   {compareExpanded ? "keyboard_arrow_down" : "keyboard_arrow_up"}
                 </span>
               </button>
@@ -3201,21 +3283,34 @@ const PanelMensualPuesto = ({
             );
             const daysArr = Array.from({ length: new Date(anio, mes + 1, 0).getDate() }, (_, i) => i + 1);
 
+            // HOISTED DATA: Define these here to be available for both Header and List
+            const currentProg = allProgramaciones.find(p => p.id === prog?.id) || prog;
+            const freshCProg = allProgramaciones.find(cp => cp.id === cProg?.id);
+            
             return (
               <div className="px-5 py-4 overflow-y-auto overflow-x-auto scrollbar-thin scrollbar-thumb-white/10" style={{ maxHeight: "374px" }}>
                 <div className="flex items-center gap-5 mb-4 text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5 pb-3">
-                  <div className="flex items-center gap-2"><div className="size-2.5 rounded-full bg-emerald-500/30 border border-emerald-500/50 shadow-[0_0_8px_rgba(16,185,129,0.3)]"/>Libre</div>
-                  <div className="flex items-center gap-2"><div className="size-2.5 rounded-full bg-red-500/30 border border-red-500/50 shadow-[0_0_8px_rgba(239,68,68,0.3)]"/>Ocupado Origen</div>
-                  <div className="flex items-center gap-2"><div className="size-2.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)] border border-indigo-400/50"/>En Destino</div>
+                  <div className="flex items-center gap-2"><div className="size-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"/>Libre</div>
+                  <div className="flex items-center gap-2 border-2 border-yellow-400/50 px-2 py-0.5 rounded-lg bg-yellow-400/10"><div className="size-2.5 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(250,204,21,0.8)] flex items-center justify-center text-[7px] text-white">★</div>Hueco Compatible (IA)</div>
+                  <div className="flex items-center gap-2"><div className="size-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(251,146,60,0.5)]"/>En este Puesto (Origen)</div>
+                  <div className="flex items-center gap-2"><div className="size-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"/>En Otro Puesto</div>
+                  <div className="flex items-center gap-2"><div className="size-2.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]"/>En Tablero Principal</div>
                 </div>
-
-                <div className="flex gap-1 mb-3 items-end opacity-50">
-                  <div style={{ minWidth: "180px" }} />
-                  {daysArr.map(d => (
-                    <div key={d} className="flex flex-col items-center" style={{ minWidth: "32px" }}>
-                      <span className="text-[9px] font-black text-slate-400">{d < 10 ? `0${d}` : d}</span>
-                    </div>
-                  ))}
+                <div className="flex gap-1 mb-1 items-end sticky top-0 bg-slate-900 z-30 pb-2 border-b border-white/5">
+                  <div className="sticky left-0 z-40 bg-slate-900 flex items-center justify-center border-r border-white/10 pr-2" style={{ minWidth: "160px" }}>
+                     <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Días / Huecos</span>
+                  </div>
+                  {daysArr.map(d => {
+                    const hasVacTop = currentProg?.asignaciones.some(a => a.dia === d && (!a.vigilanteId || a.jornada === 'sin_asignar'));
+                    return (
+                      <div key={d} className="flex flex-col items-center relative group/hdr shrink-0" style={{ minWidth: "32px" }}>
+                        {hasVacTop && <div className="absolute -top-1 size-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" title="Hueco pendiente arriba" />}
+                        <span className={`text-[8px] font-black ${hasVacTop ? 'text-red-400 underline underline-offset-4 decoration-red-500/50' : 'text-slate-400'}`}>
+                          {d < 10 ? `0${d}` : d}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 <div className="space-y-2 pb-8">
@@ -3225,33 +3320,54 @@ const PanelMensualPuesto = ({
                     const freshCProg = allProgramaciones.find(cp => cp.id === cProg?.id);
                     
                     // Unified list of vigilantes: include everyone assigned to ORIGIN or DESTINATION
+                    // Unified list of vigilantes: include everyone assigned to ORIGIN or DESTINATION
+                    // ADDITION: Include ALL system 'relevantes' to ensure visibility even if not assigned yet
+                    const allRelevantes = (vigilantes || []).filter(v => 
+                      String(v.rol || '').toLowerCase().includes('relev') || 
+                      String(v.especialidad || '').toLowerCase().includes('relev')
+                    );
+
                     const uniqueVids = Array.from(new Set([
                       ...(currentProg?.personal || []).map(p => p.vigilanteId),
                       ...(currentProg?.asignaciones || []).map(a => a.vigilanteId),
                       ...(freshCProg?.personal || []).map(p => p.vigilanteId),
-                      ...(freshCProg?.asignaciones || []).map(a => a.vigilanteId)
+                      ...(freshCProg?.asignaciones || []).map(a => a.vigilanteId),
+                      ...allRelevantes.map(v => v.dbId || v.id)
                     ])).filter(Boolean) as string[];
 
-                    return uniqueVids.map((vid) => {
-                      const vig = vigilantes.find(v => v.id === vid || v.dbId === vid);
-                      // Search role in DESTINATION first if we are coordinating, fallback to ORIGIN
-                      const titRow = freshCProg?.personal?.find(p => p.vigilanteId === vid) || currentProg?.personal?.find(p => p.vigilanteId === vid);
-                      const displayRol = titRow?.rol || 'relevante';
+                    // PRIORITIZATION: Put 'relevantes' first in the list
+                    const sortedVids = [...uniqueVids].sort((a, b) => {
+                      const v1 = vigilantes.find(v => v.id === a || v.dbId === a);
+                      const v2 = vigilantes.find(v => v.id === b || v.dbId === b);
+                      const aIsRel = String(v1?.rol || '').toLowerCase().includes('relev') || String(v1?.especialidad || '').toLowerCase().includes('relev');
+                      const bIsRel = String(v2?.rol || '').toLowerCase().includes('relev') || String(v2?.especialidad || '').toLowerCase().includes('relev');
+                      if (aIsRel && !bIsRel) return -1;
+                      if (!aIsRel && bIsRel) return 1;
+                      return 0;
+                    });
+
+                      const isSelected = compareVigilanteId === vid;
 
                       return (
-                        <div key={vid} className="flex gap-1 items-center hover:bg-white/[0.04] transition-all rounded-xl group/row pr-4 py-0.5">
-                          <div className="shrink-0 flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 group-hover/row:border-white/20 transition-all shadow-lg" style={{ minWidth: "180px" }}>
-                            <div className="size-8 rounded-lg flex items-center justify-center font-black text-[11px] text-white shadow-2xl relative overflow-hidden"
+                        <div key={vid} className={`flex gap-1 items-center hover:bg-white/[0.04] transition-all rounded-xl group/row pr-4 py-1.5 relative shrink-0 ${isSelected ? 'bg-primary/10 ring-1 ring-primary/20' : ''}`}>
+                          <div 
+                            onClick={() => setCompareVigilanteId(isSelected ? null : vid)}
+                            className={`sticky left-0 z-20 cursor-pointer shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-xl backdrop-blur-md border-r transition-all shadow-xl ${isSelected ? 'bg-primary/20 border-primary/50' : 'bg-slate-900/90 border-white/10 group-hover/row:border-white/20'}`} 
+                            style={{ minWidth: "160px" }}
+                          >
+                            <div className="size-7 rounded-lg flex items-center justify-center font-black text-[10px] text-white shadow-2xl relative overflow-hidden shrink-0"
                                  style={{ background: displayRol === 'titular_a' ? "linear-gradient(135deg, #4f46e5, #3730a3)" : displayRol === 'titular_b' ? "linear-gradient(135deg, #0891b2, #155e75)" : "linear-gradient(135deg, #059669, #065f46)" }}>
                               {vig?.nombre?.[0] || "?"}
+                              {isSelected && <div className="absolute inset-0 bg-primary/40 flex items-center justify-center"><span className="material-symbols-outlined text-[14px]">check</span></div>}
                             </div>
                             <div className="min-w-0">
-                              <p className="text-[11px] font-black text-slate-100 truncate w-[110px] leading-tight">{vig?.nombre || vid}</p>
-                              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-0.5 opacity-60">
+                              <p className={`text-[10px] font-black truncate w-[85px] leading-tight ${isSelected ? 'text-primary' : 'text-slate-100'}`}>{vig?.nombre || vid}</p>
+                              <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mt-0.5 opacity-60">
                                 {displayRol.replace('_',' ')}
                               </p>
                             </div>
                           </div>
+
 
                           {daysArr.map((d) => {
                             const idsMatch = (id1: string | null, id2: string | null) => {
@@ -3264,34 +3380,58 @@ const PanelMensualPuesto = ({
                               return (v1 && v2 && (v1.dbId === v2.dbId || v1.id === v2.id));
                             };
 
-                            // FIND ANY assignment for this day and vigilante in ORIGIN
-                            const myAsig = currentProg?.asignaciones.find(a => a.dia === d && idsMatch(a.vigilanteId, vid));
-                            const isOcupadoOrigen = !!(myAsig && myAsig.vigilanteId && (myAsig.jornada !== 'sin_asignar'));
+                            const busyElsewhereAsig = allProgramaciones
+                              .filter(p => !cProg ||(p.id !== cProg.id && p.puestoId !== cProg.puestoId))
+                              .filter(p => p.id !== freshCProg?.id) // EXCLUDE current source too for separate logic
+                              .flatMap(p => p.asignaciones.map(a => ({ ...a, puestoName: p.puestoId })))
+                              .find(a => a.dia === d && idsMatch(a.vigilanteId, vid) && a.jornada !== 'sin_asignar');
 
-                            // FIND ANY assignment for this day and vigilante in DESTINATION
-                            const freshCProg = allProgramaciones.find(cp => cp.id === cProg?.id);
-                            const asigDest = freshCProg?.asignaciones.find(a => a.dia === d && idsMatch(a.vigilanteId, vid));
-                            const isAlreadyInDest = !!(asigDest && asigDest.jornada !== "sin_asignar");
+                            // Check if busy in the SPECIFIC source post of terminal
+                            const busyInSourceAsig = freshCProg?.asignaciones.find(a => a.dia === d && idsMatch(a.vigilanteId, vid) && a.jornada !== 'sin_asignar');
+
+                            const asigDest = currentProg?.asignaciones.find(a => a.dia === d && idsMatch(a.vigilanteId, vid));
+                            const isAlreadyInTableroPrincipal = !!(asigDest && asigDest.jornada !== "sin_asignar");
+
+                            // IA Logic: Is there a vacancy in the DESTINATION board for this specific day?
+                            const hasVacancyInDestination = freshCProg?.asignaciones.some(a => 
+                              a.dia === d && (!a.vigilanteId || a.jornada === 'sin_asignar')
+                            );
+
+                            // Perfect Match: Empty at bottom (Destino) AND free at top (Origen)
+                            const isPerfectMatch = hasVacancyInDestination && !busyInSourceAsig && !busyElsewhereAsig && !isAlreadyInTableroPrincipal;
 
                             let bg = "rgba(255,255,255,0.03)";
                             let ring = "rgba(255,255,255,0.05)";
                             let txtColor = "text-slate-600";
                             let sh = "none";
 
-                            if (isAlreadyInDest) { 
+                            if (isAlreadyInTableroPrincipal) { 
+                              // EN ESTE PUESTO (ORIGEN) - Orange to match legend
+                              bg = "rgba(251, 146, 60, 0.25)"; 
+                              ring = "rgba(251, 146, 60, 0.6)"; 
+                              txtColor = "text-orange-300";
+                              sh = "0 0 10px rgba(251,146,60,0.1)";
+                            } else if (busyInSourceAsig) { 
+                              // EN EL DESTINO SELECCIONADO - Indigo
                               bg = "linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)"; 
-                              ring = "rgba(99,102,241,0.6)"; 
+                              ring = "rgba(99,102,241,0.6)";
                               txtColor = "text-white";
                               sh = "0 0 15px rgba(79,70,229,0.3)";
-                            } else if (isOcupadoOrigen) { 
-                              bg = "rgba(239, 68, 68, 0.15)"; 
-                              ring = "rgba(239, 68, 68, 0.4)";
+                            } else if (busyElsewhereAsig) { 
+                              bg = "rgba(239, 68, 68, 0.2)"; 
+                              ring = "rgba(239, 68, 68, 0.5)";
                               txtColor = "text-red-400";
                             } else { 
-                              bg = "rgba(34, 197, 94, 0.15)"; 
-                              ring = "rgba(34, 197, 94, 0.4)";
-                              txtColor = "text-emerald-400";
+                              bg = isPerfectMatch ? "rgba(34, 197, 94, 0.4)" : "rgba(34, 197, 94, 0.2)"; 
+                              ring = isPerfectMatch ? "#facc15" : "rgba(34, 197, 94, 0.5)";
+                              txtColor = isPerfectMatch ? "text-yellow-100" : "text-emerald-400";
+                              sh = isPerfectMatch ? "0 0 12px rgba(250, 204, 21, 0.5)" : "none";
                             }
+
+
+
+
+                            const dotLabel = isAlreadyInTableroPrincipal ? (asigDest?.turno || "✓") : (busyInSourceAsig?.turno || busyElsewhereAsig?.turno || "—");
 
                             return (
                               <button
@@ -3304,38 +3444,45 @@ const PanelMensualPuesto = ({
                                     return;
                                   }
                                   
-                                  const preferredTurno = myAsig?.turno || "AM";
-                                  const targetAsig = cProg.asignaciones.find(a => a.dia === d && !a.vigilanteId && a.turno === preferredTurno)
-                                    || cProg.asignaciones.find(a => a.dia === d && !a.vigilanteId)
+                                  const preferredTurno = busyInSourceAsig?.turno || busyElsewhereAsig?.turno || asigDest?.turno || "AM";
+                                  // Look for an empty slot matching the turno, OR any empty slot, OR relevant slot
+                                  const targetAsig = cProg.asignaciones.find(a => a.dia === d && (!a.vigilanteId || a.jornada === 'sin_asignar') && a.turno === preferredTurno)
+                                    || cProg.asignaciones.find(a => a.dia === d && (!a.vigilanteId || a.jornada === 'sin_asignar'))
+                                    || cProg.asignaciones.find(a => a.dia === d && a.rol === 'relevante')
                                     || cProg.asignaciones.find(a => a.dia === d);
                                   
                                   setEditCell({
-                                    asig: targetAsig ? { ...targetAsig, vigilanteId: vid, turno: preferredTurno } : { dia: d, vigilanteId: vid, turno: preferredTurno, jornada: 'normal', rol: 'relevante' },
+                                    asig: { ...targetAsig, dia: d, vigilanteId: vid, turno: preferredTurno, jornada: targetAsig?.jornada || 'normal', rol: targetAsig?.rol || 'relevante' },
                                     progId: cProg.id,
-                                    preSelectVigilanteId: vid
+                                    preSelectVigilanteId: vid,
+                                    sourceProgId: busyElsewhereAsig?.puestoName ? (allProgramaciones.find(xp => xp.puestoId === busyElsewhereAsig.puestoName)?.id) : (busyInSourceAsig ? freshCProg?.id : undefined),
+                                    sourceRol: busyElsewhereAsig?.rol || busyInSourceAsig?.rol
                                   });
                                   
-                                  if (isOcupadoOrigen) {
+                                  if (busyInSourceAsig || busyElsewhereAsig) {
                                     showTacticalToast({ 
-                                      title: "⚠️ Doble Función", 
-                                      message: `${vig?.nombre} asignado en origen. Editando en destino...`, 
+                                      title: "⚠️ Traspaso Operativo", 
+                                      message: `${vig?.nombre} está asignado en ${busyInSourceAsig ? 'Origen' : busyElsewhereAsig?.puestoName}. Se liberará para este tablero.`, 
                                       type: "warning" 
                                     });
                                   }
                                 }}
-                                className="relative size-8 sm:size-9 rounded-xl flex items-center justify-center transition-all border shadow-sm cursor-pointer hover:scale-125 hover:z-50 active:scale-95 group/cell pointer-events-auto"
+                                className="relative size-7 rounded-lg flex items-center justify-center transition-all border shadow-sm cursor-pointer hover:scale-110 hover:z-50 active:scale-95 group/cell pointer-events-auto shrink-0"
                                 style={{ 
+                                  minWidth: "32px",
                                   background: bg, 
                                   borderColor: ring,
                                   boxShadow: sh,
                                   zIndex: 10
                                 }}
+
                               >
-                                <span className={`text-[9px] font-black tracking-tight ${txtColor} pointer-events-none`}>
-                                  {isAlreadyInDest ? (asigDest?.turno || "✓") : (myAsig?.turno || "—")}
+                                <span className={`text-[9px] font-black tracking-tight ${txtColor} pointer-events-none flex items-center gap-0.5`}>
+                                  {isPerfectMatch && <span className="material-symbols-outlined text-[10px] text-yellow-400 animate-pulse">stars</span>}
+                                  {dotLabel}
                                 </span>
-                                {isOcupadoOrigen && !isAlreadyInDest && (
-                                  <div className="absolute -top-1 -right-1 size-2.5 bg-red-500 rounded-full border-2 border-slate-900 shadow-lg animate-pulse" />
+                                {(busyInSourceAsig || busyElsewhereAsig) && !isAlreadyInTableroPrincipal && (
+                                  <div className={`absolute -top-1 -right-1 size-2.5 rounded-full border-2 border-slate-900 shadow-lg animate-pulse ${busyInSourceAsig ? 'bg-orange-500' : 'bg-red-500'}`} />
                                 )}
                               </button>
                             );
@@ -3364,20 +3511,7 @@ const PanelMensualPuesto = ({
         </div>
       )}
 
-      {/* MODAL DE EDICIÓN (RESTAURADO + REACTIVO) */}
-      {editCell && (
-        <EditCeldaModal
-          asig={editCell.asig}
-          vigilantes={vigilantes}
-          titularesId={allProgramaciones.find(p => p.id === editCell.progId)?.personal.map(p => p.vigilanteId || "") || []}
-          ocupados={ocupados}
-          turnosConfig={turnosConfig}
-          jornadasCustom={jornadasCustom}
-          initialVigilanteId={editCell.preSelectVigilanteId}
-          onSave={handleSaveCell}
-          onClose={() => setEditCell(null)}
-        />
-      )}
+
     </div>
   );
 };
