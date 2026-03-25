@@ -3319,7 +3319,13 @@ const PanelMensualPuesto = ({
                     const freshCProg = allProgramaciones.find(cp => cp.id === cProg?.id);
                     
                     // Unified list of vigilantes: include everyone assigned to ORIGIN or DESTINATION
-                    // Unified list of vigilantes: include everyone assigned to ORIGIN or DESTINATION
+                    const idsMatchGlobal = (id1: string | null, id2: string | null) => {
+                      if (!id1 || !id2) return false;
+                      const v1 = vigilantes.find(vx => vx.id === id1 || vx.dbId === id1);
+                      const v2 = vigilantes.find(vx => vx.id === id2 || vx.dbId === id2);
+                      return (v1 && v2 && (v1.dbId === v2.dbId || v1.id === v2.id)) || id1 === id2;
+                    };
+
                     // ADDITION: Include ALL system 'relevantes' to ensure visibility even if not assigned yet
                     const allRelevantes = (vigilantes || []).filter(v => 
                       String(v.rol || '').toLowerCase().includes('relev') || 
@@ -3348,23 +3354,27 @@ const PanelMensualPuesto = ({
                     return sortedVids.map(vid => {
                       const vig = vigilantes.find(v => v.id === vid || v.dbId === vid);
                       const displayRol = (prog?.personal.find(p => p.vigilanteId === vid)?.rol || 'relevante') as RolPuesto;
-                      const isSelected = compareVigilanteId === vid;
+                      const isSelected = !!compareVigilanteId && idsMatchGlobal(compareVigilanteId, vid);
 
                       return (
-                        <div key={vid} className={`flex gap-1 items-center hover:bg-white/[0.04] transition-all rounded-xl group/row pr-4 py-1.5 relative shrink-0 ${isSelected ? 'bg-primary/10 ring-1 ring-primary/20' : ''}`}>
+                        <div key={vid} className={`flex gap-1 items-center hover:bg-white/[0.04] transition-all rounded-xl group/row pr-4 py-1.5 relative shrink-0 ${isSelected ? 'bg-yellow-500/10 ring-2 ring-yellow-400/50' : ''}`}>
                           <div 
-                            onClick={() => setCompareVigilanteId(isSelected ? null : vid)}
-                            className={`sticky left-0 z-20 cursor-pointer shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-xl backdrop-blur-md border-r transition-all shadow-xl ${isSelected ? 'bg-primary/20 border-primary/50' : 'bg-slate-900/90 border-white/10 group-hover/row:border-white/20'}`} 
+                            onClick={() => {
+                              console.log("[Tactica] Seleccionando:", vid);
+                              setCompareVigilanteId(isSelected ? null : vid);
+                            }}
+                            className={`sticky left-0 z-20 cursor-pointer shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-xl backdrop-blur-md border-r transition-all shadow-xl ${isSelected ? 'bg-yellow-400/30 border-yellow-400' : 'bg-slate-900/90 border-white/10 group-hover/row:border-white/20'}`} 
                             style={{ minWidth: "160px" }}
                           >
                             <div className="size-7 rounded-lg flex items-center justify-center font-black text-[10px] text-white shadow-2xl relative overflow-hidden shrink-0"
                                  style={{ background: displayRol === 'titular_a' ? "linear-gradient(135deg, #4f46e5, #3730a3)" : displayRol === 'titular_b' ? "linear-gradient(135deg, #0891b2, #155e75)" : "linear-gradient(135deg, #059669, #065f46)" }}>
                               {vig?.nombre?.[0] || "?"}
-                              {isSelected && <div className="absolute inset-0 bg-primary/40 flex items-center justify-center"><span className="material-symbols-outlined text-[14px]">check</span></div>}
+                              {isSelected && <div className="absolute inset-0 bg-yellow-400/40 flex items-center justify-center blur-sm" />}
+                              {isSelected && <div className="absolute inset-0 flex items-center justify-center text-slate-900"><span className="material-symbols-outlined text-[16px] font-black">check_circle</span></div>}
                             </div>
                             <div className="min-w-0">
-                              <p className={`text-[10px] font-black truncate w-[85px] leading-tight ${isSelected ? 'text-primary' : 'text-slate-100'}`}>{vig?.nombre || vid}</p>
-                              <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mt-0.5 opacity-60">
+                              <p className={`text-[10px] font-black truncate w-[85px] leading-tight ${isSelected ? 'text-yellow-400' : 'text-slate-100'}`}>{vig?.nombre || vid}</p>
+                              <p className={`text-[7px] font-black uppercase tracking-widest mt-0.5 opacity-60 ${isSelected ? 'text-yellow-400/80' : 'text-slate-500'}`}>
                                 {displayRol.replace('_',' ')}
                               </p>
                             </div>
