@@ -4,6 +4,7 @@ import { supabase, EMPRESA_ID } from '../lib/supabase';
 import { useVigilanteStore } from './vigilanteStore';
 import { usePuestoStore } from './puestoStore';
 import { useAuthStore } from './authStore';
+import { showTacticalToast } from '../utils/tacticalToast';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -104,8 +105,9 @@ interface ProgramacionState {
 const activeSyncPromises = new Map<string, Promise<SyncResult>>();
 const pendingSyncs = new Map<string, any>();
 
-const translateToUuid = (id: string | null): string | null => {
-    if (!id) return null;
+const translateToUuid = (idRaw: string | null): string | null => {
+    if (!idRaw) return null;
+    const id = String(idRaw).trim();
     const isUuid = id.length >= 32 || (id.length >= 20 && id.includes('-'));
     if (isUuid) return id;
     
@@ -124,8 +126,9 @@ const translateFromDb = (dbId: string | null) => {
     return v?.id || dbId;
 };
 
-const translatePuestoToUuid = (id: string | null): string | null => {
-    if (!id) return null;
+const translatePuestoToUuid = (idRaw: string | null): string | null => {
+    if (!idRaw) return null;
+    const id = String(idRaw).trim();
     const isUuid = id.length >= 32 || (id.length >= 20 && id.includes('-'));
     if (isUuid) return id; 
 
@@ -164,19 +167,21 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
 
     const syncPromise = (async (): Promise<SyncResult> => {
         try {
-            let dbId = prog.id;
+            let dbId = String(prog.id).trim();
             const dbPuestoId = translatePuestoToUuid(prog.puestoId);
+            if (!dbPuestoId) throw new Error("ID de puesto no encontrado");
+            const cleanPuestoId = String(dbPuestoId).trim();
 
             const { data: existing } = await supabase
                 .from('programacion_mensual')
                 .select('id, version, updated_at')
-                .eq('puesto_id', dbPuestoId)
+                .eq('puesto_id', cleanPuestoId)
                 .eq('anio', prog.anio)
                 .eq('mes', prog.mes)
                 .maybeSingle();
 
-            if (existing && existing.id !== prog.id) {
-                dbId = existing.id;
+            if (existing && String(existing.id).trim() !== dbId) {
+                dbId = String(existing.id).trim();
             }
 
             if (existing) {
@@ -194,13 +199,13 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                 }
             }
 
-            const currentEmpresaId = useAuthStore.getState().empresaId || EMPRESA_ID;
+            const currentEmpresaId = String(useAuthStore.getState().empresaId || EMPRESA_ID).trim();
             const { error: upsertErr } = await supabase
                 .from('programacion_mensual')
                 .upsert({
                     id: dbId,
                     empresa_id: currentEmpresaId,
-                    puesto_id: dbPuestoId,
+                    puesto_id: cleanPuestoId,
                     anio: prog.anio,
                     mes: prog.mes,
                     estado: prog.estado,
@@ -323,7 +328,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     if (rows && rows.length > 0) {
                         console.log(`[Coraza] 📈 ${rows.length} cabeceras recibidas. Iniciando hidratación profunda...`);
                         const getIds = rows.map(r => r.id);
-                        await get()._fetchDetails(rows, getIds);
+                        await get()._fetchDetails(rows, getIds); // REFRESCAR NÚCLEO (V3.0)
                     } else {
                         console.log('[Coraza] ℹ️ No se encontraron programaciones en la nube.');
                         set({ loaded: true });
@@ -399,17 +404,56 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         if (!personal.find(p => p.rol === rol)) personal.push({ rol, vigilanteId: null });
                     });
 
-                    const asignaciones = allAsignaciones
-                        .filter(a => a.programacion_id === row.id)
-                        .map(a => ({
-                            dia: a.dia,
-                            vigilanteId: translateFromDb(a.vigilante_id),
-                            turno: a.turno,
-                            jornada: (a.jornada || 'sin_asignar') as TipoJornada,
-                            rol: (a.rol || 'titular_a') as RolPuesto,
-                            inicio: a.inicio || undefined,
-                            fin: a.fin || undefined
-                        }));
+                    const dbAsignaciones = allAsignaciones.filter(a => a.programacion_id === row.id);
+                    const daysInMonth = new Date(row.anio, row.mes + 1, 0).getDate();
+                    const asignaciones: AsignacionDia[] = [];
+                    
+                    // Priority: If DB has data, use it. But ensure every role/day has a slot for grid consistency.
+                    const rolesToEnsure: RolPuesto[] = ['titular_a', 'titular_b', 'relevante'];
+                    
+                    for (let d = 1; d <= daysInMonth; d++) {
+                        rolesToEnsure.forEach(rol => {
+                            const match = dbAsignaciones.find(a => a.dia === d && a.rol === rol);
+                            if (match) {
+                                asignaciones.push({
+                                    dia: match.dia,
+                                    vigilanteId: translateFromDb(match.vigilante_id),
+                                    turno: match.turno,
+                                    jornada: (match.jornada || 'sin_asignar') as TipoJornada,
+                                    rol: (match.rol || rol) as RolPuesto,
+                                    inicio: match.inicio || undefined,
+                                    fin: match.fin || undefined
+                                });
+                            } else {
+                                // Baseline slot: ensure it's interactive and counts for coverage (as vacío)
+                                asignaciones.push({
+                                    dia: d,
+                                    vigilanteId: null,
+                                    turno: 'AM',
+                                    jornada: 'sin_asignar',
+                                    rol: rol
+                                });
+                            }
+                        });
+                    }
+
+                    // Add any EXTRA roles that might be in DB but not in the standard 3
+                    dbAsignaciones.forEach(a => {
+                        if (!rolesToEnsure.includes(a.rol as any)) {
+                            // Check if already added (avoid duplicates)
+                            if (!asignaciones.some(ax => ax.dia === a.dia && ax.rol === a.rol)) {
+                                asignaciones.push({
+                                    dia: a.dia,
+                                    vigilanteId: translateFromDb(a.vigilante_id),
+                                    turno: a.turno,
+                                    jornada: (a.jornada || 'sin_asignar') as TipoJornada,
+                                    rol: a.rol as RolPuesto,
+                                    inicio: a.inicio || undefined,
+                                    fin: a.fin || undefined
+                                });
+                            }
+                        }
+                    });
 
                     const historialCambios = allHistorial
                         .filter(h => h.programacion_id === row.id)
@@ -520,37 +564,66 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
             actualizarAsignacion: (progId, dia, data, usuario) => {
                 const state = get();
-                // Robust lookup
-                const prog = state.programaciones.find(p => p.id === progId || p.puestoId === progId);
+                
+                // Robust lookup: ensure we have the UUID for the post
+                const dbPuestoId = translatePuestoToUuid(progId) || progId;
+                
+                const prog = state.programaciones.find(p => 
+                    p.id === progId || 
+                    p.puestoId === dbPuestoId || 
+                    p.puestoId === progId
+                );
+                
                 if (!prog) {
-                    console.error('[Coraza] 🚨 CRÍTICO: Programación destino no hallada:', progId);
+                    console.error('[Coraza] 🚨 CRÍTICO: Programación destino no hallada:', { progId, dbPuestoId });
                     return { permitido: false, tipo: 'bloqueo', mensaje: 'Programación no encontrada' };
                 }
                 
-                let found = false;
-                const newAsignaciones = prog.asignaciones.map(a => {
-                    const matchDia = a.dia === dia;
-                    const r1 = String(a.rol).toLowerCase().trim();
-                    const r2 = String(data.rol || '').toLowerCase().trim();
-                    if (matchDia && r1 === r2) {
-                        found = true;
-                        return { ...a, ...data };
-                    }
-                    return a;
-                });
+                let newAsignaciones = [...prog.asignaciones];
+                
+                // Precision fix: find specifically by dia, rol AND turno if provided.
+                const targetTurno = data.turno || 'AM'; // Default to 'AM' if not provided
+                const targetRol = data.rol;
 
-                // AGRESSIVE SAVE: If not found in the map (new role or slot), we FORCE it into the array
-                if (!found && data.rol) {
-                    console.warn('[Coraza] 🛠️ Inyectando nueva asignación táctica...');
-                    newAsignaciones.push({
-                        dia,
-                        vigilanteId: data.vigilanteId || null,
-                        turno: data.turno || 'AM',
-                        jornada: data.jornada || 'normal',
-                        rol: data.rol,
-                        inicio: data.inicio,
-                        fin: data.fin
-                    });
+                if (!targetRol) {
+                    console.error('[Coraza] 🚨 CRÍTICO: Rol no proporcionado para actualizar asignación.');
+                    return { permitido: false, tipo: 'bloqueo', mensaje: 'Rol no proporcionado' };
+                }
+
+                const index = newAsignaciones.findIndex(a => 
+                    a.dia === dia && 
+                    String(a.rol).toLowerCase().trim() === String(targetRol || '').toLowerCase().trim() && 
+                    String(a.turno).toLowerCase().trim() === String(targetTurno).toLowerCase().trim()
+                );
+
+                if (index >= 0) {
+                    newAsignaciones[index] = { ...newAsignaciones[index], ...data, turno: targetTurno };
+                } else {
+                    // Start by checking if we should initialize THE WHOLE MONTH for a completely new role
+                    const isNewRoleTypeForMonth = !prog.asignaciones.some(a => String(a.rol).toLowerCase().trim() === String(targetRol || '').toLowerCase().trim());
+                    
+                    if (isNewRoleTypeForMonth && targetRol) {
+                        console.warn('[Coraza] 🛠️ Inyectando nuevo rol táctico para todo el mes:', targetRol);
+                        const daysInMonth = new Date(prog.anio, prog.mes + 1, 0).getDate();
+                        for (let d = 1; d <= daysInMonth; d++) {
+                            newAsignaciones.push({
+                                dia: d,
+                                vigilanteId: d === dia ? (data.vigilanteId || null) : null,
+                                turno: d === dia ? (data.turno || 'AM') : 'AM',
+                                jornada: d === dia ? (data.jornada || 'normal') : 'sin_asignar',
+                                rol: targetRol
+                            });
+                        }
+                    } else {
+                        // Just push the single missing slot
+                        newAsignaciones.push({
+                            dia: dia,
+                            vigilanteId: data.vigilanteId || null,
+                            turno: targetTurno,
+                            jornada: data.jornada || 'sin_asignar',
+                            rol: targetRol || 'relevante'
+                        });
+                    }
                 }
 
                 console.log(`[Coraza] 🚀 DESPLIEGUE TÁCTICO: Día ${dia} -> ${data.vigilanteId || 'VACANTE'}`);
@@ -695,9 +768,9 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
         }),
         {
-            name: 'coraza-programacion-store-v1.4.3',
+            name: 'coraza-programacion-store-v1.5.0',
             partialize: (state) => ({ templates: state.templates, programaciones: state.programaciones, loaded: state.loaded }),
-            version: 3,
+            version: 4,
         }
     )
 );

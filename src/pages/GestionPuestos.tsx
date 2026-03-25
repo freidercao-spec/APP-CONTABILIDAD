@@ -2416,7 +2416,6 @@ const PanelMensualPuesto = ({
                                     />
                                   );
                                 })()}
-                                })()}
                               </td>
                             );
                           })}
@@ -3346,6 +3345,9 @@ const PanelMensualPuesto = ({
                       return 0;
                     });
 
+                    return sortedVids.map(vid => {
+                      const vig = vigilantes.find(v => v.id === vid || v.dbId === vid);
+                      const displayRol = (prog?.personal.find(p => p.vigilanteId === vid)?.rol || 'relevante') as RolPuesto;
                       const isSelected = compareVigilanteId === vid;
 
                       return (

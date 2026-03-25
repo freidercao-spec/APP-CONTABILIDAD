@@ -1,6 +1,11 @@
 import { defineConfig } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -51,6 +56,12 @@ export default defineConfig({
     ],
     // Exclude heavy/optional packages from pre-bundling
     exclude: ['leaflet', 'maplibre-gl', 'jspdf', 'openai'],
+  },
+  // Resolve aliases for browser compatibility
+  resolve: {
+    alias: {
+      'child_process': path.resolve(__dirname, './src/lib/node-empty.ts')
+    }
   },
   // Performance hints
   esbuild: {
