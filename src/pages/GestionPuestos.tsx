@@ -2367,6 +2367,17 @@ const PanelMensualPuesto = ({
                                 style={{ minWidth: "72px" }}
                               >
                                 {asig ? (
+                                    <div
+                                      onClick={(e) => {
+                                        // Shift+Click or single click selects vigilante for tactical bar
+                                        if (asig.vigilanteId) {
+                                          e.stopPropagation();
+                                          setCompareVigilanteId(prev => idsMatch(prev, asig.vigilanteId) ? null : asig.vigilanteId);
+                                        }
+                                      }}
+                                      className={`cursor-pointer rounded-xl transition-all ${asig.vigilanteId && idsMatch(compareVigilanteId, asig.vigilanteId) ? 'ring-2 ring-yellow-400 ring-offset-1 ring-offset-slate-800' : 'hover:ring-1 hover:ring-yellow-400/50'}`}
+                                      title={asig.vigilanteId ? `Clic para seleccionar a ${cellVigName || asig.vigilanteId} en la barra táctica` : ''}
+                                    >
                                     <CeldaCalendario
                                       asig={asig}
                                       vigilanteNombre={cellVigName}
@@ -2374,6 +2385,7 @@ const PanelMensualPuesto = ({
                                       jornadasCustom={jornadasCustom}
                                       turnosConfig={turnosConfig}
                                     />
+                                    </div>
                                 ) : (() => {
                                   // IA LOGIC: Check if anyone (or current selected) in comparison post is free to fill this gap
                                   const cP = allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId);
@@ -3259,7 +3271,7 @@ const PanelMensualPuesto = ({
                 className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-orange-500 bg-orange-600 hover:bg-orange-500 text-white transition-all text-[11px] font-black uppercase tracking-widest shadow-[0_0_20px_rgba(234,88,12,0.4)] animate-pulse"
               >
                 <span className="material-symbols-outlined text-[18px]">sync</span>
-                REFRESCAR NÚCLEO (V3.3)
+                REFRESCAR NÚCLEO (V3.6)
               </button>
               <div className="flex items-center gap-4 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 shadow-inner">
                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Origen Activo:</span>
