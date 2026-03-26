@@ -445,7 +445,15 @@ export const useProgramacionStore = create<ProgramacionState>()(
             fetchProgramacionDetalles: async (progId: string) => {
                 try {
                     const prog = get().programaciones.find(p => p.id === progId);
-                    if (prog && (prog as any).isDetailLoaded) return; // Ya cargado
+                    const hasLocalData = prog && prog.asignaciones && prog.asignaciones.length > 0;
+                    if (prog && ((prog as any).isDetailLoaded || hasLocalData)) {
+                        if (!(prog as any).isDetailLoaded) {
+                            set((state: any) => ({
+                                programaciones: state.programaciones.map((p: any) => p.id === progId ? { ...p, isDetailLoaded: true } : p)
+                            }));
+                        }
+                        return; // Ya cargado con datos locales reales
+                    }
 
                     const [persRes, asigsRes] = await Promise.all([
                         supabase.from('personal_puesto').select('*').eq('programacion_id', progId),
