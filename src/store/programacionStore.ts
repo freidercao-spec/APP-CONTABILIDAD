@@ -315,15 +315,33 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                 const idx = merged.findIndex(p => p.id === h.id);
                                 if (idx >= 0) {
                                     const existing = merged[idx];
+                                    // ⚡ REGLA DE ORO: Nunca sobreescribir datos cargados con placeholders vacíos (Headers)
                                     const updated = { ...existing, ...h };
-                                    if (existing.isDetailLoaded) {
+                                    
+                                    // Si el local tiene datos (isDetailLoaded) y el nuevo es header, preservamos los datos locales
+                                    if (existing.isDetailLoaded && !h.isDetailLoaded) {
                                         updated.asignaciones = existing.asignaciones;
                                         updated.personal = existing.personal;
                                         updated.isDetailLoaded = true;
                                     }
+                                    
+                                    // Normalización de PuestoId: Asegurar que siempre sea el UUID si está disponible
+                                    if (h.puestoId && uuidRegex.test(h.puestoId)) {
+                                        updated.puestoId = h.puestoId;
+                                    }
+
                                     merged[idx] = updated;
                                 } else {
-                                    merged.push(h);
+                                    // Si no existe, buscamos por PuestoId para evitar duplicados (ShourtID vs UUID)
+                                    const duplicateIdx = merged.findIndex(p => 
+                                        (p.puestoId === h.puestoId || p.puestoId === translatePuestoToUuid(h.puestoId)) && 
+                                        p.anio === h.anio && p.mes === h.mes
+                                    );
+                                    if (duplicateIdx >= 0) {
+                                        merged[duplicateIdx] = { ...merged[duplicateIdx], ...h };
+                                    } else {
+                                        merged.push(h);
+                                    }
                                 }
                             });
                             return { programaciones: merged, loaded: true };
@@ -398,7 +416,12 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         supabase.from('asignaciones_dia').select('*').eq('programacion_id', progId).limit(200) // 93 max
                     ]);
 
-                    const personal = (persRes.data || []).map(p => ({ 
+                    if (persRes.error || asigsRes.error) {
+                        console.error('[Laser Loading] ❌ Fallo en red:', persRes.error || asigsRes.error);
+                        return; // Abortamos para no sobreescribir con arrays vacíos por error de red
+                    }
+
+                    const personal = (persRes.data || []).map((p: any) => ({ 
                         rol: p.rol as RolPuesto, 
                         vigilanteId: translateFromDb(p.vigilante_id) 
                     }));
@@ -408,7 +431,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     });
 
                     const asigMap = new Map();
-                    (asigsRes.data || []).forEach(a => {
+                    (asigsRes.data || []).forEach((a: any) => {
                         asigMap.set(`${a.dia}-${a.rol}`, a);
                     });
 
@@ -434,6 +457,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             }
                         });
                     }
+
+                    console.log(`[Laser Loading] ✅ Datos reconstruidos para ${progId}: ${asignaciones.length} turnos.`);
 
                     set((state: any) => ({
                         programaciones: state.programaciones.map((p: any) => p.id === progId ? {
