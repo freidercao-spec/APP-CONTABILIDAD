@@ -3419,10 +3419,10 @@ const PanelMensualPuesto = ({
                       <>
                         {/* LEYENDA — 4 estados de cruce de disponibilidad */}
                         <div className="flex flex-wrap items-center gap-5 mb-5 px-6 py-4 bg-slate-900/60 rounded-[30px] border border-white/5 shadow-2xl">
-                            <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(34,197,94,0.6)]"/><span className="text-[10px] font-black text-emerald-400">Libre en ambos ✓</span></div>
-                            <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]"/><span className="text-[10px] font-black text-red-400">Ocupado en Origen (A)</span></div>
-                            <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)]"/><span className="text-[10px] font-black text-yellow-400">Turno Destino lleno (B)</span></div>
-                            <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-slate-600"/><span className="text-[10px] font-black text-slate-500">Bloqueado A+B</span></div>
+                            <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(34,197,94,0.6)]" /> <span className="text-[10px] font-black text-emerald-400">Libre en ambos ✓</span></div>
+                            <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" /> <span className="text-[10px] font-black text-red-400">Ocupado en Origen (A)</span></div>
+                            <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)]" /> <span className="text-[10px] font-black text-yellow-400">Turno Destino lleno (B)</span></div>
+                            <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-slate-600" /> <span className="text-[10px] font-black text-slate-500">Bloqueado A+B</span></div>
                             <div className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-400/20">
                               <span className="material-symbols-outlined text-[14px] text-indigo-400">info</span>
                               <span className="text-[9px] font-black text-indigo-300 uppercase tracking-widest">Selecciona un vigilante abajo para activar</span>
@@ -3635,7 +3635,7 @@ const PanelMensualPuesto = ({
                 </div>
           )}
         </div>
-      )}
+      </div>
     );
   };
 
