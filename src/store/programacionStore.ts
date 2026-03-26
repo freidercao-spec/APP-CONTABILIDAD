@@ -317,15 +317,19 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
 
             _fetchDetails: async (rows: any[], progIds: string[]) => {
-                const CHUNK_SIZE = 50;
+                // REGLA CRÍTICA: Supabase tiene un límite estricto de devolver un máximo de 1000 filas por consulta ('select *').
+                // Cada "programacion" involucra unos 93 registros en 'asignaciones_dia' (3 roles * 31 días).
+                // Con CHUNK_SIZE = 5, el máximo posible es 465 filas, garantizando que NUNCA se pierdan datos en la lectura.
+                const CHUNK_SIZE = 5; 
                 let allPersonal: any[] = [];
                 let allAsignaciones: any[] = [];
 
                 for (let i = 0; i < progIds.length; i += CHUNK_SIZE) {
                     const chunk = progIds.slice(i, i + CHUNK_SIZE);
+                    // Para evitar el límite de las 1000 filas
                     const [persRes, asigsRes] = await Promise.all([
                         supabase.from('personal_puesto').select('*').in('programacion_id', chunk),
-                        supabase.from('asignaciones_dia').select('*').in('programacion_id', chunk)
+                        supabase.from('asignaciones_dia').select('*').in('programacion_id', chunk).limit(1000)
                     ]);
 
                     if (persRes.data) allPersonal = [...allPersonal, ...persRes.data];
