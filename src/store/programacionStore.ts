@@ -386,15 +386,40 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                 const idx = merged.findIndex(p => p.id === h.id);
                                 if (idx >= 0) {
                                     const existing = merged[idx];
+                                    // ⚡ REGLA DE ORO: Nunca sobreescribir datos cargados con placeholders vacíos (Headers)
                                     const updated = { ...existing, ...h };
-                                    if (existing.isDetailLoaded) {
+                                    
+                                    // Si el local tiene datos (isDetailLoaded) y el nuevo es header, preservamos los datos locales
+                                    if (existing.isDetailLoaded && !h.isDetailLoaded) {
                                         updated.asignaciones = existing.asignaciones;
                                         updated.personal = existing.personal;
                                         updated.isDetailLoaded = true;
                                     }
+                                    
+                                    // Normalización de PuestoId: Asegurar que siempre sea el UUID si está disponible
+                                    if (h.puestoId && uuidRegex.test(h.puestoId)) {
+                                        updated.puestoId = h.puestoId;
+                                    }
+
                                     merged[idx] = updated;
                                 } else {
-                                    merged.push(h);
+                                    // Si no existe, buscamos por PuestoId para evitar duplicados (ShourtID vs UUID)
+                                    const duplicateIdx = merged.findIndex(p => 
+                                        (p.puestoId === h.puestoId || p.puestoId === translatePuestoToUuid(h.puestoId)) && 
+                                        p.anio === h.anio && p.mes === h.mes
+                                    );
+                                    if (duplicateIdx >= 0) {
+                                        const existing = merged[duplicateIdx];
+                                        const updated = { ...existing, ...h };
+                                        if (existing.isDetailLoaded && !h.isDetailLoaded) {
+                                            updated.asignaciones = existing.asignaciones;
+                                            updated.personal = existing.personal;
+                                            updated.isDetailLoaded = true;
+                                        }
+                                        merged[duplicateIdx] = updated;
+                                    } else {
+                                        merged.push(h);
+                                    }
                                 }
                             });
                             return { programaciones: merged, loaded: true };
@@ -575,7 +600,16 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
             getProgramacion: (puestoId, anio, mes) => {
                 const dbPuestoId = translatePuestoToUuid(puestoId);
-                return get().programaciones.find(p => (p.puestoId === dbPuestoId || p.puestoId === puestoId) && p.anio === anio && p.mes === mes);
+                // Priorizar el que tiene detalles si hay duplicados por algún bug previo
+                const candidates = get().programaciones.filter(p => 
+                    (p.puestoId === dbPuestoId || p.puestoId === puestoId) && 
+                    p.anio === anio && p.mes === mes
+                );
+                return candidates.sort((a: any, b: any) => {
+                    if (a.isDetailLoaded && !b.isDetailLoaded) return -1;
+                    if (!a.isDetailLoaded && b.isDetailLoaded) return 1;
+                    return (b.version || 0) - (a.version || 0); // Desempate por versión
+                })[0];
             },
 
             crearOObtenerProgramacion: (puestoId, anio, mes, usuario) => {

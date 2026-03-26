@@ -3690,13 +3690,8 @@ const GestionPuestos = () => {
 
   const puestosConProg = useMemo(() => {
     return puestos.map((p) => {
-      // CRITICAL: Look up using UUID then fallback to Shorthand to ensure accuracy
-      const prog = programaciones.find(
-        (pr) =>
-          (pr.puestoId === p.dbId || pr.puestoId === p.id) &&
-          pr.anio === anio &&
-          pr.mes === mes,
-      );
+      // Use the robust selector which handles UUID/ShortID and prioritizes detailed data
+      const prog = getProgramacion(p.id, anio ?? 2026, mes ?? 0);
       const cobertura = prog ? getCoberturaPorcentaje(prog.id) : 0;
       const alertas = prog ? getAlertas(prog.id) : [];
       return {
@@ -3706,7 +3701,7 @@ const GestionPuestos = () => {
         progEstado: prog?.estado ?? "sin_programacion",
       };
     });
-  }, [puestos, programaciones, anio, mes, getCoberturaPorcentaje, getAlertas]);
+  }, [puestos, anio, mes, getProgramacion, getCoberturaPorcentaje, getAlertas]);
 
   const puestosFiltrados = useMemo(() => {
     return puestosConProg.filter((p) => {
