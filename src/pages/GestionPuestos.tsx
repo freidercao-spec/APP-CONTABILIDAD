@@ -979,16 +979,21 @@ const PanelMensualPuesto = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [progIdForEffect, activeTab, progAsignacionesCountForEffect]);
 
-  if (isRefreshing) {
+  if (isRefreshing || (prog && !prog.isDetailLoaded)) {
     return (
       <div className="absolute inset-0 z-[50] bg-slate-50 flex flex-col items-center justify-center animate-in fade-in duration-300">
         <div className="relative size-16 mb-4">
           <div className="absolute inset-0 border-4 border-primary/20 rounded-full"></div>
           <div className="absolute inset-0 border-4 border-primary rounded-full border-t-transparent animate-spin"></div>
         </div>
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-          Buscando datos en el servidor...
-        </p>
+        <div className="text-center">
+            <p className="text-[12px] font-black text-slate-900 uppercase tracking-widest mb-1">
+              CONSULTANDO TABLERO TÁCTICO
+            </p>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+              Sincronizando con el servidor de seguridad...
+            </p>
+        </div>
       </div>
     );
   }

@@ -314,7 +314,14 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             headers.forEach(h => {
                                 const idx = merged.findIndex(p => p.id === h.id);
                                 if (idx >= 0) {
-                                    merged[idx] = { ...merged[idx], ...h };
+                                    const existing = merged[idx];
+                                    const updated = { ...existing, ...h };
+                                    if (existing.isDetailLoaded) {
+                                        updated.asignaciones = existing.asignaciones;
+                                        updated.personal = existing.personal;
+                                        updated.isDetailLoaded = true;
+                                    }
+                                    merged[idx] = updated;
                                 } else {
                                     merged.push(h);
                                 }
@@ -360,7 +367,14 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             headers.forEach(h => {
                                 const idx = merged.findIndex(p => p.id === h.id);
                                 if (idx >= 0) {
-                                    merged[idx] = { ...merged[idx], ...h };
+                                    const existing = merged[idx];
+                                    const updated = { ...existing, ...h };
+                                    if (existing.isDetailLoaded) {
+                                        updated.asignaciones = existing.asignaciones;
+                                        updated.personal = existing.personal;
+                                        updated.isDetailLoaded = true;
+                                    }
+                                    merged[idx] = updated;
                                 } else {
                                     merged.push(h);
                                 }
@@ -507,8 +521,16 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     newProgramaciones.forEach(np => {
                         const idx = merged.findIndex(p => p.id === np.id);
                         if (idx >= 0) {
-                            if ((np.version || 0) >= (merged[idx].version || 0)) merged[idx] = { ...np };
-                        } else merged.push(np);
+                            if ((np.version || 0) >= (merged[idx].version || 0)) {
+                                merged[idx] = { 
+                                    ...merged[idx], 
+                                    ...np,
+                                    isDetailLoaded: true // Estos vienen con detalles completos de _fetchDetails
+                                };
+                            }
+                        } else {
+                            merged.push({ ...np, isDetailLoaded: true });
+                        }
                     });
                     return { programaciones: merged, loaded: true };
                 });
@@ -546,6 +568,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     personal: [{ rol: 'titular_a', vigilanteId: null }, { rol: 'titular_b', vigilanteId: null }, { rol: 'relevante', vigilanteId: null }],
                     asignaciones, estado: 'borrador', creadoEn: new Date().toISOString(), actualizadoEn: new Date().toISOString(),
                     version: 1, historialCambios: [], syncStatus: 'pending',
+                    isDetailLoaded: true // Nueva programación nace con su esqueleto cargado
                 };
                 set(s => ({ programaciones: [...s.programaciones, newProg] }));
                 queueSync(newProg.id, set, get);
@@ -569,7 +592,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 if (data.vigilanteId && data.jornada !== 'sin_asignar') {
                     const otrosConflictos = get().programaciones.some(p => 
                         p.id !== prog.id && p.anio === prog.anio && p.mes === prog.mes &&
-                        p.asignaciones.some(a => a.dia === dia && idsMatch(a.vigilanteId, data.vigilanteId) && a.jornada !== 'sin_asignar')
+                        p.asignaciones.some(a => a.dia === dia && idsMatch(a.vigilanteId, data.vigilanteId as string | null) && a.jornada !== 'sin_asignar')
                     );
                     if (otrosConflictos) return { permitido: false, tipo: 'bloqueo', mensaje: 'IA: El vigilante ya tiene una asignación en OTRO puesto hoy.' };
                 }
