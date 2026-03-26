@@ -3419,10 +3419,10 @@ const PanelMensualPuesto = ({
                       <>
                         {/* LEYENDA — 4 estados de cruce de disponibilidad */}
                         <div className="flex flex-wrap items-center gap-5 mb-5 px-6 py-4 bg-slate-900/60 rounded-[30px] border border-white/5 shadow-2xl">
-                            <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(34,197,94,0.6)]" /> <span className="text-[10px] font-black text-emerald-400">Libre en ambos ✓</span></div>
-                            <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" /> <span className="text-[10px] font-black text-red-400">Ocupado en Origen (A)</span></div>
-                            <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)]" /> <span className="text-[10px] font-black text-yellow-400">Turno Destino lleno (B)</span></div>
-                            <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-slate-600" /> <span className="text-[10px] font-black text-slate-500">Bloqueado A+B</span></div>
+                            <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-emerald-500 shadow-sm" /> <span className="text-[10px] font-black text-emerald-400">Libre en ambos ✓</span></div>
+                            <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-red-500 shadow-sm" /> <span className="text-[10px] font-black text-red-400">Ocupado en Origen (A)</span></div>
+                            <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-yellow-400 shadow-sm" /> <span className="text-[10px] font-black text-yellow-400">Turno Destino lleno (B)</span></div>
+                            <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-slate-600 shadow-sm" /> <span className="text-[10px] font-black text-slate-500">Bloqueado A+B</span></div>
                             <div className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-400/20">
                               <span className="material-symbols-outlined text-[14px] text-indigo-400">info</span>
                               <span className="text-[9px] font-black text-indigo-300 uppercase tracking-widest">Selecciona un vigilante abajo para activar</span>
@@ -3449,13 +3449,13 @@ const PanelMensualPuesto = ({
                           const isDimmed = !!compareVigilanteId && !isSelected;
 
                           return (
-                            <div key={vid} className={`flex gap-1 items-center transition-all rounded-xl group/row pr-4 py-1.5 relative shrink-0 ${isSelected ? 'bg-yellow-500/15 ring-2 ring-yellow-400/60 shadow-[0_0_20px_rgba(250,204,21,0.15)]' : isDimmed ? 'opacity-30' : 'hover:bg-white/[0.04]'}`}>
+                            <div key={vid} className={`flex gap-1 items-center transition-all rounded-xl group pr-4 py-1.5 relative shrink-0 ${isSelected ? 'bg-yellow-500/15 ring-2 ring-yellow-400/60 shadow-xl' : isDimmed ? 'opacity-30' : 'hover:bg-white/[0.04]'}`}>
                               <div 
                                 onClick={() => {
                                   console.log("[Tactica] Seleccionando:", vid);
                                   setCompareVigilanteId(isSelected ? null : vid);
                                 }}
-                                className={`sticky left-0 z-20 cursor-pointer shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-xl backdrop-blur-md border-r transition-all shadow-xl ${isSelected ? 'bg-yellow-400/30 border-yellow-400' : 'bg-slate-900/90 border-white/10 group-hover/row:border-white/20'}`} 
+                                className={`sticky left-0 z-20 cursor-pointer shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-xl backdrop-blur-md border-r transition-all shadow-xl ${isSelected ? 'bg-yellow-400/30 border-yellow-400' : 'bg-slate-900/90 border-white/10 group-hover:border-white/20'}`} 
                                 style={{ minWidth: "160px" }}
                               >
                                 <div className="size-7 rounded-lg flex items-center justify-center font-black text-[10px] text-white shadow-2xl relative overflow-hidden shrink-0"
@@ -3592,12 +3592,12 @@ const PanelMensualPuesto = ({
                                         ocupadoEnB ? `Día ${d}: destino ya tiene asignado a ${vigilantes.find(v=>v.id===asigEnDestino?.vigilanteId||v.dbId===asigEnDestino?.vigilanteId)?.nombre || 'otro vigilante'}` :
                                         `Día ${d}: ¡LIBRE! Disponible para asignar`
                                       }
-                                      className="relative size-8 rounded-xl flex items-center justify-center transition-all border shadow-sm cursor-pointer hover:scale-110 active:scale-95 group/cell pointer-events-auto shrink-0"
+                                      className="relative size-8 rounded-xl flex items-center justify-center transition-all border shadow-sm cursor-pointer hover:scale-110 active:scale-95 group pointer-events-auto shrink-0"
                                       style={{ minWidth: "32px", background: bg, borderColor: ring, boxShadow: sh, zIndex: 10 }}
                                     >
                                       <span className={`text-[9px] font-black tracking-tight ${txtColor} pointer-events-none`}>
                                         {compareVigilanteId && isSelected && !ocupadoEnA && !ocupadoEnB
-                                          ? <span className="material-symbols-outlined text-[11px] text-emerald-300" style={{lineHeight:'1',display:'block'}}>check</span>
+                                          ? <span className="material-symbols-outlined text-[11px] text-emerald-300" style={{lineHeight:1,display:'block'}}>check</span>
                                           : crossLabel
                                         }
                                       </span>
