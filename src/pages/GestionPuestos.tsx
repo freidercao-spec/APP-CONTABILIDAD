@@ -3670,6 +3670,7 @@ const GestionPuestos = () => {
   const fetchProgramacionesByMonth = useProgramacionStore((s) => s.fetchProgramacionesByMonth);
   const getCoberturaPorcentaje = useProgramacionStore((s) => s.getCoberturaPorcentaje);
   const getAlertas = useProgramacionStore((s) => s.getAlertas);
+  const getProgramacion = useProgramacionStore((s) => s.getProgramacion);
 
   const now = new Date();
   const [anio, setAnio] = useState(now.getFullYear());
