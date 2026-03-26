@@ -353,6 +353,12 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                     }
                                 }
                             });
+
+                            // Hydrate the dashboard UI with real assignments in background
+                            setTimeout(() => {
+                                get()._fetchDetails(rows, headers.map(h => h.id));
+                            }, 50);
+
                             return { programaciones: merged, loaded: true };
                         });
                     } else {
@@ -433,6 +439,12 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                     }
                                 }
                             });
+
+                            // Hydrate the dashboard UI with real assignments in background
+                            setTimeout(() => {
+                                get()._fetchDetails(rows, headers.map(h => h.id));
+                            }, 50);
+
                             return { programaciones: merged, loaded: true };
                         });
                     }
@@ -590,12 +602,23 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     newProgramaciones.forEach(np => {
                         const idx = merged.findIndex(p => p.id === np.id);
                         if (idx >= 0) {
-                            if ((np.version || 0) >= (merged[idx].version || 0)) {
-                                merged[idx] = { 
-                                    ...merged[idx], 
-                                    ...np,
-                                    isDetailLoaded: true // Estos vienen con detalles completos de _fetchDetails
-                                };
+                            const existingLocal = merged[idx];
+                            const localHasData = existingLocal.asignaciones && existingLocal.asignaciones.some((a: AsignacionDia) => a.vigilanteId !== null);
+                            const incomingHasData = np.asignaciones && np.asignaciones.some((a: AsignacionDia) => a.vigilanteId !== null);
+                            
+                            // Solo sobrescribir si el incoming tiene datos reales, O si el local estaba completamente vacío.
+                            // Nunca destruir datos locales con dbData vacía a no ser que sea estrictamente superior.
+                            if (incomingHasData || !localHasData) {
+                                if ((np.version || 0) >= (existingLocal.version || 0)) {
+                                    merged[idx] = { 
+                                        ...existingLocal, 
+                                        ...np,
+                                        isDetailLoaded: true 
+                                    };
+                                }
+                            } else {
+                                // Mantenemos la versión local pero la marcamos cargada
+                                merged[idx].isDetailLoaded = true;
                             }
                         } else {
                             merged.push({ ...np, isDetailLoaded: true });
