@@ -785,6 +785,7 @@ const PanelMensualPuesto = ({
   // --- Compare Panel State ---
   const [comparePuestoId, setComparePuestoId] = useState<string | null>(null);
   const [compareVigilanteId, setCompareVigilanteId] = useState<string | null>(null);
+  const [showEntireStaff, setShowEntireStaff] = useState(false); // New toggle for staff filtering
   
   // Duplicate removed — idsMatch is defined above (line ~758) with full UUID/shorthand/name resolution
   const [compareExpanded, setCompareExpanded] = useState(true);
@@ -3229,58 +3230,57 @@ const PanelMensualPuesto = ({
             overflow: compareExpanded ? "visible" : "hidden",
           }}
         >
-          {/* Header Panel */}
-          <div className="flex items-center gap-3 px-5 h-[46px] border-b border-white/8 shrink-0 relative z-10">
-            <div className="size-6 rounded-lg bg-indigo-600/40 border border-indigo-500/30 flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined text-indigo-300" style={{ fontSize: "14px" }}>compare_arrows</span>
-            </div>
-            <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest shrink-0">Coord. Táctica</span>
+            {/* Header Panel */}
+            <div className="flex items-center gap-3 px-5 h-[46px] border-b border-white/8 shrink-0 relative z-10">
+              <div className="size-6 rounded-lg bg-indigo-600/40 border border-indigo-500/30 flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-indigo-300" style={{ fontSize: "14px" }}>compare_arrows</span>
+              </div>
+              <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest shrink-0">Coord. Táctica</span>
 
-            {/* Indicador de Origen seleccionado desde calendario principal */}
-            {compareVigilanteId && (() => {
-              const selVig = vigilantes.find(v => v.id === compareVigilanteId || v.dbId === compareVigilanteId);
-              return (
-                <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-yellow-400/15 border border-yellow-400/40 rounded-full shrink-0 shadow-[0_0_12px_rgba(250,204,21,0.2)] animate-in fade-in duration-300">
-                  <span className="material-symbols-outlined text-yellow-400 text-[12px]">person_pin</span>
-                  <span className="text-[8px] font-black text-yellow-300/70 uppercase">Origen:</span>
-                  <span className="text-[9px] font-black text-yellow-100 max-w-[120px] truncate">{selVig?.nombre || compareVigilanteId}</span>
-                  <button
-                    onClick={() => setCompareVigilanteId(null)}
-                    className="size-3.5 rounded-full bg-yellow-400/20 hover:bg-red-500/40 flex items-center justify-center transition-all"
-                    title="Deseleccionar"
-                  >
-                    <span className="material-symbols-outlined text-yellow-300 hover:text-white" style={{ fontSize: "10px" }}>close</span>
-                  </button>
-                </div>
-              );
-            })()}
+              {/* Indicador de Origen seleccionado */}
+              {compareVigilanteId ? (() => {
+                const selVig = vigilantes.find(v => v.id === compareVigilanteId || v.dbId === compareVigilanteId);
+                return (
+                  <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-yellow-400/15 border border-yellow-400/40 rounded-full shrink-0 shadow-[0_0_12px_rgba(250,204,21,0.2)]">
+                    <span className="material-symbols-outlined text-yellow-500 text-[12px]">person_pin</span>
+                    <span className="text-[9px] font-black text-yellow-100 max-w-[120px] truncate">{selVig?.nombre || 'Origen'}</span>
+                    <button onClick={() => setCompareVigilanteId(null)} className="size-3.5 rounded-full bg-yellow-400/20 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-yellow-400" style={{ fontSize: "10px" }}>close</span>
+                    </button>
+                  </div>
+                );
+              })() : null}
             <span className="material-symbols-outlined text-emerald-500/40 hidden sm:block text-[14px]">trending_flat</span>
 
-            <div className="flex items-center gap-2">
-              <span className="hidden sm:block text-[8px] font-black text-emerald-400/60 uppercase">Destino:</span>
+            <div className="flex items-center gap-3">
+              <div className="size-8 rounded-xl bg-indigo-500/20 flex items-center justify-center border border-indigo-400/30">
+                <span className="material-symbols-outlined text-indigo-400 text-[18px]">near_me</span>
+              </div>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-white/5 px-2 py-1 rounded-md">Destino:</span>
               <select
                 value={comparePuestoId || ""}
                 onChange={async (e) => {
                   const newPid = e.target.value || null;
                   setComparePuestoId(newPid);
                   setCompareVigilanteId(null);
-                  // Ensure it's in the store BEFORE the user clicks anything
                   if (newPid) {
-                    const cP = allPuestos.find(p => p.id === newPid || p.dbId === newPid);
-                    if (cP) {
+                    const cPResult = allPuestos.find(p => p.id === newPid || p.dbId === newPid);
+                    if (cPResult) {
+                      setIsRefreshing(true);
                       await fetchProgramacionesByMonth(anio, mes);
-                      const existing = getProgramacion(cP.dbId || cP.id, anio, mes);
+                      const existing = getProgramacion(cPResult.dbId || cPResult.id, anio, mes);
                       if (!existing) {
-                        crearOObtenerProgramacion(cP.dbId || cP.id, anio, mes, username || "Sistema");
+                        await crearOObtenerProgramacion(cPResult.dbId || cPResult.id, anio, mes, username || "Sistema");
                       }
+                      setIsRefreshing(false);
                     }
                   }
                 }}
-                className="h-8 bg-white/5 border border-white/10 rounded-lg px-3 text-[10px] font-black text-white outline-none focus:border-indigo-500/50 transition-all cursor-pointer min-w-[140px]"
+                className="h-11 bg-slate-900 border-2 border-indigo-500/30 rounded-2xl px-5 text-[12px] font-black text-white outline-none focus:border-indigo-400 transition-all cursor-pointer min-w-[240px] shadow-2xl"
               >
-                <option value="" className="bg-slate-900">— Seleccionar —</option>
+                <option value="">— SELECCIONAR PUESTO DESTINO —</option>
                 {allPuestos.filter(p => p.id !== puestoId && p.dbId !== puestoId).map(p => (
-                  <option key={p.id} value={p.dbId || p.id} className="bg-slate-900">{p.nombre}</option>
+                  <option key={p.id} value={p.dbId || p.id}>{p.nombre}</option>
                 ))}
               </select>
             </div>
@@ -3294,75 +3294,84 @@ const PanelMensualPuesto = ({
                 <span className="text-[8px] font-black text-violet-300/60 uppercase">Puesto Origen:</span>
                 <span className="text-[9px] font-black text-violet-100 max-w-[140px] truncate">{puestoNombre}</span>
               </div>
-            <div className="ml-auto flex items-center gap-2">
-                <button
-                  onClick={async () => {
-                    setIsRefreshing(true);
-                    // Force a fresh fetch from the server
-                    await fetchProgramacionesByMonth(anio, mes);
-                    
-                    const cP = allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId);
-                    const freshCP = allProgramaciones.find(p => 
-                      (p.puestoId === comparePuestoId || p.puestoId === cP?.dbId) && p.anio === anio && p.mes === mes
-                    );
-                    
-                    setIsRefreshing(false);
-                    const totalGaps = freshCP?.asignaciones.filter(a => !a.vigilanteId || a.jornada === 'sin_asignar').length || 0;
-                    showTacticalToast({ 
-                      title: "Núcleo Re-Hidratado (V3.8)", 
-                      message: `${totalGaps} huecos en destino (${cP?.nombre || '—'}). Sincronía total alcanzada.`, 
-                      type: totalGaps > 0 ? "warning" : "success" 
-                    });
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-600 border-2 border-orange-400/50 hover:bg-orange-500 text-white transition-all text-[10px] font-black uppercase tracking-widest shadow-[0_0_20px_rgba(234,88,12,0.3)] animate-in fade-in duration-500"
-                >
-                  <span className="material-symbols-outlined text-[16px] animate-pulse">refresh</span>
-                  REFRESCAR NÚCLEO (V3.8)
-                </button>
-              <div className="flex items-center gap-2 bg-white/5 px-3 py-2 rounded-xl border border-white/10">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Dest.:</span>
-                <span className="text-[10px] font-black text-white truncate max-w-[160px]">
-                  {allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId)?.nombre || "SIN SELECCION"}
-                </span>
-                <div className={`size-1.5 rounded-full ${
-                  comparePuestoId ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)] animate-pulse' : 'bg-slate-600'
-                }`} />
-              </div>
-              <button
-                onClick={() => setCompareExpanded(!compareExpanded)}
-                title={compareExpanded ? 'Colapsar panel' : 'Expandir panel'}
-                className="size-10 rounded-xl flex items-center justify-center border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all bg-white/10 shadow-lg active:scale-95"
+            <div className="ml-auto flex items-center gap-4">
+               <button
+                onClick={async () => {
+                  setIsRefreshing(true);
+                  await fetchProgramacionesByMonth(anio, mes);
+                  setIsRefreshing(false);
+                  showTacticalToast({ title: "SINCRO V6.0 OK", message: "Tableros sincronizados con la nube.", type: "success" });
+                }}
+                className="flex items-center gap-3 px-6 h-11 rounded-2xl bg-orange-600 border-2 border-orange-400/50 hover:bg-orange-500 text-white transition-all text-[11px] font-black uppercase tracking-widest shadow-[0_10px_30px_rgba(234,88,12,0.4)] hover:scale-105 active:scale-95"
               >
-                <span className="material-symbols-outlined text-white" style={{ fontSize: "20px" }}>
-                  {compareExpanded ? "keyboard_arrow_down" : "keyboard_arrow_up"}
-                </span>
+                <span className="material-symbols-outlined font-black">sync</span>
+                SINK CRÍTICO (V6)
               </button>
-            </div>
-          </div>
+                <button
+                  onClick={() => setShowEntireStaff(!showEntireStaff)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 transition-all text-[10px] font-black uppercase tracking-widest ${
+                    showEntireStaff ? 'bg-indigo-600 border-indigo-400 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[16px]">groups</span>
+                  {showEntireStaff ? 'TODO EL PERSONAL' : 'PERSONAL DEL PUESTO'}
+                </button>
 
-          {/* Grid Content */}
-          {compareExpanded && comparePuestoId && (() => {
-            const cP = allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId);
-            const cProg = allProgramaciones.find(p => 
-              (p.puestoId === comparePuestoId || p.puestoId === cP?.dbId) && p.anio === anio && p.mes === mes
-            );
-            const daysArr = Array.from({ length: new Date(anio, mes + 1, 0).getDate() }, (_, i) => i + 1);
-
-            // HOISTED DATA: Define these here to be available for both Header and List
-            const currentProg = allProgramaciones.find(p => p.id === prog?.id) || prog;
-            const freshCProg = allProgramaciones.find(cp => cp.id === cProg?.id);
-            
-            return (
-              <div className="px-5 py-4 overflow-y-auto overflow-x-auto scrollbar-thin scrollbar-thumb-white/10" style={{ maxHeight: "374px" }}>
-                <div className="flex items-center gap-5 mb-4 text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5 pb-3">
-                  <div className="flex items-center gap-2"><div className="size-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"/>Libre</div>
-                  <div className="flex items-center gap-2 border-2 border-yellow-400/50 px-2 py-0.5 rounded-lg bg-yellow-400/10"><div className="size-2.5 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(250,204,21,0.8)] flex items-center justify-center text-[7px] text-white">★</div>Hueco Compatible (IA)</div>
-                  <div className="flex items-center gap-2"><div className="size-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(251,146,60,0.5)]"/>En este Puesto (Origen)</div>
-                  <div className="flex items-center gap-2"><div className="size-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"/>En Otro Puesto</div>
-                  <div className="flex items-center gap-2"><div className="size-2.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]"/>En Tablero Principal</div>
+                <div className="flex items-center gap-2 bg-white/5 px-3 py-2 rounded-xl border border-white/10">
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Dest.:</span>
+                  <span className="text-[10px] font-black text-white truncate max-w-[160px]">
+                    {allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId)?.nombre || "SIN SELECCION"}
+                  </span>
+                  <div className={`size-1.5 rounded-full ${
+                    comparePuestoId ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)] animate-pulse' : 'bg-slate-600'
+                  }`} />
                 </div>
-                <div className="flex gap-1 mb-1 items-end sticky top-0 bg-slate-900 z-30 pb-2 border-b border-white/5">
-                  <div className="sticky left-0 z-40 bg-slate-900 flex items-center justify-center border-r border-white/10 pr-2" style={{ minWidth: "160px" }}>
+
+                <button
+                  onClick={() => setCompareExpanded(!compareExpanded)}
+                  title={compareExpanded ? 'Colapsar panel' : 'Expandir panel'}
+                  className="size-10 rounded-xl flex items-center justify-center border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all bg-white/10 shadow-lg active:scale-95"
+                >
+                  <span className="material-symbols-outlined text-white" style={{ fontSize: "20px" }}>
+                    {compareExpanded ? "keyboard_arrow_down" : "keyboard_arrow_up"}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Grid Content */}
+            {compareExpanded && comparePuestoId ? (() => {
+              const cP = allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId);
+              const cProg = allProgramaciones.find(p => (p.puestoId === comparePuestoId || p.puestoId === cP?.dbId) && p.anio === anio && p.mes === mes);
+              const daysArr = Array.from({ length: new Date(anio, mes + 1, 0).getDate() }, (_, i) => i + 1);
+              const currentProg = allProgramaciones.find(p => p.id === prog?.id) || prog;
+              const freshCProg = allProgramaciones.find(cp => cp.id === cProg?.id);
+              
+              return (
+                <div className="px-5 py-4 overflow-y-auto overflow-x-auto scrollbar-thin scrollbar-thumb-white/10" style={{ maxHeight: "400px" }}>
+                   {/* PERSONAL SELECTOR BAR (V6.0 ALPHA) */}
+                   <div className="flex items-center gap-2 mb-6 bg-white/5 p-3 rounded-2xl border border-white/10 overflow-x-auto scrollbar-none sticky top-0 z-[40] backdrop-blur-md">
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1 mr-2 invisible sm:visible">Personal Origen:</span>
+                    {(currentProg?.personal || []).map((staff: any) => {
+                       const v = vigilantes.find(vx => vx.id === staff.vigilanteId || vx.dbId === staff.vigilanteId);
+                       const isFocused = !!compareVigilanteId && idsMatch(compareVigilanteId, staff.vigilanteId);
+                       return (
+                         <button
+                           key={staff.vigilanteId}
+                           onClick={() => setCompareVigilanteId(isFocused ? null : staff.vigilanteId)}
+                           className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all shrink-0 ${
+                             isFocused ? 'bg-indigo-600 border-indigo-400 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'bg-slate-800 border-white/10 text-slate-400 hover:border-white/30'
+                           }`}
+                         >
+                           <div className="size-5 rounded-md bg-white/10 flex items-center justify-center text-[9px] font-black uppercase text-indigo-300">{v?.nombre?.[0] || '?'}</div>
+                           <span className="text-[10px] font-black whitespace-nowrap">{v?.nombre || 'Vacante'}</span>
+                         </button>
+                       );
+                    })}
+                  </div>
+
+                <div className="flex gap-1 mb-1 items-end sticky top-[60px] bg-slate-900 z-30 pb-2 border-b border-white/5 pt-2">
+                  <div className="sticky left-0 z-40 bg-slate-900 flex items-center justify-center border-r border-white/10 pr-2 shadow-[10px_0_15px_rgba(0,0,0,0.5)]" style={{ minWidth: "160px" }}>
                      <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Días / Huecos</span>
                   </div>
                   {daysArr.map(d => {
@@ -3380,277 +3389,255 @@ const PanelMensualPuesto = ({
 
                 <div className="space-y-2 pb-8">
                   {(() => {
-                    // CRITICAL: Get FRESH data from the global store for BOTH origin and destination
-                    const currentProg = allProgramaciones.find(p => p.id === prog?.id) || prog;
-                    const freshCProg = allProgramaciones.find(cp => cp.id === cProg?.id);
-                    
-                    // Unified list of vigilantes: include everyone assigned to ORIGIN or DESTINATION
+                    const originStaffVids = (currentProg?.personal || []).map(p => p.vigilanteId);
                     const allRelevantes = (vigilantes || []).filter(v => 
-                      String(v.rol || '').toLowerCase().includes('relev') || 
+                      String(v.nombre || '').toLowerCase().includes('relev') || 
                       String(v.especialidad || '').toLowerCase().includes('relev')
                     );
 
                     const uniqueVids = Array.from(new Set([
-                      ...(currentProg?.personal || []).map(p => p.vigilanteId),
-                      ...(currentProg?.asignaciones || []).map(a => a.vigilanteId),
-                      ...(freshCProg?.personal || []).map(p => p.vigilanteId),
-                      ...(freshCProg?.asignaciones || []).map(a => a.vigilanteId),
-                      ...allRelevantes.map(v => v.dbId || v.id)
+                      ...(originStaffVids),
+                      ...(showEntireStaff ? [
+                        ...(currentProg?.asignaciones || []).map(a => a.vigilanteId),
+                        ...(freshCProg?.personal || []).map(p => p.vigilanteId),
+                        ...(freshCProg?.asignaciones || []).map(a => a.vigilanteId),
+                        ...allRelevantes.map(v => v.dbId || v.id)
+                      ] : [])
                     ])).filter(Boolean) as string[];
 
-                    // PRIORITIZATION: Put 'relevantes' first in the list
                     const sortedVids = [...uniqueVids].sort((a, b) => {
-                      const v1 = vigilantes.find(v => v.id === a || v.dbId === a);
-                      const v2 = vigilantes.find(v => v.id === b || v.dbId === b);
-                      const aIsRel = String(v1?.rol || '').toLowerCase().includes('relev') || String(v1?.especialidad || '').toLowerCase().includes('relev');
-                      const bIsRel = String(v2?.rol || '').toLowerCase().includes('relev') || String(v2?.especialidad || '').toLowerCase().includes('relev');
-                      if (aIsRel && !bIsRel) return -1;
-                      if (!aIsRel && bIsRel) return 1;
+                      const aInOrigin = originStaffVids.includes(a);
+                      const bInOrigin = originStaffVids.includes(b);
+                      if (aInOrigin && !bInOrigin) return -1;
+                      if (!aInOrigin && bInOrigin) return 1;
                       return 0;
                     });
 
-                    // BANNER: show instruction if no guard selected
                     const showBanner = !compareVigilanteId;
 
                     return (
                       <>
-                      {showBanner && (
-                         <div className="flex items-center gap-4 px-5 py-4 mb-4 rounded-2xl bg-indigo-500/10 border border-indigo-400/30 text-indigo-200 shadow-xl overflow-hidden relative">
-                           <div className="absolute top-0 left-0 w-1 h-full bg-indigo-400" />
-                           <span className="material-symbols-outlined text-indigo-400 text-3xl animate-pulse shrink-0">info</span>
-                           <div className="flex-1">
-                             <p className="text-[12px] font-black uppercase tracking-widest mb-1">Guía Tactical Sync</p>
-                             <p className="text-[10px] font-bold opacity-80 leading-relaxed italic">
-                               Toca una celda ★ para proponer un refuerzo. Para transferir personal, haz clic en sus nombres para fijarlos como origen.
-                             </p>
+                        {/* LEYENDA — 4 estados de cruce de disponibilidad */}
+                        <div className="flex flex-wrap items-center gap-5 mb-5 px-6 py-4 bg-slate-900/60 rounded-[30px] border border-white/5 shadow-2xl">
+                            <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(34,197,94,0.6)]"/><span className="text-[10px] font-black text-emerald-400">Libre en ambos ✓</span></div>
+                            <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]"/><span className="text-[10px] font-black text-red-400">Ocupado en Origen (A)</span></div>
+                            <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)]"/><span className="text-[10px] font-black text-yellow-400">Turno Destino lleno (B)</span></div>
+                            <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-slate-600"/><span className="text-[10px] font-black text-slate-500">Bloqueado A+B</span></div>
+                            <div className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-400/20">
+                              <span className="material-symbols-outlined text-[14px] text-indigo-400">info</span>
+                              <span className="text-[9px] font-black text-indigo-300 uppercase tracking-widest">Selecciona un vigilante abajo para activar</span>
+                            </div>
+                        </div>
+
+                        {showBanner && (
+                           <div className="flex items-center gap-4 px-5 py-4 mb-4 rounded-2xl bg-indigo-500/10 border border-indigo-400/30 text-indigo-200 shadow-xl overflow-hidden relative">
+                             <div className="absolute top-0 left-0 w-1 h-full bg-indigo-400" />
+                             <span className="material-symbols-outlined text-indigo-400 text-3xl animate-pulse shrink-0">info</span>
+                             <div className="flex-1">
+                               <p className="text-[12px] font-black uppercase tracking-widest mb-1">Guía Tactical Sync</p>
+                               <p className="text-[10px] font-bold opacity-80 leading-relaxed italic">
+                                 Haz clic en un nombre de la fila izquierda para <strong>seleccionar un vigilante como origen</strong>. La barra calculará automáticamente en qué días está libre en ambos tableros.
+                               </p>
+                             </div>
                            </div>
-                         </div>
-                       )}
-                      {sortedVids.map(vid => {
-                      const vig = vigilantes.find(v => v.id === vid || v.dbId === vid);
-                      const displayRol = (prog?.personal.find(p => p.vigilanteId === vid)?.rol || 'relevante') as RolPuesto;
-                      const isSelected = !!compareVigilanteId && idsMatch(compareVigilanteId, vid);
-                      // When a guard is selected, dim all others
-                      const isDimmed = !!compareVigilanteId && !isSelected;
+                         )}
 
-                      return (
-                        <div key={vid} className={`flex gap-1 items-center transition-all rounded-xl group/row pr-4 py-1.5 relative shrink-0 ${isSelected ? 'bg-yellow-500/15 ring-2 ring-yellow-400/60 shadow-[0_0_20px_rgba(250,204,21,0.15)]' : isDimmed ? 'opacity-30' : 'hover:bg-white/[0.04]'}`}>
-                          <div 
-                            onClick={() => {
-                              console.log("[Tactica] Seleccionando:", vid);
-                              setCompareVigilanteId(isSelected ? null : vid);
-                            }}
-                            className={`sticky left-0 z-20 cursor-pointer shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-xl backdrop-blur-md border-r transition-all shadow-xl ${isSelected ? 'bg-yellow-400/30 border-yellow-400' : 'bg-slate-900/90 border-white/10 group-hover/row:border-white/20'}`} 
-                            style={{ minWidth: "160px" }}
-                          >
-                            <div className="size-7 rounded-lg flex items-center justify-center font-black text-[10px] text-white shadow-2xl relative overflow-hidden shrink-0"
-                                 style={{ background: displayRol === 'titular_a' ? "linear-gradient(135deg, #4f46e5, #3730a3)" : displayRol === 'titular_b' ? "linear-gradient(135deg, #0891b2, #155e75)" : "linear-gradient(135deg, #059669, #065f46)" }}>
-                              {vig?.nombre?.[0] || "?"}
-                              {isSelected && <div className="absolute inset-0 bg-yellow-400/40 flex items-center justify-center blur-sm" />}
-                              {isSelected && <div className="absolute inset-0 flex items-center justify-center text-slate-900"><span className="material-symbols-outlined text-[16px] font-black">check_circle</span></div>}
-                            </div>
-                            <div className="min-w-0">
-                              <p className={`text-[10px] font-black truncate w-[85px] leading-tight ${isSelected ? 'text-yellow-400' : 'text-slate-100'}`}>{vig?.nombre || vid}</p>
-                              <p className={`text-[7px] font-black uppercase tracking-widest mt-0.5 opacity-60 ${isSelected ? 'text-yellow-400/80' : 'text-slate-500'}`}>
-                                {displayRol.replace('_',' ')}
-                              </p>
-                            </div>
-                          </div>
+                        {sortedVids.map(vid => {
+                          const vig = vigilantes.find(v => v.id === vid || v.dbId === vid);
+                          const displayRol = (currentProg?.personal.find(p => p.vigilanteId === vid)?.rol || 'relevante') as RolPuesto;
+                          const isSelected = !!compareVigilanteId && idsMatch(compareVigilanteId, vid);
+                          const isDimmed = !!compareVigilanteId && !isSelected;
 
-
-                          {daysArr.map((d) => {
-                            // Use the robust idsMatch defined at Panel scope to avoid inconsistencies
-
-                            const busyElsewhereAsig = allProgramaciones
-                              .filter(p => !cProg || (p.id !== cProg.id && p.puestoId !== cProg.puestoId && p.puestoId !== cP?.dbId))
-                              .filter(p => p.id !== freshCProg?.id && p.id !== prog?.id) // EXCLUDE current source AND destination too
-                              .flatMap(p => p.asignaciones.map(a => ({ ...a, puestoName: p.puestoId })))
-                              .find(a => a.dia === d && idsMatch(a.vigilanteId, vid) && a.jornada !== 'sin_asignar');
-
-                            // Check if busy in the SPECIFIC source post of terminal
-                            const busyInSourceAsig = freshCProg?.asignaciones.find(a => a.dia === d && idsMatch(a.vigilanteId, vid) && a.jornada !== 'sin_asignar');
-
-                            const asigDest = currentProg?.asignaciones.find(a => a.dia === d && idsMatch(a.vigilanteId, vid));
-                            const isAlreadyInTableroPrincipal = !!(asigDest && asigDest.jornada !== "sin_asignar");
-
-                            // IA Logic: Is there a vacancy in the DESTINATION board for this specific day?
-                            const hasVacancyInDestination = freshCProg?.asignaciones.some(a => 
-                              a.dia === d && (!a.vigilanteId || a.jornada === 'sin_asignar')
-                            );
-
-                            // Perfect Match: Empty at destination AND guard is free (not busy in origin or elsewhere)
-                            const isPerfectMatch = hasVacancyInDestination && !busyInSourceAsig && !busyElsewhereAsig && !isAlreadyInTableroPrincipal;
-                            // If a guard is selected but this is a different guard's row, don't show noisy stars
-                            const showCompatibility = !compareVigilanteId || isSelected;
-
-                            let bg = "rgba(255,255,255,0.03)";
-                            let ring = "rgba(255,255,255,0.05)";
-                            let txtColor = "text-slate-600";
-                            let sh = "none";
-
-                            if (isAlreadyInTableroPrincipal) { 
-                              // EN ESTE PUESTO (ORIGEN) - Orange to match legend
-                              bg = "rgba(251, 146, 60, 0.25)"; 
-                              ring = "rgba(251, 146, 60, 0.6)"; 
-                              txtColor = "text-orange-300";
-                              sh = "0 0 10px rgba(251,146,60,0.1)";
-                            } else if (busyInSourceAsig) { 
-                              // EN EL DESTINO SELECCIONADO - Indigo
-                              bg = "linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)"; 
-                              ring = "rgba(99,102,241,0.6)";
-                              txtColor = "text-white";
-                              sh = "0 0 15px rgba(79,70,229,0.3)";
-                            } else if (busyElsewhereAsig) { 
-                              bg = "rgba(239, 68, 68, 0.2)"; 
-                              ring = "rgba(239, 68, 68, 0.5)";
-                              txtColor = "text-red-400";
-                            } else if (!showCompatibility) {
-                              // dimmed row — show neutral
-                              bg = "rgba(255,255,255,0.02)";
-                              ring = "rgba(255,255,255,0.05)";
-                              txtColor = "text-slate-700";
-                            } else { 
-                              // FREE = Can be assigned to destination
-                              bg = isPerfectMatch ? "rgba(34, 197, 94, 0.5)" : "rgba(34, 197, 94, 0.15)"; 
-                              ring = isPerfectMatch ? "#facc15" : "rgba(34, 197, 94, 0.4)";
-                              txtColor = isPerfectMatch ? "text-yellow-100" : "text-emerald-400";
-                              sh = isPerfectMatch ? "0 0 16px rgba(250, 204, 21, 0.7)" : "none";
-                            }
-
-
-
-
-                            const dotLabel = isAlreadyInTableroPrincipal ? (asigDest?.turno || "✓") : (busyInSourceAsig?.turno || busyElsewhereAsig?.turno || "—");
-
-                            return (
-                              <button
-                                key={`${vid}-${d}`}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-
-                                  // Resolve target destination prog — create it if missing
-                                  let activeCProg = freshCProg || cProg;
-                                  if (!activeCProg) {
-                                    // Auto-create destination programacion on the fly
-                                    const cPResolved = allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId);
-                                    if (!cPResolved) {
-                                      showTacticalToast({ title: "Error", message: "Puesto destino no encontrado.", type: "error" });
-                                      return;
-                                    }
-                                    activeCProg = crearOObtenerProgramacion(cPResolved.dbId || cPResolved.id, anio, mes, username || "Sistema");
-                                    showTacticalToast({ title: "Tablero Creado", message: `Programación de ${cPResolved.nombre} inicializada.`, type: "info" });
-                                  }
-
-                                  const preferredTurno = busyInSourceAsig?.turno || busyElsewhereAsig?.turno || asigDest?.turno || "AM";
-                                  
-                                  // Find best slot: empty with matching turno > any empty > rol relevante > any for that day
-                                  const targetAsig =
-                                    activeCProg.asignaciones.find(a => a.dia === d && (!a.vigilanteId || a.jornada === 'sin_asignar') && a.turno === preferredTurno)
-                                    || activeCProg.asignaciones.find(a => a.dia === d && (!a.vigilanteId || a.jornada === 'sin_asignar'))
-                                    || activeCProg.asignaciones.find(a => a.dia === d && a.rol === 'relevante')
-                                    || activeCProg.asignaciones.find(a => a.dia === d);
-
-                                  const targetRol = targetAsig?.rol || 'relevante';
-                                  const targetTurno = targetAsig?.turno || preferredTurno;
-
-                                  // Determine origin to clear guard from
-                                  const originSourceProgId = isAlreadyInTableroPrincipal
-                                    ? prog?.id
-                                    : (busyElsewhereAsig?.puestoName
-                                      ? allProgramaciones.find(xp => xp.puestoId === busyElsewhereAsig.puestoName && xp.anio === anio && xp.mes === mes)?.id
-                                      : (busyInSourceAsig ? (freshCProg?.id || cProg?.id) : undefined));
-
-                                  // DIRECT ASSIGNMENT: Skip modal — assign immediately
-                                  const asignData: Partial<AsignacionDia> = {
-                                    vigilanteId: vid,
-                                    turno: targetTurno,
-                                    jornada: 'normal',
-                                    rol: targetRol,
-                                  };
-
-                                  console.log(`[Coraza] 🎯 Tactical Direct Assign: ${vid} to ${activeCProg.id} Day ${d}`);
-                                  const resultado = actualizarAsignacion(
-                                    activeCProg.id,
-                                    d,
-                                    asignData,
-                                    username || "Sistema"
-                                  );
-
-                                  if (resultado.permitido) {
-                                    // Clear from origin if transferred
-                                    if (originSourceProgId && originSourceProgId !== activeCProg.id) {
-                                      const sRol = busyElsewhereAsig?.rol || busyInSourceAsig?.rol || asigDest?.rol || targetRol;
-                                      actualizarAsignacion(
-                                        originSourceProgId,
-                                        d,
-                                        { vigilanteId: null, jornada: 'sin_asignar', rol: sRol },
-                                        username || "Sistema"
-                                      );
-                                    }
-                                    showTacticalToast({
-                                      title: "✅ Cambio Aplicado",
-                                      message: `${vig?.nombre || vid} asignado con éxito.`,
-                                      type: "success"
-                                    });
-                                  } else {
-                                    showTacticalToast({
-                                      title: "❌ Error",
-                                      message: resultado.mensaje,
-                                      type: "error"
-                                    });
-                                  }
+                          return (
+                            <div key={vid} className={`flex gap-1 items-center transition-all rounded-xl group/row pr-4 py-1.5 relative shrink-0 ${isSelected ? 'bg-yellow-500/15 ring-2 ring-yellow-400/60 shadow-[0_0_20px_rgba(250,204,21,0.15)]' : isDimmed ? 'opacity-30' : 'hover:bg-white/[0.04]'}`}>
+                              <div 
+                                onClick={() => {
+                                  console.log("[Tactica] Seleccionando:", vid);
+                                  setCompareVigilanteId(isSelected ? null : vid);
                                 }}
-                                className="relative size-7 rounded-lg flex items-center justify-center transition-all border shadow-sm cursor-pointer hover:scale-110 hover:z-50 active:scale-95 group/cell pointer-events-auto shrink-0"
-                                style={{ 
-                                  minWidth: "32px",
-                                  background: bg, 
-                                  borderColor: ring,
-                                  boxShadow: sh,
-                                  zIndex: 10
-                                }}
-
+                                className={`sticky left-0 z-20 cursor-pointer shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-xl backdrop-blur-md border-r transition-all shadow-xl ${isSelected ? 'bg-yellow-400/30 border-yellow-400' : 'bg-slate-900/90 border-white/10 group-hover/row:border-white/20'}`} 
+                                style={{ minWidth: "160px" }}
                               >
-                                <span className={`text-[9px] font-black tracking-tight ${txtColor} pointer-events-none flex items-center gap-0.5`}>
-                                  {isPerfectMatch && <span className="material-symbols-outlined text-[10px] text-yellow-400 animate-pulse">stars</span>}
-                                  {dotLabel}
-                                </span>
-                                {(busyInSourceAsig || busyElsewhereAsig) && !isAlreadyInTableroPrincipal && (
-                                  <div className={`absolute -top-1 -right-1 size-2.5 rounded-full border-2 border-slate-900 shadow-lg animate-pulse ${busyInSourceAsig ? 'bg-orange-500' : 'bg-red-500'}`} />
-                                )}
-                              </button>
+                                <div className="size-7 rounded-lg flex items-center justify-center font-black text-[10px] text-white shadow-2xl relative overflow-hidden shrink-0"
+                                     style={{ background: displayRol === 'titular_a' ? "linear-gradient(135deg, #4f46e5, #3730a3)" : displayRol === 'titular_b' ? "linear-gradient(135deg, #0891b2, #155e75)" : "linear-gradient(135deg, #059669, #065f46)" }}>
+                                  {vig?.nombre?.[0] || "?"}
+                                  {isSelected && <div className="absolute inset-0 bg-yellow-400/40 flex items-center justify-center blur-sm" />}
+                                  {isSelected && <div className="absolute inset-0 flex items-center justify-center text-slate-900"><span className="material-symbols-outlined text-[16px] font-black">check_circle</span></div>}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className={`text-[10px] font-black truncate w-[85px] leading-tight ${isSelected ? 'text-yellow-400' : 'text-slate-100'}`}>{vig?.nombre || vid}</p>
+                                  <p className={`text-[7px] font-black uppercase tracking-widest mt-0.5 opacity-60 ${isSelected ? 'text-yellow-400/80' : 'text-slate-500'}`}>
+                                    {displayRol.replace('_',' ')}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {daysArr.map((d) => {
+                                // ── TABLERO A (ORIGEN) = currentProg: días donde el vigilante ya trabaja ──
+                                const asigEnOrigen = currentProg?.asignaciones.find(
+                                  a => a.dia === d && idsMatch(a.vigilanteId, vid) && a.jornada !== 'sin_asignar'
+                                );
+                                const ocupadoEnA = !!asigEnOrigen;
+
+                                // ── TABLERO B (DESTINO) = freshCProg: días donde YA HAY cualquier vigilante ──
+                                const asigEnDestino = freshCProg?.asignaciones.find(
+                                  a => a.dia === d && a.vigilanteId && a.jornada !== 'sin_asignar'
+                                );
+                                const ocupadoEnB = !!asigEnDestino;
+                                // ── COLORIZATION based on cross-check ──────────────────────────────────
+                                let bg   = "rgba(255,255,255,0.03)";
+                                let ring = "rgba(255,255,255,0.06)";
+                                let txtColor = "text-slate-600";
+                                let sh   = "none";
+
+                                if (!compareVigilanteId) {
+                                  // No guard selected → neutral grey for all cells
+                                  bg   = "rgba(255,255,255,0.03)";
+                                  ring = "rgba(255,255,255,0.06)";
+                                  txtColor = "text-slate-700";
+                                } else if (!isSelected) {
+                                  // Another guard is selected → dim this row
+                                  bg   = "rgba(255,255,255,0.02)";
+                                  ring = "rgba(255,255,255,0.04)";
+                                  txtColor = "text-slate-800";
+                                } else {
+                                  // This guard IS selected → apply cross-check coloring
+                                  if (ocupadoEnA && ocupadoEnB) {
+                                    // ⚫ Gris oscuro: ocupado en AMBOS tableros
+                                    bg   = "rgba(71,85,105,0.40)";
+                                    ring = "rgba(71,85,105,0.7)";
+                                    txtColor = "text-slate-500";
+                                    sh   = "none";
+                                  } else if (ocupadoEnA) {
+                                    // 🔴 Rojo: el vigilante trabaja ese día en ORIGEN → no disponible
+                                    bg   = "rgba(239,68,68,0.28)";
+                                    ring = "rgba(239,68,68,0.65)";
+                                    txtColor = "text-red-300";
+                                    sh   = "0 0 10px rgba(239,68,68,0.2)";
+                                  } else if (ocupadoEnB) {
+                                    // 🟡 Amarillo: ese turno en DESTINO ya tiene otro vigilante
+                                    bg   = "rgba(234,179,8,0.22)";
+                                    ring = "rgba(234,179,8,0.60)";
+                                    txtColor = "text-yellow-300";
+                                    sh   = "0 0 10px rgba(234,179,8,0.15)";
+                                  } else {
+                                    // 🟢 Verde: libre en AMBOS tableros → asignable
+                                    bg   = "rgba(34,197,94,0.45)";
+                                    ring = "#22c55e";
+                                    txtColor = "text-emerald-100";
+                                    sh   = "0 0 14px rgba(34,197,94,0.55)";
+                                  }
+                                }
+
+                                // Label shown inside the cell
+                                const crossLabel = (compareVigilanteId && isSelected)
+                                  ? (ocupadoEnA && ocupadoEnB
+                                      ? "A+B"
+                                      : ocupadoEnA
+                                        ? (asigEnOrigen?.turno || "A")
+                                        : ocupadoEnB
+                                          ? (asigEnDestino?.turno || "B")
+                                          : "✓")
+                                  : "—";
+
+                                return (
+                                  <button
+                                    key={`${vid}-${d}`}
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+
+                                        // Only proceed if day is free in both boards
+                                        if (compareVigilanteId && isSelected && (ocupadoEnA || ocupadoEnB)) {
+                                          const reason = ocupadoEnA
+                                            ? `${vigilantes.find(v => v.id === vid || v.dbId === vid)?.nombre || 'El vigilante'} ya trabaja el día ${d} en este puesto.`
+                                            : `El día ${d} en el puesto destino ya tiene un vigilante asignado.`;
+                                          showTacticalToast({ title: "Día Bloqueado", message: reason, type: "warning" });
+                                          return;
+                                        }
+
+                                        let activeCProg = freshCProg || cProg;
+                                        if (!activeCProg) { 
+                                          const cPResolved = allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId);
+                                          if (!cPResolved) return;
+                                          crearOObtenerProgramacion(cPResolved.dbId || cPResolved.id, anio, mes, username || "Sistema");
+                                          showTacticalToast({ title: "Inicializando Destino", message: "Preparando tablero... Haz clic de nuevo.", type: "info" });
+                                          return;
+                                        }
+
+                                        const targetAsigSlot =
+                                          activeCProg.asignaciones.find(a => a.dia === d && (!a.vigilanteId || a.jornada === 'sin_asignar') && (a.turno === (asigEnOrigen?.turno || "AM")))
+                                          || activeCProg.asignaciones.find(a => a.dia === d && (!a.vigilanteId || a.jornada === 'sin_asignar'))
+                                          || activeCProg.asignaciones.find(a => a.dia === d && a.rol === 'relevante')
+                                          || activeCProg.asignaciones.find(a => a.dia === d);
+
+                                        if (!targetAsigSlot) {
+                                           showTacticalToast({ title: "Sin Huecos", message: "No hay slots disponibles en el destino para este día.", type: "warning" });
+                                           return;
+                                        }
+
+                                        setEditCell({
+                                          asig: targetAsigSlot,
+                                          progId: activeCProg.id,
+                                          preSelectVigilanteId: vid,
+                                          sourceProgId: asigEnOrigen ? prog.id : undefined,
+                                          sourceRol: asigEnOrigen?.rol
+                                        });
+                                      }}
+                                      title={
+                                        !compareVigilanteId ? `Día ${d}` :
+                                        !isSelected ? "" :
+                                        ocupadoEnA && ocupadoEnB ? `Día ${d}: ocupado en origen Y destino` :
+                                        ocupadoEnA ? `Día ${d}: ${vigilantes.find(v=>v.id===vid||v.dbId===vid)?.nombre} trabaja en origen (${asigEnOrigen?.turno || ''})` :
+                                        ocupadoEnB ? `Día ${d}: destino ya tiene asignado a ${vigilantes.find(v=>v.id===asigEnDestino?.vigilanteId||v.dbId===asigEnDestino?.vigilanteId)?.nombre || 'otro vigilante'}` :
+                                        `Día ${d}: ¡LIBRE! Disponible para asignar`
+                                      }
+                                      className="relative size-8 rounded-xl flex items-center justify-center transition-all border shadow-sm cursor-pointer hover:scale-110 active:scale-95 group/cell pointer-events-auto shrink-0"
+                                      style={{ minWidth: "32px", background: bg, borderColor: ring, boxShadow: sh, zIndex: 10 }}
+                                    >
+                                      <span className={`text-[9px] font-black tracking-tight ${txtColor} pointer-events-none`}>
+                                        {compareVigilanteId && isSelected && !ocupadoEnA && !ocupadoEnB
+                                          ? <span className="material-symbols-outlined text-[11px] text-emerald-300" style={{lineHeight:'1',display:'block'}}>check</span>
+                                          : crossLabel
+                                        }
+                                      </span>
+                                      {compareVigilanteId && isSelected && ocupadoEnA && (
+                                        <div className="absolute -top-1 -right-1 size-3 rounded-full border-2 border-slate-900 bg-red-500 shadow-xl" title="Ocupado en origen" />
+                                      )}
+                                      {compareVigilanteId && isSelected && !ocupadoEnA && ocupadoEnB && (
+                                        <div className="absolute -top-1 -right-1 size-3 rounded-full border-2 border-slate-900 bg-yellow-400 shadow-xl" title="Turno destino ocupado" />
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             );
                           })}
-                        </div>
-                      );
-                    })}
-                    </>
-                  );
-                  })()}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                );
+              })() : (
+                  <div className="flex flex-col items-center justify-center h-48 select-none bg-white/[0.01]">
+                  <div className="size-20 rounded-[35px] border-2 border-white/10 bg-white/5 flex items-center justify-center mb-6 shadow-3xl text-slate-700 animate-pulse">
+                    <span className="material-symbols-outlined text-indigo-400 text-4xl">travel_explore</span>
+                  </div>
+                  <p className="text-[11px] font-black text-emerald-400 uppercase tracking-[0.4em] bg-emerald-500/10 px-8 py-3 rounded-2xl border border-emerald-500/20 shadow-xl">
+                    Selecciona Destino para Coordinación
+                  </p>
+                  <div className="mt-4 flex items-center gap-2 opacity-40">
+                    <div className="size-1 rounded-full bg-slate-500" />
+                    <p className="text-[8px] text-slate-500 uppercase font-black">Sincronización de relevos en tiempo real</p>
+                    <div className="size-1 rounded-full bg-slate-500" />
+                  </div>
                 </div>
-              </div>
-            );
-          })()}
-
-          {/* Empty state */}
-          {!comparePuestoId && compareExpanded && (
-            <div className="flex flex-col items-center justify-center h-48 select-none bg-white/[0.02]">
-              <div className="size-16 rounded-3xl border border-white/10 bg-white/5 flex items-center justify-center mb-4 shadow-2xl">
-                <span className="material-symbols-outlined text-indigo-400 text-3xl animate-pulse">move_up</span>
-              </div>
-              <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em] bg-emerald-500/10 px-6 py-2 rounded-full border border-emerald-500/20 shadow-lg">
-                Selecciona Destino para Programar Personal
-              </p>
-              <p className="text-[8px] text-slate-500 mt-3 uppercase font-black">Coordinación de Relevos y Desplazamiento Directo</p>
-            </div>
           )}
         </div>
       )}
-
-
-    </div>
-  );
-};
+    );
+  };
 
 
 

@@ -1,0 +1,134 @@
+﻿
+> coraza-cta-app@1.3.6 build
+> vite build
+
+[36mvite v7.3.1 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32mÔ£ô[39m 34 modules transformed.
+node.exe : [31mÔ£ù[39m Build 
+failed in 1.64s
+En línea: 1 Carácter: 1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~
+    + CategoryInfo          :  
+   NotSpecified: ([31mÔ£ù[3  
+  9m Build failed in 1.64s:S   
+ tring) [], RemoteException
+    + FullyQualifiedErrorId :  
+   NativeCommandError
+ 
+[31merror during build:
+[31m[vite:esbuild] Transform 
+failed with 3 errors:
+C:/Users/Mirley/Downloads/APP 
+- PORGRAMACION/coraza-cta-app/s
+rc/pages/GestionPuestos.tsx:364
+0:2: ERROR: The character "}" 
+is not valid inside a JSX 
+element
+C:/Users/Mirley/Downloads/APP 
+- PORGRAMACION/coraza-cta-app/s
+rc/pages/GestionPuestos.tsx:364
+6:27: ERROR: The character ">" 
+is not valid inside a JSX 
+element
+C:/Users/Mirley/Downloads/APP 
+- PORGRAMACION/coraza-cta-app/s
+rc/pages/GestionPuestos.tsx:364
+7:2: ERROR: Unexpected 
+"const"[31m
+file: [36mC:/Users/Mirley/Down
+loads/APP - PORGRAMACION/coraza
+-cta-app/src/pages/GestionPuest
+os.tsx:3640:2[31m
+[33m
+[33mThe character "}" is not 
+valid inside a JSX element[33m
+3638 |        )}
+3639 |      );
+3640 |    };
+     |    ^
+3641 |  
+3642 |  
+
+[33mThe character ">" is not 
+valid inside a JSX element[33m
+3644 |  // ÔöÇÔöÇ MAIN PAGE ÔöÇ
+ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔ
+öÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔö
+ÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔ
+öÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔö
+ÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+ÔöÇÔöÇÔöÇ
+3645 |  
+3646 |  const GestionPuestos = 
+() => {
+     |                         
+    ^
+3647 |    const puestos = 
+usePuestoStore((s) => 
+s.puestos);
+3648 |    const programaciones 
+= useProgramacionStore((s) => 
+s.programaciones);
+
+[33mUnexpected "const"[33m
+3645 |  
+3646 |  const GestionPuestos = 
+() => {
+3647 |    const puestos = 
+usePuestoStore((s) => 
+s.puestos);
+     |    ^
+3648 |    const programaciones 
+= useProgramacionStore((s) => 
+s.programaciones);
+3649 |    const loaded = 
+useProgramacionStore((s) => 
+s.loaded);
+[31m
+    at failureErrorWithLog 
+(C:\Users\Mirley\Downloads\APP 
+- PORGRAMACION\coraza-cta-app\n
+ode_modules\esbuild\lib\main.js
+:1467:15)
+    at 
+C:\Users\Mirley\Downloads\APP 
+- PORGRAMACION\coraza-cta-app\n
+ode_modules\esbuild\lib\main.js
+:736:50
+    at 
+responseCallbacks.<computed> 
+(C:\Users\Mirley\Downloads\APP 
+- PORGRAMACION\coraza-cta-app\n
+ode_modules\esbuild\lib\main.js
+:603:9)
+    at handleIncomingPacket 
+(C:\Users\Mirley\Downloads\APP 
+- PORGRAMACION\coraza-cta-app\n
+ode_modules\esbuild\lib\main.js
+:658:12)
+    at Socket.readFromStdout 
+(C:\Users\Mirley\Downloads\APP 
+- PORGRAMACION\coraza-cta-app\n
+ode_modules\esbuild\lib\main.js
+:581:7)
+    at Socket.emit 
+(node:events:508:28)
+    at addChunk (node:internal/
+streams/readable:563:12)
+    at 
+readableAddChunkPushByteMode (n
+ode:internal/streams/readable:5
+14:3)
+    at Readable.push (node:inte
+rnal/streams/readable:394:5)
+    at Pipe.onStreamRead (node:
+internal/stream_base_commons:18
+9:23)[39m

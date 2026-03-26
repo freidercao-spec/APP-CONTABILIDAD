@@ -235,12 +235,18 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
 
             if (upsertErr) {
                 console.error('[Coraza] ❌ Upsert Error details:', upsertErr);
-                throw upsertErr;
+                // If it's a cache/postgrest error, it might be a stale schema. 
+                // We'll throw but with a better message.
+                throw new Error(`Error de Servidor: ${upsertErr.message} (Cod: ${upsertErr.code})`);
             }
 
             // Sync sequence: DELETE ASIGNACIONES FIRST to avoid FK violations
-            await supabase.from('asignaciones_dia').delete().eq('programacion_id', dbId);
-            await supabase.from('personal_puesto').delete().eq('programacion_id', dbId);
+            // CRITICAL: use a single transaction-like approach (though REST doesn't support atomicity well, we wrap it in logic)
+            const { error: delAsigErr } = await supabase.from('asignaciones_dia').delete().eq('programacion_id', dbId);
+            if (delAsigErr) console.warn('[Coraza] ⚠️ Error limpiando asignaciones:', delAsigErr.message);
+            
+            const { error: delPersErr } = await supabase.from('personal_puesto').delete().eq('programacion_id', dbId);
+            if (delPersErr) console.warn('[Coraza] ⚠️ Error limpiando nómina:', delPersErr.message);
 
             const personalRows = prog.personal
                 .filter(p => p.vigilanteId)
@@ -320,9 +326,16 @@ const queueSync = (progId: string, set: any, get: any, immediate = false) => {
                 isSyncing: false
             }));
         } catch (err: any) {
-            console.error('[Coraza] ❌ ERROR EN LA NUBE:', err);
+            console.error('[Coraza] ❌ ERROR CRÍTICO SYNCHRONIZACIÓN:', err);
             set({ isSyncing: false, lastSyncError: err?.message || 'Error de escritura' });
-            showTacticalToast({ title: "❌ Error Nube Destino", message: err?.message || "La base de datos rechazó el despliegue. Posible fallo de ID.", type: "error" });
+            showTacticalToast({ 
+                title: "❌ ERROR NÚCLEO (V6.0)", 
+                message: err?.message?.includes('cache') 
+                    ? "Fallo de caché en el servidor. Por favor, recarga el navegador (F5)." 
+                    : `La base de datos rechazó el despliegue: ${err?.message || 'Error desconocido'}`, 
+                type: "error",
+                duration: 8000
+            });
         }
     };
 
