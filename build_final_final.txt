@@ -1,0 +1,121 @@
+﻿
+> coraza-cta-app@1.3.6 build
+> vite build
+
+[36mvite v7.3.1 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32mÔ£ô[39m 1061 modules transformed.
+node.exe : [33mGenerated an 
+empty chunk: "vendor-ai".[39m
+En línea: 1 Carácter: 1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~
+    + CategoryInfo          :  
+   NotSpecified: ([33mGenera  
+  ted ...endor-ai".[39m:Str   
+ ing) [], RemoteException
+    + FullyQualifiedErrorId :  
+   NativeCommandError
+ 
+rendering chunks...
+[33m[plugin vite:reporter] 
+(!) 
+C:/Users/Mirley/Downloads/APP 
+- PORGRAMACION/coraza-cta-app/s
+rc/store/auditStore.ts is 
+dynamically imported by 
+C:/Users/Mirley/Downloads/APP 
+- PORGRAMACION/coraza-cta-app/s
+rc/store/puestoStore.ts, 
+C:/Users/Mirley/Downloads/APP 
+- PORGRAMACION/coraza-cta-app/s
+rc/store/puestoStore.ts, 
+C:/Users/Mirley/Downloads/APP 
+- PORGRAMACION/coraza-cta-app/s
+rc/store/puestoStore.ts, 
+C:/Users/Mirley/Downloads/APP 
+- PORGRAMACION/coraza-cta-app/s
+rc/store/vigilanteStore.ts, 
+C:/Users/Mirley/Downloads/APP 
+- PORGRAMACION/coraza-cta-app/s
+rc/store/vigilanteStore.ts, 
+C:/Users/Mirley/Downloads/APP 
+- PORGRAMACION/coraza-cta-app/s
+rc/store/vigilanteStore.ts, 
+C:/Users/Mirley/Downloads/APP 
+- PORGRAMACION/coraza-cta-app/s
+rc/store/vigilanteStore.ts but 
+also statically imported by 
+C:/Users/Mirley/Downloads/APP 
+- PORGRAMACION/coraza-cta-app/s
+rc/components/layout/Sidebar.ts
+x, 
+C:/Users/Mirley/Downloads/APP 
+- PORGRAMACION/coraza-cta-app/s
+rc/hooks/useSupabaseInit.ts, 
+C:/Users/Mirley/Downloads/APP 
+- PORGRAMACION/coraza-cta-app/s
+rc/pages/AuditoriaInterna.tsx, 
+C:/Users/Mirley/Downloads/APP 
+- PORGRAMACION/coraza-cta-app/s
+rc/pages/Dashboard.tsx, 
+C:/Users/Mirley/Downloads/APP 
+- PORGRAMACION/coraza-cta-app/s
+rc/pages/GestionPuestos.tsx, 
+C:/Users/Mirley/Downloads/APP 
+- PORGRAMACION/coraza-cta-app/s
+rc/pages/Login.tsx, 
+C:/Users/Mirley/Downloads/APP 
+- PORGRAMACION/coraza-cta-app/s
+rc/pages/Resumen.tsx, dynamic 
+import will not move module 
+into another chunk.
+[39m
+computing gzip size...
+[2mdist/[22m[32mindex.html                            [39m[1m[2m    1.75 kB[22m[1m[22m[2m Ôöé gzip:   0.78 kB[22m
+[2mdist/[22m[32massets/corazai-avatar-CU82KBid.png    [39m[1m[2m1,019.10 kB[22m[1m[22m
+[2mdist/[22m[35massets/Puestos-DwUhsmFz.css           [39m[1m[2m   69.92 kB[22m[1m[22m[2m Ôöé gzip:  10.05 kB[22m
+[2mdist/[22m[35massets/index-Dqren242.css             [39m[1m[2m  154.99 kB[22m[1m[22m[2m Ôöé gzip:  21.81 kB[22m
+[2mdist/[22m[36massets/vendor-ai-l0sNRNKZ.js          [39m[1m[2m    0.00 kB[22m[1m[22m[2m Ôöé gzip:   0.02 kB[22m
+[2mdist/[22m[36massets/maplibre-gl-BN8uhVDZ.js        [39m[1m[2m    0.51 kB[22m[1m[22m[2m Ôöé gzip:   0.36 kB[22m
+[2mdist/[22m[36massets/vendor-zustand-D-j1tS1g.js     [39m[1m[2m    0.66 kB[22m[1m[22m[2m Ôöé gzip:   0.41 kB[22m
+[2mdist/[22m[36massets/MilitaryTimeInput-DrYDJLNs.js  [39m[1m[2m    6.16 kB[22m[1m[22m[2m Ôöé gzip:   2.07 kB[22m
+[2mdist/[22m[36massets/Resumen-C-NuoSeg.js            [39m[1m[2m    8.75 kB[22m[1m[22m[2m Ôöé gzip:   3.55 kB[22m
+[2mdist/[22m[36massets/vendor-ui-kdsj8pUI.js          [39m[1m[2m   11.92 kB[22m[1m[22m[2m Ôöé gzip:   4.79 kB[22m
+[2mdist/[22m[36massets/Inteligencia-07m3TMd8.js       [39m[1m[2m   12.85 kB[22m[1m[22m[2m Ôöé gzip:   3.56 kB[22m
+[2mdist/[22m[36massets/AuditoriaInterna-DurwxwMG.js   [39m[1m[2m   14.07 kB[22m[1m[22m[2m Ôöé gzip:   3.78 kB[22m
+[2mdist/[22m[36massets/Configuracion-BVwP8XqB.js      [39m[1m[2m   14.34 kB[22m[1m[22m[2m Ôöé gzip:   3.49 kB[22m
+[2mdist/[22m[36massets/ConfirmDialog-Cv7XaHC9.js      [39m[1m[2m   14.75 kB[22m[1m[22m[2m Ôöé gzip:   3.84 kB[22m
+[2mdist/[22m[36massets/Novedades-DPO60TZH.js          [39m[1m[2m   16.66 kB[22m[1m[22m[2m Ôöé gzip:   4.02 kB[22m
+[2mdist/[22m[36massets/Dashboard-DBEP7GRr.js          [39m[1m[2m   20.13 kB[22m[1m[22m[2m Ôöé gzip:   5.40 kB[22m
+[2mdist/[22m[36massets/purify.es-CovBOfck.js          [39m[1m[2m   22.58 kB[22m[1m[22m[2m Ôöé gzip:   8.67 kB[22m
+[2mdist/[22m[36massets/Vigilantes-BtsOaAPp.js         [39m[1m[2m   37.44 kB[22m[1m[22m[2m Ôöé gzip:   8.16 kB[22m
+[2mdist/[22m[36massets/vendor-react-DA9eSVAs.js       [39m[1m[2m   47.20 kB[22m[1m[22m[2m Ôöé gzip:  16.70 kB[22m
+[2mdist/[22m[36massets/GestionPuestos-DCbVpKda.js     [39m[1m[2m   95.03 kB[22m[1m[22m[2m Ôöé gzip:  25.62 kB[22m
+[2mdist/[22m[36massets/index.es-BLSP5maZ.js           [39m[1m[2m  158.62 kB[22m[1m[22m[2m Ôöé gzip:  52.95 kB[22m
+[2mdist/[22m[36massets/vendor-supabase-CpRTRdvQ.js    [39m[1m[2m  171.64 kB[22m[1m[22m[2m Ôöé gzip:  45.65 kB[22m
+[2mdist/[22m[36massets/html2canvas.esm-n554ndwg.js    [39m[1m[2m  200.99 kB[22m[1m[22m[2m Ôöé gzip:  47.41 kB[22m
+[2mdist/[22m[36massets/index-YScSrz2h.js              [39m[1m[2m  287.96 kB[22m[1m[22m[2m Ôöé gzip:  88.47 kB[22m
+[2mdist/[22m[36massets/vendor-pdf-DyOluqTn.js         [39m[1m[2m  417.90 kB[22m[1m[22m[2m Ôöé gzip: 136.21 kB[22m
+[2mdist/[22m[36massets/Puestos-DPQJXboh.js            [39m[1m[33m  842.36 kB[39m[22m[2m Ôöé gzip: 221.82 kB[22m
+[2mdist/[22m[36massets/vendor-maps-C6Zwe6CZ.js        [39m[1m[33m1,023.32 kB[39m[22m[2m Ôöé gzip: 276.92 kB[22m
+[33m
+(!) Some chunks are larger 
+than 800 kB after 
+minification. Consider:
+- Using dynamic import() to 
+code-split the application
+- Use build.rollupOptions.outpu
+t.manualChunks to improve 
+chunking: https://rollupjs.org/
+configuration-options/#output-m
+anualchunks
+- Adjust chunk size limit for 
+this warning via build.chunkSiz
+eWarningLimit.[39m
+[32mÔ£ô built in 39.81s[39m

@@ -3635,7 +3635,8 @@ const PanelMensualPuesto = ({
                 </div>
           )}
         </div>
-      </div>
+      )}
+        </div>
     );
   };
 
