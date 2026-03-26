@@ -182,126 +182,56 @@ interface SyncResult {
 }
 
 async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: any): Promise<SyncResult> {
-    // If a sync is already running for this prog, wait for it to finish first
     if (activeSyncPromises.has(prog.id)) {
         try { await activeSyncPromises.get(prog.id); } catch {}
     }
 
     const syncPromise = (async (): Promise<SyncResult> => {
         try {
-            let dbId = String(prog.id).trim();
+            const dbId = String(prog.id).trim();
             const dbPuestoId = translatePuestoToUuid(prog.puestoId);
-            if (!dbPuestoId) {
-                console.error(`[Coraza] 🚨 No se pudo resolver puesto UUID para: ${prog.puestoId}`);
-                throw new Error("ID de puesto no encontrado en el directorio local");
-            }
-            const cleanPuestoId = String(dbPuestoId).trim();
-
-            // Check if there's already a record for this puesto/month in DB
-            const { data: existing } = await supabase
-                .from('programacion_mensual')
-                .select('id, version, updated_at')
-                .eq('puesto_id', cleanPuestoId)
-                .eq('anio', prog.anio)
-                .eq('mes', prog.mes)
-                .maybeSingle();
-
-            const originalLocalId = prog.id;
-            // Reconciliation: If DB ID is different, update local state before proceeding
-            if (existing && String(existing.id).trim() !== dbId) {
-                console.warn(`[Coraza] 🛠️ Sincronizando ID local ${originalLocalId} → ${dbId}`);
-                set((state: any) => ({
-                    programaciones: state.programaciones.map((p: any) =>
-                        p.id === originalLocalId ? { ...p, id: dbId } : p
-                    )
-                }));
-            }
+            if (!dbPuestoId) throw new Error("ID de puesto no encontrado");
 
             const currentEmpresaId = String(useAuthStore.getState().empresaId || EMPRESA_ID).trim();
-            const newVersion = (existing?.version || prog.version || 1) + 1;
             
-            // ATOMIC UPSERT: Use reconciled ID
-            const { error: upsertErr } = await supabase
-                .from('programacion_mensual')
-                .upsert({
-                    id: dbId,
-                    empresa_id: currentEmpresaId,
-                    puesto_id: cleanPuestoId,
-                    anio: prog.anio,
-                    mes: prog.mes,
-                    estado: prog.estado,
-                    version: newVersion,
-                    updated_at: new Date().toISOString(),
-                }, { onConflict: 'id' });
-
-            if (upsertErr) {
-                console.error('[Coraza] ❌ Upsert Error details:', upsertErr);
-                // If it's a cache/postgrest error, it might be a stale schema. 
-                // We'll throw but with a better message.
-                throw new Error(`Error de Servidor: ${upsertErr.message} (Cod: ${upsertErr.code})`);
-            }
-
-            // Sync sequence: DELETE ASIGNACIONES FIRST to avoid FK violations
-            // CRITICAL PROTECTION: If we have 0 asignations in memory but we expect some, ABORT to prevent wipeout
-            if (prog.asignaciones.length === 0) {
-                console.error('[Coraza] 🛑 ABORTO PREVENTIVO: Intento de sincronizar programación vacía. Posible fallo de carga.');
-                throw new Error("La programación local está vacía. Abortando para proteger los datos en la nube.");
-            }
-
-            const { error: delAsigErr } = await supabase.from('asignaciones_dia').delete().eq('programacion_id', dbId);
-            if (delAsigErr) console.warn('[Coraza] ⚠️ Error limpiando asignaciones:', delAsigErr.message);
-            
-            const { error: delPersErr } = await supabase.from('personal_puesto').delete().eq('programacion_id', dbId);
-            if (delPersErr) console.warn('[Coraza] ⚠️ Error limpiando nómina:', delPersErr.message);
-
-            const personalRows = prog.personal
-                .filter(p => p.vigilanteId)
-                .map(p => {
-                    const mapped = translateToUuid(p.vigilanteId);
-                    return mapped ? {
-                        programacion_id: dbId,
-                        rol: p.rol,
-                        vigilante_id: mapped,
+            // PREPARAR PAYLOAD JSONB ATÓMICO
+            // Limpiamos los datos para que el servidor los reciba listos
+            const asignacionesPayload = prog.asignaciones
+                .filter(a => a.vigilanteId && a.jornada !== 'sin_asignar')
+                .map(a => {
+                    const mappedVid = translateToUuid(a.vigilanteId);
+                    return mappedVid ? {
+                        dia: a.dia,
+                        vigilante_id: mappedVid,
+                        turno: a.turno,
+                        jornada: a.jornada,
+                        rol: a.rol,
+                        inicio: a.inicio || null,
+                        fin: a.fin || null
                     } : null;
                 })
                 .filter(r => r !== null);
-            
-            if (personalRows.length > 0) {
-                const { error: pError } = await supabase.from('personal_puesto').insert(personalRows);
-                if (pError) console.error('[Coraza] ⚠️ Error personal_puesto:', pError.message);
+
+            // LLAMADA ATÓMICA AL RPC (Transacción en Servidor)
+            const { error: rpcErr } = await supabase.rpc('guardar_programacion_atomica', {
+                p_prog_id: dbId,
+                p_empresa_id: currentEmpresaId,
+                p_puesto_id: dbPuestoId,
+                p_anio: prog.anio,
+                p_mes: prog.mes,
+                p_estado: prog.estado,
+                p_asignaciones: asignacionesPayload
+            });
+
+            if (rpcErr) {
+                console.error('[Coraza] ❌ Fallo en Guardado Atómico RPC:', rpcErr);
+                throw new Error(`Servidor: ${rpcErr.message}`);
             }
 
-            // Sync asignaciones_dia: delete then batch-insert only non-empty slots
-            await supabase.from('asignaciones_dia').delete().eq('programacion_id', dbId);
-            const asignacionRows = prog.asignaciones
-                .filter(a => a.vigilanteId && a.jornada !== 'sin_asignar')
-                .map(a => ({
-                    programacion_id: dbId,
-                    dia: a.dia,
-                    vigilante_id: translateToUuid(a.vigilanteId),
-                    turno: a.turno,
-                    jornada: a.jornada,
-                    rol: a.rol,
-                    inicio: a.inicio || null,
-                    fin: a.fin || null,
-                }))
-                .filter(r => r.vigilante_id);
-
-            if (asignacionRows.length > 0) {
-                for (let i = 0; i < asignacionRows.length; i += 100) {
-                    const chunk = asignacionRows.slice(i, i + 100);
-                    const { error: aError } = await supabase.from('asignaciones_dia').insert(chunk);
-                    if (aError) {
-                        console.error(`[Coraza] ❌ Error chunk asignaciones [${i}-${i+chunk.length}]:`, aError.message);
-                        throw aError;
-                    }
-                }
-            }
-
-            console.log(`[Coraza] ✅ Sync OK: ${prog.id} | ${asignacionRows.length} asignaciones guardadas`);
-            return { success: true, serverVersion: newVersion, serverUpdatedAt: new Date().toISOString() };
+            console.log(`[Coraza] 🛡️ Sincronización ATÓMICA Exitosa: ${prog.id}`);
+            return { success: true, serverVersion: (prog.version || 0) + 1, serverUpdatedAt: new Date().toISOString() };
         } catch (err: any) {
-            console.error('[Coraza] ❌ Sync Error:', err?.message || err);
+            console.error('[Coraza] ❌ Error de Persistencia:', err);
             throw err;
         } finally {
             activeSyncPromises.delete(prog.id);
@@ -822,8 +752,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     const conflicto = state.programaciones.some(p => {
                         if (p.anio !== prog.anio || p.mes !== prog.mes) return false;
                         return p.asignaciones.some(a => 
-                            a.id !== asig.dia + asig.rol && // Evitar compararse consigo mismo
-                            (p.id !== prog.id || a.rol !== asig.rol) && 
+                            // Evitar compararse consigo mismo (mismo puesto + mismo dia + mismo rol)
+                            !(p.id === prog.id && a.dia === asig.dia && a.rol === asig.rol) && 
                             idsMatch(a.vigilanteId, asig.vigilanteId) && 
                             a.jornada !== 'sin_asignar' &&
                             a.dia === asig.dia

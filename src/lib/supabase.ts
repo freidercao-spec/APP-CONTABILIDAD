@@ -7,7 +7,15 @@ if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KE
     console.warn('⚠️ ADVERTENCIA: Usando credenciales de Supabase de respaldo (Hardcoded). Configura las variables en Vercel para mayor seguridad.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+        headers: { 'x-client-info': 'coraza-cta-v7' }
+    },
+    auth: {
+        persistSession: true,
+        autoRefreshToken: true
+    }
+});
 
-// ID fijo de la empresa Coraza CTA (usado para insertar datos con empresa_id)
+// ID fijo de la empresa Coraza CTA
 export const EMPRESA_ID = import.meta.env.VITE_EMPRESA_ID || 'a0000000-0000-0000-0000-000000000001';
