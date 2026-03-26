@@ -318,8 +318,9 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                     // ⚡ REGLA DE ORO: Nunca sobreescribir datos cargados con placeholders vacíos (Headers)
                                     const updated = { ...existing, ...h };
                                     
-                                    // Si el local tiene datos (isDetailLoaded) y el nuevo es header, preservamos los datos locales
-                                    if (existing.isDetailLoaded && !h.isDetailLoaded) {
+                                    // Si el local tiene datos (isDetailLoaded o asignaciones) y el nuevo es header, preservamos los datos locales
+                                    const hasDataLocally = existing.isDetailLoaded || (existing.asignaciones && existing.asignaciones.length > 0);
+                                    if (hasDataLocally && !h.isDetailLoaded) {
                                         updated.asignaciones = existing.asignaciones;
                                         updated.personal = existing.personal;
                                         updated.isDetailLoaded = true;
@@ -338,7 +339,15 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                         p.anio === h.anio && p.mes === h.mes
                                     );
                                     if (duplicateIdx >= 0) {
-                                        merged[duplicateIdx] = { ...merged[duplicateIdx], ...h };
+                                        const existing = merged[duplicateIdx];
+                                        const updated = { ...existing, ...h };
+                                        const hasDataLocallyDuplicate = existing.isDetailLoaded || (existing.asignaciones && existing.asignaciones.length > 0);
+                                        if (hasDataLocallyDuplicate && !h.isDetailLoaded) {
+                                            updated.asignaciones = existing.asignaciones;
+                                            updated.personal = existing.personal;
+                                            updated.isDetailLoaded = true;
+                                        }
+                                        merged[duplicateIdx] = updated;
                                     } else {
                                         merged.push(h);
                                     }
@@ -389,8 +398,9 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                     // ⚡ REGLA DE ORO: Nunca sobreescribir datos cargados con placeholders vacíos (Headers)
                                     const updated = { ...existing, ...h };
                                     
-                                    // Si el local tiene datos (isDetailLoaded) y el nuevo es header, preservamos los datos locales
-                                    if (existing.isDetailLoaded && !h.isDetailLoaded) {
+                                    // Si el local tiene datos (isDetailLoaded o asignaciones) y el nuevo es header, preservamos los datos locales
+                                    const hasDataLocally = existing.isDetailLoaded || (existing.asignaciones && existing.asignaciones.length > 0);
+                                    if (hasDataLocally && !h.isDetailLoaded) {
                                         updated.asignaciones = existing.asignaciones;
                                         updated.personal = existing.personal;
                                         updated.isDetailLoaded = true;
@@ -411,7 +421,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                     if (duplicateIdx >= 0) {
                                         const existing = merged[duplicateIdx];
                                         const updated = { ...existing, ...h };
-                                        if (existing.isDetailLoaded && !h.isDetailLoaded) {
+                                        const hasDataLocallyDuplicate = existing.isDetailLoaded || (existing.asignaciones && existing.asignaciones.length > 0);
+                                        if (hasDataLocallyDuplicate && !h.isDetailLoaded) {
                                             updated.asignaciones = existing.asignaciones;
                                             updated.personal = existing.personal;
                                             updated.isDetailLoaded = true;

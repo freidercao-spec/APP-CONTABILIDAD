@@ -3221,8 +3221,8 @@ const PanelMensualPuesto = ({
               ?.filter((p) => p.vigilanteId)
               .map((p) => p.vigilanteId!) || []}
             ocupados={ocupados}
-            turnosConfig={targetProg?.puestoId === prog.puestoId ? turnosConfig : (allPuestos.find(p => p.id === targetProg?.puestoId || p.dbId === targetProg?.puestoId)?.turnosConfig || DEFAULT_TURNOS)}
-            jornadasCustom={targetProg?.puestoId === prog.puestoId ? jornadasCustom : (allPuestos.find(p => p.id === targetProg?.puestoId || p.dbId === targetProg?.puestoId)?.jornadasCustom || [])}
+            turnosConfig={targetProg?.puestoId === prog?.puestoId ? turnosConfig : (allPuestos.find(p => p.id === targetProg?.puestoId || p.dbId === targetProg?.puestoId)?.turnosConfig || DEFAULT_TURNOS)}
+            jornadasCustom={targetProg?.puestoId === prog?.puestoId ? jornadasCustom : (allPuestos.find(p => p.id === targetProg?.puestoId || p.dbId === targetProg?.puestoId)?.jornadasCustom || [])}
             onSave={handleSaveCell}
             onClose={() => setEditCell(null)}
             initialVigilanteId={editCell.preSelectVigilanteId}
