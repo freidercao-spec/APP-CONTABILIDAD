@@ -41,6 +41,7 @@ export interface ProgramacionMensual {
     version: number;
     historialCambios: CambioProgramacion[];
     syncStatus?: 'synced' | 'pending' | 'error';
+    isDetailLoaded?: boolean; // Nuevo campo para carga bajo demanda
 }
 
 export interface TemplateProgramacion {
@@ -78,14 +79,17 @@ interface ProgramacionState {
     loaded: boolean;
     isSyncing: boolean;
     lastSyncError: string | null;
+    selectedProgId: string | null; // ID actualmente seleccionado en UI
 
     fetchProgramaciones: () => Promise<void>;
     fetchProgramacionesByMonth: (anio: number, mes: number) => Promise<void>;
     fetchTemplates: () => Promise<void>;
     fetchProgramacionById: (progId: string) => Promise<ProgramacionMensual | null>;
+    fetchProgramacionDetalles: (progId: string) => Promise<void>; // Carga selectiva
+    setSelectedProgId: (id: string | null) => void;
     forceSync: () => Promise<void>;
     getProgramacion: (puestoId: string, anio: number, mes: number) => ProgramacionMensual | undefined;
-    crearOObtenerProgramacion: (puestoId: string, anio: number, mes: number, usuario: string) => ProgramacionMensual;
+    crearOObtenerProgramacion: (puestoId: string, anio: number, mes: number, usuario: string) => ProgramacionMensual | null;
     asignarPersonal: (progId: string, personal: PersonalPuesto[], usuario: string) => void;
     actualizarAsignacion: (progId: string, dia: number, data: Partial<AsignacionDia>, usuario: string) => ResultadoValidacion;
     publicarProgramacion: (progId: string, usuario: string) => void;
@@ -267,6 +271,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
             loaded: false,
             isSyncing: false,
             lastSyncError: null,
+            selectedProgId: null,
 
             forceSync: async () => {
                 set({ loaded: false });
@@ -289,8 +294,33 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     if (error) throw error;
                     
                     if (rows && rows.length > 0) {
-                        const getIds = rows.map(r => r.id);
-                        await get()._fetchDetails(rows, getIds);
+                        const headers = rows.map(row => ({
+                            id: row.id,
+                            puestoId: row.puesto_id as string,
+                            anio: row.anio,
+                            mes: row.mes,
+                            estado: row.estado as EstadoProgramacion,
+                            creadoEn: row.created_at,
+                            actualizadoEn: row.updated_at,
+                            version: row.version || 1,
+                            syncStatus: 'synced' as const,
+                            personal: [],
+                            asignaciones: [],
+                            isDetailLoaded: false // Marcamos que falta el detalle
+                        }));
+
+                        set((state: any) => {
+                            const merged = [...state.programaciones];
+                            headers.forEach(h => {
+                                const idx = merged.findIndex(p => p.id === h.id);
+                                if (idx >= 0) {
+                                    merged[idx] = { ...merged[idx], ...h };
+                                } else {
+                                    merged.push(h);
+                                }
+                            });
+                            return { programaciones: merged, loaded: true };
+                        });
                     } else {
                         set({ loaded: true });
                     }
@@ -302,6 +332,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
             fetchProgramacionesByMonth: async (anio: number, mes: number) => {
                 try {
+                    set({ loaded: false });
                     const { data: rows, error } = await supabase
                         .from('programacion_mensual')
                         .select('*')
@@ -309,10 +340,97 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         .eq('mes', mes);
 
                     if (error) throw error;
-                    if (rows) await get()._fetchDetails(rows, rows.map(r => r.id));
+                    if (rows) {
+                         const headers = rows.map(row => ({
+                            id: row.id,
+                            puestoId: row.puesto_id as string,
+                            anio: row.anio,
+                            mes: row.mes,
+                            estado: row.estado as EstadoProgramacion,
+                            creadoEn: row.created_at,
+                            actualizadoEn: row.updated_at,
+                            version: row.version || 1,
+                            syncStatus: 'synced' as const,
+                            personal: [],
+                            asignaciones: [],
+                            isDetailLoaded: false
+                        }));
+                        set((state: any) => {
+                            const merged = [...state.programaciones];
+                            headers.forEach(h => {
+                                const idx = merged.findIndex(p => p.id === h.id);
+                                if (idx >= 0) {
+                                    merged[idx] = { ...merged[idx], ...h };
+                                } else {
+                                    merged.push(h);
+                                }
+                            });
+                            return { programaciones: merged, loaded: true };
+                        });
+                    }
                 } catch (err) {
                     console.error('fetchProgramacionesByMonth Error:', err);
                     set({ loaded: true });
+                }
+            },
+
+            fetchProgramacionDetalles: async (progId: string) => {
+                try {
+                    const prog = get().programaciones.find(p => p.id === progId);
+                    if (prog && (prog as any).isDetailLoaded) return; // Ya cargado
+
+                    const [persRes, asigsRes] = await Promise.all([
+                        supabase.from('personal_puesto').select('*').eq('programacion_id', progId),
+                        supabase.from('asignaciones_dia').select('*').eq('programacion_id', progId).limit(200) // 93 max
+                    ]);
+
+                    const personal = (persRes.data || []).map(p => ({ 
+                        rol: p.rol as RolPuesto, 
+                        vigilanteId: translateFromDb(p.vigilante_id) 
+                    }));
+
+                    ['titular_a', 'titular_b', 'relevante'].forEach(rol => {
+                        if (!personal.find(p => p.rol === rol)) personal.push({ rol, vigilanteId: null });
+                    });
+
+                    const asigMap = new Map();
+                    (asigsRes.data || []).forEach(a => {
+                        asigMap.set(`${a.dia}-${a.rol}`, a);
+                    });
+
+                    const daysInMonth = new Date(prog?.anio || 2026, (prog?.mes || 0) + 1, 0).getDate();
+                    const asignaciones: AsignacionDia[] = [];
+                    const rolesToEnsure: RolPuesto[] = ['titular_a', 'titular_b', 'relevante'];
+
+                    for (let d = 1; d <= daysInMonth; d++) {
+                        rolesToEnsure.forEach(rol => {
+                            const match = asigMap.get(`${d}-${rol}`);
+                            if (match) {
+                                asignaciones.push({
+                                    dia: match.dia,
+                                    vigilanteId: translateFromDb(match.vigilante_id),
+                                    turno: match.turno,
+                                    jornada: (match.jornada || 'sin_asignar') as TipoJornada,
+                                    rol: (match.rol || rol) as RolPuesto,
+                                    inicio: match.inicio || undefined,
+                                    fin: match.fin || undefined
+                                });
+                            } else {
+                                asignaciones.push({ dia: d, vigilanteId: null, turno: 'AM', jornada: 'sin_asignar', rol });
+                            }
+                        });
+                    }
+
+                    set((state: any) => ({
+                        programaciones: state.programaciones.map((p: any) => p.id === progId ? {
+                            ...p,
+                            personal,
+                            asignaciones,
+                            isDetailLoaded: true
+                        } : p)
+                    }));
+                } catch (err) {
+                    console.error('fetchProgramacionDetalles Error:', err);
                 }
             },
 
@@ -346,14 +464,20 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     });
 
                     const dbAsignaciones = allAsignaciones.filter(a => a.programacion_id === row.id);
+                    // OPTIMIZACIÓN V9: Usar un Mapa para evitar O(n^2) en la búsqueda de turnos
+                    const asigMap = new Map();
+                    dbAsignaciones.forEach(a => {
+                        const key = `${a.dia}-${a.rol}`;
+                        asigMap.set(key, a);
+                    });
+
                     const daysInMonth = new Date(row.anio, row.mes + 1, 0).getDate();
                     const asignaciones: AsignacionDia[] = [];
-                    
                     const rolesToEnsure: RolPuesto[] = ['titular_a', 'titular_b', 'relevante'];
                     
                     for (let d = 1; d <= daysInMonth; d++) {
                         rolesToEnsure.forEach(rol => {
-                            const match = dbAsignaciones.find(a => a.dia === d && a.rol === rol);
+                            const match = asigMap.get(`${d}-${rol}`);
                             if (match) {
                                 asignaciones.push({
                                     dia: match.dia,
@@ -552,14 +676,21 @@ export const useProgramacionStore = create<ProgramacionState>()(
             fetchProgramacionById: async (progId: string) => {
                 const { data: r } = await supabase.from('programacion_mensual').select('*').eq('id', progId).single();
                 if (!r) return null;
-                await get()._fetchDetails([r], [r.id]);
+                await get().fetchProgramacionDetalles(progId);
                 return get().programaciones.find(p => p.id === progId) || null;
+            },
+
+            setSelectedProgId: (id: string | null) => {
+                set({ selectedProgId: id });
+                if (id) {
+                    get().fetchProgramacionDetalles(id);
+                }
             },
         }),
         {
             name: 'coraza-programacion-atomic-v1',
             version: 1,
-            partialize: (state) => ({ templates: state.templates, programaciones: state.programaciones, loaded: state.loaded }),
+            partialize: (state) => ({ templates: state.templates, programaciones: state.programaciones, loaded: state.loaded, selectedProgId: state.selectedProgId }),
         }
     )
 );

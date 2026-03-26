@@ -302,7 +302,7 @@ const CeldaVacia = ({
 // Modal for editing a single day cell — with cross-validation
 interface EditCeldaModalProps {
   asig: AsignacionDia;
-  vigilantes: { id: string; nombre: string; estado?: string }[];
+  vigilantes: any[];
   titularesId: string[];
   ocupados: Map<string, string[]>; // vigilanteId -> ['dia-turno',...]
   turnosConfig: TurnoConfig[];
@@ -345,15 +345,15 @@ const EditCeldaModal = ({
     const slots = ocupados.get(vid) || [];
     const match = (slots as any[]).find((s) => s.slot === `${asig.dia}-${t}`);
     if (match) {
-      const v = vigilantes.find((gv) => gv.id === vid || gv.dbId === vid);
+      const v = vigilantes.find((gv: any) => gv.id === vid || gv.dbId === vid);
       return `🚫 ${v?.nombre || "Efectivo"} ya tiene turno en "${match.puesto}" (Día ${asig.dia} ${t})`;
     }
     if (t === "AM") {
       const prevDay = asig.dia - 1;
       const pmMatch = (slots as any[]).find((s) => s.slot === `${prevDay}-PM`);
       if (pmMatch) {
-        const v = vigilantes.find((gv) => gv.id === vid || gv.dbId === vid);
-        return `🚫 Turno Descansado: ${v?.nombre || "Efectivo"} trabajó PM en "${pmMatch.puesto}" el día anterior.`;
+         const v = vigilantes.find((gv: any) => gv.id === vid || gv.dbId === vid);
+         return `🚫 Turno Descansado: ${v?.nombre || "Efectivo"} trabajó PM en "${pmMatch.puesto}" el día anterior.`;
       }
     }
     return null;
@@ -718,6 +718,8 @@ const PanelMensualPuesto = ({
     (s) => s.getCoberturaPorcentaje,
   );
   const getAlertas = useProgramacionStore((s) => s.getAlertas);
+  const fetchProgramacionDetalles = useProgramacionStore((s) => s.fetchProgramacionDetalles);
+  const setSelectedProgId = useProgramacionStore((s) => s.setSelectedProgId);
 
   const getProgramacion = useProgramacionStore((s) => s.getProgramacion);
   const [editCell, setEditCell] = useState<{
@@ -731,6 +733,15 @@ const PanelMensualPuesto = ({
     () => getProgramacion(puestoId, anio, mes),
     [allProgramaciones, getProgramacion, puestoId, anio, mes],
   );
+
+  // CRITICAL: TRIGGER LASER LOADING (On-demand fetching for this post)
+  useEffect(() => {
+    if (prog?.id) {
+      console.log(`[Laser Loading] ⚡ Requested details for post: ${puestoNombre} (${prog.id})`);
+      fetchProgramacionDetalles(prog.id);
+      setSelectedProgId(prog.id);
+    }
+  }, [prog?.id, fetchProgramacionDetalles, setSelectedProgId, puestoNombre]);
 
   const allTemplates = useProgramacionStore((s) => s.templates);
   const templates = useMemo(() => {
@@ -1065,7 +1076,7 @@ const PanelMensualPuesto = ({
     const { asig, progId } = editCell;
     
     // Resolve the target post name for accurate logging
-    const targetProg = allProgramaciones.find(p => p.id === progId || p.dbId === progId);
+    const targetProg = allProgramaciones.find(p => p.id === progId);
     const targetPuesto = allPuestos.find(p => p.id === targetProg?.puestoId || p.dbId === targetProg?.puestoId);
     const realPostName = targetPuesto?.nombre || puestoNombre;
 
