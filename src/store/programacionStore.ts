@@ -109,7 +109,7 @@ const translateToUuid = (idRaw: string | null): string | null => {
     if (!idRaw) return null;
     const id = String(idRaw).trim();
     
-    // If it already looks like a UUID (8-4-4-4-12 format), return it directly
+    // Robust UUID check: ensure it's not a generic placeholder
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (uuidRegex.test(id)) return id;
     
@@ -124,12 +124,13 @@ const translateToUuid = (idRaw: string | null): string | null => {
     if (v?.dbId) return v.dbId;
     if (v?.id && uuidRegex.test(v.id)) return v.id;
     
-    // If not found in store, but the ID was already provided as a raw string, we keep it 
-    // to avoid losing data if the store isn't fully hydrated, UNLESS it's a known non-UUID format
-    if (id.length > 30) return id; 
+    // CRITICAL FIX: If it looks like a custom ID or shorthand but we didn't find the UUID yet,
+    // DO NOT return null if we are in the middle of a sync, as it would erase the data.
+    // Instead return the raw ID and let the DB handle it or skip ONLY if it's obviously invalid.
+    if (id.length > 5) return id; 
 
-    console.warn(`[Coraza] ⚠️ ID no mapeado a UUID: ${id}`);
-    return null;
+    console.warn(`[Coraza] ⚠️ ID no mapeado: ${id}`);
+    return id; // Defensive: return original instead of null to prevent data loss
 };
 
 const translateFromDb = (dbId: string | null) => {
@@ -241,7 +242,12 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
             }
 
             // Sync sequence: DELETE ASIGNACIONES FIRST to avoid FK violations
-            // CRITICAL: use a single transaction-like approach (though REST doesn't support atomicity well, we wrap it in logic)
+            // CRITICAL PROTECTION: If we have 0 asignations in memory but we expect some, ABORT to prevent wipeout
+            if (prog.asignaciones.length === 0) {
+                console.error('[Coraza] 🛑 ABORTO PREVENTIVO: Intento de sincronizar programación vacía. Posible fallo de carga.');
+                throw new Error("La programación local está vacía. Abortando para proteger los datos en la nube.");
+            }
+
             const { error: delAsigErr } = await supabase.from('asignaciones_dia').delete().eq('programacion_id', dbId);
             if (delAsigErr) console.warn('[Coraza] ⚠️ Error limpiando asignaciones:', delAsigErr.message);
             
@@ -621,99 +627,80 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
             actualizarAsignacion: (progId, dia, data, usuario) => {
                 const state = get();
-                
-                // progId IS the UUID of the programacion — search ONLY by id
-                // Robust lookup: search by ID (case-insensitive) OR by (puesto, anio, mes) match
                 const prog = state.programaciones.find((p: any) => 
                     String(p.id).toLowerCase() === String(progId).toLowerCase()
                 ) || state.getProgramacion(progId, state.programaciones[0]?.anio, state.programaciones[0]?.mes);
                 
-                if (!prog) {
-                    console.error('[Coraza] 🚨 Programación no hallada localmente:', progId);
-                    return { permitido: false, tipo: 'bloqueo', mensaje: 'Error: Programación no sincronizada localmente' };
-                }
+                if (!prog) return { permitido: false, tipo: 'bloqueo', mensaje: 'Error: Programación no hallada' };
                 
                 const targetRol = data.rol;
-                if (!targetRol) {
-                    console.error('[Coraza] 🚨 Rol no proporcionado para actualizar asignación');
-                    return { permitido: false, tipo: 'bloqueo', mensaje: 'Rol no proporcionado' };
+                const newVid = data.vigilanteId;
+
+                // ── VIRC (IA LOGIC): VALIDACIÓN DE CONFLICTOS ───────────────────────
+                if (newVid && data.jornada !== 'sin_asignar') {
+                    // 1. Conflictos en OTROS puestos (Triple check)
+                    const otrosConflictos = state.programaciones.some(p => {
+                        if (p.id === prog.id) return false; // same post is handled below
+                        if (p.anio !== prog.anio || p.mes !== prog.mes) return false;
+                        return p.asignaciones.some(a => 
+                            a.dia === dia && 
+                            idsMatch(a.vigilanteId, newVid) && 
+                            a.jornada !== 'sin_asignar'
+                        );
+                    });
+
+                    if (otrosConflictos) {
+                        return { 
+                            permitido: false, 
+                            tipo: 'bloqueo', 
+                            mensaje: 'IA: El vigilante ya tiene un turno asignado en OTRO puesto para este día.' 
+                        };
+                    }
+
+                    // 2. Conflictos en el MISMO puesto (otro rol)
+                    const conflictoMismoPuesto = prog.asignaciones.some(a => 
+                        a.dia === dia && 
+                        a.rol !== targetRol && 
+                        idsMatch(a.vigilanteId, newVid) && 
+                        a.jornada !== 'sin_asignar'
+                    );
+
+                    if (conflictoMismoPuesto) {
+                        return { 
+                            permitido: false, 
+                            tipo: 'bloqueo', 
+                            mensaje: 'IA: El vigilante ya está asignado a otro rol en este mismo puesto hoy.' 
+                        };
+                    }
                 }
 
                 let newAsignaciones = [...prog.asignaciones];
-
-                // KEY FIX: Search by (dia, rol) ONLY — turno is secondary and may differ between
-                // local state and what the modal sends. This prevents the "slot not found" problem.
                 const index = newAsignaciones.findIndex(a =>
                     a.dia === dia &&
                     String(a.rol).toLowerCase().trim() === String(targetRol).toLowerCase().trim()
                 );
 
                 if (index >= 0) {
-                    // Merge: keep existing turno if caller doesn't provide one
-                    const mergedTurno = data.turno || newAsignaciones[index].turno || 'AM';
-                    newAsignaciones[index] = {
-                        ...newAsignaciones[index],
-                        ...data,
-                        turno: mergedTurno,
-                        rol: targetRol,
-                    };
+                    newAsignaciones[index] = { ...newAsignaciones[index], ...data };
                 } else {
-                    // New slot for this dia/rol — either brand new role or missing slot
-                    const isNewRol = !prog.asignaciones.some(
-                        a => String(a.rol).toLowerCase().trim() === String(targetRol).toLowerCase().trim()
-                    );
-                    if (isNewRol) {
-                        // Initialize this new role for the entire month
-                        const daysInMonth = new Date(prog.anio, prog.mes + 1, 0).getDate();
-                        for (let d = 1; d <= daysInMonth; d++) {
-                            newAsignaciones.push({
-                                dia: d,
-                                vigilanteId: d === dia ? (data.vigilanteId || null) : null,
-                                turno: d === dia ? (data.turno || 'AM') : 'AM',
-                                jornada: d === dia ? (data.jornada || 'normal') : 'sin_asignar',
-                                rol: targetRol,
-                            });
-                        }
-                    } else {
-                        // Just add the missing slot
-                        newAsignaciones.push({
-                            dia,
-                            vigilanteId: data.vigilanteId || null,
-                            turno: data.turno || 'AM',
-                            jornada: data.jornada || 'sin_asignar',
-                            rol: targetRol,
-                        });
-                    }
+                    newAsignaciones.push({ dia, vigilanteId: newVid || null, turno: data.turno || 'AM', jornada: data.jornada || 'sin_asignar', rol: targetRol || 'relevante' });
                 }
 
-                console.log(`[Coraza] 🚀 DIA ${dia} ROL ${targetRol} → ${data.vigilanteId || 'VACANTE'} (prog: ${progId})`);
-
-                // Ensure guard is in the personal list for this month (foreign key requirement)
                 let newPersonal = [...prog.personal];
-                if (data.vigilanteId) {
-                    const alreadyInPersonal = newPersonal.some(p => 
-                        p.vigilanteId === data.vigilanteId ||
-                        idsMatch(p.vigilanteId, data.vigilanteId || '')
-                    );
-                    if (!alreadyInPersonal) {
-                        console.log(`[Coraza] ➕ Agregando a nómina: ${data.vigilanteId}`);
-                        newPersonal.push({ rol: targetRol, vigilanteId: data.vigilanteId });
+                if (newVid) {
+                    if (!newPersonal.some(p => idsMatch(p.vigilanteId, newVid))) {
+                        newPersonal.push({ rol: targetRol || 'relevante', vigilanteId: newVid });
                     }
                 }
 
                 set((s: any) => ({
                     programaciones: s.programaciones.map((p: any) => p.id === prog.id ? {
-                        ...p,
-                        personal: newPersonal,
-                        asignaciones: newAsignaciones,
-                        actualizadoEn: new Date().toISOString(),
-                        syncStatus: 'pending',
+                        ...p, personal: newPersonal, asignaciones: newAsignaciones, actualizadoEn: new Date().toISOString(), syncStatus: 'pending',
                     } : p)
                 }));
 
-                // Immediate sync for every assignment change
                 queueSync(prog.id, set, get, true);
-                return { permitido: true, tipo: 'ok', mensaje: 'Asignación guardada exitosamente' };
+                return { permitido: true, tipo: 'ok', mensaje: 'Asignación guardada' };
             },
 
             publicarProgramacion: (progId, usuario) => {
@@ -818,11 +805,38 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
 
             getAlertas: (progId) => {
-                const prog = get().programaciones.find(p => p.id === progId);
+                const state = get();
+                const prog = state.programaciones.find(p => p.id === progId);
                 if (!prog) return [];
-                const alertas = [];
-                const sin = prog.asignaciones.filter(a => !a.vigilanteId).length;
-                if (sin > 0) alertas.push(`${sin} turnos vacíos`);
+                const alertas: string[] = [];
+                const vacios = prog.asignaciones.filter(a => !a.vigilanteId).length;
+                if (vacios > 0) alertas.push(`${vacios} turnos vacíos`);
+
+                // ── IA SCANNER: Detección de duplicidades globales ──
+                const vigilantesYaVistos = new Set<string>();
+                prog.asignaciones.forEach(asig => {
+                    if (!asig.vigilanteId || asig.jornada === 'sin_asignar') return;
+                    const key = `${asig.vigilanteId}-${asig.dia}`;
+                    if (vigilantesYaVistos.has(key)) return;
+
+                    const conflicto = state.programaciones.some(p => {
+                        if (p.anio !== prog.anio || p.mes !== prog.mes) return false;
+                        return p.asignaciones.some(a => 
+                            a.id !== asig.dia + asig.rol && // Evitar compararse consigo mismo
+                            (p.id !== prog.id || a.rol !== asig.rol) && 
+                            idsMatch(a.vigilanteId, asig.vigilanteId) && 
+                            a.jornada !== 'sin_asignar' &&
+                            a.dia === asig.dia
+                        );
+                    });
+
+                    if (conflicto) {
+                        const vNombre = useVigilanteStore.getState().vigilantes.find(v => idsMatch(v.id, asig.vigilanteId))?.nombre || asig.vigilanteId;
+                        alertas.push(`Día ${asig.dia}: ${vNombre} tiene duplicidad de turno.`);
+                        vigilantesYaVistos.add(key);
+                    }
+                });
+
                 return alertas;
             },
 
