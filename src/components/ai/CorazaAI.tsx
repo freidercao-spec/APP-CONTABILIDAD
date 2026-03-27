@@ -105,12 +105,10 @@ export const CorazaAI = () => {
     };
 
     return (
-        <div className="fixed bottom-8 right-6 z-[100] flex flex-col items-end pointer-events-none">
-            {/* AI Notification / Chat Panel */}
-            <div className={`
-                ${isOpen ? 'opacity-100 scale-100 mb-4 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 translate-y-20 pointer-events-none'} 
-                fixed bottom-[88px] right-4 sm:right-6 w-[calc(100vw-32px)] sm:w-[420px] h-[calc(100vh-140px)] sm:h-[600px] horizon-card border-none shadow-[0_30px_90px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden transition-all duration-500 cubic-bezier(0.16, 1, 0.3, 1) origin-bottom-right group
-            `}>
+        <div className="fixed bottom-8 right-6 z-[100] flex flex-col items-end gap-0">
+            {/* AI Chat Panel — only mounted when open so it never blocks clicks */}
+            {isOpen && (
+            <div className="fixed bottom-[88px] right-4 sm:right-6 w-[calc(100vw-32px)] sm:w-[420px] h-[calc(100vh-140px)] sm:h-[600px] horizon-card border-none shadow-[0_30px_90px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden origin-bottom-right animate-in slide-in-from-bottom-4 fade-in duration-300">
                 {/* Header Section */}
                 <div className="bg-[#0b1437]/90 p-5 flex items-center justify-between shrink-0 relative overflow-hidden border-b border-white/10 backdrop-blur-md">
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-transparent to-primary/5"></div>
@@ -270,9 +268,10 @@ export const CorazaAI = () => {
                     </div>
                 </form>
             </div>
+            )}
 
-            {/* Floating Action Button (Elevated) */}
-            <div className={`mt-4 transition-all duration-700 pointer-events-auto ${isOpen ? 'translate-x-0' : 'animate-float'}`}>
+            {/* Floating Action Button */}
+            <div className={`mt-4 ${isOpen ? '' : 'animate-float'}`}>
                 <button
                     onClick={toggleOpen}
                     className={`
