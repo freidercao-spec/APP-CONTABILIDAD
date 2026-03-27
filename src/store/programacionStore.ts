@@ -285,70 +285,9 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     const anio = now.getFullYear();
                     const mes = now.getMonth();
                     
-                    const { data: rows, error } = await supabase
-                        .from('programacion_mensual')
-                        .select('*')
-                        .eq('anio', anio)
-                        .eq('mes', mes);
-
-                    if (error) throw error;
-                    
-                    if (rows && rows.length > 0) {
-                        const headers = rows.map(row => ({
-                            id: row.id,
-                            puestoId: row.puesto_id as string,
-                            anio: row.anio,
-                            mes: row.mes,
-                            estado: row.estado as EstadoProgramacion,
-                            creadoEn: row.created_at,
-                            actualizadoEn: row.updated_at,
-                            version: row.version || 1,
-                            syncStatus: 'synced' as const,
-                            personal: [],
-                            asignaciones: [],
-                            isDetailLoaded: false // Marcamos que falta el detalle
-                        }));
-
-                        set((state: any) => {
-                            const merged = [...state.programaciones];
-                            headers.forEach(h => {
-                                const idx = merged.findIndex(p => p.id === h.id);
-                                if (idx >= 0) {
-                                    const existing = merged[idx];
-                                    // ⚡ REGLA DE ORO: Nunca sobreescribir datos cargados con placeholders vacíos (Headers)
-                                    const updated = { ...existing, ...h };
-                                    
-                                    // Si el local tiene datos (isDetailLoaded o asignaciones) y el nuevo es header, preservamos los datos locales
-                                    const hasDataLocally = existing.isDetailLoaded || (existing.asignaciones && existing.asignaciones.length > 0);
-                                    if (hasDataLocally && !h.isDetailLoaded) {
-                                        updated.asignaciones = existing.asignaciones;
-                                        updated.personal = existing.personal;
-                                        updated.isDetailLoaded = true;
-                                    }
-                                    
-                                    // Normalización de PuestoId: Asegurar que siempre sea el UUID si está disponible
-                                    if (h.puestoId && uuidRegex.test(h.puestoId)) {
-                                        updated.puestoId = h.puestoId;
-                                    }
-
-                                    merged[idx] = updated;
-                                } else {
-                                    merged.push(h);
-                                }
-                            });
-
-                            // Hydrate the dashboard UI with real assignments in background
-                            setTimeout(() => {
-                                get()._fetchDetails(rows, headers.map(h => h.id));
-                            }, 50);
-
-                            return { programaciones: merged, loaded: true };
-                        });
-                    } else {
-                        set({ loaded: true });
-                    }
-                } catch (err) {
-                    console.error('[Coraza] ❌ Error Crítico en Fetch Global:', err);
+                    await get().fetchProgramacionesByMonth(anio, mes);
+                } catch (error) {
+                    console.error('[Coraza] ❌ fetchProgramaciones Error:', error);
                     set({ loaded: true });
                 }
             },
