@@ -440,11 +440,20 @@ export const useVigilanteStore = create<VigilanteState>()(
                 }));
 
                 if (vigilante?.dbId) {
+                    // CORRECCIÓN: Cancelar vacaciones previas antes de insertar las nuevas
+                    // Evita duplicados en la tabla vacaciones
+                    await supabase
+                        .from('vacaciones')
+                        .update({ estado: 'cancelado' })
+                        .eq('vigilante_id', vigilante.dbId)
+                        .eq('estado', 'aprobado');
+                    
                     await supabase.from('vacaciones').insert({
                         vigilante_id: vigilante.dbId,
                         fecha_inicio: inicio,
                         fecha_fin: fin,
                         motivo: motivo || null,
+                        estado: 'aprobado',
                     });
                     await supabase.from('historial_vigilante').insert({
                         vigilante_id: vigilante.dbId,

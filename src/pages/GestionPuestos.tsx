@@ -326,6 +326,7 @@ const EditCeldaModal = ({
   const [turno, setTurno] = useState(asig.turno);
   const [jornada, setJornada] = useState<TipoJornada>(asig.jornada);
   const [conflicto, setConflicto] = useState<string | null>(null);
+  const [vigSearch, setVigSearch] = useState("");
 
   // --- NUEVO: ESTADO PARA HORARIO PERSONALIZADO ---
   const tList = turnosConfig.length ? turnosConfig : DEFAULT_TURNOS;
@@ -568,42 +569,100 @@ const EditCeldaModal = ({
           </div>
 
           {/* ── Full vigilante selector ── */}
-          <div>
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">
-              Asignar Vigilante
+          {/* ── Searchable vigilante selector ── */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+              Asignar Vigilante (Busqueda)
             </label>
-            <select
-              value={vigilanteId}
-              onChange={(e) => handleVigChange(e.target.value)}
-              className="w-full h-12 bg-slate-50 border-2 border-slate-100 rounded-2xl px-4 text-xs font-black text-slate-700 outline-none focus:border-primary/40 focus:bg-white transition-all appearance-none cursor-pointer"
-              style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%2364748b\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\' /%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1em' }}
-            >
-              <option value="">— Sin asignar / Vacante —</option>
-              <optgroup label="✅ TITULARES DEL PUESTO">
-                {vigilantes
-                  .filter((v) => titularesId.includes(v.id) || (v.dbId && titularesId.includes(v.dbId)))
-                  .map((v) => {
-                    const c = checkConflict(v.id, turno);
-                    return (
-                      <option key={v.id} value={v.id}>
-                        {c ? `⚠️ ${v.nombre} (CONFLICTO)` : v.nombre}
-                      </option>
-                    );
-                  })}
-              </optgroup>
-              <optgroup label="🔄 REEMPLAZOS / DISPONIBLES">
-                {vigilantes
-                  .filter((v) => !titularesId.includes(v.id) && !(v.dbId && titularesId.includes(v.dbId)))
-                  .map((v) => {
-                    const c = checkConflict(v.id, turno);
-                    return (
-                      <option key={v.id} value={v.id}>
-                        {c ? `⚠️ ${v.nombre}` : v.nombre.toUpperCase()}
-                      </option>
-                    );
-                  })}
-              </optgroup>
-            </select>
+            <div className="relative group">
+               <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</span>
+               <input 
+                 type="text" 
+                 placeholder="Buscar por nombre o ID..."
+                 value={vigSearch}
+                 onChange={(e) => setVigSearch(e.target.value)}
+                 className="w-full h-11 bg-slate-50 border-2 border-slate-100 rounded-xl pl-10 pr-4 text-xs font-bold outline-none focus:border-primary/40 focus:bg-white transition-all shadow-sm"
+               />
+            </div>
+
+            <div className="max-h-[200px] overflow-y-auto border-2 border-slate-100 rounded-2xl bg-white custom-scrollbar p-1">
+              {/* CURRENT SELECTION */}
+              {vigilanteId ? (
+                <div className="p-1 mb-1 border-b border-slate-100">
+                   <button
+                    onClick={() => handleVigChange("")}
+                    className="w-full flex items-center justify-between px-3 py-2 bg-primary/5 rounded-xl border border-primary/20 text-left group/sel"
+                   >
+                     <div className="flex items-center gap-2">
+                       <div className="size-6 rounded-lg bg-primary text-white flex items-center justify-center text-[10px] font-black">
+                         {getVigilanteName(vigilanteId)?.charAt(0) || "!"}
+                       </div>
+                       <div className="min-w-0">
+                         <p className="text-[10px] font-black text-primary truncate leading-none">{getVigilanteName(vigilanteId)}</p>
+                         <p className="text-[8px] font-bold text-slate-400">Seleccionado (Click para quitar)</p>
+                       </div>
+                     </div>
+                     <span className="material-symbols-outlined text-primary/40 text-[16px] group-hover/sel:text-red-500 transition-colors">close</span>
+                   </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => handleVigChange("")}
+                  className="w-full text-left px-3 py-2 text-[10px] font-black text-slate-400 hover:bg-slate-50 rounded-xl"
+                >
+                  — Sin asignar / Vacante —
+                </button>
+              )}
+
+              {/* SEARCH RESULTS */}
+              {(() => {
+                const searchLow = vigSearch.toLowerCase().trim();
+                const filtered = vigilantes.filter(v => {
+                   if (!searchLow) return titularesId.includes(v.id) || (v.dbId && titularesId.includes(v.dbId));
+                   return v.nombre.toLowerCase().includes(searchLow) || v.id.toLowerCase().includes(searchLow);
+                }).slice(0, 100);
+
+                if (filtered.length === 0) return <p className="p-4 text-center text-[10px] font-bold text-slate-400 uppercase">Sin resultados</p>;
+
+                return filtered.map(v => {
+                  const isSelected = vigilanteId === v.id || vigilanteId === v.dbId;
+                  const isTitular = titularesId.includes(v.id) || (v.dbId && titularesId.includes(v.dbId));
+                  const conflict = checkConflict(v.id, turno);
+                  
+                  return (
+                    <button
+                      key={v.id}
+                      onClick={() => handleVigChange(v.id)}
+                      disabled={isSelected}
+                      className={`w-full text-left px-3 py-2 rounded-xl border border-transparent transition-all flex items-center justify-between group/v ${
+                        isSelected ? 'bg-primary/10 border-primary/20 cursor-default' : 'hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <div className={`size-6 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0 ${isTitular ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                          {v.nombre.charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className={`text-[10px] font-black truncate leading-none ${isSelected ? 'text-primary' : 'text-slate-700'}`}>
+                            {v.nombre} {isTitular && <span className="text-[8px] font-bold text-emerald-600 ml-1">★ Titular</span>}
+                          </p>
+                          <p className="text-[8px] font-bold text-slate-400">ID: {v.id}</p>
+                        </div>
+                      </div>
+                      
+                      {conflict ? (
+                        <div className="flex items-center gap-1 bg-orange-50 px-1.5 py-0.5 rounded-lg border border-orange-100 shrink-0">
+                          <span className="material-symbols-outlined text-orange-500 text-[12px]">warning</span>
+                          <span className="text-[7px] font-black text-orange-600 uppercase">Conflicto</span>
+                        </div>
+                      ) : (
+                        <span className="material-symbols-outlined text-slate-200 text-[14px] opacity-0 group-hover/v:opacity-100 transition-opacity">add_circle</span>
+                      )}
+                    </button>
+                  );
+                });
+              })()}
+            </div>
           </div>
         </div>
 

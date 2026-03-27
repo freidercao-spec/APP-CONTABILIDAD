@@ -106,6 +106,7 @@ interface ProgramacionState {
     _progMap?: Map<string, ProgramacionMensual>;
     _busyMap?: Map<string, Set<number>>; // key: vid-anio-mes
     _fetchDetails: (rows: any[], progIds: string[]) => Promise<void>;
+    _updateMap: () => void;
 }
 
 // ── Private Helpers ──────────────────────────────────────────────────────────
@@ -198,6 +199,14 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                 })
                 .filter(r => r !== null);
 
+            const personalPayload = prog.personal
+                .filter(p => p.vigilanteId)
+                .map(p => {
+                    const mappedVid = translateToUuid(p.vigilanteId);
+                    return mappedVid ? { rol: p.rol, vigilante_id: mappedVid } : null;
+                })
+                .filter(p => p !== null);
+
             // LLAMADA ATÓMICA AL RPC (Transacción en Servidor)
             const { error: rpcErr } = await supabase.rpc('guardar_programacion_atomica', {
                 p_prog_id: dbId,
@@ -206,7 +215,8 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                 p_anio: prog.anio,
                 p_mes: prog.mes,
                 p_estado: prog.estado,
-                p_asignaciones: asignacionesPayload
+                p_asignaciones: asignacionesPayload,
+                p_personal: personalPayload
             });
 
             if (rpcErr) {
@@ -229,12 +239,18 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
 }
 
 const queueSync = (progId: string, set: any, get: any, immediate = false) => {
-    if (pendingSyncs.has(progId)) clearTimeout(pendingSyncs.get(progId)!);
+    // CORRECCIÓN: Siempre cancelar timeout pendiente antes de ejecutar
+    if (pendingSyncs.has(progId)) {
+        clearTimeout(pendingSyncs.get(progId)!);
+        pendingSyncs.delete(progId);
+    }
     
     const runSync = async () => {
         pendingSyncs.delete(progId);
         const prog = get().programaciones.find((p: any) => p.id === progId);
         if (!prog) return;
+        // Evitar sync si ya hay uno activo para este progId
+        if (activeSyncPromises.has(progId)) return;
         set({ isSyncing: true });
         try {
             const res = await syncProgramacionToDb(prog, set, get);
@@ -259,7 +275,7 @@ const queueSync = (progId: string, set: any, get: any, immediate = false) => {
     if (immediate) {
         runSync();
     } else {
-        const timeout = setTimeout(runSync, 1000);
+        const timeout = setTimeout(runSync, 1200);
         pendingSyncs.set(progId, timeout);
     }
 };
@@ -285,9 +301,16 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     set({ loaded: false });
                     const now = new Date();
                     const anio = now.getFullYear();
-                    const mes = now.getMonth();
+                    const mesActual = now.getMonth();
                     
-                    await get().fetchProgramacionesByMonth(anio, mes);
+                    // CORRECCIÓN: Cargar mes actual + mes anterior + mes siguiente
+                    // para que la navegación del calendario funcione sin recargas
+                    const meses = [
+                        { anio: mesActual === 0 ? anio - 1 : anio, mes: mesActual === 0 ? 11 : mesActual - 1 },
+                        { anio, mes: mesActual },
+                        { anio: mesActual === 11 ? anio + 1 : anio, mes: mesActual === 11 ? 0 : mesActual + 1 },
+                    ];
+                    await Promise.all(meses.map(m => get().fetchProgramacionesByMonth(m.anio, m.mes)));
                 } catch (error) {
                     console.error('[Coraza] ❌ fetchProgramaciones Error:', error);
                     set({ loaded: true });
@@ -628,15 +651,18 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 for (let dia = 1; dia <= daysInMonth; dia++) {
                     roles.forEach(rol => asignaciones.push({ dia, vigilanteId: null, turno: 'AM', jornada: 'sin_asignar', rol }));
                 }
+                // CORRECCIÓN: Usar crypto.randomUUID() para generar UUID v4 válido
+                // Math.random() genera IDs no estándar que el RPC de Supabase puede rechazar
                 const newProg: ProgramacionMensual = {
-                    id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15), 
+                    id: crypto.randomUUID(),
                     puestoId: dbPuestoId, anio, mes,
                     personal: [{ rol: 'titular_a', vigilanteId: null }, { rol: 'titular_b', vigilanteId: null }, { rol: 'relevante', vigilanteId: null }],
                     asignaciones, estado: 'borrador', creadoEn: new Date().toISOString(), actualizadoEn: new Date().toISOString(),
                     version: 1, historialCambios: [], syncStatus: 'pending',
-                    isDetailLoaded: true // Nueva programación nace con su esqueleto cargado
+                    isDetailLoaded: true
                 };
                 set(s => ({ programaciones: [...s.programaciones, newProg] }));
+                get()._updateMap();
                 queueSync(newProg.id, set, get);
                 return newProg;
             },
@@ -647,6 +673,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         ...p, personal, actualizadoEn: new Date().toISOString(), syncStatus: 'pending'
                     })
                 }));
+                get()._updateMap();
                 queueSync(progId, set, get, true);
             },
 
@@ -672,6 +699,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     programaciones: s.programaciones.map(p => p.id === progId ? { ...p, asignaciones: newAsignaciones, actualizadoEn: new Date().toISOString(), syncStatus: 'pending' } : p)
                 }));
                 
+                get()._updateMap();
                 queueSync(progId, set, get, true);
                 return { permitido: true, tipo: 'ok', mensaje: 'Asignación guardada' };
             },
@@ -788,10 +816,18 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 const newBusyMap = new Map<string, Set<number>>();
 
                 progs.forEach(p => {
+                    // CORRECCIÓN: Indexar por puestoId tal como está + por UUID traducido
+                    // para que getProgramacionRapid encuentre el registro sin importar
+                    // si la llamada usa shorthand (MED-0001) o UUID
                     newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
                     newMap.set(`${p.id}`, p);
+                    
+                    const dbUuid = translatePuestoToUuid(p.puestoId);
+                    if (dbUuid && dbUuid !== p.puestoId) {
+                        newMap.set(`${dbUuid}-${p.anio}-${p.mes}`, p);
+                    }
 
-                    // Track busy days
+                    // Track busy days (usando ambas formas del vigilanteId)
                     if (p.asignaciones) {
                         p.asignaciones.forEach(asig => {
                             if (asig.vigilanteId && asig.jornada !== 'sin_asignar') {

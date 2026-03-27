@@ -31,20 +31,6 @@ export const useAuthStore = create<AuthState>()(
             login: async (email, password) => {
                 set({ loading: true, error: null });
 
-                // BYPASS DE EMERGENCIA: Si Supabase falla totalmente, este usuario siempre funciona
-                if (email === 'admin@coraza.com' && password === 'Coraza2026') {
-                    console.warn('[AUTH] 🚨 Acceso mediante bypass de emergencia activado.');
-                    set({
-                        isAuthenticated: true,
-                        username: 'Soporte Tecnico Coraza',
-                        role: 'admin',
-                        userId: 'emergency-fix-id',
-                        empresaId: 'a0000000-0000-0000-0000-000000000001',
-                        loading: false,
-                    });
-                    return { success: true };
-                }
-
                 try {
                     const { data, error } = await supabase.auth.signInWithPassword({
                         email,
@@ -52,18 +38,6 @@ export const useAuthStore = create<AuthState>()(
                     });
 
                     if (error) {
-                        // Si falla Supabase, intentamos el bypass de nuevo por si acaso el usuario uso la clave maestra
-                        if (email === 'freidercardenas12@gmail.com' && password === 'coraza123') {
-                             set({ 
-                                isAuthenticated: true, 
-                                username: 'Freider Cardenas (Bypass)', 
-                                role: 'admin', 
-                                userId: 'bypass-id', 
-                                empresaId: 'a0000000-0000-0000-0000-000000000001',
-                                loading: false 
-                            });
-                             return { success: true };
-                        }
                         set({ loading: false, error: error.message });
                         return { success: false, message: error.message };
                     }
@@ -118,8 +92,27 @@ export const useAuthStore = create<AuthState>()(
             })),
 
             checkSession: async () => {
-                // Si ya tenemos una sesion de emergencia, no la pises con Supabase
+                // Si ya tenemos una sesion válida de Supabase, no la pises
                 const current = get();
+                if (current.isAuthenticated && current.userId && 
+                    current.userId !== 'emergency-fix-id' && current.userId !== 'bypass-id') {
+                    // Verificar que la sesión de Supabase sigue vigente
+                    try {
+                        const { data: { session } } = await supabase.auth.getSession();
+                        if (!session?.user) {
+                            // Sesión venida a menos, limpiar
+                            set({ isAuthenticated: false, empresaId: null, loading: false });
+                            return;
+                        }
+                        set({ loading: false });
+                        return;
+                    } catch {
+                        set({ loading: false });
+                        return;
+                    }
+                }
+                
+                // Sesiones de bypass siempre se mantienen
                 if (current.isAuthenticated && (current.userId === 'emergency-fix-id' || current.userId === 'bypass-id')) {
                     set({ loading: false });
                     return;
