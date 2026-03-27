@@ -545,23 +545,28 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
 
             _fetchDetails: async (rows: any[], progIds: string[]) => {
-                // REGLA CRÍTICA: Supabase tiene un límite estricto de devolver un máximo de 1000 filas por consulta ('select *').
-                // Cada "programacion" involucra unos 93 registros en 'asignaciones_dia' (3 roles * 31 días).
-                // Con CHUNK_SIZE = 50, el máximo posible es ~4650 filas, garantizando velocidad y seguridad.
-                const CHUNK_SIZE = 50; 
+                // REDUCIDO: Chunk de 20 para máxima seguridad en payloads de Supabase
+                const CHUNK_SIZE = 20; 
                 let allPersonal: any[] = [];
                 let allAsignaciones: any[] = [];
 
+                console.log(`[Sync] 📥 Descargando detalles en bloques de ${CHUNK_SIZE}...`);
+
                 for (let i = 0; i < progIds.length; i += CHUNK_SIZE) {
                     const chunk = progIds.slice(i, i + CHUNK_SIZE);
-                    // Para evitar el límite de las 1000 filas
-                    const [persRes, asigsRes] = await Promise.all([
-                        supabase.from('personal_puesto').select('*').in('programacion_id', chunk),
-                        supabase.from('asignaciones_dia').select('*').in('programacion_id', chunk).limit(5000)
-                    ]);
+                    try {
+                        const [persRes, asigsRes] = await Promise.all([
+                            supabase.from('personal_puesto').select('*').in('programacion_id', chunk),
+                            supabase.from('asignaciones_dia').select('*').in('programacion_id', chunk).limit(5000)
+                        ]);
 
-                    if (persRes.data) allPersonal = [...allPersonal, ...persRes.data];
-                    if (asigsRes.data) allAsignaciones = [...allAsignaciones, ...asigsRes.data];
+                        if (persRes.data) allPersonal = [...allPersonal, ...persRes.data];
+                        if (asigsRes.data) allAsignaciones = [...allAsignaciones, ...asigsRes.data];
+                        
+                        console.log(`[Sync] 📊 Progreso: ${Math.min(i + CHUNK_SIZE, progIds.length)}/${progIds.length} cargados.`);
+                    } catch (e) {
+                        console.error(`[Sync] ❌ Error en bloque ${i}:`, e);
+                    }
                 }
 
                 // OPTIMIZACIÓN CRÍTICA: Pre-mapear vigilancia para evitar O(n^2) en la traducción de IDs
@@ -705,7 +710,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     roles.forEach(rol => asignaciones.push({ dia, vigilanteId: null, turno: 'AM', jornada: 'sin_asignar', rol }));
                 }
                 const newProg: ProgramacionMensual = {
-                    id: crypto.randomUUID(), puestoId: dbPuestoId, anio, mes,
+                    id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15), 
+                    puestoId: dbPuestoId, anio, mes,
                     personal: [{ rol: 'titular_a', vigilanteId: null }, { rol: 'titular_b', vigilanteId: null }, { rol: 'relevante', vigilanteId: null }],
                     asignaciones, estado: 'borrador', creadoEn: new Date().toISOString(), actualizadoEn: new Date().toISOString(),
                     version: 1, historialCambios: [], syncStatus: 'pending',
