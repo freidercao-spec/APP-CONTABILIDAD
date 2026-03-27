@@ -34,34 +34,39 @@ export function useSupabaseInit() {
                 setIsLoading(true);
                 addLog('📦 Conectando a Supabase...');
                 
-                // 1. CRITICO: Cargar vigilantes primero
-                await Promise.race([
-                    fetchVigilantes(),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout Vigilantes')), 60000))
+                // 1. CARGA CRÍTICA (Vigilantes y Puestos en paralelo para no sumarse tiempos)
+                addLog('🧬 Sincronizando DNA Operativo (Vigilantes y Puestos)...');
+                const [vigRes, puestRes] = await Promise.allSettled([
+                    Promise.race([
+                        fetchVigilantes(),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Slow Vigilantes')), 90000))
+                    ]),
+                    Promise.race([
+                        fetchPuestos(),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Slow Puestos')), 90000))
+                    ])
                 ]);
-                addLog('✅ Vigilantes Sincronizados');
 
-                // 2. CRITICO: Cargar puestos segundo
-                await Promise.race([
-                    fetchPuestos(),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout Puestos')), 60000))
-                ]);
-                addLog('✅ Puestos Sincronizados');
+                if (vigRes.status === 'rejected') addLog('⚠️ Vigilantes lentos, continuando...');
+                else addLog('✅ Vigilantes Listos');
+
+                if (puestRes.status === 'rejected') addLog('⚠️ Puestos lentos, continuando...');
+                else addLog('✅ Puestos Listos');
                 
-                // 3. Cargar todo lo demas en paralelo
+                // 2. CARGA SECUNDARIA
                 addLog('📑 Recuperando Programaciones y Auditoria...');
-                await Promise.all([
-                    fetchProgramaciones().catch(e => console.warn('Prog error', e)),
-                    fetchTemplates().catch(e => console.warn('Temp error', e)),
-                    fetchAudit().catch(e => console.warn('Audit error', e)),
+                const secondWave = await Promise.allSettled([
+                    fetchProgramaciones(),
+                    fetchTemplates(),
+                    fetchAudit(),
                 ]);
                 
-                addLog('🚀 Sistema Listo.');
+                const waveSuccess = secondWave.filter(r => r.status === 'fulfilled').length;
+                addLog(`🚀 Sistema Listo (${waveSuccess}/3 módulos operativos).`);
             } catch (err: any) {
-                addLog('⚠️ Error de enlace: ' + (err.message || 'Error Desconocido'));
-                console.error('[Coraza] ❌ Error:', err);
+                addLog('⚠️ Alerta de Sistema: ' + (err.message || 'Error Desconocido'));
+                console.error('[Coraza] ❌ Error Critico:', err);
             } finally {
-                // Pequeño delay cosmético para que el usuario vea el "Listo"
                 setTimeout(() => setIsLoading(false), 800);
             }
         };

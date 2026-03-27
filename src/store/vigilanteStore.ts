@@ -120,27 +120,33 @@ export const useVigilanteStore = create<VigilanteState>()(
                 try {
                     const currentEmpresaId = useAuthStore.getState().empresaId || EMPRESA_ID;
                     
-                    let allRows: any[] = [];
-                    let from = 0;
-                    const BATCH = 1000;
-                    
-                    while (true) {
-                        const { data, error } = await supabase
-                            .from('vigilantes')
-                            .select('*')
-                            .eq('empresa_id', currentEmpresaId)
-                            .order('nombres', { ascending: true })
-                            .range(from, from + BATCH - 1);
+                    // 1. CARGA RÁPIDA: Primero obtenemos el conteo o estimación para paralelizar
+                    const { count, error: countErr } = await supabase
+                        .from('vigilantes')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('empresa_id', currentEmpresaId);
 
-                        if (error) {
-                            console.error('Error fetching vigilantes batch:', error);
-                            break;
-                        }
-                        if (!data || data.length === 0) break;
-                        
-                        allRows = [...allRows, ...data];
-                        from += BATCH;
-                        if (allRows.length >= 25000) break; // Hard safety cap
+                    if (countErr) throw countErr;
+                    
+                    const totalRecords = count || 0;
+                    const BATCH = 1000;
+                    const fetchPromises = [];
+
+                    for (let from = 0; from < totalRecords; from += BATCH) {
+                        fetchPromises.push(
+                            supabase
+                                .from('vigilantes')
+                                .select('*')
+                                .eq('empresa_id', currentEmpresaId)
+                                .range(from, from + BATCH - 1)
+                        );
+                    }
+
+                    const results = await Promise.all(fetchPromises);
+                    let allRows = results.flatMap((r: any) => r.data || []);
+                    
+                    if (allRows.length >= 25000) {
+                        allRows = allRows.slice(0, 25000);
                     }
 
                     const rows = allRows;

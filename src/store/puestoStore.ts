@@ -155,10 +155,17 @@ export const usePuestoStore = create<PuestoState>()(
                     }
 
 
+                    // PERFORMANCE CRÍTICA: Pre-mapear vigilancia para evitar O(n^2) en la traducción de IDs
+                    const currentVigilantes = useVigilanteStore.getState().vigilantes;
+                    const vigLookup = new Map<string, string>();
+                    currentVigilantes.forEach(v => {
+                        if (v.dbId) vigLookup.set(v.dbId, v.id);
+                        vigLookup.set(v.id, v.id);
+                    });
+
                     const translateVigFromDb = (dbId: string | null) => {
                         if (!dbId) return null;
-                        const v = useVigilanteStore.getState().vigilantes.find((v: any) => v.dbId === dbId || v.id === dbId);
-                        return v?.id || dbId;
+                        return vigLookup.get(dbId) || dbId;
                     };
 
                     const puestoIds = rows.map(r => r.id);
@@ -179,9 +186,21 @@ export const usePuestoStore = create<PuestoState>()(
                         if (histRes.data) allHistorial = [...allHistorial, ...histRes.data];
                     }
 
+                    // Pre-agrupar para evitar .filter() en cada iteración
+                    const turnsByPuestoId = new Map<string, any[]>();
+                    allTurnos.forEach(t => {
+                        if (!turnsByPuestoId.has(t.puesto_id)) turnsByPuestoId.set(t.puesto_id, []);
+                        turnsByPuestoId.get(t.puesto_id)!.push(t);
+                    });
+
+                    const histByPuestoId = new Map<string, any[]>();
+                    allHistorial.forEach(h => {
+                        if (!histByPuestoId.has(h.puesto_id)) histByPuestoId.set(h.puesto_id, []);
+                        histByPuestoId.get(h.puesto_id)!.push(h);
+                    });
+
                     const puestos: Puesto[] = rows.map(row => {
-                        const turnos = (allTurnos || [])
-                            .filter(t => t.puesto_id === row.id)
+                        const turnos = (turnsByPuestoId.get(row.id) || [])
                             .map(t => ({
                                 vigilanteId: translateVigFromDb(t.vigilante_id) as string,
                                 horaInicio: t.hora_inicio,
@@ -189,8 +208,7 @@ export const usePuestoStore = create<PuestoState>()(
                                 dia: t.dia || undefined,
                             }));
 
-                        const historial = (allHistorial || [])
-                            .filter(h => h.puesto_id === row.id)
+                        const historial = (histByPuestoId.get(row.id) || [])
                             .map(h => ({
                                 id: h.id,
                                 timestamp: h.created_at,
