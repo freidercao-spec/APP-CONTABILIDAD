@@ -101,6 +101,8 @@ interface ProgramacionState {
     getDiasDescansoVigilante: (progId: string, vigilanteId: string) => { remunerados: number; noRemunerados: number };
     getCoberturaPorcentaje: (progId: string) => number;
     getAlertas: (progId: string) => string[];
+    getProgramacionRapid: (puestoId: string, anio: number, mes: number) => ProgramacionMensual | undefined;
+    _progMap?: Map<string, ProgramacionMensual>;
     _fetchDetails: (rows: any[], progIds: string[]) => Promise<void>;
 }
 
@@ -341,39 +343,27 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                 let idx = merged.findIndex(p => p.id === h.id);
                                 if (idx < 0) {
                                     const dbUuid = translatePuestoToUuid(h.puestoId);
-                                    idx = merged.findIndex(p => 
-                                        (p.puestoId === h.puestoId || p.puestoId === dbUuid) && 
-                                        p.anio === h.anio && p.mes === h.mes
-                                    );
+                                    idx = merged.findIndex(p => (p.puestoId === h.puestoId || p.puestoId === dbUuid) && p.anio === h.anio && p.mes === h.mes);
                                 }
 
                                 if (idx >= 0) {
-                                    const existing = merged[idx];
-                                    const hasDetailedData = existing.isDetailLoaded || (existing.asignaciones && existing.asignaciones.length > 0);
-                                    
-                                    merged[idx] = { 
-                                        ...existing, 
-                                        ...h,
-                                        id: h.id, 
-                                        asignaciones: hasDetailedData ? existing.asignaciones : [],
-                                        personal: hasDetailedData ? existing.personal : [],
-                                        isDetailLoaded: hasDetailedData
-                                    };
+                                    merged[idx] = { ...merged[idx], ...h };
                                 } else {
                                     merged.push(h);
                                 }
                             });
 
-                            // Optimization: Only auto-hydrate if < 1000 posts
+                            const newMap = new Map();
+                            merged.forEach(p => {
+                                newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
+                                newMap.set(p.id, p);
+                            });
+
                             if (rows.length < 1000) {
-                                setTimeout(() => {
-                                    get()._fetchDetails(rows, rows.map(r => r.id));
-                                }, 100);
-                            } else {
-                                console.warn(`[Coraza] ⚡ Carga masiva detectada (${rows.length} registros). La hidratación detallada se realizará bajo demanda.`);
+                                setTimeout(() => get()._fetchDetails(rows, rows.map(r => r.id)), 100);
                             }
 
-                            return { programaciones: merged, loaded: true };
+                            return { programaciones: merged, loaded: true, _progMap: newMap };
                         });
                     } else {
                         set({ loaded: true });
@@ -573,43 +563,30 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     };
                 });
 
-                set((state: any) => {
-                    const merged = [...state.programaciones];
-                    newProgramaciones.forEach(np => {
-                        const idx = merged.findIndex(p => p.id === np.id);
-                        if (idx >= 0) {
-                            const existingLocal = merged[idx];
-                            const localHasData = existingLocal.asignaciones && existingLocal.asignaciones.some((a: AsignacionDia) => a.vigilanteId !== null);
-                            const incomingHasData = np.asignaciones && np.asignaciones.some((a: AsignacionDia) => a.vigilanteId !== null);
-
-                            // DETERMINAR VERACIDAD: ¿El incoming es realmente una actualización valiosa?
-                            const localIsPending = existingLocal.syncStatus === 'pending';
-                            
-                            // Si el local tiene data y está pendiente de guardado, solo permitimos sobrescribir
-                            // si la versión de la DB es ESTRICTAMENTE MAYOR.
-                            if (localIsPending) {
-                                if ((np.version || 0) > (existingLocal.version || 0)) {
-                                    merged[idx] = { ...existingLocal, ...np, isDetailLoaded: true, syncStatus: 'synced' };
-                                } else {
-                                    // Ignoramos el incoming porque el local es más fresco (aunque no se haya guardado aún)
+                    set((state: any) => {
+                        const merged = [...state.programaciones];
+                        newProgramaciones.forEach(np => {
+                            const idx = merged.findIndex(p => p.id === np.id);
+                            if (idx >= 0) {
+                                if (merged[idx].syncStatus === 'pending' && (np.version || 0) <= (merged[idx].version || 0)) {
                                     merged[idx].isDetailLoaded = true;
+                                } else {
+                                    merged[idx] = { ...merged[idx], ...np, isDetailLoaded: true };
                                 }
                             } else {
-                                // Si no hay nada pendiente localmente, usamos la lógica estándar de protección anti-vacío
-                                if (localHasData && !incomingHasData) {
-                                    merged[idx] = { ...existingLocal, isDetailLoaded: true };
-                                } else if (incomingHasData || !localHasData) {
-                                    if ((np.version || 0) >= (existingLocal.version || 0)) {
-                                        merged[idx] = { ...existingLocal, ...np, isDetailLoaded: true };
-                                    }
-                                }
+                                merged.push({ ...np, isDetailLoaded: true });
                             }
-                        } else {
-                            merged.push({ ...np, isDetailLoaded: true });
-                        }
+                        });
+                        
+                        // Recalculate full map for massive load
+                        const newMap = new Map();
+                        merged.forEach(p => {
+                            newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
+                            newMap.set(p.id, p);
+                        });
+
+                        return { programaciones: merged, loaded: true, _progMap: newMap };
                     });
-                    return { programaciones: merged, loaded: true };
-                });
             },
 
             fetchTemplates: async () => {
@@ -810,13 +787,3 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
         })
 );
-
-// Middleware para auto-actualizar el mapa de búsqueda rápida
-const originalSet = useProgramacionStore.setState;
-useProgramacionStore.setState = (fn: any, replace?: boolean) => {
-    originalSet(fn, replace);
-    const state = useProgramacionStore.getState() as any;
-    if (state._updateMap) {
-        state._updateMap();
-    }
-};
