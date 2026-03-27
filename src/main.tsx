@@ -5,13 +5,33 @@ import './index.css'
 import App from './App.tsx'
 import ErrorBoundary from './components/ErrorBoundary';
 
-const root = document.getElementById('root');
-if (!root) throw new Error('[CORAZA] Elemento #root no encontrado en el DOM.');
+// Global Error Handler for early boot issues
+window.onerror = (msg, url, line, col, error) => {
+  console.error('[CORAZA FATAL]', { msg, url, line, col, error });
+  return false;
+};
 
-createRoot(root).render(
-  <StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </StrictMode>,
-)
+console.log('[CORAZA] 🚀 Iniciando Nucleo del Sistema...');
+
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+  const msg = '[CORAZA] ❌ Elemento #root no encontrado en el DOM.';
+  console.error(msg);
+  document.body.innerHTML = `<div style="padding:20px;color:red;font-family:sans-serif;">${msg}</div>`;
+  throw new Error(msg);
+}
+
+try {
+  const root = createRoot(rootElement);
+  root.render(
+    <StrictMode>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </StrictMode>
+  );
+  console.log('[CORAZA] ✅ Renderizado inicial completado.');
+} catch (err) {
+  console.error('[CORAZA] ❌ Error durante el renderizado inicial:', err);
+}
+

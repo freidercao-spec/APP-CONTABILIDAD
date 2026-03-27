@@ -1,244 +1,176 @@
-import React, { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+// CORAZA CTA - Tactical Logic Core
+console.log('[App] 🔍 Iniciando carga del nucleo...');
+
+import React, { Suspense, lazy, useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import AppLayout from './components/layout/AppLayout';
-import Login from './pages/Login';
 import { useAuthStore } from './store/authStore';
-import { useMotorInteligencia } from './store/useMotorInteligencia';
 import { useSupabaseInit } from './hooks/useSupabaseInit';
+import { useMotorInteligencia } from './store/useMotorInteligencia';
+import Login from './pages/Login';
+import AppLayout from './components/layout/AppLayout';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Optimized Lazy Loading for all pages
 const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Configuracion = lazy(() => import('./pages/Configuracion'));
 const Vigilantes = lazy(() => import('./pages/Vigilantes'));
-const Puestos = lazy(() => import('./pages/Puestos'));
-const Inteligencia = lazy(() => import('./pages/Inteligencia'));
+const Puestos = lazy(() => import('./pages/GestionPuestos'));
 const Novedades = lazy(() => import('./pages/Novedades'));
 const Resumen = lazy(() => import('./pages/Resumen'));
-const AuditoriaInterna = lazy(() => import('./pages/AuditoriaInterna'));
-const GestionPuestos = lazy(() => import('./pages/GestionPuestos'));
+const Auditoria = lazy(() => import('./pages/AuditoriaInterna'));
+const Configuracion = lazy(() => import('./pages/Configuracion'));
 
-const TacticalLoading = () => (
-  <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] space-y-6">
-    <div className="relative size-20">
-      <div className="absolute inset-0 border-4 border-primary/20 rounded-full"></div>
-      <div className="absolute inset-0 border-4 border-primary rounded-full border-t-transparent animate-spin"></div>
-      <div className="absolute inset-4 bg-primary/10 rounded-full animate-pulse flex items-center justify-center">
-        <span className="material-symbols-outlined text-primary text-xl">security</span>
+const TacticalLoading = ({ onBypass, logs }: { onBypass?: () => void, logs?: string[] }) => (
+  <div className="flex-1 flex flex-col items-center justify-center min-h-[100vh] space-y-8 bg-[#050A14] text-white p-6 overflow-hidden relative">
+    {/* Fondo tactico */}
+    <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_#4318FF_0%,_transparent_70%)]"></div>
+    <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_80%)]"></div>
+
+    <div className="relative">
+      <div className="size-24 rounded-2xl border-2 border-[#4318FF]/30 flex items-center justify-center animate-pulse shadow-[0_0_30px_rgba(67,24,255,0.2)]">
+        <div className="size-16 border-4 border-[#4318FF] rounded-full border-t-transparent animate-spin"></div>
       </div>
+      <div className="absolute -top-1 -right-1 size-4 bg-[#30D158] rounded-full animate-ping"></div>
     </div>
-    <div className="flex flex-col items-center">
-      <span className="text-[10px] font-black text-primary uppercase tracking-[0.4em] animate-pulse">Sincronizando con Servidores Coraza</span>
-      <div className="w-32 h-1 bg-slate-100 rounded-full mt-4 overflow-hidden relative">
-        <div className="absolute inset-y-0 left-0 bg-primary animate-[translate_2s_infinite_linear]" style={{ width: '40%' }}></div>
-      </div>
+
+    <div className="text-center space-y-3 relative z-10 max-w-sm">
+      <h2 className="text-xl font-black tracking-[0.2em] uppercase text-white drop-shadow-md">CUADRO OPERATIVO</h2>
+      <p className="text-[10px] font-bold text-[#4318FF] uppercase tracking-[0.3em] opacity-80">Sincronizando con Servidores Coraza</p>
+      
+      {/* Logs tracking */}
+      {logs && logs.length > 0 && (
+        <div className="mt-6 p-4 bg-black/40 border border-white/10 rounded-xl text-left font-mono text-[9px] text-slate-400 space-y-1 max-h-32 overflow-y-auto custom-scrollbar">
+          {logs.slice(-5).map((log, i) => (
+            <div key={i} className="flex gap-2">
+              <span className="text-[#4318FF]/70">[{new Date().toLocaleTimeString()}]</span>
+              <span>{log}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
+
+    {/* BOTON DE EMERGENCIA: SI SE QUEDA PEGADO MAS DE 6 SEGUNDOS */}
+    {onBypass && (
+      <button 
+        onClick={onBypass}
+        className="mt-12 px-8 py-3 bg-[#FF4B4B]/10 hover:bg-[#FF4B4B]/20 border border-[#FF4B4B]/30 text-[#FF4B4B] text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all animate-bounce"
+      >
+        ⚠️ FORZAR ARRANQUE (BYPASS)
+      </button>
+    )}
   </div>
 );
 
-// Component to run the AI engine only when authenticated
-const InteligenciaEngine = () => {
-  useMotorInteligencia();
-  return null;
-};
+const SupabaseDataLoader = ({ children, onFinish }: { children: React.ReactNode, onFinish: () => void }) => {
+  const { isLoading, logs } = useSupabaseInit();
 
-// Component to load data from Supabase
-const SupabaseDataLoader = ({ children }: { children: React.ReactNode }) => {
-  const { isLoading } = useSupabaseInit();
+  useEffect(() => {
+    if (!isLoading) onFinish();
+  }, [isLoading, onFinish]);
 
   if (isLoading) {
-    return <TacticalLoading />;
+    return <TacticalLoading logs={logs} />;
   }
 
   return <>{children}</>;
 };
 
 function App() {
-  const { isAuthenticated, checkSession, loading } = useAuthStore();
-  
-  const [stuck, setStuck] = React.useState(false);
-  const [debugLog, setDebugLog] = React.useState<string[]>([]);
+  const { isAuthenticated, checkSession, loading, loginBypass } = useAuthStore();
+  const [logs, setLogs] = useState<string[]>(['Nucleo iniciado.']);
+  const [showFailsafe, setShowFailsafe] = useState(false);
 
   const addLog = (msg: string) => {
-    console.log(`[DEBUG] ${msg}`);
-    setDebugLog(prev => [...prev.slice(-4), msg]);
+    console.log(`[CORAZA] ${msg}`);
+    setLogs(prev => [...prev, msg]);
   };
-  
-  React.useEffect(() => {
-    addLog('Iniciando sesion segura...');
-    checkSession().then(() => addLog('Sesion verificada.'));
-    
-    // Emergency timeout for initial data load
-    const timer = setTimeout(() => {
-      if (loading || !isAuthenticated) return;
-      setStuck(true);
-    }, 15000); // 15 seconds
-    return () => clearTimeout(timer);
-  }, []); // Solo al montar
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#050A14] flex flex-col items-center justify-center">
-        <TacticalLoading />
-        <div className="mt-8 text-[10px] font-mono text-primary/40 uppercase tracking-widest px-10 text-center">
-          {debugLog.map((log, i) => <div key={i} className="mb-1">{log}</div>)}
-        </div>
-      </div>
-    );
+  useEffect(() => {
+    addLog('Verificando Sesion...');
+    
+    // Safety check for session
+    const timeout = setTimeout(() => {
+        if (loading) {
+            addLog('⌛ El servidor de sesion no responde. Activando Failsafe...');
+            setShowFailsafe(true);
+        }
+    }, 6000);
+
+    checkSession()
+      .then(() => {
+        addLog('Sesion verificada.');
+        clearTimeout(timeout);
+      })
+      .catch((err) => {
+        addLog('Error en sesion: ' + (err?.message || 'Error Desconocido'));
+        clearTimeout(timeout);
+      });
+
+    return () => clearTimeout(timeout);
+  }, []);
+
+  // Forzar entrada si el usuario decide que tardo demasiado
+  const forceStart = () => {
+    addLog('🔥 FORZANDO ARRANQUE... Bypass en proceso.');
+    loginBypass && loginBypass(); 
+  };
+
+  if (loading && !showFailsafe) {
+    return <TacticalLoading />;
   }
-  
-  if (stuck && isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-[#050A14] flex flex-col items-center justify-center p-8 space-y-6">
-        <div className="p-10 bg-danger/10 border border-danger/30 rounded-[40px] text-center max-w-lg">
-          <span className="material-symbols-outlined text-danger text-5xl mb-4">report</span>
-          <h2 className="text-2xl font-black text-white uppercase tracking-widest">Error de Sincronizacion</h2>
-          <p className="text-slate-400 font-bold mt-4">
-            El sistema no pudo completar la conexion con la base de datos de Coraza.
-          </p>
-          <div className="mt-8 flex gap-4 justify-center">
-            <button 
-              onClick={() => window.location.reload()}
-              className="px-8 h-12 bg-white/10 hover:bg-white/20 text-white font-black rounded-2xl uppercase tracking-widest text-[11px] transition-all"
-            >
-              Cerrar y Reintentar
-            </button>
-            <button 
-              onClick={() => { useAuthStore.getState().logout(); window.location.reload(); }}
-              className="px-8 h-12 bg-danger text-white font-black rounded-2xl uppercase tracking-widest text-[11px] transition-all hover:scale-105"
-            >
-              Resetear Sesion
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+
+  if (loading && showFailsafe) {
+    return <TacticalLoading onBypass={forceStart} logs={logs} />;
   }
 
   if (!isAuthenticated) {
     return (
-      <>
+      <div className="min-h-screen bg-[#050A14]">
         <Login />
-        <div className="fixed bottom-4 left-4 text-[9px] font-mono text-slate-500 uppercase">
-          Status: Ready - DB: {import.meta.env.VITE_SUPABASE_URL ? 'Connected' : 'Missing Config'}
-        </div>
-        <Toaster position="bottom-right" />
-      </>
+      </div>
     );
   }
 
   return (
     <BrowserRouter>
+      <Toaster position="top-right" />
       {/* LOAD DATA FROM SUPABASE + RUN THE AI ENGINE */}
-      <SupabaseDataLoader>
-      <InteligenciaEngine />
-      
-      <Routes>
-        <Route path="/" element={<AppLayout />}>
-          <Route index element={
-            <Suspense fallback={<TacticalLoading />}>
-              <Dashboard />
-            </Suspense>
-          } />
-          <Route path="vigilantes" element={
-            <Suspense fallback={<TacticalLoading />}>
-              <Vigilantes />
-            </Suspense>
-          } />
-          <Route path="disponibles" element={
-            <Suspense fallback={<TacticalLoading />}>
-              <Vigilantes defaultTab="reserva" />
-            </Suspense>
-          } />
-          <Route path="puestos" element={
-            <Suspense fallback={<TacticalLoading />}>
-              <Puestos />
-            </Suspense>
-          } />
-          <Route path="inteligencia" element={
-            <Suspense fallback={<TacticalLoading />}>
-              <Inteligencia />
-            </Suspense>
-          } />
-          <Route path="novedades" element={
-            <Suspense fallback={<TacticalLoading />}>
-              <Novedades />
-            </Suspense>
-          } />
-          <Route path="configuracion" element={
-            <Suspense fallback={<TacticalLoading />}>
-              <Configuracion />
-            </Suspense>
-          } />
-          <Route path="resumen" element={
-            <Suspense fallback={<TacticalLoading />}>
-              <Resumen />
-            </Suspense>
-          } />
-          <Route path="resumen/pdf" element={
-            <Suspense fallback={<TacticalLoading />}>
-              <Resumen />
-            </Suspense>
-          } />
-          <Route path="auditoria" element={
-            <Suspense fallback={<TacticalLoading />}>
-              <AuditoriaInterna />
-            </Suspense>
-          } />
-          <Route path="gestion-puestos" element={
-            <Suspense fallback={<TacticalLoading />}>
-              <GestionPuestos />
-            </Suspense>
-          } />
-        </Route>
-      </Routes>
+      <SupabaseDataLoader onFinish={() => addLog('Datos sincronizados.')}>
+        <AppContent />
       </SupabaseDataLoader>
-      <Toaster
-        position="bottom-right"
-        toastOptions={{
-          duration: 5000,
-          style: {
-            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%)',
-            backdropFilter: 'blur(24px)',
-            WebkitBackdropFilter: 'blur(24px)',
-            border: '1px solid rgba(45, 39, 255, 0.3)',
-            borderRadius: '24px',
-            color: '#fff',
-            padding: '18px 28px',
-            fontSize: '14px',
-            fontWeight: '600',
-            boxShadow: '0 25px 80px rgba(0,0,0,0.5), 0 0 40px rgba(45, 39, 255, 0.1)',
-            minWidth: '380px',
-          },
-          success: {
-            iconTheme: {
-              primary: '#00b377',
-              secondary: '#fff',
-            },
-            style: {
-              borderColor: 'rgba(0, 179, 119, 0.4)',
-              boxShadow: '0 25px 80px rgba(0,0,0,0.5), 0 0 30px rgba(0, 179, 119, 0.15)',
-            }
-          },
-          error: {
-            iconTheme: {
-              primary: '#ff4d4d',
-              secondary: '#fff',
-            },
-            style: {
-              borderColor: 'rgba(255, 77, 77, 0.4)',
-              boxShadow: '0 25px 80px rgba(0,0,0,0.5), 0 0 30px rgba(255, 77, 77, 0.15)',
-            }
-          },
-          loading: {
-            style: {
-              borderColor: 'rgba(45, 39, 255, 0.4)',
-            }
-          }
-        }}
-      />
     </BrowserRouter>
   );
 }
+
+const AppContent = () => {
+  useMotorInteligencia(); // Run AI engine in background
+  
+  return (
+    <Routes>
+      <Route path="/" element={<AppLayout />}>
+        <Route index element={<Dashboard />} />
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="vigilantes" element={<Vigilantes />} />
+        <Route path="puestos" element={<Puestos />} />
+        <Route path="novedades" element={<Novedades />} />
+        <Route path="config" element={<Configuracion />} />
+        <Route path="auditoria" element={<Auditoria />} />
+        
+        <Route path="resumen" element={
+          <Suspense fallback={<TacticalLoading />}>
+            <Resumen />
+          </Suspense>
+        } />
+        <Route path="resumen/pdf" element={
+          <Suspense fallback={<TacticalLoading />}>
+            <Resumen />
+          </Suspense>
+        } />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+};
 
 export default App;

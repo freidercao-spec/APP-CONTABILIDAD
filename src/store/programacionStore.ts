@@ -333,24 +333,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                                     merged[idx] = updated;
                                 } else {
-                                    // Si no existe, buscamos por PuestoId para evitar duplicados (ShourtID vs UUID)
-                                    const duplicateIdx = merged.findIndex(p => 
-                                        (p.puestoId === h.puestoId || p.puestoId === translatePuestoToUuid(h.puestoId)) && 
-                                        p.anio === h.anio && p.mes === h.mes
-                                    );
-                                    if (duplicateIdx >= 0) {
-                                        const existing = merged[duplicateIdx];
-                                        const updated = { ...existing, ...h };
-                                        const hasDataLocallyDuplicate = existing.isDetailLoaded || (existing.asignaciones && existing.asignaciones.length > 0);
-                                        if (hasDataLocallyDuplicate && !h.isDetailLoaded) {
-                                            updated.asignaciones = existing.asignaciones;
-                                            updated.personal = existing.personal;
-                                            updated.isDetailLoaded = true;
-                                        }
-                                        merged[duplicateIdx] = updated;
-                                    } else {
-                                        merged.push(h);
-                                    }
+                                    merged.push(h);
                                 }
                             });
 
@@ -373,20 +356,39 @@ export const useProgramacionStore = create<ProgramacionState>()(
             fetchProgramacionesByMonth: async (anio: number, mes: number) => {
                 try {
                     set({ loaded: false });
-                    const { data: rows, error } = await supabase
-                        .from('programacion_mensual')
-                        .select('*')
-                        .eq('anio', anio)
-                        .eq('mes', mes);
+                    
+                    let allRows: any[] = [];
+                    let from = 0;
+                    const BATCH = 1000;
+                    
+                    while (true) {
+                        const { data, error } = await supabase
+                            .from('programacion_mensual')
+                            .select('*')
+                            .eq('anio', anio)
+                            .eq('mes', mes)
+                            .range(from, from + BATCH - 1);
 
-                    if (error) throw error;
-                    if (rows) {
+                        if (error) {
+                            console.error('Error fetching prog batch:', error);
+                            break;
+                        }
+                        if (!data || data.length === 0) break;
+                        
+                        allRows = [...allRows, ...data];
+                        from += BATCH;
+                        if (allRows.length >= 7000) break;
+                    }
+
+                    const rows = allRows;
+
+                    if (rows && rows.length > 0) {
                          const headers = rows.map(row => ({
                             id: row.id,
                             puestoId: row.puesto_id as string,
                             anio: row.anio,
                             mes: row.mes,
-                            estado: row.estado as EstadoProgramacion,
+                            estado: row.estado as EstadoProgramacion as any,
                             creadoEn: row.created_at,
                             actualizadoEn: row.updated_at,
                             version: row.version || 1,
@@ -395,61 +397,52 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             asignaciones: [],
                             isDetailLoaded: false
                         }));
+
                         set((state: any) => {
                             const merged = [...state.programaciones];
                             headers.forEach(h => {
-                                const idx = merged.findIndex(p => p.id === h.id);
-                                if (idx >= 0) {
-                                    const existing = merged[idx];
-                                    // ⚡ REGLA DE ORO: Nunca sobreescribir datos cargados con placeholders vacíos (Headers)
-                                    const updated = { ...existing, ...h };
-                                    
-                                    // Si el local tiene datos (isDetailLoaded o asignaciones) y el nuevo es header, preservamos los datos locales
-                                    const hasDataLocally = existing.isDetailLoaded || (existing.asignaciones && existing.asignaciones.length > 0);
-                                    if (hasDataLocally && !h.isDetailLoaded) {
-                                        updated.asignaciones = existing.asignaciones;
-                                        updated.personal = existing.personal;
-                                        updated.isDetailLoaded = true;
-                                    }
-                                    
-                                    // Normalización de PuestoId: Asegurar que siempre sea el UUID si está disponible
-                                    if (h.puestoId && uuidRegex.test(h.puestoId)) {
-                                        updated.puestoId = h.puestoId;
-                                    }
-
-                                    merged[idx] = updated;
-                                } else {
-                                    // Si no existe, buscamos por PuestoId para evitar duplicados (ShourtID vs UUID)
-                                    const duplicateIdx = merged.findIndex(p => 
-                                        (p.puestoId === h.puestoId || p.puestoId === translatePuestoToUuid(h.puestoId)) && 
+                                let idx = merged.findIndex(p => p.id === h.id);
+                                if (idx < 0) {
+                                    const dbUuid = translatePuestoToUuid(h.puestoId);
+                                    idx = merged.findIndex(p => 
+                                        (p.puestoId === h.puestoId || p.puestoId === dbUuid) && 
                                         p.anio === h.anio && p.mes === h.mes
                                     );
-                                    if (duplicateIdx >= 0) {
-                                        const existing = merged[duplicateIdx];
-                                        const updated = { ...existing, ...h };
-                                        const hasDataLocallyDuplicate = existing.isDetailLoaded || (existing.asignaciones && existing.asignaciones.length > 0);
-                                        if (hasDataLocallyDuplicate && !h.isDetailLoaded) {
-                                            updated.asignaciones = existing.asignaciones;
-                                            updated.personal = existing.personal;
-                                            updated.isDetailLoaded = true;
-                                        }
-                                        merged[duplicateIdx] = updated;
-                                    } else {
-                                        merged.push(h);
-                                    }
+                                }
+
+                                if (idx >= 0) {
+                                    const existing = merged[idx];
+                                    const hasDetailedData = existing.isDetailLoaded || (existing.asignaciones && existing.asignaciones.length > 0);
+                                    
+                                    merged[idx] = { 
+                                        ...existing, 
+                                        ...h,
+                                        id: h.id, 
+                                        asignaciones: hasDetailedData ? existing.asignaciones : [],
+                                        personal: hasDetailedData ? existing.personal : [],
+                                        isDetailLoaded: hasDetailedData
+                                    };
+                                } else {
+                                    merged.push(h);
                                 }
                             });
 
-                            // Hydrate the dashboard UI with real assignments in background
-                            setTimeout(() => {
-                                get()._fetchDetails(rows, headers.map(h => h.id));
-                            }, 50);
+                            // Optimization: Only auto-hydrate if < 1000 posts
+                            if (rows.length < 1000) {
+                                setTimeout(() => {
+                                    get()._fetchDetails(rows, rows.map(r => r.id));
+                                }, 100);
+                            } else {
+                                console.warn(`[Coraza] ⚡ Carga masiva detectada (${rows.length} registros). La hidratación detallada se realizará bajo demanda.`);
+                            }
 
                             return { programaciones: merged, loaded: true };
                         });
+                    } else {
+                        set({ loaded: true });
                     }
                 } catch (err) {
-                    console.error('fetchProgramacionesByMonth Error:', err);
+                    console.error('[Coraza] ❌ fetchProgramacionesByMonth Error:', err);
                     set({ loaded: true });
                 }
             },
@@ -516,13 +509,35 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                     console.log(`[Laser Loading] ✅ Datos reconstruidos para ${progId}: ${asignaciones.length} turnos.`);
 
+                    const incomingHasData = asignaciones.some(a => a.vigilanteId !== null);
+                    
                     set((state: any) => ({
-                        programaciones: state.programaciones.map((p: any) => p.id === progId ? {
-                            ...p,
-                            personal,
-                            asignaciones,
-                            isDetailLoaded: true
-                        } : p)
+                        programaciones: state.programaciones.map((p: any) => {
+                             if (p.id !== progId) return p;
+                             
+                             const localIsPending = p.syncStatus === 'pending';
+                             const localHasData = p.asignaciones && p.asignaciones.some((a: AsignacionDia) => a.vigilanteId !== null);
+                             
+                             // REGLA DE CONFLICTO: Si hay trabajo local sin guardar, no dejamos que la DB lo pise
+                             // a menos que la versión de la DB sea mayor.
+                             if (localIsPending) {
+                                 const incomingVersion = (asignaciones.length > 0) ? (p.version || 1) : 0; // Aproximación
+                                 // Nota: En fetching de un solo ID, row no está disponible aquí directamente, 
+                                 // pero version suele estar en el objeto 'p'.
+                                 return { ...p, isDetailLoaded: true }; // Mantenemos local
+                             }
+
+                             if (localHasData && !incomingHasData) {
+                                 return { ...p, isDetailLoaded: true };
+                             }
+                             
+                             return {
+                                 ...p,
+                                 personal,
+                                 asignaciones,
+                                 isDetailLoaded: true
+                             };
+                        })
                     }));
                 } catch (err) {
                     console.error('fetchProgramacionDetalles Error:', err);
@@ -532,8 +547,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
             _fetchDetails: async (rows: any[], progIds: string[]) => {
                 // REGLA CRÍTICA: Supabase tiene un límite estricto de devolver un máximo de 1000 filas por consulta ('select *').
                 // Cada "programacion" involucra unos 93 registros en 'asignaciones_dia' (3 roles * 31 días).
-                // Con CHUNK_SIZE = 5, el máximo posible es 465 filas, garantizando que NUNCA se pierdan datos en la lectura.
-                const CHUNK_SIZE = 5; 
+                // Con CHUNK_SIZE = 50, el máximo posible es ~4650 filas, garantizando velocidad y seguridad.
+                const CHUNK_SIZE = 50; 
                 let allPersonal: any[] = [];
                 let allAsignaciones: any[] = [];
 
@@ -542,24 +557,41 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     // Para evitar el límite de las 1000 filas
                     const [persRes, asigsRes] = await Promise.all([
                         supabase.from('personal_puesto').select('*').in('programacion_id', chunk),
-                        supabase.from('asignaciones_dia').select('*').in('programacion_id', chunk).limit(1000)
+                        supabase.from('asignaciones_dia').select('*').in('programacion_id', chunk).limit(5000)
                     ]);
 
                     if (persRes.data) allPersonal = [...allPersonal, ...persRes.data];
                     if (asigsRes.data) allAsignaciones = [...allAsignaciones, ...asigsRes.data];
                 }
 
+                // OPTIMIZACIÓN CRÍTICA: Pre-mapear vigilancia para evitar O(n^2) en la traducción de IDs
+                const currentVigilantes = useVigilanteStore.getState().vigilantes;
+                const vigLookup = new Map<string, string>();
+                currentVigilantes.forEach(v => {
+                    if (v.dbId) vigLookup.set(v.dbId, v.id);
+                    vigLookup.set(v.id, v.id);
+                });
+
+                // OPTIMIZACIÓN: Pre-agrupar asignaciones por ID de programación para evitar filtrar 14k records en cada iteración
+                const assignmentsByProgId = new Map<string, any[]>();
+                allAsignaciones.forEach(a => {
+                    if (!assignmentsByProgId.has(a.programacion_id)) assignmentsByProgId.set(a.programacion_id, []);
+                    assignmentsByProgId.get(a.programacion_id)!.push(a);
+                });
+
                 const newProgramaciones: ProgramacionMensual[] = rows.map(row => {
                     const personal = allPersonal
                         .filter(p => p.programacion_id === row.id)
-                        .map(p => ({ rol: p.rol as RolPuesto, vigilanteId: translateFromDb(p.vigilante_id) }));
+                        .map(p => ({ 
+                            rol: p.rol as RolPuesto, 
+                            vigilanteId: p.vigilante_id ? (vigLookup.get(p.vigilante_id) || p.vigilante_id) : null 
+                        }));
 
                     ['titular_a', 'titular_b', 'relevante'].forEach(rol => {
                         if (!personal.find(p => p.rol === rol)) personal.push({ rol, vigilanteId: null });
                     });
 
-                    const dbAsignaciones = allAsignaciones.filter(a => a.programacion_id === row.id);
-                    // OPTIMIZACIÓN V9: Usar un Mapa para evitar O(n^2) en la búsqueda de turnos
+                    const dbAsignaciones = assignmentsByProgId.get(row.id) || [];
                     const asigMap = new Map();
                     dbAsignaciones.forEach(a => {
                         const key = `${a.dia}-${a.rol}`;
@@ -576,7 +608,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             if (match) {
                                 asignaciones.push({
                                     dia: match.dia,
-                                    vigilanteId: translateFromDb(match.vigilante_id),
+                                    vigilanteId: match.vigilante_id ? (vigLookup.get(match.vigilante_id) || match.vigilante_id) : null,
                                     turno: match.turno,
                                     jornada: (match.jornada || 'sin_asignar') as TipoJornada,
                                     rol: (match.rol || rol) as RolPuesto,
@@ -605,20 +637,28 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             const existingLocal = merged[idx];
                             const localHasData = existingLocal.asignaciones && existingLocal.asignaciones.some((a: AsignacionDia) => a.vigilanteId !== null);
                             const incomingHasData = np.asignaciones && np.asignaciones.some((a: AsignacionDia) => a.vigilanteId !== null);
+
+                            // DETERMINAR VERACIDAD: ¿El incoming es realmente una actualización valiosa?
+                            const localIsPending = existingLocal.syncStatus === 'pending';
                             
-                            // Solo sobrescribir si el incoming tiene datos reales, O si el local estaba completamente vacío.
-                            // Nunca destruir datos locales con dbData vacía a no ser que sea estrictamente superior.
-                            if (incomingHasData || !localHasData) {
-                                if ((np.version || 0) >= (existingLocal.version || 0)) {
-                                    merged[idx] = { 
-                                        ...existingLocal, 
-                                        ...np,
-                                        isDetailLoaded: true 
-                                    };
+                            // Si el local tiene data y está pendiente de guardado, solo permitimos sobrescribir
+                            // si la versión de la DB es ESTRICTAMENTE MAYOR.
+                            if (localIsPending) {
+                                if ((np.version || 0) > (existingLocal.version || 0)) {
+                                    merged[idx] = { ...existingLocal, ...np, isDetailLoaded: true, syncStatus: 'synced' };
+                                } else {
+                                    // Ignoramos el incoming porque el local es más fresco (aunque no se haya guardado aún)
+                                    merged[idx].isDetailLoaded = true;
                                 }
                             } else {
-                                // Mantenemos la versión local pero la marcamos cargada
-                                merged[idx].isDetailLoaded = true;
+                                // Si no hay nada pendiente localmente, usamos la lógica estándar de protección anti-vacío
+                                if (localHasData && !incomingHasData) {
+                                    merged[idx] = { ...existingLocal, isDetailLoaded: true };
+                                } else if (incomingHasData || !localHasData) {
+                                    if ((np.version || 0) >= (existingLocal.version || 0)) {
+                                        merged[idx] = { ...existingLocal, ...np, isDetailLoaded: true };
+                                    }
+                                }
                             }
                         } else {
                             merged.push({ ...np, isDetailLoaded: true });

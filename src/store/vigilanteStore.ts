@@ -118,27 +118,39 @@ export const useVigilanteStore = create<VigilanteState>()(
 
             fetchVigilantes: async () => {
                 try {
-                    // Fetch all vigilantes
                     const currentEmpresaId = useAuthStore.getState().empresaId || EMPRESA_ID;
-                    const { data: rows, error } = await supabase
-                        .from('vigilantes')
-                        .select('*')
-                        .eq('empresa_id', currentEmpresaId)
-                        .limit(5000)
-                        .order('nombres', { ascending: true });
+                    
+                    let allRows: any[] = [];
+                    let from = 0;
+                    const BATCH = 1000;
+                    
+                    while (true) {
+                        const { data, error } = await supabase
+                            .from('vigilantes')
+                            .select('*')
+                            .eq('empresa_id', currentEmpresaId)
+                            .order('nombres', { ascending: true })
+                            .range(from, from + BATCH - 1);
 
-                    if (error) {
-                        console.error('Error fetching vigilantes:', error);
-                        set({ loaded: true }); // FIX: Ensure loading state resolves
-                        return;
+                        if (error) {
+                            console.error('Error fetching vigilantes batch:', error);
+                            break;
+                        }
+                        if (!data || data.length === 0) break;
+                        
+                        allRows = [...allRows, ...data];
+                        from += BATCH;
+                        if (allRows.length >= 25000) break; // Hard safety cap
                     }
 
-                    if (!rows || rows.length === 0) {
+                    const rows = allRows;
+                    if (rows.length === 0) {
                         set({ vigilantes: [], loaded: true });
                         return;
                     }
 
                     const vigilanteIds = rows.map(r => r.id);
+
 
                     // Fetch historial for all
                     const { data: allHistorial } = await supabase

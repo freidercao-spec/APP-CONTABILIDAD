@@ -12,61 +12,62 @@ import { useAuditStore } from '../store/auditStore';
 export function useSupabaseInit() {
     const didInit = useRef(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [logs, setLogs] = useState<string[]>([]);
+
+    const addLog = (msg: string) => {
+        console.log(`[INIT] ${msg}`);
+        setLogs(prev => [...prev, msg]);
+    };
 
     const fetchVigilantes = useVigilanteStore(s => s.fetchVigilantes);
-    const vigilantesLoaded = useVigilanteStore(s => s.loaded);
     const fetchPuestos = usePuestoStore(s => s.fetchPuestos);
-    const puestosLoaded = usePuestoStore(s => s.loaded);
     const fetchProgramaciones = useProgramacionStore(s => s.fetchProgramaciones);
     const fetchTemplates = useProgramacionStore(s => s.fetchTemplates);
     const fetchAudit = useAuditStore(s => s.fetchEntries);
 
     useEffect(() => {
-        // Si ya se inicializo, no repetir
         if (didInit.current) return;
         didInit.current = true;
-
-        console.log('[Coraza] 🚀 Iniciando carga de datos desde Supabase...');
 
         const initBaseDatos = async () => {
             try {
                 setIsLoading(true);
+                addLog('📦 Conectando a Supabase...');
                 
-                // 1. CRITICO: Cargar vigilantes primero (necesario para traducir IDs)
-                await fetchVigilantes();
-                console.log('[Coraza] ✅ Vigilantes cargados');
+                // 1. CRITICO: Cargar vigilantes primero
+                await Promise.race([
+                    fetchVigilantes(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout Vigilantes')), 10000))
+                ]);
+                addLog('✅ Vigilantes Sincronizados');
 
-                // 2. CRITICO: Cargar puestos segundo (necesario para mapear programaciones)
-                await fetchPuestos();
-                console.log('[Coraza] ✅ Puestos cargados');
+                // 2. CRITICO: Cargar puestos segundo
+                await Promise.race([
+                    fetchPuestos(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout Puestos')), 10000))
+                ]);
+                addLog('✅ Puestos Sincronizados');
                 
                 // 3. Cargar todo lo demas en paralelo
+                addLog('📑 Recuperando Programaciones y Auditoria...');
                 await Promise.all([
-                    fetchProgramaciones(),
-                    fetchTemplates(),
-                    fetchAudit(),
+                    fetchProgramaciones().catch(e => console.warn('Prog error', e)),
+                    fetchTemplates().catch(e => console.warn('Temp error', e)),
+                    fetchAudit().catch(e => console.warn('Audit error', e)),
                 ]);
                 
-                console.log('[Coraza] ✅ Todos los datos cargados exitosamente');
-            } catch (err) {
-                console.error('[Coraza] ❌ Error al cargar datos desde Supabase:', err);
+                addLog('🚀 Sistema Listo.');
+            } catch (err: any) {
+                addLog('⚠️ Error de enlace: ' + (err.message || 'Error Desconocido'));
+                console.error('[Coraza] ❌ Error:', err);
             } finally {
-                setIsLoading(false);
+                // Pequeño delay cosmético para que el usuario vea el "Listo"
+                setTimeout(() => setIsLoading(false), 800);
             }
         };
 
         initBaseDatos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Solo al montar - las dependencias estables se capturan por closure
+    }, []); 
 
-    // Cuando puestos y vigilantes ya esten listos, marcar como no-cargando
-    // (esto maneja el caso de cache local de Zustand que ya tenia datos)
-    useEffect(() => {
-        if (vigilantesLoaded && puestosLoaded) {
-            // Si los stores tenian cache y ya estan cargados, solo esperamos el fetch de programaciones
-            // que se inicio en el effect anterior
-        }
-    }, [vigilantesLoaded, puestosLoaded]);
-
-    return { isLoading };
+    return { isLoading, logs };
 }

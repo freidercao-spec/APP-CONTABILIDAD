@@ -3704,6 +3704,24 @@ const GestionPuestos = () => {
     });
   }, [puestos, anio, mes, getProgramacion, getCoberturaPorcentaje, getAlertas]);
 
+  // ON-DEMAND HYDRATION: Fetch details for visible posts only to avoid crashing browser with 6000 records
+  const _fetchBatchDetails = useProgramacionStore((s) => s._fetchDetails);
+  useEffect(() => {
+    if (!loaded) return;
+    const needHydration = pagedPuestos
+      .map(p => getProgramacion(p.id, anio, mes))
+      .filter((prog): prog is ProgramacionMensual => !!prog && !prog.isDetailLoaded);
+    
+    if (needHydration.length > 0) {
+      console.log(`[Hydration] 🌊 Hydrating ${needHydration.length} visible posts...`);
+      // We pass the rows mapping to meet _fetchDetails interface (which expects row headers from Supabase)
+      // but _fetchDetails mostly needs the IDs.
+      _fetchBatchDetails(needHydration, needHydration.map(n => n.id));
+    }
+  }, [pagedPuestos, anio, mes, _fetchBatchDetails, getProgramacion, loaded]);
+
+  const [visibleCount, setVisibleCount] = useState(60);
+
   const puestosFiltrados = useMemo(() => {
     return puestosConProg.filter((p) => {
       if (filtroEstado !== "todos" && p.estado !== filtroEstado) return false;
@@ -3720,6 +3738,10 @@ const GestionPuestos = () => {
       return true;
     });
   }, [puestosConProg, filtroEstado, filtroCobertura, busqueda]);
+
+  const pagedPuestos = useMemo(() => {
+    return puestosFiltrados.slice(0, visibleCount);
+  }, [puestosFiltrados, visibleCount]);
 
   const statsGlobales = useMemo(
     () => ({
@@ -3794,69 +3816,9 @@ const GestionPuestos = () => {
             type="number"
             value={anio}
             onChange={(e) => setAnio(Number(e.target.value))}
-            className="h-10 w-24 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 outline-none hover:border-primary/50 transition-all cursor-text"
+            className="h-10 w-24 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 outline-none hover:border-primary/50 transition-all"
           />
         </div>
-      </div>
-
-      {/* Global Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        {[
-          {
-            label: "Total Puestos",
-            value: statsGlobales.total,
-            icon: "location_on",
-            color: "text-primary",
-            bg: "bg-primary/10",
-          },
-          {
-            label: "Publicados",
-            value: statsGlobales.publicados,
-            icon: "verified",
-            color: "text-success",
-            bg: "bg-success/10",
-          },
-          {
-            label: "Borradores",
-            value: statsGlobales.borradores,
-            icon: "edit_note",
-            color: "text-warning",
-            bg: "bg-warning/10",
-          },
-          {
-            label: "Sin Programar",
-            value: statsGlobales.sinProg,
-            icon: "schedule",
-            color: "text-danger",
-            bg: "bg-danger/10",
-          },
-          {
-            label: "Cobertura Prom.",
-            value: `${statsGlobales.coberturaPromedio}%`,
-            icon: "donut_large",
-            color: "text-blue-600",
-            bg: "bg-blue-50",
-          },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm"
-          >
-            <div
-              className={`${s.bg} size-10 rounded-2xl flex items-center justify-center mb-3`}
-            >
-              <span
-                className={`material-symbols-outlined ${s.color} notranslate`}
-              >
-                {s.icon}
-              </span>
-            </div>
-            <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-              {s.label}
-            </p>
-          </div>
-        ))}
       </div>
 
       {/* Filters */}
@@ -3888,7 +3850,7 @@ const GestionPuestos = () => {
           className="h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 outline-none"
         >
           <option value="todos">Toda la cobertura</option>
-          <option value="completo">â‰¥80% Completo</option>
+          <option value="completo">≥80% Completo</option>
           <option value="incompleto">&lt;80% Incompleto</option>
         </select>
         <span className="text-[10px] font-bold text-slate-400 font-mono">
@@ -3904,7 +3866,7 @@ const GestionPuestos = () => {
 
       {/* Puestos Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-        {puestosFiltrados.map((p) => (
+        {pagedPuestos.map((p) => (
           <div
             key={p.id}
             className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm hover:shadow-md hover:border-primary/20 transition-all cursor-pointer"
@@ -3953,9 +3915,9 @@ const GestionPuestos = () => {
                 className={`text-[10px] font-black px-2.5 py-1 rounded-full ${p.progEstado === "publicado" ? "bg-success/10 text-success" : p.progEstado === "borrador" ? "bg-warning/10 text-warning" : "bg-slate-100 text-slate-400"}`}
               >
                 {p.progEstado === "publicado"
-                  ? "âœ“ Publicado"
+                  ? "✓ Publicado"
                   : p.progEstado === "borrador"
-                    ? "âœï¸ Borrador"
+                    ? "✎ Borrador"
                     : "Sin programar"}
               </span>
               {p.alertas.length > 0 && (
@@ -3984,9 +3946,24 @@ const GestionPuestos = () => {
           </div>
         )}
       </div>
+
+      {/* Pagination Footer */}
+      {visibleCount < puestosFiltrados.length && (
+        <div className="flex flex-col items-center justify-center pt-8 border-t border-slate-100 gap-4">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+            Mostrando {visibleCount} de {puestosFiltrados.length} puestos cargados
+          </p>
+          <button
+            onClick={() => setVisibleCount(prev => prev + 100)}
+            className="group flex items-center gap-3 bg-white border border-slate-200 hover:border-primary px-8 py-4 rounded-3xl shadow-sm hover:shadow-xl transition-all active:scale-95"
+          >
+            <span className="material-symbols-outlined text-primary group-hover:rotate-180 transition-transform">expand_more</span>
+            <span className="text-sm font-black text-slate-700 uppercase tracking-widest">Cargar 100 puestos más</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 };
 
-export default GestionPuestos;
-
+export default GestionPuestos;

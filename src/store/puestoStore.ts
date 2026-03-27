@@ -123,24 +123,37 @@ export const usePuestoStore = create<PuestoState>()(
             fetchPuestos: async () => {
                 try {
                     const currentEmpresaId = useAuthStore.getState().empresaId || EMPRESA_ID;
-                    const { data: rows, error } = await supabase
-                        .from('puestos')
-                        .select('*')
-                        .eq('empresa_id', currentEmpresaId)
-                        .limit(5000)
-                        .eq('estado', 'Activo')
-                        .order('codigo', { ascending: true });
+                    
+                    let allRows: any[] = [];
+                    let from = 0;
+                    const BATCH = 1000;
+                    
+                    while (true) {
+                        const { data, error } = await supabase
+                            .from('puestos')
+                            .select('*')
+                            .eq('empresa_id', currentEmpresaId)
+                            .range(from, from + BATCH - 1)
+                            .eq('estado', 'Activo')
+                            .order('codigo', { ascending: true });
 
-                    if (error) {
-                        console.error('Error fetching puestos:', error);
-                        set({ loaded: true });
-                        return;
+                        if (error) {
+                            console.error('Error fetching puestos batch:', error);
+                            break;
+                        }
+                        if (!data || data.length === 0) break;
+                        
+                        allRows = [...allRows, ...data];
+                        from += BATCH;
+                        if (allRows.length >= 10000) break;
                     }
 
+                    const rows = allRows;
                     if (!rows || rows.length === 0) {
                         set({ puestos: [], loaded: true });
                         return;
                     }
+
 
                     const translateVigFromDb = (dbId: string | null) => {
                         if (!dbId) return null;
