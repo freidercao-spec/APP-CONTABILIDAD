@@ -116,17 +116,16 @@ const translateToUuid = (idRaw: string | null): string | null => {
     const id = String(idRaw).trim();
     if (uuidRegex.test(id)) return id;
     
-    // Buscar en el store si el ID es un código tipo C-001
-    const v = useVigilanteStore.getState().vigilantes.find(vx => vx.id === id || vx.dbId === id);
+    // PERFORMANCE: Use Map from store if possible, or limited find for small sets
+    const vStore = useVigilanteStore.getState();
+    const v = vStore.vigilantes.find(vx => vx.id === id || vx.dbId === id);
     if (v?.dbId && uuidRegex.test(v.dbId)) return v.dbId;
-    
-    // Si sigue sin ser UUID, retornamos null para evitar que el DB explote con error de tipo
-    console.warn(`[Audit] ⚠️ ID inválido para Supabase: ${id}. Ignorando asignación.`);
     return null; 
 };
 
-const translateFromDb = (dbId: string | null) => {
+const translateFromDb = (dbId: string | null, lookupMap?: Map<string, string>) => {
     if (!dbId) return null;
+    if (lookupMap) return lookupMap.get(dbId) || dbId;
     const v = useVigilanteStore.getState().vigilantes.find((v: any) => v.dbId === dbId || v.id === dbId);
     return v?.id || dbId;
 };
@@ -264,8 +263,7 @@ const queueSync = (progId: string, set: any, get: any, immediate = false) => {
 // ── Store Logic ──────────────────────────────────────────────────────────────
 
 export const useProgramacionStore = create<ProgramacionState>()(
-    persist(
-        (set, get) => ({
+    (set, get) => ({
             programaciones: [],
             templates: [],
             loaded: false,
@@ -795,11 +793,5 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     get().fetchProgramacionDetalles(id);
                 }
             },
-        }),
-        {
-            name: 'coraza-programacion-atomic-v1',
-            version: 1,
-            partialize: (state) => ({ templates: state.templates, programaciones: state.programaciones, loaded: state.loaded, selectedProgId: state.selectedProgId }),
-        }
-    )
+        })
 );

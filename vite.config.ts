@@ -60,7 +60,11 @@ export default defineConfig({
   // Resolve aliases for browser compatibility
   resolve: {
     alias: {
-      'child_process': path.resolve(__dirname, './src/lib/node-empty.ts')
+      'child_process': path.resolve(__dirname, './src/lib/node-empty.ts'),
+      'stream': path.resolve(__dirname, './src/lib/node-empty.ts'),
+      'fs': path.resolve(__dirname, './src/lib/node-empty.ts'),
+      'path': path.resolve(__dirname, './src/lib/node-empty.ts'),
+      'crypto': path.resolve(__dirname, './src/lib/node-empty.ts'),
     }
   },
   // Performance hints

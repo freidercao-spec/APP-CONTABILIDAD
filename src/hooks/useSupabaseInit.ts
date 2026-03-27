@@ -21,7 +21,7 @@ export function useSupabaseInit() {
 
     const fetchVigilantes = useVigilanteStore(s => s.fetchVigilantes);
     const fetchPuestos = usePuestoStore(s => s.fetchPuestos);
-    const fetchProgramaciones = useProgramacionStore(s => s.fetchProgramaciones);
+    const fetchProgramacionesByMonth = useProgramacionStore(s => s.fetchProgramacionesByMonth);
     const fetchTemplates = useProgramacionStore(s => s.fetchTemplates);
     const fetchAudit = useAuditStore(s => s.fetchEntries);
 
@@ -53,10 +53,10 @@ export function useSupabaseInit() {
                 if (puestRes.status === 'rejected') addLog('⚠️ Puestos lentos, continuando...');
                 else addLog('✅ Puestos Listos');
                 
-                // 2. CARGA SECUNDARIA
+                // 2. CARGA SECUNDARIA Y PROFUNDA
                 addLog('📑 Recuperando Programaciones y Auditoria...');
                 const secondWave = await Promise.allSettled([
-                    fetchProgramaciones(),
+                    fetchProgramacionesByMonth(new Date().getFullYear(), new Date().getMonth()),
                     fetchTemplates(),
                     fetchAudit(),
                 ]);

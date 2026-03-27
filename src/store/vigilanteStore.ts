@@ -110,8 +110,7 @@ function mapDbToVigilante(row: any, historial: any[], descargos: any[], vacacion
 }
 
 export const useVigilanteStore = create<VigilanteState>()(
-    persist(
-        (set, get) => ({
+    (set, get) => ({
             vigilantes: [],
             nextIdNumber: 1,
             loaded: false,
@@ -530,19 +529,5 @@ export const useVigilanteStore = create<VigilanteState>()(
                     d => d.estado === 'activo' && (d.puestoId === puestoId || !d.puestoId)
                 );
             }
-        }),
-        {
-            name: 'coraza-vigilante-store-v1.2.7',
-            onRehydrateStorage: () => (state) => {
-                if (state) {
-                    state.vigilantes = (state.vigilantes || []).map(v => ({
-                        ...v,
-                        historial: v.historial || [],
-                        descargos: v.descargos || [],
-                        vacaciones: v.vacaciones || undefined
-                    }));
-                }
-            }
-        }
-    )
+        })
 );

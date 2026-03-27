@@ -3915,9 +3915,9 @@ const GestionPuestos = () => {
                 className={`text-[10px] font-black px-2.5 py-1 rounded-full ${p.progEstado === "publicado" ? "bg-success/10 text-success" : p.progEstado === "borrador" ? "bg-warning/10 text-warning" : "bg-slate-100 text-slate-400"}`}
               >
                 {p.progEstado === "publicado"
-                  ? "✓ Publicado"
+                  ? "Publicado"
                   : p.progEstado === "borrador"
-                    ? "✎ Borrador"
+                    ? "Borrador"
                     : "Sin programar"}
               </span>
               {p.alertas.length > 0 && (

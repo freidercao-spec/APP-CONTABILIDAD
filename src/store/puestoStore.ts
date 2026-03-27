@@ -114,8 +114,7 @@ function mapDbEstado(dbEstado: string): Puesto['estado'] {
 }
 
 export const usePuestoStore = create<PuestoState>()(
-    persist(
-        (set, get) => ({
+    (set, get) => ({
             puestos: [],
             nextIdNumber: 1,
             loaded: false,
@@ -572,21 +571,5 @@ export const usePuestoStore = create<PuestoState>()(
                 });
                 return { puestosDesprotegidos: desprotegidos };
             }
-        }),
-        {
-            name: 'coraza-puestos-v1.3.5',
-            onRehydrateStorage: () => (state) => {
-                if (state) {
-                    state.puestos = (state.puestos || []).map(p => ({
-                        ...p,
-                        turnos: p.turnos || [],
-                        historial: p.historial || [],
-                        coberturas: p.coberturas || [],
-                        turnosConfig: p.turnosConfig || [],
-                        jornadasCustom: p.jornadasCustom || []
-                    }));
-                }
-            }
-        }
-    )
+        })
 );
