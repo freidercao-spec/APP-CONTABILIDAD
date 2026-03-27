@@ -152,23 +152,28 @@ export const useVigilanteStore = create<VigilanteState>()(
                     const vigilanteIds = rows.map(r => r.id);
 
                     // LIMITES DE URL: chunkSize seguro para evitar HTTP 414 URI Too Long (~140 UUIDs max en GET)
+                    // PERFORMANCE CRÍTICA: Si hay miles de guardias, NO hacer 400 consultas de historial al inicio.
                     const CHUNK_SIZE = 140;
                     let allHistorial: any[] = [];
                     let allDescargos: any[] = [];
                     let allVacaciones: any[] = [];
 
-                    for (let i = 0; i < vigilanteIds.length; i += CHUNK_SIZE) {
-                        const chunk = vigilanteIds.slice(i, i + CHUNK_SIZE);
+                    if (vigilanteIds.length <= 1500) {
+                        for (let i = 0; i < vigilanteIds.length; i += CHUNK_SIZE) {
+                            const chunk = vigilanteIds.slice(i, i + CHUNK_SIZE);
 
-                        const [histRes, descRes, vacRes] = await Promise.all([
-                            supabase.from('historial_vigilante').select('*').in('vigilante_id', chunk).order('created_at', { ascending: true }),
-                            supabase.from('descargos').select('*').in('vigilante_id', chunk),
-                            supabase.from('vacaciones').select('*').in('vigilante_id', chunk).eq('estado', 'aprobado')
-                        ]);
+                            const [histRes, descRes, vacRes] = await Promise.all([
+                                supabase.from('historial_vigilante').select('*').in('vigilante_id', chunk).order('created_at', { ascending: true }),
+                                supabase.from('descargos').select('*').in('vigilante_id', chunk),
+                                supabase.from('vacaciones').select('*').in('vigilante_id', chunk).eq('estado', 'aprobado')
+                            ]);
 
-                        if (histRes.data) allHistorial = [...allHistorial, ...histRes.data];
-                        if (descRes.data) allDescargos = [...allDescargos, ...descRes.data];
-                        if (vacRes.data) allVacaciones = [...allVacaciones, ...vacRes.data];
+                            if (histRes.data) allHistorial = [...allHistorial, ...histRes.data];
+                            if (descRes.data) allDescargos = [...allDescargos, ...descRes.data];
+                            if (vacRes.data) allVacaciones = [...allVacaciones, ...vacRes.data];
+                        }
+                    } else {
+                        console.log('[PERFORMANCE] Saltando historial completo por masividad. Se traerán en O(1).');
                     }
 
                     const vigilantes: Vigilante[] = rows.map(row => {
