@@ -489,22 +489,24 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                 console.log(`[Sync] 📥 Descargando detalles en bloques de ${CHUNK_SIZE}...`);
 
+                const chunkPromises = [];
                 for (let i = 0; i < progIds.length; i += CHUNK_SIZE) {
                     const chunk = progIds.slice(i, i + CHUNK_SIZE);
-                    try {
-                        const [persRes, asigsRes] = await Promise.all([
+                    chunkPromises.push(
+                        Promise.all([
                             supabase.from('personal_puesto').select('*').in('programacion_id', chunk),
                             supabase.from('asignaciones_dia').select('*').in('programacion_id', chunk).limit(5000)
-                        ]);
-
-                        if (persRes.data) allPersonal = [...allPersonal, ...persRes.data];
-                        if (asigsRes.data) allAsignaciones = [...allAsignaciones, ...asigsRes.data];
-                        
-                        console.log(`[Sync] 📊 Progreso: ${Math.min(i + CHUNK_SIZE, progIds.length)}/${progIds.length} cargados.`);
-                    } catch (e) {
-                        console.error(`[Sync] ❌ Error en bloque ${i}:`, e);
-                    }
+                        ])
+                    );
                 }
+
+                const chunkResults = await Promise.all(chunkPromises);
+                chunkResults.forEach(([persRes, asigsRes]) => {
+                    if (persRes.data) allPersonal = [...allPersonal, ...persRes.data];
+                    if (asigsRes.data) allAsignaciones = [...allAsignaciones, ...asigsRes.data];
+                });
+
+                console.log(`[Sync] 📊 ${progIds.length} programaciones hidratadas en paralelo.`);
 
                 // OPTIMIZACIÓN CRÍTICA: Pre-mapear vigilancia para evitar O(n^2) en la traducción de IDs
                 const currentVigilantes = useVigilanteStore.getState().vigilantes;
