@@ -101,8 +101,10 @@ interface ProgramacionState {
     getDiasDescansoVigilante: (progId: string, vigilanteId: string) => { remunerados: number; noRemunerados: number };
     getCoberturaPorcentaje: (progId: string) => number;
     getAlertas: (progId: string) => string[];
+    getBusyDays: (vigilanteId: string, anio: number, mes: number) => Set<number>;
     getProgramacionRapid: (puestoId: string, anio: number, mes: number) => ProgramacionMensual | undefined;
     _progMap?: Map<string, ProgramacionMensual>;
+    _busyMap?: Map<string, Set<number>>; // key: vid-anio-mes
     _fetchDetails: (rows: any[], progIds: string[]) => Promise<void>;
 }
 
@@ -776,14 +778,31 @@ export const useProgramacionStore = create<ProgramacionState>()(
             diasTrabajoMap: new Map<string, number>(),
             
             // Re-calcular el mapa de acceso rápido cada vez que cambien las programaciones
+            getBusyDays: (vid: string, anio: number, mes: number): Set<number> => {
+                return get()._busyMap?.get(`${vid}-${anio}-${mes}`) || new Set();
+            },
+
             _updateMap: () => {
                 const progs = get().programaciones;
                 const newMap = new Map<string, any>();
+                const newBusyMap = new Map<string, Set<number>>();
+
                 progs.forEach(p => {
                     newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
-                    newMap.set(`${p.id}`, p); // También indexar por ID propio
+                    newMap.set(`${p.id}`, p);
+
+                    // Track busy days
+                    if (p.asignaciones) {
+                        p.asignaciones.forEach(asig => {
+                            if (asig.vigilanteId && asig.jornada !== 'sin_asignar') {
+                                const key = `${asig.vigilanteId}-${p.anio}-${p.mes}`;
+                                if (!newBusyMap.has(key)) newBusyMap.set(key, new Set());
+                                newBusyMap.get(key)!.add(asig.dia);
+                            }
+                        });
+                    }
                 });
-                set({ _progMap: newMap } as any);
+                set({ _progMap: newMap, _busyMap: newBusyMap } as any);
             },
         })
 );

@@ -2437,22 +2437,18 @@ const PanelMensualPuesto = ({
                                     />
                                     </div>
                                 ) : (() => {
-                                  // IA LOGIC: Check if anyone (or current selected) in comparison post is free to fill this gap
                                   const cP = allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId);
-                                  const cProg = allProgramaciones.find(p => 
-                                    (p.puestoId === (cP?.dbId || comparePuestoId)) && p.anio === anio && p.mes === mes
-                                  );
+                                  const cProg = getProgramacionRapid(cP?.dbId || comparePuestoId || '', anio, mes);
                                   
                                   const checkVigCompatibility = (vid: string) => {
                                     if (!vid) return false;
-                                    // Is he busy in the SOURCE post? (The one in the bar)
-                                    const busyInSource = cProg?.asignaciones.some(a => a.dia === d && idsMatch(a.vigilanteId, vid) && a.jornada !== 'sin_asignar');
-                                    // Is he busy in OTHER posts (excluding destination and source)?
-                                    const busyElsewhere = allProgramaciones.some(xp => 
-                                      xp.id !== prog?.id && xp.id !== cProg?.id &&
-                                      xp.asignaciones.some(xa => xa.dia === d && idsMatch(xa.vigilanteId, vid) && xa.jornada !== 'sin_asignar')
-                                    );
-                                    return !busyInSource && !busyElsewhere;
+                                    const busyDays = useProgramacionStore.getState().getBusyDays(vid, anio, mes);
+                                    // Busy here?
+                                    const busyHere = prog.asignaciones.some(xa => xa.dia === d && idsMatch(xa.vigilanteId, vid) && xa.jornada !== 'sin_asignar');
+                                    if (busyHere) return false;
+                                    
+                                    // Busy elsewhere?
+                                    return !busyDays.has(d);
                                   };
 
                                   const isCompatible = compareVigilanteId 
