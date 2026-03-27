@@ -37,14 +37,14 @@ export function useSupabaseInit() {
                 // 1. CRITICO: Cargar vigilantes primero
                 await Promise.race([
                     fetchVigilantes(),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout Vigilantes')), 10000))
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout Vigilantes')), 60000))
                 ]);
                 addLog('✅ Vigilantes Sincronizados');
 
                 // 2. CRITICO: Cargar puestos segundo
                 await Promise.race([
                     fetchPuestos(),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout Puestos')), 10000))
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout Puestos')), 60000))
                 ]);
                 addLog('✅ Puestos Sincronizados');
                 
