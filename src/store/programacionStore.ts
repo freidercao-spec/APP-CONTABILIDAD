@@ -625,17 +625,18 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
 
             getProgramacion: (puestoId, anio, mes) => {
-                const dbPuestoId = translatePuestoToUuid(puestoId);
-                // Priorizar el que tiene detalles si hay duplicados por algún bug previo
-                const candidates = get().programaciones.filter(p => 
-                    (p.puestoId === dbPuestoId || p.puestoId === puestoId) && 
-                    p.anio === anio && p.mes === mes
-                );
-                return candidates.sort((a: any, b: any) => {
-                    if (a.isDetailLoaded && !b.isDetailLoaded) return -1;
-                    if (!a.isDetailLoaded && b.isDetailLoaded) return 1;
-                    return (b.version || 0) - (a.version || 0); // Desempate por versión
-                })[0];
+                return get().getProgramacionRapid(puestoId, anio, mes);
+            },
+
+            // USAR ESTE PARA RENDERING MASIVO (O(1))
+            getProgramacionRapid: (puestoId: string, anio: number, mes: number) => {
+                const dbUuid = translatePuestoToUuid(puestoId);
+                const key1 = `${puestoId}-${anio}-${mes}`;
+                const key2 = `${dbUuid}-${anio}-${mes}`;
+                
+                const state = get() as any;
+                const map = state._progMap || new Map<string, any>();
+                return map.get(key1) || map.get(key2) || undefined;
             },
 
             crearOObtenerProgramacion: (puestoId, anio, mes, usuario) => {
@@ -795,5 +796,27 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     get().fetchProgramacionDetalles(id);
                 }
             },
+            diasTrabajoMap: new Map<string, number>(),
+            
+            // Re-calcular el mapa de acceso rápido cada vez que cambien las programaciones
+            _updateMap: () => {
+                const progs = get().programaciones;
+                const newMap = new Map<string, any>();
+                progs.forEach(p => {
+                    newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
+                    newMap.set(`${p.id}`, p); // También indexar por ID propio
+                });
+                set({ _progMap: newMap } as any);
+            },
         })
 );
+
+// Middleware para auto-actualizar el mapa de búsqueda rápida
+const originalSet = useProgramacionStore.setState;
+useProgramacionStore.setState = (fn: any, replace?: boolean) => {
+    originalSet(fn, replace);
+    const state = useProgramacionStore.getState() as any;
+    if (state._updateMap) {
+        state._updateMap();
+    }
+};
