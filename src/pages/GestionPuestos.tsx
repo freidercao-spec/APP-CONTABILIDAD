@@ -595,10 +595,10 @@ const EditCeldaModal = ({
                    >
                      <div className="flex items-center gap-2">
                        <div className="size-6 rounded-lg bg-primary text-white flex items-center justify-center text-[10px] font-black">
-                         {getVigilanteName(vigilanteId)?.charAt(0) || "!"}
+                         {selectedVig?.nombre?.charAt(0) || vigilanteId?.charAt(0) || "!"}
                        </div>
                        <div className="min-w-0">
-                         <p className="text-[10px] font-black text-primary truncate leading-none">{getVigilanteName(vigilanteId)}</p>
+                         <p className="text-[10px] font-black text-primary truncate leading-none">{selectedVig?.nombre || vigilanteId}</p>
                          <p className="text-[8px] font-bold text-slate-400">Seleccionado (Click para quitar)</p>
                        </div>
                      </div>
