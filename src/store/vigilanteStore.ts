@@ -151,26 +151,25 @@ export const useVigilanteStore = create<VigilanteState>()(
 
                     const vigilanteIds = rows.map(r => r.id);
 
+                    // LIMITES DE URL: chunkSize seguro para evitar HTTP 414 URI Too Long (~140 UUIDs max en GET)
+                    const CHUNK_SIZE = 140;
+                    let allHistorial: any[] = [];
+                    let allDescargos: any[] = [];
+                    let allVacaciones: any[] = [];
 
-                    // Fetch historial for all
-                    const { data: allHistorial } = await supabase
-                        .from('historial_vigilante')
-                        .select('*')
-                        .in('vigilante_id', vigilanteIds)
-                        .order('created_at', { ascending: true });
+                    for (let i = 0; i < vigilanteIds.length; i += CHUNK_SIZE) {
+                        const chunk = vigilanteIds.slice(i, i + CHUNK_SIZE);
 
-                    // Fetch descargos for all
-                    const { data: allDescargos } = await supabase
-                        .from('descargos')
-                        .select('*')
-                        .in('vigilante_id', vigilanteIds);
+                        const [histRes, descRes, vacRes] = await Promise.all([
+                            supabase.from('historial_vigilante').select('*').in('vigilante_id', chunk).order('created_at', { ascending: true }),
+                            supabase.from('descargos').select('*').in('vigilante_id', chunk),
+                            supabase.from('vacaciones').select('*').in('vigilante_id', chunk).eq('estado', 'aprobado')
+                        ]);
 
-                    // Fetch vacaciones activas
-                    const { data: allVacaciones } = await supabase
-                        .from('vacaciones')
-                        .select('*')
-                        .in('vigilante_id', vigilanteIds)
-                        .eq('estado', 'aprobado');
+                        if (histRes.data) allHistorial = [...allHistorial, ...histRes.data];
+                        if (descRes.data) allDescargos = [...allDescargos, ...descRes.data];
+                        if (vacRes.data) allVacaciones = [...allVacaciones, ...vacRes.data];
+                    }
 
                     const vigilantes: Vigilante[] = rows.map(row => {
                         const hist = (allHistorial || []).filter(h => h.vigilante_id === row.id);

@@ -163,18 +163,21 @@ export const usePuestoStore = create<PuestoState>()(
 
                     const puestoIds = rows.map(r => r.id);
 
-                    // Fetch turnos
-                    const { data: allTurnos } = await supabase
-                        .from('turnos_puesto')
-                        .select('*')
-                        .in('puesto_id', puestoIds);
+                    // LIMITES DE URL: chunkSize seguro para evitar HTTP 414 URI Too Long (~140 UUIDs max en GET)
+                    const CHUNK_SIZE = 140;
+                    let allTurnos: any[] = [];
+                    let allHistorial: any[] = [];
 
-                    // Fetch historial
-                    const { data: allHistorial } = await supabase
-                        .from('historial_puesto')
-                        .select('*')
-                        .in('puesto_id', puestoIds)
-                        .order('created_at', { ascending: true });
+                    for (let i = 0; i < puestoIds.length; i += CHUNK_SIZE) {
+                        const chunk = puestoIds.slice(i, i + CHUNK_SIZE);
+                        const [turnosRes, histRes] = await Promise.all([
+                            supabase.from('turnos_puesto').select('*').in('puesto_id', chunk),
+                            supabase.from('historial_puesto').select('*').in('puesto_id', chunk).order('created_at', { ascending: true })
+                        ]);
+
+                        if (turnosRes.data) allTurnos = [...allTurnos, ...turnosRes.data];
+                        if (histRes.data) allHistorial = [...allHistorial, ...histRes.data];
+                    }
 
                     const puestos: Puesto[] = rows.map(row => {
                         const turnos = (allTurnos || [])
