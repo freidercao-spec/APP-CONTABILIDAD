@@ -24,6 +24,9 @@ const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
     const updateGuardStatus = useVigilanteStore((state) => state.updateGuardStatus);
     const deleteVigilante = useVigilanteStore((state) => state.deleteVigilante);
 
+    const [page, setPage] = useState(1);
+    const PAGE_SIZE = 18;
+
     const filteredVigilantes = vigilantes
         .filter(v => {
             if (activeTab === 'activos') return v.estado === 'activo';
@@ -37,7 +40,10 @@ const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
             v.cedula.includes(searchQuery)
         );
 
-    const selectedGuard = vigilantes.find(v => v.id === selectedGuardId) ?? (filteredVigilantes.length > 0 ? filteredVigilantes[0] : null);
+    const pagedVigilantes = filteredVigilantes.slice(0, page * PAGE_SIZE);
+    const hasMore = pagedVigilantes.length < filteredVigilantes.length;
+
+    const selectedGuard = vigilantes.find(v => v.id === selectedGuardId) ?? (pagedVigilantes.length > 0 ? pagedVigilantes[0] : null);
 
     const handleCardClick = (id: string) => {
         setSelectedGuardId(id);
@@ -260,7 +266,7 @@ const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
 
                     {filteredVigilantes.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {filteredVigilantes.map((v) => (
+                            {pagedVigilantes.map((v) => (
                                 <button
                                     key={v.id}
                                     type="button"
@@ -284,6 +290,15 @@ const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
                                     </div>
                                 </button>
                             ))}
+
+                            {hasMore && (
+                                <button
+                                    onClick={() => setPage(p => p + 1)}
+                                    className="col-span-1 md:col-span-2 lg:col-span-3 py-6 bg-slate-50 border border-slate-200 rounded-3xl text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] hover:bg-white hover:text-primary transition-all active:scale-95"
+                                >
+                                    Cargar Mas Operativos...
+                                </button>
+                            )}
 
                             {/* Add New Card */}
                             <button

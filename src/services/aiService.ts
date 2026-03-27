@@ -108,7 +108,9 @@ export const analyzeSystemState = async (vigilantes: any[], puestos: any[], user
     }
 
     // ── Chat con IA ──────────────────────────────────────────────────────────
-    const puestosDetalle = puestosConAnalisis.map((p: any) => {
+    // Puestos con problemas (Limitar a los mas urgentes para no saturar el contexto de la IA)
+    const puestosProblemas = puestosConAnalisis.filter(p => !p.cobertura.completa || p.estado !== 'cubierto').slice(0, 30);
+    const puestosDetalle = puestosProblemas.map((p: any) => {
         const turnos = (p.turnos || []).map((t: any) => {
             const v = vigilantes.find(v2 => v2.id === t.vigilanteId);
             return `  • ${v?.nombre || t.vigilanteId} (${t.horaInicio}a${t.horaFin})`;
@@ -117,29 +119,25 @@ export const analyzeSystemState = async (vigilantes: any[], puestos: any[], user
         return `• [${p.id}] ${p.nombre} | ${p.estado} | ${cobStr}\n${turnos || '  (Sin personal)'}`;
     }).join('\n');
 
-    const vigilantesDetalle = vigilantes.map(v => {
+    // Vigilantes en estados especiales (Limitar para evitar >4k tokens)
+    const vigEspeciales = vigilantes.filter(v => v.estado !== 'activo' || v.vacaciones || (v.descargos || []).length > 0).slice(0, 40);
+    const vigilantesDetalle = vigEspeciales.map(v => {
         const pNombre = puestos.find((p: any) => p.id === v.puestoId)?.nombre || 'N/A';
         const vac = v.vacaciones ? ` Vac:${new Date(v.vacaciones.inicio).toLocaleDateString('es-CO')}a${new Date(v.vacaciones.fin).toLocaleDateString('es-CO')}` : '';
         return `• [${v.id}] ${v.nombre} | ${v.rango} | ${v.estado} | Puesto:${pNombre}${vac}`;
     }).join('\n');
 
-    const systemContext = `Eres CorazAI Programador, el asistente de inteligencia artificial encargado de supervisar y notificar TODO lo relacionado con la programacion operativa en CORAZA SEGURIDAD CTA. 
+    const systemContext = `Eres CorazAI Programador, el asistente de IA para CORAZA SEGURIDAD CTA. 
+    
+ESTADO GENERAL:
+- Fuerza: ${activos} activos, ${disponibles} disponibles, ${ausentes} ausentes (Total: ${vigilantes.length}).
+- Puestos: ${cubiertos24h.length}/${totalPuestos} cobertura total. ${sinVigilante.length} sin personal.
 
-Tu funcion principal NO es manipular los datos directamente, sino SER LA VOZ DE LA PROGRAMACION. Debes entender profundamente el cuadrante, los turnos y la disponibilidad para notificar cualquier anomalia, riesgo o necesidad de ajuste.
+MUESTRA DE PUESTOS CRITICOS/CON ALERTAS:
+${puestosDetalle || 'Sin alertas inmediatas en puestos.'}
 
-FECHA/HORA ACTUAL: ${hoy} ${nowISO.slice(11, 16)}
-
-ESTADO DE OPERACIONES:
-- Efectivos: ${activos} activos, ${disponibles} disponibles, ${ausentes} ausentes.
-- Cobertura: ${cubiertos24h.length}/${totalPuestos} puestos con cobertura 24h completa.
-- Riesgos: ${sinVigilante.length} puestos sin personal asignado, ${coberturaIncompleta.length} con cobertura parcial.
-- Alertas criticas: ${sinVigilante.length > 0 ? sinVigilante.map((p: any) => p.nombre).join(', ') : 'Ninguna'}.
-
-DETALLE TECNICO DE PUESTOS Y TURNOS:
-${puestosDetalle || 'Sin datos de puestos.'}
-
-ESTADO DE LA FUERZA OPERATIVA:
-${vigilantesDetalle || 'Sin datos de vigilantes.'}
+MUESTRA DE PERSONAL EN ESTADOS ESPECIALES:
+${vigilantesDetalle || 'Personal operativo nominal.'}
 
 FILOSOFIA DE RESPUESTA:
 1. Eres proactivo. Si ves un hueco, notificalo. Si ves que alguien esta en vacaciones y su puesto queda libre, adviertelo.
