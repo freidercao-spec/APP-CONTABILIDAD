@@ -113,7 +113,7 @@ export const useMotorInteligencia = () => {
             if (esUrgente) {
                 dispararAlerta(
                     `sin_prog_critical`,
-                    `**URGENCIA CORAZAI:** ${puestosSinProg.length} puestos carecen de programacion oficial. Como encargado de los turnos, exijo regularizar estos cuadrantes.`,
+                    `**URGENCIA CORAZAI:** ${puestosSinProg.length} puestos carecen de programacion oficial para este mes. CorazAI exige regularizar estos cuadrantes.`,
                     'high'
                 );
             } else if (hoy > 15 && puestosSinProg.length > 0) {

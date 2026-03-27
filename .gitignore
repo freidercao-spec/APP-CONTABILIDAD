@@ -31,3 +31,22 @@ dist-ssr
 
 .vercel
 .env*.local
+
+# ── Archivos de debug y output generados durante desarrollo ──
+out.txt
+errors.txt
+build_error.log
+vercel_debug_log.txt
+eslint_output*.txt
+build_*.txt
+deploy_*.txt
+vercel_*.txt
+fix_*.cjs
+fix_*.mjs
+secure_*.cjs
+test-db.mjs
+stress_test_data.sql
+massive-*.mjs
+seed-*.mjs
+*-seed-*.mjs
+script_output*.txt

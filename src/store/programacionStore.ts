@@ -239,7 +239,9 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
 }
 
 const queueSync = (progId: string, set: any, get: any, immediate = false) => {
-    // CORRECCIÓN: Siempre cancelar timeout pendiente antes de ejecutar
+    // CORRECCIÓN A-5: Cancelar SIEMPRE el timeout pendiente, tanto para immediate como para debounce.
+    // Esto previene el doble-sync donde immediate=true ejecuta inmediatamente Y el timeout
+    // pendiente vuelve a ejecutar 1.2s después, causando dos escrituras a Supabase.
     if (pendingSyncs.has(progId)) {
         clearTimeout(pendingSyncs.get(progId)!);
         pendingSyncs.delete(progId);
@@ -250,7 +252,11 @@ const queueSync = (progId: string, set: any, get: any, immediate = false) => {
         const prog = get().programaciones.find((p: any) => p.id === progId);
         if (!prog) return;
         // Evitar sync si ya hay uno activo para este progId
-        if (activeSyncPromises.has(progId)) return;
+        if (activeSyncPromises.has(progId)) {
+            // Reagendar para después de que el sync activo termine
+            pendingSyncs.set(progId, setTimeout(runSync, 500));
+            return;
+        }
         set({ isSyncing: true });
         try {
             const res = await syncProgramacionToDb(prog, set, get);
@@ -497,8 +503,11 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
 
             _fetchDetails: async (rows: any[], progIds: string[]) => {
-                // REDUCIDO: Chunk de 20 para máxima seguridad en payloads de Supabase
-                const CHUNK_SIZE = 20; 
+                // CORRECCIÓN C-5: Chunk reducido a 10 para evitar pérdida silenciosa de datos.
+                // Con 20 progs × 31 días × 3 roles = 1860 asignaciones/chunk.
+                // El límite de 5000 por query es insuficiente para chunks grandes.
+                // Con 10 progs el máximo es 930, garantizando que limit(5000) siempre sea suficiente.
+                const CHUNK_SIZE = 10; 
                 let allPersonal: any[] = [];
                 let allAsignaciones: any[] = [];
 
@@ -510,7 +519,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     chunkPromises.push(
                         Promise.all([
                             supabase.from('personal_puesto').select('*').in('programacion_id', chunk),
-                            supabase.from('asignaciones_dia').select('*').in('programacion_id', chunk).limit(5000)
+                            supabase.from('asignaciones_dia').select('*').in('programacion_id', chunk).limit(2000)
                         ])
                     );
                 }

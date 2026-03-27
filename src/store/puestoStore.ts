@@ -107,11 +107,8 @@ interface PuestoState {
     verificarCoberturaTotal: () => { puestosDesprotegidos: Puesto[] };
 }
 
-function mapDbEstado(dbEstado: string): Puesto['estado'] {
-    if (dbEstado === 'Activo') return 'desprotegido';
-    if (dbEstado === 'Suspendido') return 'alerta';
-    return 'desprotegido';
-}
+// Nota: el estado de un puesto se calcula dinámicamente al cargarlo
+// (cubierto si tiene turnos activos, desprotegido si no)
 
 export const usePuestoStore = create<PuestoState>()(
     (set, get) => ({

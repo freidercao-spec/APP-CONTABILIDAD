@@ -1,5 +1,4 @@
 // CORAZA CTA - Tactical Logic Core
-console.log('[App] 🔍 Iniciando carga del nucleo...');
 
 import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
@@ -110,10 +109,16 @@ function App() {
     return () => clearTimeout(timeout);
   }, []);
 
-  // Forzar entrada si el usuario decide que tardo demasiado
+  // Protegido: solo funciona con el código de emergencia correcto
   const forceStart = () => {
-    addLog('🔥 FORZANDO ARRANQUE... Bypass en proceso.');
-    loginBypass && loginBypass(); 
+    const code = prompt('Código de emergencia:');
+    const emergencyCode = import.meta.env.VITE_BYPASS_CODE || 'CORAZA-SOPORTE';
+    if (code === emergencyCode) {
+      addLog('🔥 FORZANDO ARRANQUE... Bypass autorizado.');
+      loginBypass && loginBypass();
+    } else {
+      addLog('❌ Código de bypass incorrecto. Acceso denegado.');
+    }
   };
 
   if (loading && !showFailsafe) {
@@ -149,24 +154,15 @@ const AppContent = () => {
   return (
     <Routes>
       <Route path="/" element={<AppLayout />}>
-        <Route index element={<Dashboard />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="vigilantes" element={<Vigilantes />} />
-        <Route path="puestos" element={<Puestos />} />
-        <Route path="novedades" element={<Novedades />} />
-        <Route path="config" element={<Configuracion />} />
-        <Route path="auditoria" element={<Auditoria />} />
-        
-        <Route path="resumen" element={
-          <Suspense fallback={<TacticalLoading />}>
-            <Resumen />
-          </Suspense>
-        } />
-        <Route path="resumen/pdf" element={
-          <Suspense fallback={<TacticalLoading />}>
-            <Resumen />
-          </Suspense>
-        } />
+        <Route index element={<Suspense fallback={<TacticalLoading />}><Dashboard /></Suspense>} />
+        <Route path="dashboard" element={<Suspense fallback={<TacticalLoading />}><Dashboard /></Suspense>} />
+        <Route path="vigilantes" element={<Suspense fallback={<TacticalLoading />}><Vigilantes /></Suspense>} />
+        <Route path="puestos" element={<Suspense fallback={<TacticalLoading />}><Puestos /></Suspense>} />
+        <Route path="novedades" element={<Suspense fallback={<TacticalLoading />}><Novedades /></Suspense>} />
+        <Route path="config" element={<Suspense fallback={<TacticalLoading />}><Configuracion /></Suspense>} />
+        <Route path="auditoria" element={<Suspense fallback={<TacticalLoading />}><Auditoria /></Suspense>} />
+        <Route path="resumen" element={<Suspense fallback={<TacticalLoading />}><Resumen /></Suspense>} />
+        <Route path="resumen/pdf" element={<Suspense fallback={<TacticalLoading />}><Resumen /></Suspense>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
