@@ -27,7 +27,6 @@ export const useAuthStore = create<AuthState>()(
             empresaId: null,
             loading: true,
             error: null,
-            loginBypass: () => {},
 
             login: async (email, password) => {
                 set({ loading: true, error: null });
@@ -146,6 +145,9 @@ export const useAuthStore = create<AuthState>()(
                     } else {
                         set({ isAuthenticated: false, empresaId: null, loading: false });
                     }
+                    set({ loading: false });
+                } catch (e) {
+                    console.error('[AUTH] Error checking session:', e);
                     set({ loading: false });
                 }
             },
