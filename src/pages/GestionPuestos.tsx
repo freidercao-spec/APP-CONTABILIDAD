@@ -722,6 +722,7 @@ const PanelMensualPuesto = ({
   const setSelectedProgId = useProgramacionStore((s) => s.setSelectedProgId);
 
   const getProgramacion = useProgramacionStore((s) => s.getProgramacion);
+  const getProgramacionRapid = useProgramacionStore((s) => s.getProgramacionRapid);
   const [editCell, setEditCell] = useState<{
     asig: AsignacionDia;
     progId: string;
@@ -2438,7 +2439,7 @@ const PanelMensualPuesto = ({
                                     </div>
                                 ) : (() => {
                                   const cP = allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId);
-                                  const cProg = getProgramacionRapid(cP?.dbId || comparePuestoId || '', anio, mes);
+                                  const cProg = useProgramacionStore.getState().getProgramacionRapid(cP?.dbId || comparePuestoId || '', anio, mes);
                                   
                                   const checkVigCompatibility = (vid: string) => {
                                     if (!vid) return false;
