@@ -518,12 +518,20 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 let allPersonal: any[] = [];
                 let allAsignaciones: any[] = [];
 
-                // CORRECCIÓN C-6: Bloqueo de duplicados. Marcamos como 'isFetching' inmediatamente.
-                set((state: any) => ({
-                    programaciones: state.programaciones.map((p: any) => 
+                // CORRECCIÓN C-6: Bloqueo de duplicados. Marcamos como 'isFetching' inmediatamente en ARRAY y MAP
+                set((state: any) => {
+                    const nextProgs = state.programaciones.map((p: any) => 
                         progIds.includes(p.id) ? { ...p, isFetching: true } : p
-                    )
-                }));
+                    );
+                    const nextMap = new Map(state._progMap || []);
+                    nextProgs.forEach(p => {
+                        if (progIds.includes(p.id)) {
+                            nextMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
+                            nextMap.set(p.id, p);
+                        }
+                    });
+                    return { programaciones: nextProgs, _progMap: nextMap };
+                });
 
                 console.log(`[Sync] 📥 Descargando detalles en bloques de ${CHUNK_SIZE}...`);
 
