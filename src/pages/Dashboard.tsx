@@ -28,19 +28,33 @@ const Dashboard = () => {
 
     // ─── STATS ───────────────────────────────────────────────────────────────
     const S = useMemo(() => {
-        const vTotal     = vigilantes.length;
-        const vActivos   = vigilantes.filter(v => v.estado === 'activo').length;
-        const vDisp      = vigilantes.filter(v => v.estado === 'disponible').length;
-        const vAusentes  = vigilantes.filter(v => v.estado === 'ausente').length;
-        const vConDesc   = vigilantes.filter(v => (v.descargos||[]).some(d=>d.estado==='activo')).length;
-        const vVacas     = vigilantes.filter(v => v.vacaciones?.inicio).length;
+        let vActivos = 0, vDisp = 0, vAusentes = 0, vConDesc = 0, vVacas = 0;
+        const vTotal = vigilantes.length;
+        
+        vigilantes.forEach(v => {
+            if (v.estado === 'activo') vActivos++;
+            else if (v.estado === 'disponible') vDisp++;
+            else if (v.estado === 'ausente') vAusentes++;
+            
+            if ((v.descargos || []).some(d => d.estado === 'activo')) vConDesc++;
+            if (v.vacaciones?.inicio) vVacas++;
+        });
 
-        const pTotal     = puestos.length;
-        const pCub       = puestos.filter(p => p.estado === 'cubierto').length;
-        const pAlerta    = puestos.filter(p => p.estado === 'alerta').length;
-        const pDesp      = puestos.filter(p => p.estado === 'desprotegido').length;
-        const pArmas     = puestos.filter(p => p.conArmamento).length;
-        const pOper24    = puestos.filter(p => getCobertura ? getCobertura(p.id).completa : false).length;
+        let pCub = 0, pAlerta = 0, pDesp = 0, pArmas = 0, pOper24 = 0;
+        const pTotal = puestos.length;
+
+        puestos.forEach(p => {
+            if (p.estado === 'cubierto') pCub++;
+            else if (p.estado === 'alerta') pAlerta++;
+            else if (p.estado === 'desprotegido') pDesp++;
+            
+            if (p.conArmamento) pArmas++;
+            
+            // Solo calculamos cobertura completa si el puesto está cubierto (ahorro de CPU)
+            if (p.estado === 'cubierto' && getCobertura) {
+                if (getCobertura(p.id).completa) pOper24++;
+            }
+        });
 
         const personalReq = pTotal * 3;
         const personalFalt = Math.max(0, personalReq - vTotal);
@@ -49,13 +63,20 @@ const Dashboard = () => {
         const progsEsteMes = programaciones.filter(p => p.anio === CURR_ANIO && p.mes === CURR_MES);
         const progPublicadas = progsEsteMes.filter(p => p.estado === 'publicado').length;
         const progBorrador   = progsEsteMes.filter(p => p.estado === 'borrador').length;
-        const cobPromedioMes = progsEsteMes.length > 0
-            ? Math.round(progsEsteMes.reduce((acc,p) => acc + (getCobPct ? getCobPct(p.id) : 0), 0) / progsEsteMes.length)
-            : 0;
+        
+        let sumCobPct = 0;
+        if (getCobPct) {
+            progsEsteMes.forEach(p => {
+                sumCobPct += getCobPct(p.id);
+            });
+        }
+        const cobPromedioMes = progsEsteMes.length > 0 ? Math.round(sumCobPct / progsEsteMes.length) : 0;
 
-        const alertasCrit  = entries.filter(e => e.severity === 'critical').length;
-        const alertasWarn  = entries.filter(e => e.severity === 'warning').length;
-        const eventosHoy   = entries.filter(e => new Date(e.timestamp).toDateString() === now.toDateString()).length;
+        const alertasCrit = entries.filter(e => e.severity === 'critical').length;
+        const alertasWarn = entries.filter(e => e.severity === 'warning').length;
+        const todayStr = now.toDateString();
+        const eventosHoy = entries.filter(e => new Date(e.timestamp).toDateString() === todayStr).length;
+        
         const indiceCobertura = pTotal > 0 ? Math.round((pCub / pTotal) * 100) : 0;
         const globalHealth = Math.round((saludPersonal + indiceCobertura + cobPromedioMes) / 3);
 

@@ -519,45 +519,47 @@ export const usePuestoStore = create<PuestoState>()(
                     return { completa: false, huecos: ['00:00 - 24:00'] };
                 }
 
-                const horasCubiertas = new Set<string>();
+                // Usamos un array de 48 slots (cada 30 min) para representar las 24h
+                const slots = new Uint8Array(48); // 0 = vacío, 1 = cubierto
+                
                 puesto.turnos.forEach(turno => {
-                    const [inicioH, inicioM] = turno.horaInicio.split(':').map(Number);
-                    const [finH, finM] = turno.horaFin.split(':').map(Number);
-                    let actual = inicioH * 60 + inicioM;
-                    const fin = finH * 60 + finM;
-                    while (actual < fin) {
-                        const h = Math.floor(actual / 60);
-                        const m = actual % 60;
-                        horasCubiertas.add(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
-                        actual += 30;
+                    const [hI, mI] = turno.horaInicio.split(':').map(Number);
+                    const [hF, mF] = turno.horaFin.split(':').map(Number);
+                    
+                    const startSlot = hI * 2 + (mI >= 30 ? 1 : 0);
+                    const endSlot = hF * 2 + (mF >= 30 ? 1 : 0);
+                    
+                    // Manejo de turnos que cruzan la medianoche
+                    if (startSlot < endSlot) {
+                        for (let i = startSlot; i < endSlot; i++) slots[i] = 1;
+                    } else if (startSlot > endSlot) {
+                        // Turno de noche (ej: 22:00 a 06:00)
+                        for (let i = startSlot; i < 48; i++) slots[i] = 1;
+                        for (let i = 0; i < endSlot; i++) slots[i] = 1;
                     }
                 });
 
-                const todosLosMinutos: string[] = [];
-                for (let h = 0; h < 24; h++) {
-                    for (let m = 0; m < 60; m += 30) {
-                        todosLosMinutos.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+                const huecos: string[] = [];
+                let inGap = false;
+                let gapStart = 0;
+
+                for (let i = 0; i <= 48; i++) {
+                    const isCovered = i < 48 ? slots[i] === 1 : true; // Cierre virtual al final
+                    
+                    if (!isCovered && !inGap) {
+                        inGap = true;
+                        gapStart = i;
+                    } else if (isCovered && inGap) {
+                        inGap = false;
+                        const hS = Math.floor(gapStart / 2).toString().padStart(2, '0');
+                        const mS = (gapStart % 2 === 0 ? '00' : '30');
+                        const hE = Math.floor(i / 2).toString().padStart(2, '0');
+                        const mE = (i % 2 === 0 ? '00' : '30');
+                        huecos.push(`${hS}:${mS} - ${hE}:${mE}`);
                     }
                 }
 
-                const huecos = todosLosMinutos.filter(h => !horasCubiertas.has(h));
-                const gruposHuecos: string[] = [];
-                if (huecos.length > 0) {
-                    let inicio = huecos[0];
-                    let finAnterior = huecos[0];
-                    for (let i = 1; i < huecos.length; i++) {
-                        const [h, m] = huecos[i].split(':').map(Number);
-                        const [ph, pm] = finAnterior.split(':').map(Number);
-                        if (h * 60 + m !== ph * 60 + pm + 30) {
-                            gruposHuecos.push(`${inicio} - ${finAnterior}`);
-                            inicio = huecos[i];
-                        }
-                        finAnterior = huecos[i];
-                    }
-                    gruposHuecos.push(`${inicio} - ${finAnterior}`);
-                }
-
-                return { completa: huecos.length === 0, huecos: gruposHuecos };
+                return { completa: huecos.length === 0, huecos };
             },
 
             verificarCoberturaTotal: () => {

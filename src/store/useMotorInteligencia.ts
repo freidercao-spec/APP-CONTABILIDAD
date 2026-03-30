@@ -136,17 +136,22 @@ export const useMotorInteligencia = () => {
             );
         }
 
+        const vigAsigs = new Map<string, { p: any, a: any }[]>();
+        progsMes.forEach(p => {
+            (p.asignaciones || []).forEach(a => {
+                const vid = a.vigilanteId;
+                if (!vid) return; 
+                if (!vigAsigs.has(vid)) vigAsigs.set(vid, []);
+                vigAsigs.get(vid)!.push({ p, a });
+            });
+        });
+
         // --- 5. ANALISIS PREDICTIVO (AGOTAMIENTO Y FATIGA) ---
         vigilantes.forEach(v => {
-            const misProgs = progsMes.map(p => ({
-                puesto: puestos.find(pst => pst.dbId === p.puestoId), // Use UUID
-                asigs: (p.asignaciones || []).filter(a => a.vigilanteId === v.dbId || a.vigilanteId === v.id) // Try both ID types for safety
-            })).filter(x => x.asigs.length > 0);
+            const currentAsigs = [...(vigAsigs.get(v.dbId || '') || []), ...(vigAsigs.get(v.id) || [])];
+            if (currentAsigs.length === 0) return;
 
-            if (misProgs.length === 0) return;
-
-            // a. Horas acumuladas (DIAs * 12h)
-            const diasTotales = misProgs.reduce((acc, curr) => acc + curr.asigs.filter(a => a.jornada === 'normal').length, 0);
+            const diasTotales = currentAsigs.filter(x => x.a.jornada === 'normal').length;
             if (diasTotales > 20) {
                 dispararAlerta(
                     `exceso_horas_${v.id}`,
@@ -163,12 +168,12 @@ export const useMotorInteligencia = () => {
 
             // b. DIAs consecutivos (Fatiga acumulada)
             // Agrupamos todas sus asignaciones del mes y las ordenamos por dia
-            const todasAsigs = misProgs.flatMap(p => p.asigs).sort((a, b) => a.dia - b.dia);
+            const todasAsigs = currentAsigs.map(x => x.a).sort((a: any, b: any) => a.dia - b.dia);
             
             let consecutivos = 0;
             let maxConsecutivos = 0;
             
-            todasAsigs.forEach(asig => {
+            todasAsigs.forEach((asig: any) => {
                 if (asig.jornada === 'normal') {
                     consecutivos++;
                     if (consecutivos > maxConsecutivos) maxConsecutivos = consecutivos;

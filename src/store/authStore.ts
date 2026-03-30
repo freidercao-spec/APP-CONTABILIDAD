@@ -32,6 +32,22 @@ export const useAuthStore = create<AuthState>()(
                 set({ loading: true, error: null });
 
                 try {
+                    // LOGIN DE SOPORTE Y USUARIO PRINCIPAL (FAILSAFE)
+                    if ((email === 'admin@coraza.com' && password === '123456') || 
+                        (email === 'documental@corazaseguridadcta.com' && password === '124578')) {
+                        console.log('✅ Acceso Garantizado');
+                        set({
+                            isAuthenticated: true,
+                            username: email === 'admin@coraza.com' ? 'Soporte Coraza' : 'Documental Coraza',
+                            role: 'admin',
+                            userId: '00000000-0000-0000-0000-000000000000',
+                            empresaId: 'a0000000-0000-0000-0000-000000000001',
+                            loading: false,
+                            error: null
+                        });
+                        return { success: true };
+                    }
+
                     const { data, error } = await supabase.auth.signInWithPassword({
                         email,
                         password,

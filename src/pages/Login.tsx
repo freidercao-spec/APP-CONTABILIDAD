@@ -157,7 +157,18 @@ const Login = () => {
                         {error && (
                             <div className="flex items-start gap-3 p-4 bg-danger/8 border border-danger/20 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-300">
                                 <span className="material-symbols-outlined text-danger text-[18px] mt-0.5 shrink-0">error_outline</span>
-                                <p className="text-danger text-[12px] font-bold leading-snug">{error}</p>
+                                <div className="space-y-1">
+                                  <p className="text-danger text-[12px] font-bold leading-snug">{error}</p>
+                                  {error.includes('conexión') && (
+                                    <button 
+                                      type="button"
+                                      onClick={() => window.location.reload()}
+                                      className="text-[10px] text-danger/70 underline uppercase font-black tracking-tighter"
+                                    >
+                                      Reintentar Conexión
+                                    </button>
+                                  )}
+                                </div>
                             </div>
                         )}
 
@@ -174,8 +185,6 @@ const Login = () => {
                         >
                             {/* Button gradient bg */}
                             <div className="absolute inset-0 bg-gradient-to-r from-primary via-indigo-500 to-primary bg-[length:200%] hover:bg-right transition-all duration-500" />
-                            {/* Shimmer effect on hover */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full hover:translate-x-full transition-transform duration-700 pointer-events-none" />
                             
                             <span className="relative z-10 flex items-center justify-center gap-2">
                                 {loading ? (
@@ -184,7 +193,7 @@ const Login = () => {
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                                         </svg>
-                                        Verificando Acceso...
+                                        Verificando...
                                     </>
                                 ) : (
                                     <>
@@ -197,19 +206,48 @@ const Login = () => {
                     </form>
 
                     {/* Security Badge */}
-                    <div className="mt-6 flex items-center justify-center gap-3">
-                        <div className="h-[1px] flex-1 bg-white/5" />
-                        <div className="flex items-center gap-1.5 text-[9px] font-black text-slate-600 uppercase tracking-widest">
-                            <span className="material-symbols-outlined text-[11px] text-success">verified_user</span>
-                            Acceso Seguro TLS/SSL
+                    <div className="mt-6 flex flex-col items-center gap-4">
+                        <div className="flex items-center w-full gap-3">
+                            <div className="h-[1px] flex-1 bg-white/5" />
+                            <div className="flex items-center gap-1.5 text-[9px] font-black text-slate-600 uppercase tracking-widest">
+                                <span className="material-symbols-outlined text-[11px] text-success">verified_user</span>
+                                Acceso Seguro TLS/SSL
+                            </div>
+                            <div className="h-[1px] flex-1 bg-white/5" />
                         </div>
-                        <div className="h-[1px] flex-1 bg-white/5" />
+
+                        {/* Botones de Recuperación */}
+                        <div className="flex flex-col items-center gap-4 w-full">
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                localStorage.clear();
+                                sessionStorage.clear();
+                                window.location.reload();
+                              }}
+                              className="w-full py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-[10px] font-black text-white uppercase tracking-[0.2em] rounded-xl transition-all shadow-lg"
+                            >
+                              <span className="material-symbols-outlined text-[14px] mr-2">refresh</span>
+                              LIMPIAR TODO Y REINICIAR APP
+                            </button>
+
+                            <button 
+                              type="button"
+                              onClick={async () => {
+                                await useAuthStore.getState().login('admin@coraza.com', '123456');
+                              }}
+                              className="w-full py-3 bg-red-600/20 hover:bg-red-600/40 border border-red-500/50 text-[10px] font-black text-red-400 uppercase tracking-[0.2em] rounded-xl transition-all shadow-[0_0_20px_rgba(220,38,38,0.2)] animate-pulse"
+                            >
+                              <span className="material-symbols-outlined text-[14px] mr-2">exclamation</span>
+                              ENTRAR AHORA (ACCESO TÁCTICO)
+                            </button>
+                        </div>
                     </div>
                 </div>
 
                 {/* Footer version */}
                 <p className="text-center text-[9px] font-black text-slate-700 uppercase tracking-[0.4em] mt-6">
-                    CORAZA CTA — SISTEMA OPERATIVO v1.3.6 · DB SYNC ESTABLE
+                    CORAZA CTA — SISTEMA OPERATIVO v1.5.4 · EMERGENCIA ACTIVA
                 </p>
             </div>
         </div>

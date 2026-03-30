@@ -42,12 +42,12 @@ export function useSupabaseInit() {
                 addLog('🧬 Sincronizando DNA Operativo (Vigilantes y Puestos)...');
                 const [vigRes, puestRes] = await Promise.allSettled([
                     Promise.race([
-                        fetchVigilantes(),
-                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout Vigilantes')), 30000))
+                        fetchVigilantes(addLog),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout Vigilantes')), 120000))
                     ]),
                     Promise.race([
                         fetchPuestos(),
-                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout Puestos')), 30000))
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout Puestos')), 120000))
                     ])
                 ]);
 

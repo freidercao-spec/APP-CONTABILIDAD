@@ -48,9 +48,11 @@ interface VigilanteState {
     vigilantes: Vigilante[];
     nextIdNumber: number;
     loaded: boolean;
+    vigilanteMap: Map<string, Vigilante>;
 
     // Actions
-    fetchVigilantes: () => Promise<void>;
+    getVigilanteById: (id: string) => Vigilante | undefined;
+    fetchVigilantes: (addLog?: (msg: string) => void) => Promise<void>;
     addVigilante: (
         nombre: string,
         cedula: string,
@@ -114,8 +116,14 @@ export const useVigilanteStore = create<VigilanteState>()(
             vigilantes: [],
             nextIdNumber: 1,
             loaded: false,
+            vigilanteMap: new Map(),
 
-            fetchVigilantes: async () => {
+            getVigilanteById: (id: string) => {
+                if (!id) return undefined;
+                return get().vigilanteMap.get(id);
+            },
+
+            fetchVigilantes: async (addLog?: (msg: string) => void) => {
                 try {
                     const currentEmpresaId = useAuthStore.getState().empresaId || EMPRESA_ID;
                     
@@ -141,7 +149,15 @@ export const useVigilanteStore = create<VigilanteState>()(
                         );
                     }
 
-                    const results = await Promise.all(fetchPromises);
+                    const results = [];
+                    // Fetch in sub-batches of 5 parallel requests to avoid browser network congestion
+                    for (let i = 0; i < fetchPromises.length; i += 5) {
+                        const batch = fetchPromises.slice(i, i + 5);
+                        const batchResults = await Promise.all(batch);
+                        results.push(...batchResults);
+                        addLog?.(`📦 Vigilantes: Cargado ${Math.min((i + 5) * BATCH, totalRecords)} de ${totalRecords}...`);
+                    }
+                    
                     let allRows = results.flatMap((r: any) => r.data || []);
                     
                     if (allRows.length >= 25000) {
@@ -181,24 +197,35 @@ export const useVigilanteStore = create<VigilanteState>()(
                         console.log('[PERFORMANCE] Saltando historial completo por masividad. Se traerán en O(1).');
                     }
 
+                    // Final mapping and lookup population
+                    const vMap = new Map<string, Vigilante>();
+                    let maxNum = 0;
+
                     const vigilantes: Vigilante[] = rows.map(row => {
                         const hist = (allHistorial || []).filter(h => h.vigilante_id === row.id);
                         const desc = (allDescargos || []).filter(d => d.vigilante_id === row.id);
                         const vac = (allVacaciones || []).find(v => v.vigilante_id === row.id);
-                        return mapDbToVigilante(row, hist, desc, vac);
-                    });
-
-                    // Calculate next ID number
-                    let maxNum = 0;
-                    vigilantes.forEach(v => {
+                        const v = mapDbToVigilante(row, hist, desc, vac);
+                        
+                        // Index lookup for O(1) searches
+                        vMap.set(v.id, v);
+                        if (v.dbId) vMap.set(v.dbId, v);
+                        
+                        // Max number calculation
                         const match = v.id.match(/C-(\d+)/);
                         if (match) {
                             const num = parseInt(match[1], 10);
                             if (num > maxNum) maxNum = num;
                         }
+                        return v;
                     });
 
-                    set({ vigilantes, nextIdNumber: maxNum + 1, loaded: true });
+                    set({ 
+                        vigilantes, 
+                        vigilanteMap: vMap,
+                        nextIdNumber: maxNum + 1, 
+                        loaded: true 
+                    });
                 } catch (err) {
                     console.error('Error in fetchVigilantes:', err);
                     set({ loaded: true });

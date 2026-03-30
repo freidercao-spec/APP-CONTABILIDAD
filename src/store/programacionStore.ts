@@ -40,8 +40,9 @@ export interface ProgramacionMensual {
     actualizadoEn: string;
     version: number;
     historialCambios: CambioProgramacion[];
+    isDetailLoaded?: boolean;
+    isFetching?: boolean;
     syncStatus?: 'synced' | 'pending' | 'error';
-    isDetailLoaded?: boolean; // Nuevo campo para carga bajo demanda
 }
 
 export interface TemplateProgramacion {
@@ -121,9 +122,8 @@ const translateToUuid = (idRaw: string | null): string | null => {
     const id = String(idRaw).trim();
     if (uuidRegex.test(id)) return id;
     
-    // PERFORMANCE: Use Map from store if possible, or limited find for small sets
-    const vStore = useVigilanteStore.getState();
-    const v = vStore.vigilantes.find(vx => vx.id === id || vx.dbId === id);
+    // PERFORMANCE: Use O(1) Map search
+    const v = useVigilanteStore.getState().getVigilanteById(id);
     if (v?.dbId && uuidRegex.test(v.dbId)) return v.dbId;
     return null; 
 };
@@ -131,7 +131,7 @@ const translateToUuid = (idRaw: string | null): string | null => {
 const translateFromDb = (dbId: string | null, lookupMap?: Map<string, string>) => {
     if (!dbId) return null;
     if (lookupMap) return lookupMap.get(dbId) || dbId;
-    const v = useVigilanteStore.getState().vigilantes.find((v: any) => v.dbId === dbId || v.id === dbId);
+    const v = useVigilanteStore.getState().getVigilanteById(dbId);
     return v?.id || dbId;
 };
 
@@ -149,9 +149,10 @@ const idsMatch = (id1: string | null, id2: string | null): boolean => {
     const str2 = String(id2).trim().toLowerCase();
     if (str1 === str2) return true;
     
-    const vigilantes = useVigilanteStore.getState().vigilantes || [];
-    const v1 = vigilantes.find((vx: any) => vx.id === id1 || vx.dbId === id1 || (vx.nombre && vx.nombre.toLowerCase() === str1));
-    const v2 = vigilantes.find((vx: any) => vx.id === id2 || vx.dbId === id2 || (vx.nombre && vx.nombre.toLowerCase() === str2));
+    // PERFORMANCE: Use O(1) Map lookup
+    const vMap = useVigilanteStore.getState().vigilanteMap;
+    const v1 = vMap.get(id1) || vMap.get(str1);
+    const v2 = vMap.get(id2) || vMap.get(str2);
     
     if (v1 && v2) {
         return (v1.dbId === v2.dbId || v1.id === v2.id);
@@ -331,10 +332,13 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     let from = 0;
                     const BATCH = 1000;
                     
+                    const currentEmpresaId = useAuthStore.getState().empresaId || EMPRESA_ID;
+                    
                     while (true) {
                         const { data, error } = await supabase
                             .from('programacion_mensual')
                             .select('*')
+                            .eq('empresa_id', currentEmpresaId)
                             .eq('anio', anio)
                             .eq('mes', mes)
                             .range(from, from + BATCH - 1);
@@ -378,7 +382,14 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                 }
 
                                 if (idx >= 0) {
-                                    merged[idx] = { ...merged[idx], ...h };
+                                    // NO RESETEAR ASIGNACIONES SI YA EXISTEN LOCALMENTE
+                                    const existing = merged[idx];
+                                    merged[idx] = { 
+                                        ...h, 
+                                        asignaciones: (existing.asignaciones && existing.asignaciones.length > 0) ? existing.asignaciones : [],
+                                        personal: (existing.personal && existing.personal.length > 0) ? existing.personal : [],
+                                        isDetailLoaded: existing.isDetailLoaded || false
+                                    };
                                 } else {
                                     merged.push(h);
                                 }
@@ -503,13 +514,16 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
 
             _fetchDetails: async (rows: any[], progIds: string[]) => {
-                // CORRECCIÓN C-5: Chunk reducido a 10 para evitar pérdida silenciosa de datos.
-                // Con 20 progs × 31 días × 3 roles = 1860 asignaciones/chunk.
-                // El límite de 5000 por query es insuficiente para chunks grandes.
-                // Con 10 progs el máximo es 930, garantizando que limit(5000) siempre sea suficiente.
                 const CHUNK_SIZE = 10; 
                 let allPersonal: any[] = [];
                 let allAsignaciones: any[] = [];
+
+                // CORRECCIÓN C-6: Bloqueo de duplicados. Marcamos como 'isFetching' inmediatamente.
+                set((state: any) => ({
+                    programaciones: state.programaciones.map((p: any) => 
+                        progIds.includes(p.id) ? { ...p, isFetching: true } : p
+                    )
+                }));
 
                 console.log(`[Sync] 📥 Descargando detalles en bloques de ${CHUNK_SIZE}...`);
 
@@ -590,37 +604,45 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     }
 
                     return {
-                        id: row.id, puestoId: row.puesto_id as string, anio: row.anio, mes: row.mes,
-                        personal, asignaciones, estado: row.estado as EstadoProgramacion,
-                        creadoEn: row.created_at, actualizadoEn: row.updated_at,
-                        version: row.version || 1, historialCambios: [], syncStatus: 'synced' as const
+                        id: row.id, 
+                        puestoId: (row.puesto_id || row.puestoId) as string, 
+                        anio: row.anio, 
+                        mes: row.mes,
+                        personal, 
+                        asignaciones, 
+                        estado: (row.estado || 'borrador') as EstadoProgramacion,
+                        creadoEn: row.created_at || row.creadoEn || new Date().toISOString(), 
+                        actualizadoEn: row.updated_at || row.actualizadoEn || new Date().toISOString(),
+                        version: row.version || 1, 
+                        historialCambios: row.historialCambios || [], 
+                        syncStatus: 'synced' as const
                     };
                 });
 
-                    set((state: any) => {
-                        const merged = [...state.programaciones];
-                        newProgramaciones.forEach(np => {
-                            const idx = merged.findIndex(p => p.id === np.id);
-                            if (idx >= 0) {
-                                if (merged[idx].syncStatus === 'pending' && (np.version || 0) <= (merged[idx].version || 0)) {
-                                    merged[idx].isDetailLoaded = true;
-                                } else {
-                                    merged[idx] = { ...merged[idx], ...np, isDetailLoaded: true };
-                                }
+                set((state: any) => {
+                    const merged = [...state.programaciones];
+                    newProgramaciones.forEach(np => {
+                        const idx = merged.findIndex(p => p.id === np.id);
+                        if (idx >= 0) {
+                            // Si hay pendienTe, no pisamos si la version es menor o igual
+                            if (merged[idx].syncStatus === 'pending' && (np.version || 0) <= (merged[idx].version || 0)) {
+                                merged[idx] = { ...merged[idx], isDetailLoaded: true, isFetching: false };
                             } else {
-                                merged.push({ ...np, isDetailLoaded: true });
+                                merged[idx] = { ...merged[idx], ...np, isDetailLoaded: true, isFetching: false };
                             }
-                        });
-                        
-                        // Recalculate full map for massive load
-                        const newMap = new Map();
-                        merged.forEach(p => {
-                            newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
-                            newMap.set(p.id, p);
-                        });
-
-                        return { programaciones: merged, loaded: true, _progMap: newMap };
+                        } else {
+                            merged.push({ ...np, isDetailLoaded: true, isFetching: false });
+                        }
                     });
+                    
+                    const newMap = new Map();
+                    merged.forEach(p => {
+                        newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
+                        newMap.set(p.id, p);
+                    });
+
+                    return { programaciones: merged, loaded: true, _progMap: newMap };
+                });
             },
 
             fetchTemplates: async () => {
@@ -677,38 +699,77 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
 
             asignarPersonal: (progId, personal, usuario) => {
-                set(s => ({
-                    programaciones: s.programaciones.map(p => p.id !== progId ? p : {
-                        ...p, personal, actualizadoEn: new Date().toISOString(), syncStatus: 'pending'
-                    })
-                }));
-                get()._updateMap();
+                set(s => {
+                    const newProgs = s.programaciones.map(p => p.id !== progId ? p : {
+                        ...p, personal, actualizadoEn: new Date().toISOString(), syncStatus: 'pending' as const
+                    });
+                    
+                    // INCREMENTAL MAP UPDATE: Avoid full re-scan
+                    const prog = newProgs.find(p => p.id === progId);
+                    if (prog && (s as any)._progMap) {
+                        (s as any)._progMap.set(prog.id, prog);
+                        (s as any)._progMap.set(`${prog.puestoId}-${prog.anio}-${prog.mes}`, prog);
+                    }
+                    
+                    return { programaciones: newProgs };
+                });
                 queueSync(progId, set, get, true);
             },
 
             actualizarAsignacion: (progId, dia, data, usuario) => {
-                const prog = get().programaciones.find(p => p.id === progId);
+                const state = get();
+                const prog = state.programaciones.find(p => p.id === progId);
                 if (!prog) return { permitido: false, tipo: 'bloqueo', mensaje: 'Error: Programación no hallada' };
                 
-                // ── VALIDACIÓN DE CONFLICTOS IA ───────────────────────
+                // ── VALIDACIÓN DE CONFLICTOS IA O(1) ───────────────────────
                 if (data.vigilanteId && data.jornada !== 'sin_asignar') {
-                    const otrosConflictos = get().programaciones.some(p => 
-                        p.id !== prog.id && p.anio === prog.anio && p.mes === prog.mes &&
-                        p.asignaciones.some(a => a.dia === dia && idsMatch(a.vigilanteId, data.vigilanteId as string | null) && a.jornada !== 'sin_asignar')
-                    );
-                    if (otrosConflictos) return { permitido: false, tipo: 'bloqueo', mensaje: 'IA: El vigilante ya tiene una asignación en OTRO puesto hoy.' };
+                    const key = `${data.vigilanteId}-${prog.anio}-${prog.mes}`;
+                    const busyDays = (state as any)._busyMap?.get(key);
+                    
+                    // Si ya está ocupado en este mes, verificar si es en OTRO puesto
+                    // Para ser precisos, chequeamos si el vigilante ya tiene una asignación distinta a la actual
+                    if (busyDays && busyDays.has(dia)) {
+                        const yaAsignadoEnEstePuesto = prog.asignaciones.some(a => a.dia === dia && idsMatch(a.vigilanteId, data.vigilanteId as string) && a.jornada !== 'sin_asignar' && a.rol === data.rol);
+                        
+                        if (!yaAsignadoEnEstePuesto) {
+                            return { permitido: false, tipo: 'bloqueo', mensaje: 'IA: El vigilante ya tiene una asignación en OTRO puesto hoy.' };
+                        }
+                    }
                 }
 
                 const newAsignaciones = [...prog.asignaciones];
                 const idx = newAsignaciones.findIndex(a => a.dia === dia && a.rol === data.rol);
+                const oldAsig = idx >= 0 ? newAsignaciones[idx] : null;
+
                 if (idx >= 0) newAsignaciones[idx] = { ...newAsignaciones[idx], ...data };
                 else newAsignaciones.push({ dia, vigilanteId: data.vigilanteId || null, turno: data.turno || 'AM', jornada: data.jornada || 'sin_asignar', rol: data.rol as string });
 
-                set(s => ({
-                    programaciones: s.programaciones.map(p => p.id === progId ? { ...p, asignaciones: newAsignaciones, actualizadoEn: new Date().toISOString(), syncStatus: 'pending' } : p)
-                }));
+                set((s: any) => {
+                    const newProgs = s.programaciones.map((p: any) => p.id === progId ? { ...p, asignaciones: newAsignaciones, actualizadoEn: new Date().toISOString(), syncStatus: 'pending' as const } : p);
+                    
+                    // INCREMENTAL BUSY MAP UPDATE
+                    if (s._busyMap && data.vigilanteId) {
+                        const key = `${data.vigilanteId}-${prog.anio}-${prog.mes}`;
+                        if (!s._busyMap.has(key)) s._busyMap.set(key, new Set());
+                        
+                        if (data.jornada !== 'sin_asignar') {
+                            s._busyMap.get(key)!.add(dia);
+                        } else if (oldAsig && oldAsig.jornada !== 'sin_asignar') {
+                            // Si se está desasignando, quitar del mapa
+                            s._busyMap.get(key)!.delete(dia);
+                        }
+                    }
+                    
+                    // Update index map
+                    const updatedProg = newProgs.find((p: any) => p.id === progId);
+                    if (updatedProg && s._progMap) {
+                        s._progMap.set(updatedProg.id, updatedProg);
+                        s._progMap.set(`${updatedProg.puestoId}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
+                    }
+
+                    return { programaciones: newProgs };
+                });
                 
-                get()._updateMap();
                 queueSync(progId, set, get, true);
                 return { permitido: true, tipo: 'ok', mensaje: 'Asignación guardada' };
             },
@@ -785,9 +846,12 @@ export const useProgramacionStore = create<ProgramacionState>()(
             getCoberturaPorcentaje: (progId) => {
                 const prog = get().programaciones.find(p => p.id === progId);
                 if (!prog) return 0;
-                const total = prog.asignaciones.length;
+                // Si los detalles no se han cargado pero tenemos asignaciones en memoria, las usamos.
+                // Si realmente está vacío, devolvemos 0 para evitar confusión.
+                const total = prog.asignaciones?.length || 0;
+                if (total === 0) return 0;
                 const cubiertos = prog.asignaciones.filter(a => a.vigilanteId && a.jornada !== 'sin_asignar').length;
-                return total === 0 ? 0 : Math.round((cubiertos / total) * 100);
+                return Math.round((cubiertos / total) * 100);
             },
 
             getAlertas: (progId) => {

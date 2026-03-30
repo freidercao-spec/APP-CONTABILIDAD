@@ -13,3 +13,4 @@ async function checkDb() {
     fs.writeFileSync('db_out.json', JSON.stringify(results, null, 2));
 }
 checkDb();
+l

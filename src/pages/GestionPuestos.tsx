@@ -3477,6 +3477,15 @@ const PanelMensualPuesto = ({
                       ] : [])
                     ])).filter(Boolean) as string[];
 
+                    // OPTIMIZACIÓN: Pre-mapear destino para evitar O(N) en cada celda
+                    const assignmentsByDayMap = new Map<number, any[]>();
+                    (freshCProg?.asignaciones || []).forEach(a => {
+                      if (a.vigilanteId && a.jornada !== 'sin_asignar') {
+                        if (!assignmentsByDayMap.has(a.dia)) assignmentsByDayMap.set(a.dia, []);
+                        assignmentsByDayMap.get(a.dia)!.push(a);
+                      }
+                    });
+
                     const sortedVids = [...uniqueVids].sort((a, b) => {
                       const aInOrigin = originStaffVids.includes(a);
                       const bInOrigin = originStaffVids.includes(b);
@@ -3514,177 +3523,96 @@ const PanelMensualPuesto = ({
                            </div>
                          )}
 
-                        {sortedVids.map(vid => {
-                          const vig = vigilantes.find(v => v.id === vid || v.dbId === vid);
-                          const displayRol = (currentProg?.personal.find(p => p.vigilanteId === vid)?.rol || 'relevante') as RolPuesto;
-                          const isSelected = !!compareVigilanteId && idsMatch(compareVigilanteId, vid);
-                          const isDimmed = !!compareVigilanteId && !isSelected;
+                                {sortedVids.map(vid => {
+                                  const vig = vigilantes.find(v => v.id === vid || v.dbId === vid);
+                                  const displayRol = (currentProg?.personal.find(p => p.vigilanteId === vid)?.rol || 'relevante') as RolPuesto;
+                                  const isSelected = !!compareVigilanteId && idsMatch(compareVigilanteId, vid);
+                                  const isDimmed = !!compareVigilanteId && !isSelected;
 
-                          return (
-                            <div key={vid} className={`flex gap-1 items-center transition-all rounded-xl group pr-4 py-1.5 relative shrink-0 ${isSelected ? 'bg-yellow-500/15 ring-2 ring-yellow-400/60 shadow-xl' : isDimmed ? 'opacity-30' : 'hover:bg-white/[0.04]'}`}>
-                              <div 
-                                onClick={() => {
-                                  console.log("[Tactica] Seleccionando:", vid);
-                                  setCompareVigilanteId(isSelected ? null : vid);
-                                }}
-                                className={`sticky left-0 z-20 cursor-pointer shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-xl backdrop-blur-md border-r transition-all shadow-xl ${isSelected ? 'bg-yellow-400/30 border-yellow-400' : 'bg-slate-900/90 border-white/10 group-hover:border-white/20'}`} 
-                                style={{ minWidth: "160px" }}
-                              >
-                                <div className="size-7 rounded-lg flex items-center justify-center font-black text-[10px] text-white shadow-2xl relative overflow-hidden shrink-0"
-                                     style={{ background: displayRol === 'titular_a' ? "linear-gradient(135deg, #4f46e5, #3730a3)" : displayRol === 'titular_b' ? "linear-gradient(135deg, #0891b2, #155e75)" : "linear-gradient(135deg, #059669, #065f46)" }}>
-                                  {vig?.nombre?.[0] || "?"}
-                                  {isSelected && <div className="absolute inset-0 bg-yellow-400/40 flex items-center justify-center blur-sm" />}
-                                  {isSelected && <div className="absolute inset-0 flex items-center justify-center text-slate-900"><span className="material-symbols-outlined text-[16px] font-black">check_circle</span></div>}
-                                </div>
-                                <div className="min-w-0">
-                                  <p className={`text-[10px] font-black truncate w-[85px] leading-tight ${isSelected ? 'text-yellow-400' : 'text-slate-100'}`}>{vig?.nombre || vid}</p>
-                                  <p className={`text-[7px] font-black uppercase tracking-widest mt-0.5 opacity-60 ${isSelected ? 'text-yellow-400/80' : 'text-slate-500'}`}>
-                                    {displayRol.replace('_',' ')}
-                                  </p>
-                                </div>
-                              </div>
+                                  // OPTIMIZACIÓN: Pre-mapear asignaciones del vigilante en ORIGEN para esta fila
+                                  const asigsOrigenVig = new Set(
+                                    currentProg?.asignaciones
+                                      .filter(a => idsMatch(a.vigilanteId, vid) && a.jornada !== 'sin_asignar')
+                                      .map(a => a.dia)
+                                  );
 
-                              {daysArr.map((d) => {
-                                // ── TABLERO A (ORIGEN) = currentProg: días donde el vigilante ya trabaja ──
-                                const asigEnOrigen = currentProg?.asignaciones.find(
-                                  a => a.dia === d && idsMatch(a.vigilanteId, vid) && a.jornada !== 'sin_asignar'
-                                );
-                                const ocupadoEnA = !!asigEnOrigen;
+                                  return (
+                                    <div key={vid} className={`flex gap-1 items-center transition-all rounded-xl group pr-4 py-1.5 relative shrink-0 ${isSelected ? 'bg-yellow-500/15 ring-2 ring-yellow-400/60 shadow-xl' : isDimmed ? 'opacity-30' : 'hover:bg-white/[0.04]'}`}>
+                                      <div 
+                                        onClick={() => setCompareVigilanteId(isSelected ? null : vid)}
+                                        className={`sticky left-0 z-20 cursor-pointer shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-xl backdrop-blur-md border-r transition-all shadow-xl ${isSelected ? 'bg-yellow-400/30 border-yellow-400' : 'bg-slate-900/90 border-white/10 group-hover:border-white/20'}`} 
+                                        style={{ minWidth: "160px" }}
+                                      >
+                                        <div className="size-7 rounded-lg flex items-center justify-center font-black text-[10px] text-white shadow-2xl relative overflow-hidden shrink-0"
+                                             style={{ background: displayRol === 'titular_a' ? "linear-gradient(135deg, #4f46e5, #3730a3)" : displayRol === 'titular_b' ? "linear-gradient(135deg, #0891b2, #155e75)" : "linear-gradient(135deg, #059669, #065f46)" }}>
+                                          {vig?.nombre?.[0] || "?"}
+                                          {isSelected && <div className="absolute inset-0 bg-yellow-400/40 flex items-center justify-center blur-sm" />}
+                                          {isSelected && <div className="absolute inset-0 flex items-center justify-center text-slate-900"><span className="material-symbols-outlined text-[16px] font-black">check_circle</span></div>}
+                                        </div>
+                                        <div className="min-w-0">
+                                          <p className={`text-[10px] font-black truncate w-[85px] leading-tight ${isSelected ? 'text-yellow-400' : 'text-slate-100'}`}>{vig?.nombre || vid}</p>
+                                          <p className={`text-[7px] font-black uppercase tracking-widest mt-0.5 opacity-60 ${isSelected ? 'text-yellow-400/80' : 'text-slate-500'}`}>
+                                            {displayRol.replace('_',' ')}
+                                          </p>
+                                        </div>
+                                      </div>
 
-                                // ── TABLERO B (DESTINO) = freshCProg: días donde YA HAY cualquier vigilante ──
-                                const asigEnDestino = freshCProg?.asignaciones.find(
-                                  a => a.dia === d && a.vigilanteId && a.jornada !== 'sin_asignar'
-                                );
-                                const ocupadoEnB = !!asigEnDestino;
-                                // ── COLORIZATION based on cross-check ──────────────────────────────────
-                                let bg   = "rgba(255,255,255,0.03)";
-                                let ring = "rgba(255,255,255,0.06)";
-                                let txtColor = "text-slate-600";
-                                let sh   = "none";
+                                      {daysArr.map((d) => {
+                                        // ── TABLERO A (ORIGEN) = O(1) con Set ──
+                                        const ocupadoEnA = asigsOrigenVig.has(d);
+                                        const asigEnOrigen = ocupadoEnA ? currentProg?.asignaciones.find(a => a.dia === d && idsMatch(a.vigilanteId, vid)) : null;
 
-                                if (!compareVigilanteId) {
-                                  // No guard selected → neutral grey for all cells
-                                  bg   = "rgba(255,255,255,0.03)";
-                                  ring = "rgba(255,255,255,0.06)";
-                                  txtColor = "text-slate-700";
-                                } else if (!isSelected) {
-                                  // Another guard is selected → dim this row
-                                  bg   = "rgba(255,255,255,0.02)";
-                                  ring = "rgba(255,255,255,0.04)";
-                                  txtColor = "text-slate-800";
-                                } else {
-                                  // This guard IS selected → apply cross-check coloring
-                                  if (ocupadoEnA && ocupadoEnB) {
-                                    // ⚫ Gris oscuro: ocupado en AMBOS tableros
-                                    bg   = "rgba(71,85,105,0.40)";
-                                    ring = "rgba(71,85,105,0.7)";
-                                    txtColor = "text-slate-500";
-                                    sh   = "none";
-                                  } else if (ocupadoEnA) {
-                                    // 🔴 Rojo: el vigilante trabaja ese día en ORIGEN → no disponible
-                                    bg   = "rgba(239,68,68,0.28)";
-                                    ring = "rgba(239,68,68,0.65)";
-                                    txtColor = "text-red-300";
-                                    sh   = "0 0 10px rgba(239,68,68,0.2)";
-                                  } else if (ocupadoEnB) {
-                                    // 🟡 Amarillo: ese turno en DESTINO ya tiene otro vigilante
-                                    bg   = "rgba(234,179,8,0.22)";
-                                    ring = "rgba(234,179,8,0.60)";
-                                    txtColor = "text-yellow-300";
-                                    sh   = "0 0 10px rgba(234,179,8,0.15)";
-                                  } else {
-                                    // 🟢 Verde: libre en AMBOS tableros → asignable
-                                    bg   = "rgba(34,197,94,0.45)";
-                                    ring = "#22c55e";
-                                    txtColor = "text-emerald-100";
-                                    sh   = "0 0 14px rgba(34,197,94,0.55)";
-                                  }
-                                }
+                                        // ── TABLERO B (DESTINO) = Usar el mapa precalculado de arriba ──
+                                        const asigEnDestino = assignmentsByDayMap.get(d)?.[0]; // Simplificación: primer asig del día
+                                        const ocupadoEnB = !!asigEnDestino;
 
-                                // Label shown inside the cell
-                                const crossLabel = (compareVigilanteId && isSelected)
-                                  ? (ocupadoEnA && ocupadoEnB
-                                      ? "A+B"
-                                      : ocupadoEnA
-                                        ? (asigEnOrigen?.turno || "A")
-                                        : ocupadoEnB
-                                          ? (asigEnDestino?.turno || "B")
-                                          : "✓")
-                                  : "—";
+                                        // ... resto de lógica de colores ...
+                                        let bg = "rgba(255,255,255,0.03)";
+                                        let ring = "rgba(255,255,255,0.06)";
+                                        let txtColor = "text-slate-600";
+                                        let sh = "none";
 
-                                return (
-                                  <button
-                                    key={`${vid}-${d}`}
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-
-                                        // Only proceed if day is free in both boards
-                                        if (compareVigilanteId && isSelected && (ocupadoEnA || ocupadoEnB)) {
-                                          const reason = ocupadoEnA
-                                            ? `${vigilantes.find(v => v.id === vid || v.dbId === vid)?.nombre || 'El vigilante'} ya trabaja el día ${d} en este puesto.`
-                                            : `El día ${d} en el puesto destino ya tiene un vigilante asignado.`;
-                                          showTacticalToast({ title: "Día Bloqueado", message: reason, type: "warning" });
-                                          return;
+                                        if (!compareVigilanteId) {
+                                          bg = "rgba(255,255,255,0.03)"; ring = "rgba(255,255,255,0.06)"; txtColor = "text-slate-700";
+                                        } else if (!isSelected) {
+                                          bg = "rgba(255,255,255,0.02)"; ring = "rgba(255,255,255,0.04)"; txtColor = "text-slate-800";
+                                        } else {
+                                          if (ocupadoEnA && ocupadoEnB) { bg = "rgba(71,85,105,0.40)"; ring = "rgba(71,85,105,0.7)"; txtColor = "text-slate-500"; }
+                                          else if (ocupadoEnA) { bg = "rgba(239,68,68,0.28)"; ring = "rgba(239,68,68,0.65)"; txtColor = "text-red-300"; sh = "0 0 10px rgba(239,68,68,0.2)"; }
+                                          else if (ocupadoEnB) { bg = "rgba(234,179,8,0.22)"; ring = "rgba(234,179,8,0.60)"; txtColor = "text-yellow-300"; sh = "0 0 10px rgba(234,179,8,0.15)"; }
+                                          else { bg = "rgba(34,197,94,0.45)"; ring = "#22c55e"; txtColor = "text-emerald-100"; sh = "0 0 14px rgba(34,197,94,0.55)"; }
                                         }
 
-                                        let activeCProg = freshCProg || cProg;
-                                        if (!activeCProg) { 
-                                          const cPResolved = allPuestos.find(p => p.id === comparePuestoId || p.dbId === comparePuestoId);
-                                          if (!cPResolved) return;
-                                          crearOObtenerProgramacion(cPResolved.dbId || cPResolved.id, anio, mes, username || "Sistema");
-                                          showTacticalToast({ title: "Inicializando Destino", message: "Preparando tablero... Haz clic de nuevo.", type: "info" });
-                                          return;
-                                        }
+                                        const crossLabel = (compareVigilanteId && isSelected)
+                                          ? (ocupadoEnA && ocupadoEnB ? "A+B" : ocupadoEnA ? (asigEnOrigen?.turno || "A") : ocupadoEnB ? (asigEnDestino?.turno || "B") : "✓")
+                                          : "—";
 
-                                        const targetAsigSlot =
-                                          activeCProg.asignaciones.find(a => a.dia === d && (!a.vigilanteId || a.jornada === 'sin_asignar') && (a.turno === (asigEnOrigen?.turno || "AM")))
-                                          || activeCProg.asignaciones.find(a => a.dia === d && (!a.vigilanteId || a.jornada === 'sin_asignar'))
-                                          || activeCProg.asignaciones.find(a => a.dia === d && a.rol === 'relevante')
-                                          || activeCProg.asignaciones.find(a => a.dia === d);
-
-                                        if (!targetAsigSlot) {
-                                           showTacticalToast({ title: "Sin Huecos", message: "No hay slots disponibles en el destino para este día.", type: "warning" });
-                                           return;
-                                        }
-
-                                        setEditCell({
-                                          asig: targetAsigSlot,
-                                          progId: activeCProg.id,
-                                          preSelectVigilanteId: vid,
-                                          sourceProgId: asigEnOrigen ? prog.id : undefined,
-                                          sourceRol: asigEnOrigen?.rol
-                                        });
-                                      }}
-                                      title={
-                                        !compareVigilanteId ? `Día ${d}` :
-                                        !isSelected ? "" :
-                                        ocupadoEnA && ocupadoEnB ? `Día ${d}: ocupado en origen Y destino` :
-                                        ocupadoEnA ? `Día ${d}: ${vigilantes.find(v=>v.id===vid||v.dbId===vid)?.nombre} trabaja en origen (${asigEnOrigen?.turno || ''})` :
-                                        ocupadoEnB ? `Día ${d}: destino ya tiene asignado a ${vigilantes.find(v=>v.id===asigEnDestino?.vigilanteId||v.dbId===asigEnDestino?.vigilanteId)?.nombre || 'otro vigilante'}` :
-                                        `Día ${d}: ¡LIBRE! Disponible para asignar`
-                                      }
-                                      className="relative size-8 rounded-xl flex items-center justify-center transition-all border shadow-sm cursor-pointer hover:scale-110 active:scale-95 group pointer-events-auto shrink-0"
-                                      style={{ minWidth: "32px", background: bg, borderColor: ring, boxShadow: sh, zIndex: 10 }}
-                                    >
-                                      <span className={`text-[9px] font-black tracking-tight ${txtColor} pointer-events-none`}>
-                                        {compareVigilanteId && isSelected && !ocupadoEnA && !ocupadoEnB
-                                          ? <span className="material-symbols-outlined text-[11px] text-emerald-300" style={{lineHeight:1,display:'block'}}>check</span>
-                                          : crossLabel
-                                        }
-                                      </span>
-                                      {compareVigilanteId && isSelected && ocupadoEnA && (
-                                        <div className="absolute -top-1 -right-1 size-3 rounded-full border-2 border-slate-900 bg-red-500 shadow-xl" title="Ocupado en origen" />
-                                      )}
-                                      {compareVigilanteId && isSelected && !ocupadoEnA && ocupadoEnB && (
-                                        <div className="absolute -top-1 -right-1 size-3 rounded-full border-2 border-slate-900 bg-yellow-400 shadow-xl" title="Turno destino ocupado" />
-                                      )}
-                                    </button>
+                                        return (
+                                          <button
+                                            key={`${vid}-${d}`}
+                                            onClick={(e) => {
+                                                e.preventDefault(); e.stopPropagation();
+                                                if (compareVigilanteId && isSelected && (ocupadoEnA || ocupadoEnB)) {
+                                                  showTacticalToast({ title: "Día Bloqueado", message: ocupadoEnA ? "Vigilante ocupado en origen." : "Destino ya ocupado.", type: "warning" });
+                                                  return;
+                                                }
+                                                const activeCProg = freshCProg || cProg;
+                                                const targetAsigSlot = activeCProg?.asignaciones.find(a => a.dia === d && (!a.vigilanteId || a.jornada === 'sin_asignar'));
+                                                if (!targetAsigSlot) return;
+                                                setEditCell({ asig: targetAsigSlot, progId: activeCProg!.id, preSelectVigilanteId: vid, sourceProgId: asigEnOrigen ? prog.id : undefined, sourceRol: asigEnOrigen?.rol });
+                                            }}
+                                            className="relative size-8 rounded-xl flex items-center justify-center transition-all border shadow-sm cursor-pointer hover:scale-110 active:scale-95 group pointer-events-auto shrink-0"
+                                            style={{ minWidth: "32px", background: bg, borderColor: ring, boxShadow: sh, zIndex: 10 }}
+                                          >
+                                            <span className={`text-[9px] font-black tracking-tight ${txtColor} pointer-events-none`}>
+                                              {compareVigilanteId && isSelected && !ocupadoEnA && !ocupadoEnB ? <span className="material-symbols-outlined text-[11px] text-emerald-300">check</span> : crossLabel}
+                                            </span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
                                   );
                                 })}
-                              </div>
-                            );
-                          })}
                           </>
                         );
                       })()}
@@ -3712,314 +3640,196 @@ const PanelMensualPuesto = ({
     );
   };
 
+const PuestoCard = React.memo(({ puesto, anio, mes, onClick }: { puesto: any, anio: number, mes: number, onClick: () => void }) => {
+  // Use a selector that only updates when THIS specific program changes
+  const progId = useProgramacionStore(s => {
+     const p = s.getProgramacion(puesto.id, anio, mes);
+     return p?.id || null;
+  });
+  
+  const progEstado = useProgramacionStore(s => {
+     const p = s.getProgramacion(puesto.id, anio, mes);
+     return p?.estado || 'sin_programacion';
+  });
 
-
-// ── MAIN PAGE ──────────────────────────────────────────────────────────────────
-
-const GestionPuestos = () => {
-  const puestos = usePuestoStore((s) => s.puestos);
-  const programaciones = useProgramacionStore((s) => s.programaciones);
-  const loaded = useProgramacionStore((s) => s.loaded);
-  const isSyncing = useProgramacionStore((s) => s.isSyncing);
-  const { username } = useAuthStore();
-  const crearOObtenerProgramacion = useProgramacionStore((s) => s.crearOObtenerProgramacion);
-  const fetchProgramacionesByMonth = useProgramacionStore((s) => s.fetchProgramacionesByMonth);
-  const getCoberturaPorcentaje = useProgramacionStore((s) => s.getCoberturaPorcentaje);
-  const getAlertas = useProgramacionStore((s) => s.getAlertas);
-  const getProgramacion = useProgramacionStore((s) => s.getProgramacion);
-
-  const now = new Date();
-  const [anio, setAnio] = useState(now.getFullYear());
-  const [mes, setMes] = useState(now.getMonth());
-  const [filtroZona, setFiltroZona] = useState("todos");
-  const [filtroEstado, setFiltroEstado] = useState("todos");
-  const [filtroCobertura, setFiltroCobertura] = useState("todos");
-  const [busqueda, setBusqueda] = useState("");
-  const [puestoSeleccionado, setPuestoSeleccionado] = useState<{
-    id: string;
-    nombre: string;
-  } | null>(null);
-
-  // CRITICAL SYNC: Fetch month data when user changes the target period
-  useEffect(() => {
-    fetchProgramacionesByMonth(anio, mes);
-  }, [anio, mes, fetchProgramacionesByMonth]);
-
-  const puestosConProg = useMemo(() => {
-    return puestos.map((p) => {
-      // Use the robust selector which handles UUID/ShortID and prioritizes detailed data
-      const prog = getProgramacion(p.id, anio ?? 2026, mes ?? 0);
-      const cobertura = prog ? getCoberturaPorcentaje(prog.id) : 0;
-      const alertas = prog ? getAlertas(prog.id) : [];
-      return {
-        ...p,
-        cobertura,
-        alertas,
-        progEstado: prog?.estado ?? "sin_programacion",
-      };
-    });
-  }, [puestos, anio, mes, getProgramacion, getCoberturaPorcentaje, getAlertas]);
-
-  // ON-DEMAND HYDRATION: Fetch details for visible posts only to avoid crashing browser with 6000 records
-  const _fetchBatchDetails = useProgramacionStore((s) => s._fetchDetails);
-  useEffect(() => {
-    if (!loaded) return;
-    const needHydration = pagedPuestos
-      .map(p => getProgramacion(p.id, anio, mes))
-      .filter((prog): prog is ProgramacionMensual => !!prog && !prog.isDetailLoaded);
-    
-    if (needHydration.length > 0) {
-      console.log(`[Hydration] 🌊 Hydrating ${needHydration.length} visible posts...`);
-      // We pass the rows mapping to meet _fetchDetails interface (which expects row headers from Supabase)
-      // but _fetchDetails mostly needs the IDs.
-      _fetchBatchDetails(needHydration, needHydration.map(n => n.id));
-    }
-  }, [pagedPuestos, anio, mes, _fetchBatchDetails, getProgramacion, loaded]);
-
-  const [visibleCount, setVisibleCount] = useState(60);
-
-  const puestosFiltrados = useMemo(() => {
-    return puestosConProg.filter((p) => {
-      if (filtroEstado !== "todos" && p.estado !== filtroEstado) return false;
-      if (filtroCobertura === "completo" && p.cobertura < 80) return false;
-      if (filtroCobertura === "incompleto" && p.cobertura >= 80) return false;
-      if (busqueda) {
-        const q = busqueda.toLowerCase();
-        if (
-          !p.nombre.toLowerCase().includes(q) &&
-          !p.id.toLowerCase().includes(q)
-        )
-          return false;
-      }
-      return true;
-    });
-  }, [puestosConProg, filtroEstado, filtroCobertura, busqueda]);
-
-  const pagedPuestos = useMemo(() => {
-    return puestosFiltrados.slice(0, visibleCount);
-  }, [puestosFiltrados, visibleCount]);
-
-  const statsGlobales = useMemo(
-    () => ({
-      total: puestos.length,
-      publicados: puestosConProg.filter((p) => p.progEstado === "publicado")
-        .length,
-      borradores: puestosConProg.filter((p) => p.progEstado === "borrador")
-        .length,
-      sinProg: puestosConProg.filter((p) => p.progEstado === "sin_programacion")
-        .length,
-      coberturaPromedio:
-        puestosConProg.length > 0
-          ? Math.round(
-              puestosConProg.reduce((a, p) => a + p.cobertura, 0) /
-                puestosConProg.length,
-            )
-          : 0,
-    }),
-    [puestos, puestosConProg],
-  );
-
-  if (puestoSeleccionado) {
-    return (
-      <PanelMensualPuesto
-        puestoId={puestoSeleccionado.id}
-        puestoNombre={puestoSeleccionado.nombre}
-        anio={anio}
-        mes={mes}
-        onClose={() => setPuestoSeleccionado(null)}
-        onPuestoChange={(id, nombre) => setPuestoSeleccionado({ id, nombre })}
-      />
-    );
-  }
+  const cobertura = useProgramacionStore(s => progId ? s.getCoberturaPorcentaje(progId) : 0);
+  const alertas = useProgramacionStore(s => progId ? s.getAlertas(progId) : []);
 
   return (
-    <div className="page-container space-y-8 animate-in fade-in duration-500 pb-24">
-      {/* Header */}
-      <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6 px-2">
+    <div
+      className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm hover:shadow-md hover:border-primary/20 transition-all cursor-pointer group"
+      onClick={onClick}
+    >
+      <div className="flex items-start justify-between mb-4">
         <div>
-          <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">
-            <span>Sistema</span>
-            <span className="material-symbols-outlined text-[14px] notranslate">
-              chevron_right
-            </span>
-            <span className="text-primary font-black">Puestos Activos</span>
-          </div>
-          <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">
-            Programación <span className="text-primary">Puestos Activos</span>
-          </h1>
-          <p className="text-sm text-slate-400 mt-1 font-medium">
-            Panel de control mensual · Gestión de personal élite
-          </p>
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{puesto.id}</p>
+          <h3 className="text-base font-black text-slate-900 mt-0.5 group-hover:text-primary transition-colors">{puesto.nombre}</h3>
         </div>
-
-        {/* Month/Year selector */}
-        <div className="flex items-center gap-3 bg-white border border-slate-100 p-2 rounded-2xl shadow-sm">
-          <span className="text-[10px] uppercase font-black tracking-widest text-slate-400 ml-2">
-            Mes a programar:
-          </span>
-          <select
-            value={mes}
-            onChange={(e) => setMes(Number(e.target.value))}
-            className="h-10 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 outline-none hover:border-primary/50 transition-all cursor-pointer"
-          >
-            {MONTH_NAMES.map((m, i) => (
-              <option key={i} value={i}>
-                {m}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            value={anio}
-            onChange={(e) => setAnio(Number(e.target.value))}
-            className="h-10 w-24 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 outline-none hover:border-primary/50 transition-all"
-          />
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm flex flex-wrap gap-4 items-center">
-        <div className="relative flex-1 min-w-[200px]">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] notranslate">
-            search
-          </span>
-          <input
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar puesto..."
-            className="w-full h-11 pl-10 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:border-primary/50"
-          />
-        </div>
-        <select
-          value={filtroEstado}
-          onChange={(e) => setFiltroEstado(e.target.value)}
-          className="h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 outline-none"
-        >
-          <option value="todos">Todos los estados</option>
-          <option value="cubierto">Cubierto</option>
-          <option value="alerta">En Alerta</option>
-          <option value="desprotegido">Desprotegido</option>
-        </select>
-        <select
-          value={filtroCobertura}
-          onChange={(e) => setFiltroCobertura(e.target.value)}
-          className="h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 outline-none"
-        >
-          <option value="todos">Toda la cobertura</option>
-          <option value="completo">≥80% Completo</option>
-          <option value="incompleto">&lt;80% Incompleto</option>
-        </select>
-        <span className="text-[10px] font-bold text-slate-400 font-mono">
-          {puestosFiltrados.length} puestos · {programaciones.length} programas recuperados de la nube
+        <span className={`text-[9px] font-black px-2.5 py-1 rounded-full uppercase ${puesto.estado === "cubierto" ? "bg-success/10 text-success" : puesto.estado === "alerta" ? "bg-warning/10 text-warning" : "bg-danger/10 text-danger"}`}>
+          {puesto.estado}
         </span>
-        {(!loaded || isSyncing) && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full animate-pulse border border-primary/20">
-            <div className="size-1.5 rounded-full bg-primary animate-bounce" />
-            <span className="text-[9px] font-black text-primary uppercase tracking-widest">Sincronizando Corazón...</span>
-          </div>
-        )}
       </div>
 
-      {/* Puestos Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-        {pagedPuestos.map((p) => (
-          <div
-            key={p.id}
-            className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm hover:shadow-md hover:border-primary/20 transition-all cursor-pointer"
-            onClick={() =>
-              setPuestoSeleccionado({ id: p.dbId || p.id, nombre: p.nombre })
-            }
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                  {p.id}
-                </p>
-                <h3 className="text-base font-black text-slate-900 mt-0.5 group-hover:text-primary transition-colors">
-                  {p.nombre}
-                </h3>
-              </div>
-              <span
-                className={`text-[9px] font-black px-2.5 py-1 rounded-full uppercase ${p.estado === "cubierto" ? "bg-success/10 text-success" : p.estado === "alerta" ? "bg-warning/10 text-warning" : "bg-danger/10 text-danger"}`}
-              >
-                {p.estado}
-              </span>
-            </div>
-
-            {/* Coverage bar */}
-            <div className="mb-3">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  Programación {MONTH_NAMES[mes]}
-                </span>
-                <span
-                  className={`text-[11px] font-black ${p.cobertura >= 80 ? "text-success" : p.cobertura >= 50 ? "text-warning" : "text-danger"}`}
-                >
-                  {p.cobertura}%
-                </span>
-              </div>
-              <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all ${p.cobertura >= 80 ? "bg-success" : p.cobertura >= 50 ? "bg-warning" : "bg-danger"}`}
-                  style={{ width: `${p.cobertura}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span
-                className={`text-[10px] font-black px-2.5 py-1 rounded-full ${p.progEstado === "publicado" ? "bg-success/10 text-success" : p.progEstado === "borrador" ? "bg-warning/10 text-warning" : "bg-slate-100 text-slate-400"}`}
-              >
-                {p.progEstado === "publicado"
-                  ? "Publicado"
-                  : p.progEstado === "borrador"
-                    ? "Borrador"
-                    : "Sin programar"}
-              </span>
-              {p.alertas.length > 0 && (
-                <span className="text-[10px] font-black text-danger flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">
-                    warning
-                  </span>
-                  {p.alertas.length} alerta{p.alertas.length > 1 ? "s" : ""}
-                </span>
-              )}
-              <span className="material-symbols-outlined text-slate-300 group-hover:text-primary transition-colors text-[20px]">
-                arrow_forward
-              </span>
-            </div>
-          </div>
-        ))}
-
-        {puestosFiltrados.length === 0 && (
-          <div className="col-span-3 text-center py-20">
-            <span className="material-symbols-outlined text-6xl text-slate-200">
-              location_off
-            </span>
-            <p className="mt-4 text-[12px] font-black text-slate-400 uppercase tracking-widest">
-              Sin puestos que coincidan con los filtros
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Pagination Footer */}
-      {visibleCount < puestosFiltrados.length && (
-        <div className="flex flex-col items-center justify-center pt-8 border-t border-slate-100 gap-4">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-            Mostrando {visibleCount} de {puestosFiltrados.length} puestos cargados
-          </p>
-          <button
-            onClick={() => setVisibleCount(prev => prev + 100)}
-            className="group flex items-center gap-3 bg-white border border-slate-200 hover:border-primary px-8 py-4 rounded-3xl shadow-sm hover:shadow-xl transition-all active:scale-95"
-          >
-            <span className="material-symbols-outlined text-primary group-hover:rotate-180 transition-transform">expand_more</span>
-            <span className="text-sm font-black text-slate-700 uppercase tracking-widest">Cargar 100 puestos más</span>
-          </button>
+      <div className="mb-3">
+        <div className="flex justify-between items-center mb-1">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">PROG. {MONTH_NAMES[mes]}</span>
+          <span className={`text-[11px] font-black ${cobertura >= 80 ? "text-success" : cobertura >= 50 ? "text-warning" : "text-danger"}`}>{cobertura}%</span>
         </div>
-      )}
+        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div className="h-full rounded-full transition-all" style={{ width: `${cobertura}%`, backgroundColor: cobertura >= 80 ? '#10b981' : cobertura >= 50 ? '#f59e0b' : '#ef4444' }} />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${progEstado === "publicado" ? "bg-success/10 text-success" : progEstado === "borrador" ? "bg-warning/10 text-warning" : "bg-slate-100 text-slate-400"}`}>
+          {progEstado === "publicado" ? "Publicado" : progEstado === "borrador" ? "Borrador" : "Sin programar"}
+        </span>
+        {alertas.length > 0 && (
+          <span className="text-[10px] font-black text-danger flex items-center gap-1">
+            <span className="material-symbols-outlined text-[14px]">warning</span>
+            {alertas.length}
+          </span>
+        )}
+        <span className="material-symbols-outlined text-slate-300 group-hover:text-primary transition-colors text-[20px]">arrow_forward</span>
+      </div>
     </div>
   );
+});
+
+const GestionPuestos = () => {
+    const puestos = usePuestoStore((s) => s.puestos);
+    const loaded = useProgramacionStore((s) => s.loaded);
+    const isSyncing = useProgramacionStore((s) => s.isSyncing);
+    const fetchProgramacionesByMonth = useProgramacionStore((s) => s.fetchProgramacionesByMonth);
+    const getProgramacion = useProgramacionStore((s) => s.getProgramacion);
+    const _fetchBatchDetails = useProgramacionStore((s) => s._fetchDetails);
+    const programacionesCount = useProgramacionStore(s => s.programaciones.length);
+
+    const now = new Date();
+    const [anio, setAnio] = useState(now.getFullYear());
+    const [mes, setMes] = useState(now.getMonth());
+    const [filtroEstado, setFiltroEstado] = useState("todos");
+    const [filtroCobertura, setFiltroCobertura] = useState("todos");
+    const [busqueda, setBusqueda] = useState("");
+    const [visibleCount, setVisibleCount] = useState(60);
+    const [puestoSeleccionado, setPuestoSeleccionado] = useState<{ id: string; nombre: string; } | null>(null);
+
+    useEffect(() => {
+        fetchProgramacionesByMonth(anio, mes);
+    }, [anio, mes, fetchProgramacionesByMonth]);
+
+    const filteredPuestos = useMemo(() => {
+        return puestos.filter((p) => {
+            if (filtroEstado !== "todos" && p.estado !== filtroEstado) return false;
+            if (busqueda) {
+                const q = busqueda.toLowerCase();
+                if (!p.nombre.toLowerCase().includes(q) && !p.id.toLowerCase().includes(q)) return false;
+            }
+            return true;
+        });
+    }, [puestos, filtroEstado, busqueda]);
+
+    const pagedPuestos = useMemo(() => {
+        return filteredPuestos.slice(0, visibleCount);
+    }, [filteredPuestos, visibleCount]);
+
+    useEffect(() => {
+        if (!loaded) return;
+        const timer = setTimeout(() => {
+            const needHydration = pagedPuestos
+                .map(p => getProgramacion(p.id, anio, mes))
+                .filter((prog): prog is ProgramacionMensual => !!prog && !prog.isDetailLoaded && !prog.isFetching);
+            if (needHydration.length > 0) {
+                _fetchBatchDetails(needHydration, needHydration.map(n => n.id));
+            }
+        }, 800);
+        return () => clearTimeout(timer);
+    }, [pagedPuestos, anio, mes, _fetchBatchDetails, getProgramacion, loaded]);
+
+    if (puestoSeleccionado) {
+        return (
+            <PanelMensualPuesto
+                puestoId={puestoSeleccionado.id}
+                puestoNombre={puestoSeleccionado.nombre}
+                anio={anio}
+                mes={mes}
+                onClose={() => setPuestoSeleccionado(null)}
+                onPuestoChange={(id, nombre) => setPuestoSeleccionado({ id, nombre })}
+            />
+        );
+    }
+
+    return (
+        <div className="page-container space-y-8 animate-in fade-in duration-500 pb-24">
+            <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6 px-2">
+                <div>
+                    <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">
+                        <span>Sistema</span>
+                        <span className="material-symbols-outlined text-[14px]">chevron_right</span>
+                        <span className="text-primary font-black">Puestos Activos</span>
+                    </div>
+                    <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">
+                        Programación <span className="text-primary">Puestos Activos</span>
+                    </h1>
+                </div>
+
+                <div className="flex items-center gap-3 bg-white border border-slate-100 p-2 rounded-2xl shadow-sm">
+                    <select value={mes} onChange={(e) => setMes(Number(e.target.value))} className="h-10 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold outline-none cursor-pointer">
+                        {MONTH_NAMES.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                    </select>
+                    <input type="number" value={anio} onChange={(e) => setAnio(Number(e.target.value))} className="h-10 w-24 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold outline-none" />
+                </div>
+            </div>
+
+            <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm flex flex-wrap gap-4 items-center">
+                <div className="relative flex-1 min-w-[200px]">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
+                    <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar puesto..." className="w-full h-11 pl-10 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary/50" />
+                </div>
+                <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} className="h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold outline-none">
+                    <option value="todos">Todos los estados</option>
+                    <option value="cubierto">Cubierto</option>
+                    <option value="alerta">Alerta</option>
+                    <option value="desprotegido">Desprotegido</option>
+                </select>
+                <div className="text-[10px] font-bold text-slate-400 flex flex-col">
+                    <span>{filteredPuestos.length} puestos cargados</span>
+                    <span>{programacionesCount} programas en red</span>
+                </div>
+                {(!loaded || isSyncing) && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full animate-pulse border border-primary/20">
+                        <span className="text-[9px] font-black text-primary uppercase">Sincronizando Operaciones...</span>
+                    </div>
+                )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                {pagedPuestos.map((p) => (
+                    <PuestoCard 
+                      key={`${p.id}-${anio}-${mes}`} 
+                      puesto={p} 
+                      anio={anio} 
+                      mes={mes} 
+                      onClick={() => setPuestoSeleccionado({ id: p.dbId || p.id, nombre: p.nombre })} 
+                    />
+                ))}
+                {filteredPuestos.length === 0 && (
+                    <div className="col-span-3 text-center py-20 opacity-40">
+                        <span className="material-symbols-outlined text-6xl">location_off</span>
+                        <p className="mt-4 font-black uppercase tracking-widest text-xs">Sin resultados</p>
+                    </div>
+                )}
+            </div>
+
+            {visibleCount < filteredPuestos.length && (
+                <div className="flex justify-center pt-8">
+                    <button onClick={() => setVisibleCount(v => v + 100)} className="bg-white border border-slate-200 px-8 py-4 rounded-3xl font-black uppercase tracking-widest text-xs hover:border-primary transition-all shadow-sm">
+                        Cargar 100 puestos más
+                    </button>
+                </div>
+            )}
+        </div>
+    );
 };
 
 export default GestionPuestos;
