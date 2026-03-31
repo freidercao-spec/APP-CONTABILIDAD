@@ -134,9 +134,10 @@ const PanelMensualPuesto = ({
   // (No se puede llamar hooks/getState dentro del cuerpo del return de JSX)
   const vigilanteMap = useMemo(() => {
     const m = new Map<string, string>();
+    if (!Array.isArray(vigilantes)) return m;
     vigilantes.forEach(v => {
-      m.set(v.id, v.nombre);
-      if (v.dbId) m.set(v.dbId, v.nombre);
+      if (v?.id) m.set(v.id, v.nombre || 'Sin nombre');
+      if (v?.dbId) m.set(v.dbId, v.nombre || 'Sin nombre');
     });
     return m;
   }, [vigilantes]);
@@ -156,7 +157,7 @@ const PanelMensualPuesto = ({
   const jornadasCustom = (puesto?.jornadasCustom?.length ? puesto.jornadasCustom : DEFAULT_JORNADAS);
 
   return (
-    <div className="page-container bg-slate-50 min-h-screen pb-32">
+    <div className="page-container animate-fade-in bg-slate-50 min-h-screen pb-32">
       {/* HEADER SECTION */}
       <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-8">
         <div>
