@@ -23,6 +23,72 @@ export interface AsignacionDia {
     fin?: string;    
 }
 
+// ── Helpers de Traducción y Comparación ───────────────────────────────────────
+
+/**
+ * Compara dos IDs (UUIDs o IDs Shorthand) de forma segura.
+ */
+export const idsMatch = (id1: string | null | undefined, id2: string | null | undefined): boolean => {
+    if (!id1 || !id2) return id1 === id2;
+    const s1 = String(id1).trim();
+    const s2 = String(id2).trim();
+    if (s1 === s2) return true;
+    
+    const vStore = useVigilanteStore.getState();
+    const pStore = usePuestoStore.getState();
+
+    // Caso Vigilante
+    const v1 = vStore.vigilantes?.find(v => v.id === s1 || v.dbId === s1);
+    const v2 = vStore.vigilantes?.find(v => v.id === s2 || v.dbId === s2);
+    if (v1 && v2 && (v1.id === v2.id || v1.dbId === v2.dbId)) return true;
+
+    // Caso Puesto
+    const p1 = pStore.puestos?.find(p => p.id === s1 || p.dbId === s1);
+    const p2 = pStore.puestos?.find(p => p.id === s2 || p.dbId === s2);
+    if (p1 && p2 && (p1.id === p2.id || p1.dbId === p2.dbId)) return true;
+
+    return false;
+};
+
+/**
+ * Traduce un ID Readable / UUID a UUID puro para la DB.
+ */
+export const translatePuestoToUuid = (id: string | null): string | null => {
+    if (!id) return null;
+    const pStore = usePuestoStore.getState();
+    const found = pStore.puestos?.find(p => p.id === id || p.dbId === id);
+    return found?.dbId || id;
+};
+
+/**
+ * Traduce un ID de vigilante a UUID.
+ */
+export const translateToUuid = (id: string | null): string | null => {
+    if (!id) return null;
+    const vStore = useVigilanteStore.getState();
+    const found = vStore.vigilantes?.find(v => v.id === id || v.dbId === id);
+    return found?.dbId || id;
+};
+
+/**
+ * Traduce un UUID a ID legible para la UI.
+ */
+export const translateToReadableId = (dbId: string): string => {
+    const pStore = usePuestoStore.getState();
+    const found = pStore.puestos?.find(p => p.dbId === dbId || p.id === dbId);
+    return found?.id || dbId;
+};
+
+/**
+ * Traduce un UUID de la base de datos al formato legible de la UI.
+ */
+export const translateFromDb = (dbId: string | null, lookupMap?: Map<string, string>) => {
+    if (!dbId) return null;
+    if (lookupMap) return lookupMap.get(dbId) || dbId;
+    const v = useVigilanteStore.getState().getVigilanteById(dbId);
+    return v?.id || dbId;
+};
+
 export interface PersonalPuesto {
     rol: RolPuesto;
     vigilanteId: string | null;
@@ -117,52 +183,11 @@ const pendingSyncs = new Map<string, any>();
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const translateToUuid = (idRaw: string | null): string | null => {
-    if (!idRaw) return null;
-    const id = String(idRaw).trim();
-    if (uuidRegex.test(id)) return id;
-    
-    // PERFORMANCE: Use O(1) Map search
-    const v = useVigilanteStore.getState().getVigilanteById(id);
-    if (v?.dbId && uuidRegex.test(v.dbId)) return v.dbId;
-    return null; 
-};
-
-const translateFromDb = (dbId: string | null, lookupMap?: Map<string, string>) => {
-    if (!dbId) return null;
-    if (lookupMap) return lookupMap.get(dbId) || dbId;
-    const v = useVigilanteStore.getState().getVigilanteById(dbId);
-    return v?.id || dbId;
-};
-
-const translatePuestoToUuid = (idRaw: string | null): string | null => {
-    if (!idRaw) return null;
-    const id = String(idRaw).trim();
-    if (uuidRegex.test(id)) return id;
-    const p = usePuestoStore.getState().puestos.find((pt: any) => pt.id === id || pt.dbId === id);
-    return p?.dbId || (uuidRegex.test(id) ? id : null);
-};
-
-const idsMatch = (id1: string | null, id2: string | null): boolean => {
-    if (!id1 || !id2) return false;
-    const str1 = String(id1).trim().toLowerCase();
-    const str2 = String(id2).trim().toLowerCase();
-    if (str1 === str2) return true;
-    
-    // PERFORMANCE: Use O(1) Map lookup
-    const vMap = useVigilanteStore.getState().vigilanteMap;
-    const v1 = vMap.get(id1) || vMap.get(str1);
-    const v2 = vMap.get(id2) || vMap.get(str2);
-    
-    if (v1 && v2) {
-        return (v1.dbId === v2.dbId || v1.id === v2.id);
-    }
-    // Cross-match: check if one ID matches the other's property
-    if (v1 && (v1.dbId === id2 || v1.id === id2)) return true;
-    if (v2 && (v2.dbId === id1 || v2.id === id1)) return true;
-
-    return false;
-};
+interface SyncResult {
+    success: boolean;
+    serverVersion: number;
+    serverUpdatedAt: string | null;
+}
 
 interface SyncResult {
     success: boolean;
@@ -395,9 +420,11 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                 }
                             });
 
-                            const newMap = new Map();
+                            const newMap = new Map<string, ProgramacionMensual>();
                             merged.forEach(p => {
                                 newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
+                                const uuid = translatePuestoToUuid(p.puestoId);
+                                if (uuid && uuid !== p.puestoId) newMap.set(`${uuid}-${p.anio}-${p.mes}`, p);
                                 newMap.set(p.id, p);
                             });
 
@@ -480,34 +507,40 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                     const incomingHasData = asignaciones.some(a => a.vigilanteId !== null);
                     
-                    set((state: any) => ({
-                        programaciones: state.programaciones.map((p: any) => {
-                             if (p.id !== progId) return p;
-                             
-                             const localIsPending = p.syncStatus === 'pending';
-                             const localHasData = p.asignaciones && p.asignaciones.some((a: AsignacionDia) => a.vigilanteId !== null);
-                             
-                             // REGLA DE CONFLICTO: Si hay trabajo local sin guardar, no dejamos que la DB lo pise
-                             // a menos que la versión de la DB sea mayor.
-                             if (localIsPending) {
-                                 const incomingVersion = (asignaciones.length > 0) ? (p.version || 1) : 0; // Aproximación
-                                 // Nota: En fetching de un solo ID, row no está disponible aquí directamente, 
-                                 // pero version suele estar en el objeto 'p'.
-                                 return { ...p, isDetailLoaded: true }; // Mantenemos local
-                             }
+                    set((state: ProgramacionState) => {
+                        const updatedProgs = state.programaciones.map((p) => {
+                            if (p.id !== progId) return p;
+                            
+                            const localIsPending = p.syncStatus === 'pending';
+                            const localHasData = p.asignaciones && p.asignaciones.some((a: AsignacionDia) => a.vigilanteId !== null);
+                            
+                            if (localIsPending) return { ...p, isDetailLoaded: true };
+                            if (localHasData && !incomingHasData) return { ...p, isDetailLoaded: true };
 
-                             if (localHasData && !incomingHasData) {
-                                 return { ...p, isDetailLoaded: true };
-                             }
-                             
-                             return {
-                                 ...p,
-                                 personal,
-                                 asignaciones,
-                                 isDetailLoaded: true
-                             };
-                        })
-                    }));
+                            return {
+                                ...p,
+                                personal,
+                                asignaciones,
+                                isDetailLoaded: true
+                            };
+                        });
+
+                        const nextMap = new Map<string, ProgramacionMensual>(state._progMap || []);
+                        const updatedProg = updatedProgs.find((px) => px.id === progId);
+                        if (updatedProg) {
+                            nextMap.set(progId, updatedProg);
+                            nextMap.set(`${updatedProg.puestoId}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
+                            const dbUuid = translatePuestoToUuid(updatedProg.puestoId);
+                            if (dbUuid && dbUuid !== updatedProg.puestoId) {
+                                nextMap.set(`${dbUuid}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
+                            }
+                        }
+                        
+                        return { 
+                            programaciones: updatedProgs as ProgramacionMensual[], 
+                            _progMap: nextMap 
+                        } as Partial<ProgramacionState>;
+                    });
                 } catch (err) {
                     console.error('fetchProgramacionDetalles Error:', err);
                 }
@@ -520,11 +553,11 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                 // CORRECCIÓN C-6: Bloqueo de duplicados. Marcamos como 'isFetching' inmediatamente en ARRAY y MAP
                 set((state: any) => {
-                    const nextProgs = state.programaciones.map((p: any) => 
+                    const nextProgs: any[] = state.programaciones.map((p: any) => 
                         progIds.includes(p.id) ? { ...p, isFetching: true } : p
                     );
-                    const nextMap = new Map(state._progMap || []);
-                    nextProgs.forEach(p => {
+                    const nextMap = new Map<string, ProgramacionMensual>(state._progMap || []);
+                    nextProgs.forEach((p: any) => {
                         if (progIds.includes(p.id)) {
                             nextMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
                             nextMap.set(p.id, p);
@@ -836,15 +869,15 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
 
             getDiasTrabajoVigilante: (progId, vigilanteId) => {
-                const prog = get().programaciones.find(p => p.id === progId);
+                const prog = get()._progMap?.get(progId);
                 if (!prog) return 0;
-                return prog.asignaciones.filter(a => idsMatch(a.vigilanteId, vigilanteId) && (a.jornada !== 'sin_asignar')).length;
+                return (prog.asignaciones || []).filter(a => idsMatch(a.vigilanteId, vigilanteId) && (a.jornada !== 'sin_asignar')).length;
             },
 
             getDiasDescansoVigilante: (progId, vigilanteId) => {
-                const prog = get().programaciones.find(p => p.id === progId);
+                const prog = get()._progMap?.get(progId);
                 if (!prog) return { remunerados: 0, noRemunerados: 0 };
-                const as = prog.asignaciones.filter(a => idsMatch(a.vigilanteId, vigilanteId));
+                const as = (prog.asignaciones || []).filter(a => idsMatch(a.vigilanteId, vigilanteId));
                 return { 
                     remunerados: as.filter(a => a.jornada === 'descanso_remunerado').length, 
                     noRemunerados: as.filter(a => a.jornada === 'descanso_no_remunerado').length 
@@ -852,10 +885,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
 
             getCoberturaPorcentaje: (progId) => {
-                const prog = get().programaciones.find(p => p.id === progId);
+                const prog = get()._progMap?.get(progId);
                 if (!prog) return 0;
-                // Si los detalles no se han cargado pero tenemos asignaciones en memoria, las usamos.
-                // Si realmente está vacío, devolvemos 0 para evitar confusión.
                 const total = prog.asignaciones?.length || 0;
                 if (total === 0) return 0;
                 const cubiertos = prog.asignaciones.filter(a => a.vigilanteId && a.jornada !== 'sin_asignar').length;
@@ -863,10 +894,10 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
 
             getAlertas: (progId) => {
-                const prog = get().programaciones.find(p => p.id === progId);
+                const prog = get()._progMap?.get(progId);
                 if (!prog) return [];
                 const alertas: string[] = [];
-                const vacios = prog.asignaciones.filter(a => !a.vigilanteId).length;
+                const vacios = (prog.asignaciones || []).filter(a => !a.vigilanteId).length;
                 if (vacios > 0) alertas.push(`${vacios} turnos vacíos`);
                 return alertas;
             },
