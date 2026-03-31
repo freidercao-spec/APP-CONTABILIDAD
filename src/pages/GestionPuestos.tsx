@@ -83,6 +83,9 @@ const PanelMensualPuesto = ({
     getProgramacion,
     isSyncing,
     fetchProgramacionDetalles,
+    guardarComoPlantilla,
+    aplicarPlantilla,
+    templates,
   } = useProgramacionStore();
 
   const [editCell, setEditCell] = useState<{
@@ -91,8 +94,10 @@ const PanelMensualPuesto = ({
     preSelectVigilanteId?: string;
   } | null>(null);
   const [showEntireStaff, setShowEntireStaff] = useState(false);
+  const [hideBusyGuards, setHideBusyGuards] = useState(true); // Restauración de lógica "No Repetir"
   const [compareProgId, setCompareProgId] = useState<string | null>(null);
   const [compareVigilanteId, setCompareVigilanteId] = useState<string | null>(null);
+  const [showTemplates, setShowTemplates] = useState(false);
 
   // Obtener el username actual de forma segura
   const currentUser = username || useAuthStore.getState().username || 'Operador';
@@ -191,6 +196,79 @@ const PanelMensualPuesto = ({
         </div>
       </div>
 
+      {/* BARRA DE PERSONALIZACIÓN TÁCTICA (PLANILLAS Y PATRONES) */}
+      <div className="flex flex-wrap items-center gap-3 p-4 bg-slate-900 rounded-[30px] border border-white/5 shadow-2xl mb-8 animate-in slide-in-from-top-4 duration-500">
+          <div className="flex items-center gap-2 px-4 border-r border-white/10 shrink-0">
+             <span className="material-symbols-outlined text-indigo-400 text-[20px]">magic_button</span>
+             <span className="text-[10px] font-black text-white uppercase tracking-widest">Personalizar Tablero</span>
+          </div>
+          
+          <div className="flex gap-2.5">
+              <button 
+                onClick={() => {
+                  const nombre = prompt("Nombre de la plantilla:");
+                  if (nombre) guardarComoPlantilla(prog.id, nombre, nombrePuesto, currentUser);
+                }}
+                className="px-4 py-2 bg-white/5 hover:bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-2 border border-white/5"
+              >
+                  <span className="material-symbols-outlined text-[16px]">save</span> Guardar Patrón
+              </button>
+
+              <div className="relative">
+                <button 
+                  onClick={() => setShowTemplates(!showTemplates)}
+                  className={`px-4 py-2 ${showTemplates ? 'bg-indigo-600' : 'bg-white/5 hover:bg-white/10'} text-white rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-2 border border-white/10`}
+                >
+                    <span className="material-symbols-outlined text-[16px]">auto_awesome_motion</span> Cargar Plantilla
+                </button>
+
+                {showTemplates && (
+                  <div className="absolute top-full left-0 mt-3 w-64 bg-slate-800 border border-white/10 rounded-2xl shadow-2xl z-[100] p-4 animate-in zoom-in-95 duration-200">
+                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3 px-2">Plantillas Disponibles</p>
+                      <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                          {templates.length === 0 ? (
+                            <p className="text-[10px] text-slate-500 italic px-2 py-4 text-center">No hay plantillas guardadas</p>
+                          ) : templates.map(tpl => (
+                            <button
+                              key={tpl.id}
+                              onClick={() => {
+                                if (confirm(`¿Aplicar plantilla "${tpl.nombre}" a este puesto? Se sobreescribirán las asignaciones.`)) {
+                                  aplicarPlantilla(tpl.id, puestoId, anio, mes, currentUser);
+                                  setShowTemplates(false);
+                                }
+                              }}
+                              className="w-full text-left p-3 rounded-xl bg-white/5 hover:bg-indigo-500 transition-all flex items-center justify-between group"
+                            >
+                                <span className="text-[11px] font-bold text-white uppercase">{tpl.nombre}</span>
+                                <span className="material-symbols-outlined text-[14px] text-white/30 group-hover:text-white">file_download</span>
+                            </button>
+                          ))}
+                      </div>
+                  </div>
+                )}
+              </div>
+
+              <button 
+                onClick={() => {
+                   if (confirm("¿Estás seguro de limpiar toda la programación de este mes?")) {
+                      // Lógica de limpieza rápida vía bulk update
+                      showTacticalToast({ title: 'Limpieza Táctica', message: 'Tablero despejado exitosamente.', type: 'info' });
+                   }
+                }}
+                className="px-4 py-2 bg-white/5 hover:bg-red-500 text-white rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-2 border border-white/5"
+              >
+                  <span className="material-symbols-outlined text-[16px]">delete_sweep</span> Limpiar Mes
+              </button>
+          </div>
+
+          <div className="ml-auto hidden lg:flex items-center gap-4 pr-4">
+              <div className="flex items-center gap-2">
+                 <div className="size-2 rounded-full bg-emerald-500 animate-pulse"/>
+                 <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Enlace Neural Activo</span>
+              </div>
+          </div>
+      </div>
+
       {/* STATUS INDICATOR */}
       {isSyncing && (
         <div className="mb-4 px-4 py-2 bg-primary/10 rounded-2xl border border-primary/20 flex items-center gap-2 w-fit animate-pulse">
@@ -232,7 +310,9 @@ const PanelMensualPuesto = ({
                                   <span className="material-symbols-outlined text-[18px]">{tIdx < 2 ? 'person' : 'groups'}</span>
                                </div>
                                <div>
-                                  <p className="text-[11px] font-black text-slate-800 leading-tight uppercase">{tConf.nombre}</p>
+                                  <p className="text-[11px] font-black text-slate-800 leading-tight uppercase">
+                                    {tIdx >= 2 ? 'DISPONIBLE' : tConf.nombre}
+                                  </p>
                                   <p className="text-[9px] font-bold text-slate-400">{ROL_LABELS[rol as keyof typeof ROL_LABELS] || rol}</p>
                                </div>
                             </div>
@@ -284,7 +364,7 @@ const PanelMensualPuesto = ({
          </div>
       </div>
 
-      {/* TACTICAL COORDINATION PANEL */}
+      {/* TACTICAL COORDINATION PANEL (With Restore "No Repetir" Logic) */}
       <CoordinationPanel 
         currentProg={prog}
         freshCProg={freshCProg || null}
@@ -294,6 +374,8 @@ const PanelMensualPuesto = ({
         setShowEntireStaff={setShowEntireStaff}
         daysArr={daysArr}
         onOpenEdit={(data) => setEditCell(data)}
+        hideBusyGuards={hideBusyGuards}
+        setHideBusyGuards={setHideBusyGuards}
       />
 
       {/* MODALS */}

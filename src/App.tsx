@@ -83,7 +83,7 @@ const AppRouter = () => {
             
             {/* Cuadro Operativo */}
             <Route path="/vigilantes" element={<Vigilantes />} />
-            <Route path="/disponibles" element={<Vigilantes />} />
+            <Route path="/disponibles" element={<Vigilantes defaultTab="reserva" />} />
             <Route path="/puestos" element={<Puestos />} />
             <Route path="/gestion-puestos" element={<GestionPuestos />} />
             <Route path="/resumen" element={<Resumen />} />

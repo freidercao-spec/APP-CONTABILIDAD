@@ -757,26 +757,33 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 queueSync(progId, set, get, true);
             },
 
-            actualizarAsignacion: (progId, dia, data, usuario) => {
-                const state = get();
-                const prog = state.programaciones.find(p => p.id === progId);
-                if (!prog) return { permitido: false, tipo: 'bloqueo', mensaje: 'Error: Programación no hallada' };
-                
-                // ── VALIDACIÓN TÁCTICA FLEXIBLE (O(1)) ─────────────────────
+                // ── VALIDACIÓN TÁCTICA FLEXIBLE (Shift-Aware) ───────────────────
                 if (data.vigilanteId && data.jornada !== 'sin_asignar') {
-                    const normVid = translateToUuid(data.vigilanteId);
+                    const normVid = get().translateToUuid(data.vigilanteId);
                     const key = `${normVid}-${prog.anio}-${prog.mes}`;
                     const busyDays = (state as any)._busyMap?.get(key);
                     
-                    if (busyDays && busyDays.has(dia)) {
-                        // Solo bloqueamos si es el MISMO turno en OTRO puesto.
-                        // Si es un turno distinto (ej: AM a PM), solo avisamos.
-                        const sameTurnCheck = prog.asignaciones.some(a => a.dia === dia && idsMatch(a.vigilanteId, data.vigilanteId as string) && a.turno === data.turno && a.jornada !== 'sin_asignar');
-                        
-                        if (!sameTurnCheck) {
-                             // Si no es el mismo registro, es un posible conflicto externo
-                             // Le damos paso pero avisamos (Advertencia en lugar de Bloqueo)
-                             console.warn(`[Coraza IA] Posible conflicto detectado para día ${dia}`);
+                    const jornadaSolicitada = data.jornada || (data as any).turno || 'normal';
+                    const isOccupiedShift = busyDays && (
+                        busyDays.has(`${dia}-24H`) || 
+                        busyDays.has(`${dia}-${jornadaSolicitada}`) ||
+                        (jornadaSolicitada === '24H' && (busyDays.has(`${dia}-AM`) || busyDays.has(`${dia}-PM`)))
+                    );
+
+                    if (isOccupiedShift) {
+                        // Buscamos si es en ESTA misma programación (posible cambio de rol)
+                        const samePostConflict = prog.asignaciones.find(a => 
+                            a.dia === dia && 
+                            get().idsMatch(a.vigilanteId, data.vigilanteId as string) && 
+                            (a.jornada === jornadaSolicitada || a.jornada === '24H' || jornadaSolicitada === '24H')
+                        );
+
+                        if (!samePostConflict) {
+                            showTacticalToast({ 
+                                title: "Carga Duplicada", 
+                                message: `Vigilante ya tiene turno ${jornadaSolicitada} en otro puesto el día ${dia}. Asignación realizada con advertencia.`, 
+                                type: "warning" 
+                            });
                         }
                     }
                 }
@@ -791,16 +798,26 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 set((s: any) => {
                     const newProgs = s.programaciones.map((p: any) => p.id === progId ? { ...p, asignaciones: newAsignaciones, actualizadoEn: new Date().toISOString(), syncStatus: 'pending' as const } : p);
                     
-                    // INCREMENTAL BUSY MAP UPDATE
+                    // INCREMENTAL BUSY MAP UPDATE (Shift-Aware)
                     if (s._busyMap && data.vigilanteId) {
-                        const key = `${data.vigilanteId}-${prog.anio}-${prog.mes}`;
+                        const vid = get().translateToUuid(data.vigilanteId);
+                        const key = `${vid}-${prog.anio}-${prog.mes}`;
                         if (!s._busyMap.has(key)) s._busyMap.set(key, new Set());
                         
+                        const busySet = s._busyMap.get(key)!;
+                        const j = data.jornada || (data as any).turno || 'normal';
+
                         if (data.jornada !== 'sin_asignar') {
-                            s._busyMap.get(key)!.add(dia);
+                            busySet.add(dia);
+                            if (j === '24H') { busySet.add(`${dia}-AM`); busySet.add(`${dia}-PM`); busySet.add(`${dia}-24H`); }
+                            else { busySet.add(`${dia}-${j}`); }
                         } else if (oldAsig && oldAsig.jornada !== 'sin_asignar') {
-                            // Si se está desasignando, quitar del mapa
-                            s._busyMap.get(key)!.delete(dia);
+                            const oldJ = oldAsig.jornada || (oldAsig as any).turno || 'normal';
+                            if (oldJ === '24H') { busySet.delete(`${dia}-AM`); busySet.delete(`${dia}-PM`); busySet.delete(`${dia}-24H`); }
+                            else { busySet.delete(`${dia}-${oldJ}`); }
+                            // Solo borrar el dia si no quedan otros turnos
+                            const hasOtherShifts = Array.from(busySet).some((s: any) => String(s).startsWith(`${dia}-`));
+                            if (!hasOtherShifts) busySet.delete(dia);
                         }
                     }
                     
@@ -814,7 +831,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     return { programaciones: newProgs };
                 });
                 
-                queueSync(progId, set, get, true);
+                get().queueSync(progId, set, get, true);
                 return { permitido: true, tipo: 'ok', mensaje: 'Asignación guardada' };
             },
 
@@ -928,29 +945,40 @@ export const useProgramacionStore = create<ProgramacionState>()(
             _updateMap: () => {
                 const progs = get().programaciones;
                 const newMap = new Map<string, any>();
-                const newBusyMap = new Map<string, Set<number>>();
+                const newBusyMap = new Map<string, Set<any>>();
 
                 progs.forEach(p => {
-                    // CORRECCIÓN: Indexar por puestoId tal como está + por UUID traducido
-                    // para que getProgramacionRapid encuentre el registro sin importar
-                    // si la llamada usa shorthand (MED-0001) o UUID
+                    // Indexar por puestoId y UUID para búsquedas rápidas
                     newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
                     newMap.set(`${p.id}`, p);
                     
-                    const dbUuid = translatePuestoToUuid(p.puestoId);
+                    const dbUuid = get().translatePuestoToUuid(p.puestoId);
                     if (dbUuid && dbUuid !== p.puestoId) {
                         newMap.set(`${dbUuid}-${p.anio}-${p.mes}`, p);
                     }
 
-                    // Track busy days (Normalizar a UUID para evitar fallos de match)
+                    // Track busy days & shifts (Normalizar a UUID)
                     if (p.asignaciones) {
                         p.asignaciones.forEach(asig => {
                             if (asig.vigilanteId && asig.jornada !== 'sin_asignar') {
-                                const dbVid = translateToUuid(asig.vigilanteId);
-                                if (dbVid) {
-                                    const key = `${dbVid}-${p.anio}-${p.mes}`;
-                                    if (!newBusyMap.has(key)) newBusyMap.set(key, new Set());
-                                    newBusyMap.get(key)!.add(asig.dia);
+                                const dbVid = get().translateToUuid(asig.vigilanteId);
+                                const key = `${dbVid}-${p.anio}-${p.mes}`;
+                                const jornada = asig.jornada || (asig as any).turno || 'normal';
+
+                                if (!newBusyMap.has(key)) newBusyMap.set(key, new Set());
+                                
+                                const busySet = newBusyMap.get(key)!;
+                                // Marcar el día completo (legacy)
+                                busySet.add(asig.dia);
+                                busySet.add(`${asig.dia}`); // compatibilidad string
+                                
+                                // Marcar el turno específico
+                                if (jornada === '24H') {
+                                    busySet.add(`${asig.dia}-AM`);
+                                    busySet.add(`${asig.dia}-PM`);
+                                    busySet.add(`${asig.dia}-24H`);
+                                } else {
+                                    busySet.add(`${asig.dia}-${jornada}`);
                                 }
                             }
                         });
