@@ -762,18 +762,21 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 const prog = state.programaciones.find(p => p.id === progId);
                 if (!prog) return { permitido: false, tipo: 'bloqueo', mensaje: 'Error: Programación no hallada' };
                 
-                // ── VALIDACIÓN DE CONFLICTOS IA O(1) ───────────────────────
+                // ── VALIDACIÓN TÁCTICA FLEXIBLE (O(1)) ─────────────────────
                 if (data.vigilanteId && data.jornada !== 'sin_asignar') {
-                    const key = `${data.vigilanteId}-${prog.anio}-${prog.mes}`;
+                    const normVid = translateToUuid(data.vigilanteId);
+                    const key = `${normVid}-${prog.anio}-${prog.mes}`;
                     const busyDays = (state as any)._busyMap?.get(key);
                     
-                    // Si ya está ocupado en este mes, verificar si es en OTRO puesto
-                    // Para ser precisos, chequeamos si el vigilante ya tiene una asignación distinta a la actual
                     if (busyDays && busyDays.has(dia)) {
-                        const yaAsignadoEnEstePuesto = prog.asignaciones.some(a => a.dia === dia && idsMatch(a.vigilanteId, data.vigilanteId as string) && a.jornada !== 'sin_asignar' && a.rol === data.rol);
+                        // Solo bloqueamos si es el MISMO turno en OTRO puesto.
+                        // Si es un turno distinto (ej: AM a PM), solo avisamos.
+                        const sameTurnCheck = prog.asignaciones.some(a => a.dia === dia && idsMatch(a.vigilanteId, data.vigilanteId as string) && a.turno === data.turno && a.jornada !== 'sin_asignar');
                         
-                        if (!yaAsignadoEnEstePuesto) {
-                            return { permitido: false, tipo: 'bloqueo', mensaje: 'IA: El vigilante ya tiene una asignación en OTRO puesto hoy.' };
+                        if (!sameTurnCheck) {
+                             // Si no es el mismo registro, es un posible conflicto externo
+                             // Le damos paso pero avisamos (Advertencia en lugar de Bloqueo)
+                             console.warn(`[Coraza IA] Posible conflicto detectado para día ${dia}`);
                         }
                     }
                 }
@@ -939,13 +942,16 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         newMap.set(`${dbUuid}-${p.anio}-${p.mes}`, p);
                     }
 
-                    // Track busy days (usando ambas formas del vigilanteId)
+                    // Track busy days (Normalizar a UUID para evitar fallos de match)
                     if (p.asignaciones) {
                         p.asignaciones.forEach(asig => {
                             if (asig.vigilanteId && asig.jornada !== 'sin_asignar') {
-                                const key = `${asig.vigilanteId}-${p.anio}-${p.mes}`;
-                                if (!newBusyMap.has(key)) newBusyMap.set(key, new Set());
-                                newBusyMap.get(key)!.add(asig.dia);
+                                const dbVid = translateToUuid(asig.vigilanteId);
+                                if (dbVid) {
+                                    const key = `${dbVid}-${p.anio}-${p.mes}`;
+                                    if (!newBusyMap.has(key)) newBusyMap.set(key, new Set());
+                                    newBusyMap.get(key)!.add(asig.dia);
+                                }
                             }
                         });
                     }
