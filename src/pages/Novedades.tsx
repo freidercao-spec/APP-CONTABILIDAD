@@ -8,6 +8,7 @@ const Novedades = () => {
     const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
     const [dbNovedades, setDbNovedades] = useState<any[]>([]);
     const [loadingNovedades, setLoadingNovedades] = useState(true);
+    const [novedadesError, setNovedadesError] = useState(false);
     const vigilantes = useVigilanteStore(s => s.vigilantes);
     const puestos = usePuestoStore(s => s.puestos);
     const now = new Date();
@@ -21,9 +22,11 @@ const Novedades = () => {
                     .select('*')
                     .order('created_at', { ascending: false })
                     .limit(10);
+                if (error) throw error;
                 if (data) setDbNovedades(data);
             } catch (err) {
                 console.error('Error fetching db novedades:', err);
+                setNovedadesError(true);
             } finally {
                 setLoadingNovedades(false);
             }
@@ -31,10 +34,11 @@ const Novedades = () => {
         fetchDbNovedades();
     }, []);
 
-    // Aggregated history from all guards
-    const allHistory = vigilantes
+    // FIX: envolver en useMemo para evitar O(N) recalculación en cada render
+    const allHistory = useMemo(() => vigilantes
         .flatMap(v => v.historial.map(h => ({ ...h, guardName: v.nombre, guardId: v.id })))
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    , [vigilantes]);
     
     // Combine local guard history with strategic DB novedades
     const combinedNovedades = useMemo(() => {

@@ -131,6 +131,7 @@ const Puestos = () => {
     const [clickHint, setClickHint] = useState(true);
     const [draftLat, setDraftLat] = useState(6.2442);
     const [draftLng, setDraftLng] = useState(-75.5812);
+    const [guardSearch, setGuardSearch] = useState('');
     const [confirmDelete, setConfirmDelete] = useState<Puesto | null>(null);
     const [detailPuesto, setDetailPuesto] = useState<Puesto | null>(null);
 
@@ -145,41 +146,62 @@ const Puestos = () => {
 
     useEffect(() => { const t = setTimeout(() => setClickHint(false), 5000); return () => clearTimeout(t); }, []);
 
-    // Batched update of coverage statuses to avoid redundant store updates
+    // FIX CRÍTICO: Debounce de 2s para evitar miles de writes simultáneos a Supabase.
+    // Con 6000+ puestos, el efecto anterior generaba 6000 INSERTs en historial_puesto
+    // al mismo tiempo, paralizando el browser y saturando la base de datos.
     useEffect(() => {
         if (!puestos || puestos.length === 0) return;
-        
-        const { puestosDesprotegidos } = verificarCoberturaTotal();
-        const updates: { id: string, status: Puesto['estado'], notification?: string }[] = [];
 
-        puestosDesprotegidos.forEach(puesto => {
-            if (puesto.estado !== 'desprotegido') {
-                updates.push({ 
-                    id: puesto.id, 
-                    status: 'desprotegido', 
-                    notification: `⚠️ COBERTURA INCOMPLETA: Puesto ${puesto.nombre}` 
+        // Limitar a máximo 20 alertas en una sola pasada para no saturar UI
+        const MAX_ALERTS = 20;
+
+        const timer = setTimeout(() => {
+            const { puestosDesprotegidos } = verificarCoberturaTotal();
+            const updates: { id: string, status: Puesto['estado'], notification?: string }[] = [];
+            let alertCount = 0;
+
+            puestosDesprotegidos.forEach(puesto => {
+                if (puesto.estado !== 'desprotegido') {
+                    const notification = alertCount < 3
+                        ? `⚠️ COBERTURA INCOMPLETA: Puesto ${puesto.nombre}`
+                        : undefined;
+                    updates.push({ id: puesto.id, status: 'desprotegido', notification });
+                    alertCount++;
+                }
+            });
+
+            puestos.forEach(puesto => {
+                const cobertura = getCobertura24Horas(puesto.id);
+                if (cobertura.completa && (puesto.turnos?.length || 0) > 0 && puesto.estado !== 'cubierto') {
+                    updates.push({ id: puesto.id, status: 'cubierto' });
+                }
+            });
+
+            // Aplicar en lotes para no bloquear el thread principal
+            const BATCH = 50;
+            let i = 0;
+            const applyBatch = () => {
+                const slice = updates.slice(i, i + BATCH);
+                slice.forEach(upd => {
+                    updatePuestoStatus(upd.id, upd.status);
+                    if (upd.notification) {
+                        showTacticalToast({
+                            title: 'Brecha Detectada',
+                            message: upd.notification,
+                            type: 'warning'
+                        });
+                    }
                 });
-            }
-        });
+                i += BATCH;
+                if (i < Math.min(updates.length, MAX_ALERTS * 10)) {
+                    setTimeout(applyBatch, 50);
+                }
+            };
 
-        puestos.forEach(puesto => {
-            const cobertura = getCobertura24Horas(puesto.id);
-            if (cobertura.completa && (puesto.turnos?.length || 0) > 0 && puesto.estado !== 'cubierto') {
-                updates.push({ id: puesto.id, status: 'cubierto' });
-            }
-        });
+            if (updates.length > 0) applyBatch();
+        }, 2000); // Debounce: esperar 2s antes de procesar
 
-        // Apply all updates
-        updates.forEach(upd => {
-            updatePuestoStatus(upd.id, upd.status);
-            if (upd.notification) {
-                showTacticalToast({
-                    title: 'Brecha Detectada',
-                    message: upd.notification,
-                    type: 'warning'
-                });
-            }
-        });
+        return () => clearTimeout(timer);
     }, [puestos.length, getCobertura24Horas, updatePuestoStatus, verificarCoberturaTotal]);
 
     const vigilantes = useVigilanteStore(s => s.vigilantes) || [];
@@ -221,10 +243,14 @@ const Puestos = () => {
     }, [puestos, activeTab, searchQuery]);
 
     const handleFocus = useCallback((p: Puesto) => {
+        if (!p.lat || !p.lng || isNaN(Number(p.lat)) || isNaN(Number(p.lng))) {
+            showTacticalToast({ title: 'Error de Datos', message: 'El puesto no tiene coordenadas válidas.', type: 'error' });
+            return;
+        }
         setSelectedId(p.id);
         setViewState({
-            longitude: p.lng,
-            latitude: p.lat,
+            longitude: Number(p.lng),
+            latitude: Number(p.lat),
             zoom: 17,
             pitch: 65,
             bearing: -10,
@@ -273,7 +299,7 @@ const Puestos = () => {
             fechaRegistro: new Date().toISOString()
         };
 
-        const currentPuestos = puestos;
+        const currentPuestos = puestos.filter(p => typeof p.lat === 'number' && typeof p.lng === 'number' && !isNaN(p.lat) && !isNaN(p.lng));
         // Agregamos la HQ a la lista de puntos a renderizar
         const renderPoints = [...currentPuestos.filter(p => p.id !== hq.id), hq];
 
@@ -746,31 +772,65 @@ const Puestos = () => {
                         )}
 
                         <div className="space-y-4 pt-4">
-                            <h4 className="text-[11px] font-black text-slate-900 uppercase px-1">Personal en Base</h4>
-                            <div className="space-y-2">
-                                {disponibles.map(v => (
-                                    <div key={v.id} className="bg-white border rounded-2xl p-3 flex justify-between items-center group hover:border-primary/30 transition-all">
-                                        <div className="flex gap-3">
-                                            <div className="size-10 rounded-xl overflow-hidden border">
-                                                <img src={v.foto || `https://ui-avatars.com/api/?name=${v.nombre}`} className="w-full h-full object-cover" />
+                            <div className="flex items-center justify-between px-1">
+                                <h4 className="text-[11px] font-black text-slate-900 uppercase">Personal en Base</h4>
+                                <span className="text-[9px] font-bold text-slate-400">{disponibles.length} Libres</span>
+                            </div>
+                            
+                            <div className="relative group px-1">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[16px]">search</span>
+                                <input 
+                                    type="text" 
+                                    placeholder="Buscar por nombre o ID..."
+                                    value={guardSearch}
+                                    onChange={(e) => setGuardSearch(e.target.value)}
+                                    className="w-full h-9 bg-slate-50 border border-slate-100 rounded-xl pl-9 pr-3 text-[10px] font-bold outline-none focus:border-primary/40 focus:bg-white transition-all shadow-sm"
+                                />
+                            </div>
+
+                            <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
+                                {(() => {
+                                    const q = guardSearch.toLowerCase().trim();
+                                    const filtered = disponibles.filter(v => 
+                                        !q || v.nombre.toLowerCase().includes(q) || v.id.toLowerCase().includes(q)
+                                    ).slice(0, 40);
+                                    
+                                    if (filtered.length === 0) return <p className="text-center py-4 text-[10px] font-bold text-slate-400 uppercase italic">Sin resultados</p>;
+                                    
+                                    return filtered.map(v => (
+                                        <div key={v.id} className="bg-white border border-slate-100 rounded-2xl p-3 flex justify-between items-center group hover:border-primary/30 transition-all shadow-sm">
+                                            <div className="flex gap-3">
+                                                <div className="size-10 rounded-xl overflow-hidden border bg-slate-50">
+                                                    <img 
+                                                        src={v.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.nombre)}&background=4318FF&color=fff`} 
+                                                        className="w-full h-full object-cover" 
+                                                        onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(v.nombre)}&background=4318FF&color=fff`; }}
+                                                    />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-xs font-bold text-slate-900 truncate w-32">{v.nombre}</p>
+                                                    <p className="text-[9px] text-primary font-bold uppercase tracking-wider">{v.rango || 'Vigilante'}</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="text-xs font-bold text-slate-900 truncate w-32">{v.nombre}</p>
-                                                <p className="text-[9px] text-primary font-bold uppercase">{v.rango}</p>
-                                            </div>
+                                            {selectedPuesto ? (
+                                                <button
+                                                    onClick={() => setDraftGuardHour({ id: v.id, start: '06:00', end: '18:00' })}
+                                                    className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all shadow-sm group-hover:scale-105 active:scale-95"
+                                                >
+                                                    <span className="material-symbols-outlined text-lg">add</span>
+                                                </button>
+                                            ) : (
+                                                <span className="size-2 bg-success rounded-full opacity-40 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></span>
+                                            )}
                                         </div>
-                                        {selectedPuesto ? (
-                                            <button
-                                                onClick={() => setDraftGuardHour({ id: v.id, start: '06:00', end: '18:00' })}
-                                                className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all shadow-sm"
-                                            >
-                                                <span className="material-symbols-outlined text-lg">add</span>
-                                            </button>
-                                        ) : (
-                                            <span className="size-2 bg-success rounded-full opacity-40"></span>
-                                        )}
-                                    </div>
-                                ))}
+                                    ));
+                                })()}
+                                {disponibles.length > 40 && (
+                                    <p className="text-[9px] text-center text-slate-400 font-bold uppercase py-2">
+                                        + {disponibles.length - 40} adicionales (Saturacion de Fuerza)
+                                    </p>
+                                )}
+                            </div>
 
                                 {draftGuardHour && selectedPuesto && (
                                     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">

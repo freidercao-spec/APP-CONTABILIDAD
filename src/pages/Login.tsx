@@ -216,32 +216,23 @@ const Login = () => {
                             <div className="h-[1px] flex-1 bg-white/5" />
                         </div>
 
-                        {/* Botones de Recuperación */}
-                        <div className="flex flex-col items-center gap-4 w-full">
-                            <button 
-                              type="button"
-                              onClick={() => {
-                                localStorage.clear();
-                                sessionStorage.clear();
-                                window.location.reload();
-                              }}
-                              className="w-full py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-[10px] font-black text-white uppercase tracking-[0.2em] rounded-xl transition-all shadow-lg"
-                            >
-                              <span className="material-symbols-outlined text-[14px] mr-2">refresh</span>
-                              LIMPIAR TODO Y REINICIAR APP
-                            </button>
-
-                            <button 
-                              type="button"
-                              onClick={async () => {
-                                await useAuthStore.getState().login('admin@coraza.com', '123456');
-                              }}
-                              className="w-full py-3 bg-red-600/20 hover:bg-red-600/40 border border-red-500/50 text-[10px] font-black text-red-400 uppercase tracking-[0.2em] rounded-xl transition-all shadow-[0_0_20px_rgba(220,38,38,0.2)] animate-pulse"
-                            >
-                              <span className="material-symbols-outlined text-[14px] mr-2">exclamation</span>
-                              ENTRAR AHORA (ACCESO TÁCTICO)
-                            </button>
-                        </div>
+                            {/* Botón de Recuperación — solo visible en desarrollo */}
+                            {import.meta.env.DEV && (
+                              <div className="flex flex-col items-center gap-4 w-full">
+                                  <button 
+                                    type="button"
+                                    onClick={() => {
+                                      localStorage.clear();
+                                      sessionStorage.clear();
+                                      window.location.reload();
+                                    }}
+                                    className="w-full py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-[10px] font-black text-white uppercase tracking-[0.2em] rounded-xl transition-all shadow-lg"
+                                  >
+                                    <span className="material-symbols-outlined text-[14px] mr-2">refresh</span>
+                                    LIMPIAR TODO Y REINICIAR APP
+                                  </button>
+                              </div>
+                            )}
                     </div>
                 </div>
 

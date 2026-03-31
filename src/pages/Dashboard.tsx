@@ -27,6 +27,7 @@ const Dashboard = () => {
     const TABLE_PAGE_SIZE = 8;
 
     // ─── STATS ───────────────────────────────────────────────────────────────
+    // ─── STATS OPTIMIZACIÓN CRÍTICA ───────────────────────────────────────────────
     const S = useMemo(() => {
         let vActivos = 0, vDisp = 0, vAusentes = 0, vConDesc = 0, vVacas = 0;
         const vTotal = vigilantes.length;
@@ -47,10 +48,7 @@ const Dashboard = () => {
             if (p.estado === 'cubierto') pCub++;
             else if (p.estado === 'alerta') pAlerta++;
             else if (p.estado === 'desprotegido') pDesp++;
-            
             if (p.conArmamento) pArmas++;
-            
-            // Solo calculamos cobertura completa si el puesto está cubierto (ahorro de CPU)
             if (p.estado === 'cubierto' && getCobertura) {
                 if (getCobertura(p.id).completa) pOper24++;
             }
@@ -60,22 +58,27 @@ const Dashboard = () => {
         const personalFalt = Math.max(0, personalReq - vTotal);
         const saludPersonal = personalReq > 0 ? Math.round((vTotal / personalReq) * 100) : 100;
 
+        // O(N) — Filtrar programaciones una sola vez
         const progsEsteMes = programaciones.filter(p => p.anio === CURR_ANIO && p.mes === CURR_MES);
         const progPublicadas = progsEsteMes.filter(p => p.estado === 'publicado').length;
         const progBorrador   = progsEsteMes.filter(p => p.estado === 'borrador').length;
         
+        // O(N) — Cálculo de cobertura promedio sin llamar repetitivamente selectores inestables
         let sumCobPct = 0;
-        if (getCobPct) {
-            progsEsteMes.forEach(p => {
-                sumCobPct += getCobPct(p.id);
-            });
-        }
+        progsEsteMes.forEach(p => {
+            sumCobPct += getCobPct(p.id);
+        });
         const cobPromedioMes = progsEsteMes.length > 0 ? Math.round(sumCobPct / progsEsteMes.length) : 0;
 
         const alertasCrit = entries.filter(e => e.severity === 'critical').length;
         const alertasWarn = entries.filter(e => e.severity === 'warning').length;
-        const todayStr = now.toDateString();
-        const eventosHoy = entries.filter(e => new Date(e.timestamp).toDateString() === todayStr).length;
+        
+        // Optimización: Comparación de fechas estable
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const eventosHoy = entries.filter(e => {
+            const eth = new Date(e.timestamp).getTime();
+            return eth >= startOfDay && eth < startOfDay + 86400000;
+        }).length;
         
         const indiceCobertura = pTotal > 0 ? Math.round((pCub / pTotal) * 100) : 0;
         const globalHealth = Math.round((saludPersonal + indiceCobertura + cobPromedioMes) / 3);

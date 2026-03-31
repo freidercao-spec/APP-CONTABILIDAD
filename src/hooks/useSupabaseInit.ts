@@ -43,11 +43,11 @@ export function useSupabaseInit() {
                 const [vigRes, puestRes] = await Promise.allSettled([
                     Promise.race([
                         fetchVigilantes(addLog),
-                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout Vigilantes')), 120000))
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout Vigilantes')), 30000))
                     ]),
                     Promise.race([
                         fetchPuestos(),
-                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout Puestos')), 120000))
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout Puestos')), 30000))
                     ])
                 ]);
 

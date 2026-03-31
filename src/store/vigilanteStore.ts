@@ -131,7 +131,9 @@ export const useVigilanteStore = create<VigilanteState>()(
                     const { count, error: countErr } = await supabase
                         .from('vigilantes')
                         .select('*', { count: 'exact', head: true })
-                        .eq('empresa_id', currentEmpresaId);
+                        .eq('empresa_id', currentEmpresaId)
+                        // FIX: Excluir dados de baja para conteo correcto
+                        .neq('estado', 'inactivo');
 
                     if (countErr) throw countErr;
                     
@@ -145,6 +147,8 @@ export const useVigilanteStore = create<VigilanteState>()(
                                 .from('vigilantes')
                                 .select('*')
                                 .eq('empresa_id', currentEmpresaId)
+                                // FIX: No cargar registros inactivos (soft delete)
+                                .neq('estado', 'inactivo')
                                 .range(from, from + BATCH - 1)
                         );
                     }

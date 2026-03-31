@@ -130,28 +130,28 @@ export const usePuestoStore = create<PuestoState>()(
                             .select('*')
                             .eq('empresa_id', currentEmpresaId)
                             .range(from, from + BATCH - 1)
-                            .eq('estado', 'Activo')
                             .order('codigo', { ascending: true });
 
                         if (error) {
-                            console.error('Error fetching puestos batch:', error);
+                            console.error(`[PuestoStore] Error batch @ ${from}:`, error);
                             break;
                         }
                         if (!data || data.length === 0) break;
                         
                         allRows = [...allRows, ...data];
                         from += BATCH;
-                        if (allRows.length >= 10000) break;
+                        // Eliminamos el break forzado de 10k para permitir carga completa de DNA Operativo
+                        if (data.length < BATCH) break;
                     }
 
                     const rows = allRows;
+                    console.log(`[PuestoStore] 🧬 Coraza DNA Operativo: ${rows.length} puestos cargados.`);
+                    
                     if (!rows || rows.length === 0) {
                         set({ puestos: [], loaded: true });
                         return;
                     }
 
-
-                    // PERFORMANCE CRÍTICA: Pre-mapear vigilancia para evitar O(n^2) en la traducción de IDs
                     const currentVigilantes = useVigilanteStore.getState().vigilantes;
                     const vigLookup = new Map<string, string>();
                     currentVigilantes.forEach(v => {
@@ -165,9 +165,7 @@ export const usePuestoStore = create<PuestoState>()(
                     };
 
                     const puestoIds = rows.map(r => r.id);
-
-                    // LIMITES DE URL: chunkSize seguro para evitar HTTP 414 URI Too Long (~140 UUIDs max en GET)
-                    const CHUNK_SIZE = 140;
+                    const CHUNK_SIZE = 120; // Más conservador para evitar URL Too Long
                     let allTurnos: any[] = [];
                     let allHistorial: any[] = [];
 
@@ -182,7 +180,6 @@ export const usePuestoStore = create<PuestoState>()(
                         if (histRes.data) allHistorial = [...allHistorial, ...histRes.data];
                     }
 
-                    // Pre-agrupar para evitar .filter() en cada iteración
                     const turnsByPuestoId = new Map<string, any[]>();
                     allTurnos.forEach(t => {
                         if (!turnsByPuestoId.has(t.puesto_id)) turnsByPuestoId.set(t.puesto_id, []);
@@ -196,28 +193,28 @@ export const usePuestoStore = create<PuestoState>()(
                     });
 
                     const puestos: Puesto[] = rows.map(row => {
-                        const turnos = (turnsByPuestoId.get(row.id) || [])
-                            .map(t => ({
-                                vigilanteId: translateVigFromDb(t.vigilante_id) as string,
-                                horaInicio: t.hora_inicio,
-                                horaFin: t.hora_fin,
-                                dia: t.dia || undefined,
-                            }));
+                        const turnosRows = turnsByPuestoId.get(row.id) || [];
+                        const turnos = turnosRows.map(t => ({
+                            vigilanteId: translateVigFromDb(t.vigilante_id) as string,
+                            horaInicio: t.hora_inicio || '00:00',
+                            horaFin: t.hora_fin || '00:00',
+                            dia: t.dia || undefined,
+                        }));
 
-                        const historial = (histByPuestoId.get(row.id) || [])
-                            .map(h => ({
-                                id: h.id,
-                                timestamp: h.created_at,
-                                action: h.accion as HistorialPuesto['action'],
-                                vigilanteId: translateVigFromDb(h.vigilante_id) as string || undefined,
-                                details: h.detalles || '',
-                            }));
+                        const historialRows = histByPuestoId.get(row.id) || [];
+                        const historial = historialRows.map(h => ({
+                            id: h.id,
+                            timestamp: h.created_at,
+                            action: (h.accion || 'cambio_vigilante') as HistorialPuesto['action'],
+                            vigilanteId: translateVigFromDb(h.vigilante_id) as string || undefined,
+                            details: h.detalles || '',
+                        }));
 
                         return {
-                            id: row.codigo,
+                            id: row.codigo || `P-${row.id.substring(0,4)}`,
                             dbId: row.id,
-                            nombre: row.nombre,
-                            tipo: row.tipo as Puesto['tipo'],
+                            nombre: row.nombre || 'Puesto Sin Nombre',
+                            tipo: (row.tipo || 'residencial') as Puesto['tipo'],
                             lat: parseFloat(row.latitud) || 6.2308,
                             lng: parseFloat(row.longitud) || -75.5667,
                             elevacion: 9.14,

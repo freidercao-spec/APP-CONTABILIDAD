@@ -31,6 +31,7 @@ const Topbar = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const vigilantes = useVigilanteStore((s) => s.vigilantes);
+    const puestos = usePuestoStore((s) => s.puestos);
     const { topbarConfig } = useAppStore();
     const { unreadNotifications, toggleOpen, isOpen, isMuted, toggleMute } = useAIStore();
     const toggleSidebar = useUIStore((s) => s.toggleSidebar);
@@ -151,7 +152,7 @@ const Topbar = () => {
                         <div className="w-[1px] h-3 bg-white/10" />
                         <div className="flex items-center gap-1.5">
                             <span className="text-[9px] font-black text-primary-light uppercase tracking-widest tabular-nums">
-                                {usePuestoStore.getState().puestos.length} Puestos
+                                {puestos.length} Puestos
                             </span>
                         </div>
                     </div>
