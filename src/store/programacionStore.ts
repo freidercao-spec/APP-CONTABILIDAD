@@ -746,6 +746,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     });
                     
                     // INCREMENTAL MAP UPDATE: Avoid full re-scan
+                // INCREMENTAL MAP UPDATE: Avoid full re-scan
                     const prog = newProgs.find(p => p.id === progId);
                     if (prog && (s as any)._progMap) {
                         (s as any)._progMap.set(prog.id, prog);
@@ -756,6 +757,11 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 });
                 queueSync(progId, set, get, true);
             },
+
+            actualizarAsignacion: (progId, dia, data, usuario) => {
+                const state = get();
+                const prog = state.programaciones.find(p => p.id === progId);
+                if (!prog) return { permitido: false, tipo: 'bloqueo', mensaje: 'Programación no encontrada' };
 
                 // ── VALIDACIÓN TÁCTICA FLEXIBLE (Shift-Aware) ───────────────────
                 if (data.vigilanteId && data.jornada !== 'sin_asignar') {
