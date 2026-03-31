@@ -1,21 +1,21 @@
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import { CorazaAI } from '../ai/CorazaAI';
 import { useUIStore } from '../../store/uiStore';
-import { useEffect } from 'react';
 
-const AppLayout = () => {
-    const { isSidebarOpen, closeSidebar, isSidebarCollapsed } = useUIStore();
+const AppLayout = ({ children }: { children?: React.ReactNode }) => {
+    const { isSidebarOpen, closeSidebar } = useUIStore();
     const location = useLocation();
 
     // Cerrar drawer mobile al cambiar de ruta
     useEffect(() => {
         closeSidebar();
-    }, [location.pathname]);
+    }, [location.pathname, closeSidebar]);
 
     return (
-        <div className="flex h-screen w-screen overflow-hidden bg-app-bg">
+        <div className="flex h-screen w-screen overflow-hidden bg-[#f8fafc]">
 
             {/* Mobile overlay */}
             {isSidebarOpen && (
@@ -37,7 +37,7 @@ const AppLayout = () => {
                     style={{ scrollbarGutter: 'stable' }}
                 >
                     <div className="px-4 pb-10 sm:px-6 lg:px-8 pt-2">
-                        <Outlet />
+                        {children || <Outlet />}
                     </div>
                 </div>
             </main>

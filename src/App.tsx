@@ -8,23 +8,27 @@ import TacticalLoading from './components/shared/TacticalLoading';
 import ErrorBoundary from './components/ErrorBoundary';
 
 // Lazy loading de módulos tácticos
-const Dashboard      = React.lazy(() => import('./pages/Dashboard'));
-const GestionPuestos = React.lazy(() => import('./pages/GestionPuestos'));
-const Vigilantes     = React.lazy(() => import('./pages/Vigilantes'));
-const Puestos        = React.lazy(() => import('./pages/Puestos'));
-const Inteligencia   = React.lazy(() => import('./pages/Inteligencia'));
-const Login          = React.lazy(() => import('./pages/Login'));
+const Dashboard       = React.lazy(() => import('./pages/Dashboard'));
+const GestionPuestos  = React.lazy(() => import('./pages/GestionPuestos'));
+const Vigilantes      = React.lazy(() => import('./pages/Vigilantes'));
+const Puestos         = React.lazy(() => import('./pages/Puestos'));
+const Inteligencia    = React.lazy(() => import('./pages/Inteligencia'));
+const Login           = React.lazy(() => import('./pages/Login'));
+const Novedades       = React.lazy(() => import('./pages/Novedades'));
+const Resumen         = React.lazy(() => import('./pages/Resumen'));
+const Auditoria       = React.lazy(() => import('./pages/AuditoriaInterna'));
+const Configuracion   = React.lazy(() => import('./pages/Configuracion'));
 
 /**
  * LOADER DE DATOS TÁCTICOS
- * Solo se invoca si el usuario está autenticado. Esto evita errores de RLS.
+ * Solo se invoca si el usuario está autenticado.
  */
 const SupabaseDataLoader = ({ children }: { children: React.ReactNode }) => {
     const { isLoading, logs } = useSupabaseInit();
     const [showFailsafe, setShowFailsafe] = useState(false);
 
     useEffect(() => {
-        const timer = setTimeout(() => setShowFailsafe(true), 12000);
+        const timer = setTimeout(() => setShowFailsafe(true), 15000);
         return () => clearTimeout(timer);
     }, []);
 
@@ -76,10 +80,22 @@ const AppRouter = () => {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/dashboard" element={<Navigate to="/" replace />} />
-            <Route path="/gestion-puestos" element={<GestionPuestos />} />
+            
+            {/* Cuadro Operativo */}
             <Route path="/vigilantes" element={<Vigilantes />} />
+            <Route path="/disponibles" element={<Vigilantes />} />
             <Route path="/puestos" element={<Puestos />} />
+            <Route path="/gestion-puestos" element={<GestionPuestos />} />
+            <Route path="/resumen" element={<Resumen />} />
+            
+            {/* Inteligencia */}
             <Route path="/inteligencia" element={<Inteligencia />} />
+            <Route path="/novedades" element={<Novedades />} />
+            
+            {/* Control Central */}
+            <Route path="/configuracion" element={<Configuracion />} />
+            <Route path="/auditoria" element={<Auditoria />} />
+
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
