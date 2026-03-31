@@ -858,9 +858,8 @@ const Puestos = () => {
                                 )}
                             </div>
                         </div>
-                    </div>
-                </aside>
-            </div>
+                    </aside>
+                </div>
 
             {/* Notifications system removed in favor of tactical toasts */}
 
