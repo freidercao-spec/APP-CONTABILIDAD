@@ -238,7 +238,7 @@ const Login = () => {
 
                 {/* Footer version */}
                 <p className="text-center text-[9px] font-black text-slate-700 uppercase tracking-[0.4em] mt-6">
-                    CORAZA CTA — SISTEMA OPERATIVO v1.5.4 · EMERGENCIA ACTIVA
+                    CORAZA CTA — SISTEMA OPERATIVO v1.5.5 · EMERGENCIA ACTIVA
                 </p>
             </div>
         </div>
