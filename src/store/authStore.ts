@@ -110,8 +110,9 @@ export const useAuthStore = create<AuthState>()(
             checkSession: async () => {
                 // Si ya tenemos una sesion válida de Supabase, no la pises
                 const current = get();
+                const BYPASS_IDS_CHECK = ['emergency-fix-id', 'bypass-id', '00000000-0000-0000-0000-000000000000'];
                 if (current.isAuthenticated && current.userId && 
-                    current.userId !== 'emergency-fix-id' && current.userId !== 'bypass-id') {
+                    !BYPASS_IDS_CHECK.some(id => current.userId === id)) {
                     // Verificar que la sesión de Supabase sigue vigente
                     try {
                         const { data: { session } } = await supabase.auth.getSession();
@@ -128,8 +129,9 @@ export const useAuthStore = create<AuthState>()(
                     }
                 }
                 
-                // Sesiones de bypass siempre se mantienen
-                if (current.isAuthenticated && (current.userId === 'emergency-fix-id' || current.userId === 'bypass-id')) {
+                // Sesiones de bypass siempre se mantienen (incluye el admin local coraza)
+                const BYPASS_IDS = ['emergency-fix-id', 'bypass-id', '00000000-0000-0000-0000-000000000000'];
+                if (current.isAuthenticated && BYPASS_IDS.some(id => current.userId === id)) {
                     set({ loading: false });
                     return;
                 }

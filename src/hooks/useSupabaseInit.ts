@@ -32,66 +32,66 @@ export function useSupabaseInit() {
         if (didInit.current) return;
         didInit.current = true;
 
+        const retry = async <T>(fn: () => Promise<T>, retries = 2): Promise<T> => {
+            try {
+                return await fn();
+            } catch (err) {
+                if (retries > 0) return retry(fn, retries - 1);
+                throw err;
+            }
+        };
+
         const initBaseDatos = async () => {
             try {
                 setIsLoading(true);
                 addLog('📦 Conectando a Supabase...');
 
-                // 1. CARGA CRÍTICA (Vigilantes y Puestos en paralelo)
-                // CORRECCIÓN: Timeout reducido a 30s (era 180s = 3 minutos, inaceptable)
                 addLog('🧬 Sincronizando DNA Operativo (Vigilantes y Puestos)...');
                 const [vigRes, puestRes] = await Promise.allSettled([
-                    Promise.race([
+                    retry(() => Promise.race([
                         fetchVigilantes(addLog),
                         new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout Vigilantes')), 30000))
-                    ]),
-                    Promise.race([
+                    ])),
+                    retry(() => Promise.race([
                         fetchPuestos(),
                         new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout Puestos')), 30000))
-                    ])
+                    ]))
                 ]);
 
-                if (vigRes.status === 'rejected') addLog('⚠️ Vigilantes lentos, continuando con datos parciales...');
+                if (vigRes.status === 'rejected') addLog('⚠️ Vigilantes: ' + (vigRes.reason?.message || 'Error'));
                 else addLog('✅ Vigilantes Listos');
-
-                if (puestRes.status === 'rejected') addLog('⚠️ Puestos lentos, continuando con datos parciales...');
+                if (puestRes.status === 'rejected') addLog('⚠️ Puestos: ' + (puestRes.reason?.message || 'Error'));
                 else addLog('✅ Puestos Listos');
 
-                // 2. CARGA DE PROGRAMACIONES
-                // CORRECCIÓN CRÍTICA: Cargar programaciones DESPUÉS de vigilantes y puestos.
-                // El mapeo de IDs (shorthand MED-0001 → UUID) requiere que los puestos y vigilantes
-                // estén en memoria. Si se cargan en paralelo, los calendarios aparecen vacíos
-                // porque translatePuestoToUuid y translateFromDb no encuentran nada.
                 addLog('📑 Recuperando Programaciones y Auditoria...');
 
                 const now = new Date();
                 const anio = now.getFullYear();
                 const mesActual = now.getMonth();
 
-                // Cargar mes anterior + actual + siguiente para navegación fluida
                 const mesesACargar = [
                     { anio: mesActual === 0 ? anio - 1 : anio, mes: mesActual === 0 ? 11 : mesActual - 1 },
                     { anio, mes: mesActual },
                     { anio: mesActual === 11 ? anio + 1 : anio, mes: mesActual === 11 ? 0 : mesActual + 1 },
                 ];
 
-                const secondWave = await Promise.allSettled([
-                    ...mesesACargar.map(m => fetchProgramacionesByMonth(m.anio, m.mes)),
-                    fetchTemplates(),
-                    fetchAudit(),
+                await Promise.all([
+                    ...mesesACargar.map(m => retry(() => fetchProgramacionesByMonth(m.anio, m.mes))),
+                    retry(() => fetchTemplates()),
+                    retry(() => fetchAudit()),
                 ]);
 
-                const waveSuccess = secondWave.filter(r => r.status === 'fulfilled').length;
-                addLog(`🚀 Sistema Listo (${waveSuccess}/${secondWave.length} módulos operativos).`);
+                addLog('🚀 Sistema Listo.');
             } catch (err: any) {
-                addLog('⚠️ Alerta de Sistema: ' + (err.message || 'Error Desconocido'));
-                console.error('[Coraza] ❌ Error Critico:', err);
+                addLog('⚠️ Error crítico de inicialización: ' + (err.message || 'Desconocido'));
+                console.error('[Coraza] ❌ Error:', err);
             } finally {
-                setTimeout(() => setIsLoading(false), 500);
+                setIsLoading(false);
             }
         };
 
         initBaseDatos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return { isLoading, logs };

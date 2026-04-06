@@ -684,6 +684,10 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                     return { programaciones: merged, loaded: true, _progMap: newMap };
                 });
+
+                // CORRECCIÓN CRÍTICA: Reconstruir _busyMap con los datos recién cargados
+                // Sin esto, el filtro "No Repetir" del CoordinationPanel no tiene datos para trabajar
+                get()._updateMap();
             },
 
             fetchTemplates: async () => {
@@ -765,11 +769,11 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                 // ── VALIDACIÓN TÁCTICA FLEXIBLE (Shift-Aware) ───────────────────
                 if (data.vigilanteId && data.jornada !== 'sin_asignar') {
-                    const normVid = get().translateToUuid(data.vigilanteId);
+                    const normVid = translateToUuid(data.vigilanteId);
                     const key = `${normVid}-${prog.anio}-${prog.mes}`;
                     const busyDays = (state as any)._busyMap?.get(key);
                     
-                    const jornadaSolicitada = data.jornada || (data as any).turno || 'normal';
+                    const jornadaSolicitada = (data.jornada || (data as any).turno || 'normal') as string;
                     const isOccupiedShift = busyDays && (
                         busyDays.has(`${dia}-24H`) || 
                         busyDays.has(`${dia}-${jornadaSolicitada}`) ||
@@ -780,8 +784,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         // Buscamos si es en ESTA misma programación (posible cambio de rol)
                         const samePostConflict = prog.asignaciones.find(a => 
                             a.dia === dia && 
-                            get().idsMatch(a.vigilanteId, data.vigilanteId as string) && 
-                            (a.jornada === jornadaSolicitada || a.jornada === '24H' || jornadaSolicitada === '24H')
+                            idsMatch(a.vigilanteId, data.vigilanteId as string) && 
+                            ((a.jornada as string) === jornadaSolicitada || (a.jornada as string) === '24H' || jornadaSolicitada === '24H')
                         );
 
                         if (!samePostConflict) {
@@ -806,19 +810,19 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     
                     // INCREMENTAL BUSY MAP UPDATE (Shift-Aware)
                     if (s._busyMap && data.vigilanteId) {
-                        const vid = get().translateToUuid(data.vigilanteId);
+                        const vid = translateToUuid(data.vigilanteId);
                         const key = `${vid}-${prog.anio}-${prog.mes}`;
                         if (!s._busyMap.has(key)) s._busyMap.set(key, new Set());
                         
                         const busySet = s._busyMap.get(key)!;
-                        const j = data.jornada || (data as any).turno || 'normal';
+                        const j = (data.jornada || (data as any).turno || 'normal') as string;
 
                         if (data.jornada !== 'sin_asignar') {
                             busySet.add(dia);
                             if (j === '24H') { busySet.add(`${dia}-AM`); busySet.add(`${dia}-PM`); busySet.add(`${dia}-24H`); }
                             else { busySet.add(`${dia}-${j}`); }
                         } else if (oldAsig && oldAsig.jornada !== 'sin_asignar') {
-                            const oldJ = oldAsig.jornada || (oldAsig as any).turno || 'normal';
+                            const oldJ = (oldAsig.jornada || (oldAsig as any).turno || 'normal') as string;
                             if (oldJ === '24H') { busySet.delete(`${dia}-AM`); busySet.delete(`${dia}-PM`); busySet.delete(`${dia}-24H`); }
                             else { busySet.delete(`${dia}-${oldJ}`); }
                             // Solo borrar el dia si no quedan otros turnos
@@ -837,7 +841,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     return { programaciones: newProgs };
                 });
                 
-                get().queueSync(progId, set, get, true);
+                get()._updateMap();
+                queueSync(progId, set, get, true);
                 return { permitido: true, tipo: 'ok', mensaje: 'Asignación guardada' };
             },
 
@@ -958,7 +963,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
                     newMap.set(`${p.id}`, p);
                     
-                    const dbUuid = get().translatePuestoToUuid(p.puestoId);
+                    const dbUuid = translatePuestoToUuid(p.puestoId);
                     if (dbUuid && dbUuid !== p.puestoId) {
                         newMap.set(`${dbUuid}-${p.anio}-${p.mes}`, p);
                     }
@@ -967,9 +972,9 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     if (p.asignaciones) {
                         p.asignaciones.forEach(asig => {
                             if (asig.vigilanteId && asig.jornada !== 'sin_asignar') {
-                                const dbVid = get().translateToUuid(asig.vigilanteId);
+                                const dbVid = translateToUuid(asig.vigilanteId);
                                 const key = `${dbVid}-${p.anio}-${p.mes}`;
-                                const jornada = asig.jornada || (asig as any).turno || 'normal';
+                                const jornada = (asig.jornada || (asig as any).turno || 'normal') as string;
 
                                 if (!newBusyMap.has(key)) newBusyMap.set(key, new Set());
                                 

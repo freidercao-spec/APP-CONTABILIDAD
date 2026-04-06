@@ -364,7 +364,7 @@ const PanelMensualPuesto = ({
          </div>
       </div>
 
-      {/* TACTICAL COORDINATION PANEL (With Restore "No Repetir" Logic) */}
+      {/* TACTICAL COORDINATION PANEL (With Restored "No Repetir" Logic + Tablero B Selector) */}
       <CoordinationPanel 
         currentProg={prog}
         freshCProg={freshCProg || null}
@@ -376,6 +376,8 @@ const PanelMensualPuesto = ({
         onOpenEdit={(data) => setEditCell(data)}
         hideBusyGuards={hideBusyGuards}
         setHideBusyGuards={setHideBusyGuards}
+        compareProgId={compareProgId}
+        setCompareProgId={setCompareProgId}
       />
 
       {/* MODALS */}
