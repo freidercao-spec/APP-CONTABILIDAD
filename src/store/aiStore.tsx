@@ -1,7 +1,5 @@
-import React from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { toast } from 'react-hot-toast';
 import { showTacticalToast } from '../utils/tacticalToast';
 import { supabase, EMPRESA_ID } from '../lib/supabase';
 
@@ -89,7 +87,7 @@ export const useAIStore = create<AIState>()(
                     
                     // 1. ALTA PRIORIDAD: Toast tactico expandido (Maxima visibilidad)
                     if (priority === 'high') {
-                        let rawText = action.text.replace(/\*\*(.*?)\*\*/g, '$1');
+                        const rawText = action.text.replace(/\*\*(.*?)\*\*/g, '$1');
                         showTacticalToast({
                             title: 'Protocolo Critico',
                             message: rawText,
@@ -103,7 +101,7 @@ export const useAIStore = create<AIState>()(
                     } 
                     // 2. MEDIA PRIORIDAD: Toast tactico refinado (Informativo pero premium)
                     else if (priority === 'medium') {
-                        let rawText = action.text.replace(/\*\*(.*?)\*\*/g, '$1');
+                        const rawText = action.text.replace(/\*\*(.*?)\*\*/g, '$1');
                         showTacticalToast({
                             title: 'Sugerencia Operativa',
                             message: rawText,

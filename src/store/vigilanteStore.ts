@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { supabase, EMPRESA_ID } from '../lib/supabase';
 import { showTacticalToast } from '../utils/tacticalToast';
 import { useAuthStore } from './authStore';

@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { supabase, EMPRESA_ID } from '../lib/supabase';
 import { useVigilanteStore } from './vigilanteStore';
 import { usePuestoStore } from './puestoStore';

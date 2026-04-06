@@ -1,0 +1,120 @@
+﻿
+> coraza-cta-app@1.5.5 build
+> vite build
+
+[36mvite v7.3.1 [32mbuilding client environment for production...[36m[39m
+transforming...
+node.exe : [33mnode_module
+s/@loaders.gl/worker-utils/
+dist/lib/process-utils/chil
+d-process-proxy.js 
+(56:50): "spawn" is not 
+exported by 
+"__vite-browser-external", 
+imported by "node_modules/@
+loaders.gl/worker-utils/dis
+t/lib/process-utils/child-p
+rocess-proxy.js".[39m
+En línea: 1 Carácter: 1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
+    + CategoryInfo         
+     : NotSpecified: ([3  
+  3mnode_modul...proxy.j   
+ s".[39m:String) [], R    
+emoteException
+    + FullyQualifiedErrorI 
+   d : NativeCommandError
+ 
+[32mÔ£ô[39m 1066 modules transformed.
+rendering chunks...
+[33m[plugin 
+vite:reporter] 
+(!) C:/Users/Mirley/Downloa
+ds/APP - PORGRAMACION/coraz
+a-cta-app/src/store/auditSt
+ore.ts is dynamically 
+imported by C:/Users/Mirley
+/Downloads/APP - PORGRAMACI
+ON/coraza-cta-app/src/store
+/puestoStore.ts, C:/Users/M
+irley/Downloads/APP - PORGR
+AMACION/coraza-cta-app/src/
+store/puestoStore.ts, C:/Us
+ers/Mirley/Downloads/APP - 
+PORGRAMACION/coraza-cta-app
+/src/store/puestoStore.ts, 
+C:/Users/Mirley/Downloads/A
+PP - PORGRAMACION/coraza-ct
+a-app/src/store/vigilanteSt
+ore.ts, C:/Users/Mirley/Dow
+nloads/APP - PORGRAMACION/c
+oraza-cta-app/src/store/vig
+ilanteStore.ts, C:/Users/Mi
+rley/Downloads/APP - PORGRA
+MACION/coraza-cta-app/src/s
+tore/vigilanteStore.ts, C:/
+Users/Mirley/Downloads/APP 
+- PORGRAMACION/coraza-cta-a
+pp/src/store/vigilanteStore
+.ts but also statically 
+imported by C:/Users/Mirley
+/Downloads/APP - PORGRAMACI
+ON/coraza-cta-app/src/compo
+nents/layout/Sidebar.tsx, C
+:/Users/Mirley/Downloads/AP
+P - PORGRAMACION/coraza-cta
+-app/src/hooks/useSupabaseI
+nit.ts, C:/Users/Mirley/Dow
+nloads/APP - PORGRAMACION/c
+oraza-cta-app/src/pages/Aud
+itoriaInterna.tsx, C:/Users
+/Mirley/Downloads/APP - POR
+GRAMACION/coraza-cta-app/sr
+c/pages/Dashboard.tsx, C:/U
+sers/Mirley/Downloads/APP 
+- PORGRAMACION/coraza-cta-a
+pp/src/pages/GestionPuestos
+.tsx, C:/Users/Mirley/Downl
+oads/APP - PORGRAMACION/cor
+aza-cta-app/src/pages/Login
+.tsx, C:/Users/Mirley/Downl
+oads/APP - PORGRAMACION/cor
+aza-cta-app/src/pages/Resum
+en.tsx, dynamic import 
+will not move module into 
+another chunk.
+[39m
+computing gzip size...
+[2mdist/[22m[32mindex.html                            [39m[1m[2m    1.65 kB[22m[1m[22m[2m Ôöé gzip:   0.77 kB[22m
+[2mdist/[22m[32massets/corazai-avatar-CU82KBid.png    [39m[1m[2m1,019.10 kB[22m[1m[22m
+[2mdist/[22m[35massets/Puestos-DwUhsmFz.css           [39m[1m[2m   69.92 kB[22m[1m[22m[2m Ôöé gzip:  10.05 kB[22m
+[2mdist/[22m[35massets/index-p2zJdTy6.css             [39m[1m[2m  177.83 kB[22m[1m[22m[2m Ôöé gzip:  24.13 kB[22m
+[2mdist/[22m[36massets/maplibre-gl-5Yz-qJXU.js        [39m[1m[2m    0.50 kB[22m[1m[22m[2m Ôöé gzip:   0.36 kB[22m
+[2mdist/[22m[36massets/zustand-DZL9cpdg.js            [39m[1m[2m    0.65 kB[22m[1m[22m[2m Ôöé gzip:   0.40 kB[22m
+[2mdist/[22m[36massets/MilitaryTimeInput-DfpOMyHQ.js  [39m[1m[2m    6.15 kB[22m[1m[22m[2m Ôöé gzip:   2.06 kB[22m
+[2mdist/[22m[36massets/Resumen-O80he970.js            [39m[1m[2m    8.69 kB[22m[1m[22m[2m Ôöé gzip:   3.54 kB[22m
+[2mdist/[22m[36massets/Login-TYHLdk17.js              [39m[1m[2m    8.73 kB[22m[1m[22m[2m Ôöé gzip:   2.97 kB[22m
+[2mdist/[22m[36massets/Inteligencia-BOx0boUG.js       [39m[1m[2m   12.79 kB[22m[1m[22m[2m Ôöé gzip:   3.55 kB[22m
+[2mdist/[22m[36massets/AuditoriaInterna-Dvh9AOYL.js   [39m[1m[2m   14.01 kB[22m[1m[22m[2m Ôöé gzip:   3.76 kB[22m
+[2mdist/[22m[36massets/Configuracion-ZjJ1Aoz2.js      [39m[1m[2m   14.28 kB[22m[1m[22m[2m Ôöé gzip:   3.47 kB[22m
+[2mdist/[22m[36massets/ConfirmDialog-C9DvC4om.js      [39m[1m[2m   14.74 kB[22m[1m[22m[2m Ôöé gzip:   3.83 kB[22m
+[2mdist/[22m[36massets/Novedades-LGyuJqWN.js          [39m[1m[2m   16.66 kB[22m[1m[22m[2m Ôöé gzip:   4.03 kB[22m
+[2mdist/[22m[36massets/Dashboard-BAA_00ml.js          [39m[1m[2m   20.10 kB[22m[1m[22m[2m Ôöé gzip:   5.48 kB[22m
+[2mdist/[22m[36massets/purify.es-CovBOfck.js          [39m[1m[2m   22.58 kB[22m[1m[22m[2m Ôöé gzip:   8.67 kB[22m
+[2mdist/[22m[36massets/Vigilantes-CDp74-Ae.js         [39m[1m[2m   37.76 kB[22m[1m[22m[2m Ôöé gzip:   8.24 kB[22m
+[2mdist/[22m[36massets/react-DtshH-hm.js              [39m[1m[2m   47.77 kB[22m[1m[22m[2m Ôöé gzip:  16.86 kB[22m
+[2mdist/[22m[36massets/GestionPuestos-fdxzkgW2.js     [39m[1m[2m   53.88 kB[22m[1m[22m[2m Ôöé gzip:  14.32 kB[22m
+[2mdist/[22m[36massets/Puestos-BXbl9HwH.js            [39m[1m[2m   78.81 kB[22m[1m[22m[2m Ôöé gzip:  21.87 kB[22m
+[2mdist/[22m[36massets/index.es-GOg-uf4q.js           [39m[1m[2m  158.61 kB[22m[1m[22m[2m Ôöé gzip:  52.94 kB[22m
+[2mdist/[22m[36massets/supabase-CpRTRdvQ.js           [39m[1m[2m  171.64 kB[22m[1m[22m[2m Ôöé gzip:  45.65 kB[22m
+[2mdist/[22m[36massets/html2canvas.esm-DXEQVQnt.js    [39m[1m[2m  201.04 kB[22m[1m[22m[2m Ôöé gzip:  47.43 kB[22m
+[2mdist/[22m[36massets/index-BB4Mrlze.js              [39m[1m[2m  295.00 kB[22m[1m[22m[2m Ôöé gzip:  91.51 kB[22m
+[2mdist/[22m[36massets/pdf-CNyo-hdY.js                [39m[1m[2m  417.41 kB[22m[1m[22m[2m Ôöé gzip: 136.06 kB[22m
+[2mdist/[22m[36massets/maps-gB6YGwD0.js               [39m[1m[2m1,791.01 kB[22m[1m[22m[2m Ôöé gzip: 479.45 kB[22m
+[32mÔ£ô built in 24.21s[39m
