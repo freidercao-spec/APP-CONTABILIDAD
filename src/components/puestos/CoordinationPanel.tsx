@@ -139,8 +139,11 @@ export const CoordinationPanel = ({
         
         // Verificar vía _busyMap (si está disponible y poblado)
         if (_busyMap && _busyMap.size > 0) {
-          const isBusyInStore = _busyMap.has(`${vid}-${currentProg?.anio}-${currentProg?.mes}`);
-          return !isBusyInStore;
+          const busyKey = `${vid}-${currentProg?.anio}-${currentProg?.mes}`;
+          const busySet = _busyMap.get(busyKey);
+          // CORRECCIÓN: solo ocultar si el busySet tiene días REALES en este mes
+          const reallyBusy = busySet && busySet.size > 0;
+          return !reallyBusy;
         }
         
         // Fallback: usar datos locales construidos arriba
@@ -157,6 +160,7 @@ export const CoordinationPanel = ({
       return 0;
     }).slice(0, displayCount);
   }, [uniqueVids, originStaffVids, displayCount, hideBusyGuards, _busyMap, localBusyVids, currentProg]);
+
 
   return (
     <div className="mt-8 bg-slate-900 rounded-[40px] border border-white/10 overflow-hidden shadow-2xl">

@@ -108,34 +108,46 @@ export const useAuthStore = create<AuthState>()(
             })),
 
             checkSession: async () => {
-                // Si ya tenemos una sesion válida de Supabase, no la pises
                 const current = get();
-                const BYPASS_IDS_CHECK = ['emergency-fix-id', 'bypass-id', '00000000-0000-0000-0000-000000000000'];
-                if (current.isAuthenticated && current.userId && 
-                    !BYPASS_IDS_CHECK.some(id => current.userId === id)) {
-                    // Verificar que la sesión de Supabase sigue vigente
-                    try {
-                        const { data: { session } } = await supabase.auth.getSession();
-                        if (!session?.user) {
-                            // Sesión venida a menos, limpiar
-                            set({ isAuthenticated: false, empresaId: null, loading: false });
-                            return;
-                        }
-                        set({ loading: false });
-                        return;
-                    } catch {
-                        set({ loading: false });
-                        return;
-                    }
-                }
                 
-                // Sesiones de bypass siempre se mantienen (incluye el admin local coraza)
+                // ── BYPASS USERS: nunca verificar con Supabase, siempre mantener sesión ──
+                // Esto incluye admin@coraza.com y documental@corazaseguridadcta.com
                 const BYPASS_IDS = ['emergency-fix-id', 'bypass-id', '00000000-0000-0000-0000-000000000000'];
-                if (current.isAuthenticated && BYPASS_IDS.some(id => current.userId === id)) {
+                if (current.isAuthenticated && current.userId && BYPASS_IDS.includes(current.userId)) {
                     set({ loading: false });
                     return;
                 }
 
+                // ── USUARIO SUPABASE: verificar sesión activa ──
+                if (current.isAuthenticated && current.userId) {
+                    try {
+                        const { data: { session } } = await supabase.auth.getSession();
+                        if (session?.user) {
+                            // Sesión válida — refrescar perfil por si cambió
+                            const { data: profile } = await supabase
+                                .from('usuarios')
+                                .select('nombre_completo, rol, empresa_id')
+                                .eq('id', session.user.id)
+                                .single();
+                            set({
+                                username: profile?.nombre_completo || session.user.email || current.username || 'Usuario',
+                                role: profile?.rol || current.role || 'coordinador',
+                                empresaId: profile?.empresa_id || current.empresaId || 'a0000000-0000-0000-0000-000000000001',
+                                loading: false,
+                            });
+                        } else {
+                            // Sesión expirada — limpiar
+                            set({ isAuthenticated: false, empresaId: null, loading: false });
+                        }
+                        return;
+                    } catch {
+                        // Error de red — mantener sesión local para no bloquear al usuario
+                        set({ loading: false });
+                        return;
+                    }
+                }
+
+                // ── SIN SESIÓN: intentar recuperar desde Supabase ──
                 try {
                     const { data: { session } } = await supabase.auth.getSession();
                     if (session?.user) {
@@ -156,7 +168,6 @@ export const useAuthStore = create<AuthState>()(
                     } else {
                         set({ isAuthenticated: false, empresaId: null, loading: false });
                     }
-                    set({ loading: false });
                 } catch (e) {
                     console.error('[AUTH] Error checking session:', e);
                     set({ loading: false });
