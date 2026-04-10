@@ -296,8 +296,7 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                         jornada: a.jornada || 'sin_asignar',
                         rol: a.rol || 'titular_a',
                         inicio: a.inicio || null,
-                        fin: a.fin || null,
-                        updated_at: new Date().toISOString()
+                        fin: a.fin || null
                     };
                 });
 
