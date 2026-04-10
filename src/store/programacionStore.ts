@@ -214,26 +214,31 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
 
             const currentEmpresaId = String(useAuthStore.getState().empresaId || EMPRESA_ID).trim();
             
-            const { error: headerErr } = await supabase
+            // 1. Cabecera (UPSERT por Clave de Negocio Inteligente)
+            // NO mandamos el ID local para permitir que la DB use su ID oficial o cree uno nuevo.
+            const { data: realHeader, error: headerErr } = await supabase
                 .from('programacion_mensual')
                 .upsert({
-                    id: dbId,
                     empresa_id: currentEmpresaId,
                     puesto_id: dbPuestoId,
                     anio: prog.anio,
                     mes: prog.mes,
                     estado: prog.estado,
                     updated_at: new Date().toISOString()
-                }, { onConflict: 'empresa_id,puesto_id,anio,mes' }); 
-            if (headerErr) throw new Error(`Cabecera: ${headerErr.message}`);
+                }, { onConflict: 'empresa_id,puesto_id,anio,mes' })
+                .select('id')
+                .single();
 
-            // 2. Personal
+            if (headerErr) throw new Error(`Cabecera DB: ${headerErr.message}`);
+            
+            const dbProgId = realHeader.id;
+
+            // 2. Personal (Usamos el ID real de la DB)
             const personalPayload = prog.personal
                 .filter(p => p.rol)
                 .map(p => {
                     const mappedVid = p.vigilanteId ? translateToUuid(p.vigilanteId) : null;
-                    const validVid = mappedVid && uuidRegex.test(mappedVid) ? mappedVid : null;
-                    return { programacion_id: dbId, rol: p.rol, vigilante_id: validVid, turno_id: p.turnoId || null };
+                    return { programacion_id: dbProgId, rol: p.rol, vigilante_id: mappedVid, turno_id: p.turnoId || null };
                 });
             if (personalPayload.length > 0) {
                 const { error: persErr } = await supabase
@@ -247,7 +252,7 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                 .map(a => {
                     const mappedVid = a.vigilanteId ? translateToDb(a.vigilanteId) : null;
                     return {
-                        programacion_id: dbId,
+                        programacion_id: dbProgId,
                         dia: a.dia,
                         vigilante_id: mappedVid,
                         turno: a.turno || 'AM',
@@ -269,6 +274,26 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
             }
 
             console.log(`[Coraza] Guardado directo OK: ${prog.id} | ${asignacionesPayload.length} asignaciones`);
+            
+            // SI EL ID DE LA DB ES DIFERENTE AL LOCAL (CASO DETERMINISTA VS UUID)
+            // ACTUALIZAMOS EL ESTADO LOCAL PARA COINCIDIR CON LA VERSIÓN OFICIAL
+            if (dbProgId !== prog.id) {
+                set((state: any) => ({
+                    programaciones: state.programaciones.map((p: any) => 
+                        p.id === prog.id ? { ...p, id: dbProgId, syncStatus: 'synced' as const } : p
+                    ),
+                    isSyncing: false
+                }));
+                get()._updateMap();
+            } else {
+                set((state: any) => ({
+                    programaciones: state.programaciones.map((p: any) => 
+                        p.id === prog.id ? { ...p, syncStatus: 'synced' as const } : p
+                    ),
+                    isSyncing: false
+                }));
+            }
+
             return { success: true, serverVersion: (prog.version || 0) + 1, serverUpdatedAt: new Date().toISOString() };
         } catch (err: any) {
             console.error('[Coraza] ❌ Error de Persistencia:', err);
@@ -754,8 +779,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 if (existing) return existing;
 
                 const dbPuestoId = translatePuestoToUuid(puestoId) || puestoId;
-                
-                const deterministicId = `${dbPuestoId}-${anio}-${mes}`;
+                const newId = crypto.randomUUID();
                 
                 const daysInMonth = new Date(anio, mes + 1, 0).getDate();
                 const asignaciones: AsignacionDia[] = [];
@@ -765,7 +789,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 }
  
                 const newProg: ProgramacionMensual = {
-                    id: deterministicId,
+                    id: newId,
                     puestoId: dbPuestoId, anio, mes,
                     personal: [
                         { rol: 'titular_a', vigilanteId: null, turnoId: 'AM' }, 
@@ -830,8 +854,6 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         ...p, personal, actualizadoEn: new Date().toISOString(), syncStatus: 'pending' as const
                     });
                     
-                    // INCREMENTAL MAP UPDATE: Avoid full re-scan
-                // INCREMENTAL MAP UPDATE: Avoid full re-scan
                     const prog = newProgs.find(p => p.id === progId);
                     if (prog && (s as any)._progMap) {
                         (s as any)._progMap.set(prog.id, prog);
@@ -841,6 +863,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     return { programaciones: newProgs };
                 });
                 queueSync(progId, set, get, true);
+            },
             },
 
             actualizarAsignacion: (progId, dia, data, usuario) => {
