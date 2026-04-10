@@ -245,11 +245,11 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
             }
 
             // 3. Asignaciones en lotes de 100
+            // CORRECCIÓN: NO filtrar asignaciones vacías ni validar UUID de forma restrictiva
+            // Mandamos todo el payload para espejo total con la DB.
             const asignacionesPayload = prog.asignaciones
-                .filter(a => a.vigilanteId && a.jornada !== 'sin_asignar')
                 .map(a => {
-                    const mappedVid = translateToUuid(a.vigilanteId);
-                    if (!mappedVid || !uuidRegex.test(mappedVid)) return null;
+                    const mappedVid = a.vigilanteId ? translateToDb(a.vigilanteId) : null;
                     return {
                         programacion_id: dbId,
                         dia: a.dia,
@@ -261,8 +261,7 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                         fin: a.fin || null,
                         updated_at: new Date().toISOString()
                     };
-                })
-                .filter(r => r !== null) as any[];
+                });
 
             const BATCH_SIZE = 100;
             for (let i = 0; i < asignacionesPayload.length; i += BATCH_SIZE) {
@@ -647,132 +646,91 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     );
                 }
 
-                const chunkResults = await Promise.all(chunkPromises);
-                chunkResults.forEach(([persRes, asigsRes]) => {
-                    if (persRes.data) allPersonal = [...allPersonal, ...persRes.data];
-                    if (asigsRes.data) allAsignaciones = [...allAsignaciones, ...asigsRes.data];
-                });
+                try {
+                    const chunkResults = await Promise.all(chunkPromises);
+                    chunkResults.forEach(([persRes, asigsRes]) => {
+                        if (persRes.data) allPersonal = [...allPersonal, ...persRes.data];
+                        if (asigsRes.data) allAsignaciones = [...allAsignaciones, ...asigsRes.data];
+                    });
 
-                console.log(`[Sync] 📊 ${progIds.length} programaciones hidratadas en paralelo.`);
+                    // [Lógica interna de mapeo...]
+                    const currentVigilantes = useVigilanteStore.getState().vigilantes;
+                    const vigLookup = new Map<string, string>();
+                    currentVigilantes.forEach(v => {
+                        if (v.dbId) vigLookup.set(v.dbId, v.id);
+                        vigLookup.set(v.id, v.id);
+                    });
 
-                // OPTIMIZACIÓN CRÍTICA: Pre-mapear vigilancia para evitar O(n^2) en la traducción de IDs
-                const currentVigilantes = useVigilanteStore.getState().vigilantes;
-                const vigLookup = new Map<string, string>();
-                currentVigilantes.forEach(v => {
-                    if (v.dbId) vigLookup.set(v.dbId, v.id);
-                    vigLookup.set(v.id, v.id);
-                });
+                    const assignmentsByProgId = new Map<string, any[]>();
+                    allAsignaciones.forEach(a => {
+                        if (!assignmentsByProgId.has(a.programacion_id)) assignmentsByProgId.set(a.programacion_id, []);
+                        assignmentsByProgId.get(a.programacion_id)!.push(a);
+                    });
 
-                // OPTIMIZACIÓN: Pre-agrupar asignaciones por ID de programación para evitar filtrar 14k records en cada iteración
-                const assignmentsByProgId = new Map<string, any[]>();
-                allAsignaciones.forEach(a => {
-                    if (!assignmentsByProgId.has(a.programacion_id)) assignmentsByProgId.set(a.programacion_id, []);
-                    assignmentsByProgId.get(a.programacion_id)!.push(a);
-                });
-
-                const newProgramaciones: ProgramacionMensual[] = rows.map(row => {
-                    // CORRECCIÓN: incluir turnoId para preservar roles de turnos personalizados
-                    const personal = allPersonal
-                        .filter(p => p.programacion_id === row.id)
-                        .map(p => ({ 
+                    const newProgramaciones: ProgramacionMensual[] = rows.map(row => {
+                        const personal = allPersonal.filter(p => p.programacion_id === row.id).map(p => ({ 
                             rol: p.rol as RolPuesto, 
                             vigilanteId: p.vigilante_id ? (vigLookup.get(p.vigilante_id) || p.vigilante_id) : null,
                             turnoId: p.turno_id || undefined
                         }));
-
-                    ['titular_a', 'titular_b', 'relevante'].forEach(rol => {
-                        if (!personal.find(p => p.rol === rol)) {
-                            // HEURÍSTICA: Titular B suele ser nocturno
-                            personal.push({ rol: rol as RolPuesto, vigilanteId: null, turnoId: rol === 'titular_b' ? 'PM' : 'AM' });
-                        }
-                    });
-
-                    const dbAsignaciones = assignmentsByProgId.get(row.id) || [];
-                    const asigMap = new Map();
-                    dbAsignaciones.forEach(a => {
-                        const key = `${a.dia}-${a.rol}`;
-                        asigMap.set(key, a);
-                    });
-
-                    const daysInMonth = new Date(row.anio, row.mes + 1, 0).getDate();
-                    const asignaciones: AsignacionDia[] = [];
-                    // CORRECCIÓN: usar todos los roles del personal cargado desde DB
-                    const rolesToEnsure: RolPuesto[] = personal.length > 0
-                        ? personal.map(p => p.rol)
-                        : ['titular_a', 'titular_b', 'relevante'];
-                    
-                    for (let d = 1; d <= daysInMonth; d++) {
-                        // También incluir cualquier rol de la DB que no esté en personal
-                        const allRolesForDay = new Set<string>(rolesToEnsure);
-                        asigMap.forEach((_v: any, key: string) => {
-                            const [dayStr, ...rolParts] = key.split('-');
-                            if (parseInt(dayStr) === d) allRolesForDay.add(rolParts.join('-'));
+                        ['titular_a', 'titular_b', 'relevante'].forEach(rol => {
+                            if (!personal.find(p => p.rol === rol)) personal.push({ rol: rol as RolPuesto, vigilanteId: null, turnoId: rol === 'titular_b' ? 'PM' : 'AM' });
                         });
-
-                        Array.from(allRolesForDay).forEach(rol => {
-                            const match = asigMap.get(`${d}-${rol}`);
-                            if (match) {
-                                asignaciones.push({
-                                    dia: match.dia,
-                                    vigilanteId: match.vigilante_id ? (vigLookup.get(match.vigilante_id) || match.vigilante_id) : null,
-                                    turno: match.turno,
-                                    jornada: (match.jornada || 'sin_asignar') as TipoJornada,
-                                    rol: (match.rol || rol) as RolPuesto,
-                                    inicio: match.inicio || undefined,
-                                    fin: match.fin || undefined
-                                });
-                            } else {
-                                asignaciones.push({ dia: d, vigilanteId: null, turno: 'AM', jornada: 'sin_asignar', rol });
-                            }
-                        });
-                    }
-
-                    return {
-                        id: row.id, 
-                        puestoId: (row.puesto_id || row.puestoId) as string, 
-                        anio: row.anio, 
-                        mes: row.mes,
-                        personal, 
-                        asignaciones, 
-                        estado: (row.estado || 'borrador') as EstadoProgramacion,
-                        creadoEn: row.created_at || row.creadoEn || new Date().toISOString(), 
-                        actualizadoEn: row.updated_at || row.actualizadoEn || new Date().toISOString(),
-                        version: row.version || 1, 
-                        historialCambios: row.historialCambios || [], 
-                        syncStatus: 'synced' as const
-                    };
-                });
-
-                set((state: any) => {
-                    const merged = [...state.programaciones];
-                    newProgramaciones.forEach(np => {
-                        const idx = merged.findIndex(p => p.id === np.id);
-                        if (idx >= 0) {
-                            // Si hay pendienTe, no pisamos si la version es menor o igual
-                            if (merged[idx].syncStatus === 'pending' && (np.version || 0) <= (merged[idx].version || 0)) {
-                                merged[idx] = { ...merged[idx], isDetailLoaded: true, isFetching: false };
-                            } else {
-                                merged[idx] = { ...merged[idx], ...np, isDetailLoaded: true, isFetching: false };
-                            }
-                        } else {
-                            merged.push({ ...np, isDetailLoaded: true, isFetching: false });
+                        const dbAsignaciones = assignmentsByProgId.get(row.id) || [];
+                        const asigMap = new Map();
+                        dbAsignaciones.forEach(a => asigMap.set(`${a.dia}-${a.rol}`, a));
+                        const daysInMonth = new Date(row.anio, row.mes + 1, 0).getDate();
+                        const asignaciones: AsignacionDia[] = [];
+                        const rolesToEnsure: RolPuesto[] = personal.length > 0 ? personal.map(p => p.rol) : ['titular_a', 'titular_b', 'relevante'];
+                        for (let d = 1; d <= daysInMonth; d++) {
+                            const allRolesForDay = new Set<string>(rolesToEnsure);
+                            asigMap.forEach((_v: any, key: string) => {
+                                const [dayStr, ...rolParts] = key.split('-');
+                                if (parseInt(dayStr) === d) allRolesForDay.add(rolParts.join('-'));
+                            });
+                            Array.from(allRolesForDay).forEach(rol => {
+                                const match = asigMap.get(`${d}-${rol}`);
+                                if (match) asignaciones.push({
+                                    dia: match.dia, vigilanteId: match.vigilante_id ? (vigLookup.get(match.vigilante_id) || match.vigilante_id) : null,
+                                    turno: match.turno, jornada: (match.jornada || 'sin_asignar') as TipoJornada, rol: (match.rol || rol) as RolPuesto,
+                                    inicio: match.inicio || undefined, fin: match.fin || undefined
+                                }); else asignaciones.push({ dia: d, vigilanteId: null, turno: 'AM', jornada: 'sin_asignar', rol });
+                            });
                         }
-                    });
-                    
-                    const newMap = new Map<string, ProgramacionMensual>();
-                    merged.forEach(p => {
-                        newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
-                        const dbUuid = translatePuestoToUuid(p.puestoId);
-                        if (dbUuid && dbUuid !== p.puestoId) newMap.set(`${dbUuid}-${p.anio}-${p.mes}`, p);
-                        newMap.set(p.id, p);
+                        return {
+                            id: row.id, puestoId: (row.puesto_id || row.puestoId) as string, anio: row.anio, mes: row.mes,
+                            personal, asignaciones, estado: (row.estado || 'borrador') as EstadoProgramacion,
+                            creadoEn: row.created_at || row.creadoEn || new Date().toISOString(), actualizadoEn: row.updated_at || row.actualizadoEn || new Date().toISOString(),
+                            version: row.version || 1, historialCambios: row.historialCambios || [], syncStatus: 'synced' as const
+                        };
                     });
 
-                    return { programaciones: merged, loaded: true, _progMap: newMap };
-                });
-
-                // CORRECCIÓN CRÍTICA: Reconstruir _busyMap con los datos recién cargados
-                // Sin esto, el filtro "No Repetir" del CoordinationPanel no tiene datos para trabajar
-                get()._updateMap();
+                    set((state: any) => {
+                        const merged = [...state.programaciones];
+                        newProgramaciones.forEach(np => {
+                            const idx = merged.findIndex(p => p.id === np.id);
+                            if (idx >= 0) merged[idx] = { ...merged[idx], ...np, isFetching: false, isDetailLoaded: true };
+                            else merged.push({ ...np, isDetailLoaded: true, isFetching: false });
+                        });
+                        const newMap = new Map<string, ProgramacionMensual>();
+                        merged.forEach(p => {
+                            newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
+                            newMap.set(p.id, p);
+                            const dbUuid = translatePuestoToUuid(p.puestoId);
+                            if (dbUuid && dbUuid !== p.puestoId) newMap.set(`${dbUuid}-${p.anio}-${p.mes}`, p);
+                        });
+                        return { programaciones: merged, loaded: true, _progMap: newMap };
+                    });
+                    get()._updateMap();
+                } catch (err) {
+                    console.error('[Coraza] ❌ ERROR EN FETCH DETAILS:', err);
+                    set((s: any) => ({
+                        programaciones: s.programaciones.map((p: any) => 
+                            progIds.includes(p.id) ? { ...p, isFetching: false, isDetailLoaded: true } : p
+                        ),
+                        loaded: true
+                    }));
+                }
             },
 
             fetchTemplates: async () => {
