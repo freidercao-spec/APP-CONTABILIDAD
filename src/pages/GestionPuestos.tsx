@@ -704,11 +704,26 @@ const PanelMensualPuesto = ({
           const rolDef = (prog.personal||[]).find((p:any)=>p.vigilanteId===a.vigilanteId);
           vigDataMap.set(a.vigilanteId, { nombre:(vig?.nombre||a.vigilanteId).toUpperCase(), cedula:vig?.cedula||"—", rol:getRolPdfLabel(rolDef?.rol||"—"), asigs:new Map() });
         }
+        
         const code = JORNADA_PDF[a.jornada] || a.jornada;
         let finalContent = code;
-        if (code === "D") finalContent = "D\n06-18";
-        else if (code === "N") finalContent = "N\n18-06";
-        else if (code === "24") finalContent = "24\n06-06";
+        
+        if (code === "D" || code === "N" || code === "24") {
+          const isNight = ['b', 'pm', 'noche', 'nocturno', 'vigilia'].some(k => a.rol?.toLowerCase().includes(k)) || a.turno === 'PM';
+          const rCode = code === "24" ? "24" : (isNight ? "N" : "D");
+          
+          let tInicio = "06";
+          let tFin = code === "24" ? "06" : "18";
+          
+          if (isNight && code !== "24") {
+             tInicio = "18"; tFin = "06";
+          }
+          
+          if (a.inicio) tInicio = a.inicio.slice(0, 5).replace(":00", "");
+          if (a.fin) tFin = a.fin.slice(0, 5).replace(":00", "");
+
+          finalContent = `${rCode}\n${tInicio}-${tFin}`;
+        }
         
         vigDataMap.get(a.vigilanteId)!.asigs.set(a.dia, finalContent);
       });
@@ -726,9 +741,13 @@ const PanelMensualPuesto = ({
         const row: string[] = [v.rol, v.cedula, v.nombre];
         days.forEach(d => {
           const code = v.asigs.get(d) || "";
-          if (code==="D"||code==="N"||code==="24") trab++;
-          else if (code==="DR"||code==="DNR") desc++;
-          else if (code==="VAC") vac++;
+          const isDR = code === "DR";
+          const isDNR = code === "DNR";
+          const isVAC = code === "VAC";
+          
+          if (code && !isDR && !isDNR && !isVAC && code !== "-") trab++;
+          else if (isDR || isDNR) desc++;
+          else if (isVAC) vac++;
           row.push(code);
         });
         row.push(String(trab), String(desc), String(vac));
@@ -933,7 +952,26 @@ const PanelMensualPuesto = ({
           vigDataMap.set(a.vigilanteId, { nombre:(vig?.nombre||a.vigilanteId).toUpperCase(), cedula:vig?.cedula||"—", rol:getRolPdfLabel(rolDef?.rol||"—"), asigs:new Map() });
         }
         const code = JORNADA_PDF[a.jornada] || a.jornada;
-        vigDataMap.get(a.vigilanteId)!.asigs.set(a.dia, code);
+        let finalContent = code;
+        
+        if (code === "D" || code === "N" || code === "24") {
+          const isNight = ['b', 'pm', 'noche', 'nocturno', 'vigilia'].some(k => a.rol?.toLowerCase().includes(k)) || a.turno === 'PM';
+          const rCode = code === "24" ? "24" : (isNight ? "N" : "D");
+          
+          let tInicio = "06";
+          let tFin = code === "24" ? "06" : "18";
+          
+          if (isNight && code !== "24") {
+             tInicio = "18"; tFin = "06";
+          }
+          
+          if (a.inicio) tInicio = a.inicio.slice(0, 5).replace(":00", "");
+          if (a.fin) tFin = a.fin.slice(0, 5).replace(":00", "");
+
+          finalContent = `${rCode} ${tInicio}-${tFin}`;
+        }
+        
+        vigDataMap.get(a.vigilanteId)!.asigs.set(a.dia, finalContent);
       });
 
       const vigEntries = Array.from(vigDataMap.entries());
@@ -947,9 +985,13 @@ const PanelMensualPuesto = ({
         const rowData: string[] = [v.rol, v.cedula, v.nombre];
         days.forEach(d => {
           const code = v.asigs.get(d) || "-";
-          if (code==="D"||code==="N"||code==="24") trab++;
-          else if (code==="DR"||code==="DNR") desc++;
-          else if (code==="VAC") vac++;
+          const isDR = code === "DR";
+          const isDNR = code === "DNR";
+          const isVAC = code === "VAC";
+          
+          if (code && !isDR && !isDNR && !isVAC && code !== "-") trab++;
+          else if (isDR || isDNR) desc++;
+          else if (isVAC) vac++;
           rowData.push(code);
         });
         rowData.push(String(trab), String(desc), String(vac));
