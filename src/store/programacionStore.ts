@@ -1040,8 +1040,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         }
                         s._busyMap = new Map(s._busyMap);
                     }
-                    
-                    // 3. ACTUALIZAR MAPA DE PROGRAMACIÓN (CLAVE PARA EL TABLERO)
+                    // 5. ACTUALIZAR MAPA DE PROGRAMACIÓN (FIN DE LA ACTUALIZACIÓN)
                     if (updatedProg && s._progMap) {
                         const key1 = `${updatedProg.puestoId}-${updatedProg.anio}-${updatedProg.mes}`;
                         const dbUuid = translatePuestoToUuid(updatedProg.puestoId);
@@ -1057,7 +1056,13 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 });
                 
                 queueSync(progId, set, get, true);
-                return { permitido: true, tipo: (conflictResult ? 'advertencia' : 'ok'), mensaje: (conflictResult || 'Asignación guardada') };
+
+                const conflictMsg = get().checkConflict(progId, dia, data.vigilanteId || '', data.turno || 'AM');
+                return { 
+                    permitido: true, 
+                    tipo: conflictMsg ? 'advertencia' : 'ok', 
+                    mensaje: conflictMsg || 'Asignación guardada' 
+                };
             },
 
             actualizarPersonalPuesto: (progId, personal, usuario) => {
