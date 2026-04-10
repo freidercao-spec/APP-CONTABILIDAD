@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { supabase, EMPRESA_ID } from '../lib/supabase';
 import { useVigilanteStore } from './vigilanteStore';
 import { usePuestoStore } from './puestoStore';
@@ -337,7 +338,8 @@ const queueSync = (progId: string, set: any, get: any, immediate = false) => {
 // ── Store Logic ──────────────────────────────────────────────────────────────
 
 export const useProgramacionStore = create<ProgramacionState>()(
-    (set, get) => ({
+    persist(
+        (set, get) => ({
             programaciones: [],
             templates: [],
             loaded: false,
@@ -1412,5 +1414,31 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     )
                     .subscribe();
             }
-        })
+        }),
+        {
+            name: 'coraza-programacion-v10', // Versión del esquema
+            storage: createJSONStorage(() => localStorage),
+            partialize: (state) => ({
+                programaciones: state.programaciones,
+                templates: state.templates,
+                loaded: true
+            }),
+            onRehydrateStorage: () => (state) => {
+                if (state) {
+                    // RECONSTRUCCIÓN DE MAPAS ÍNDICE (Crítico para que el tablero funcione)
+                    const newMap = new Map<string, ProgramacionMensual>();
+                    state.programaciones.forEach(p => {
+                        newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
+                        newMap.set(p.id, p);
+                        // También por DB ID si está disponible
+                        const uuid = translatePuestoToUuid(p.puestoId);
+                        if (uuid && uuid !== p.puestoId) newMap.set(`${uuid}-${p.anio}-${p.mes}`, p);
+                    });
+                    (state as any)._progMap = newMap;
+                    (state as any)._updateMap(); // Gatillar la reconstrucción de busyMap
+                    console.log('[Coraza] 💾 Datos rehidratados del disco local. Tablero Listo.');
+                }
+            }
+        }
+    )
 );

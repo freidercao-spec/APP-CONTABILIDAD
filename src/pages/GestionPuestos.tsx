@@ -600,6 +600,19 @@ const PanelMensualPuesto = ({
     [compareProgId, allProgramaciones]
   );
 
+  // ── BLINDAJE DE SALIDA: Evita perder datos si el sync está pendiente ────────
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      const hasChanges = (useProgramacionStore.getState() as any).hasPendingChanges();
+      if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = ''; // Muestra el mensaje de "¿Estás seguro de que quieres salir?"
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
   const ocupadosMap = useMemo(() => {
     const map = new Map<string, any[]>();
     allProgramaciones.forEach((p) => {
