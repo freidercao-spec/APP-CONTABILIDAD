@@ -117,6 +117,11 @@ export function useSupabaseInit() {
                     retry(() => fetchAudit()),
                 ]);
 
+                // Activar Sincronizacion Realtime Global
+                useVigilanteStore.getState().setupRealtime();
+                usePuestoStore.getState().setupRealtime();
+                useProgramacionStore.getState().setupRealtime();
+
                 addLog('🚀 Sistema Listo.');
             } catch (err: any) {
                 addLog('⚠️ Error crítico de inicialización: ' + (err.message || 'Desconocido'));

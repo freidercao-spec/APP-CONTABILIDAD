@@ -16,7 +16,7 @@ function fixFile(filePath) {
         { from: /Á±/g, to: 'ñ' },
         { from: /Á\u00a1/g, to: 'á' },
         { from: /Á\u00a9/g, to: 'é' },
-        { from: /Á\/g, to: 'í' }, // risky
+        { from: /Á\//g, to: 'í' }, // risky
         { from: /Á³/g, to: 'ó' },
         { from: /Áº/g, to: 'ú' },
         { from: /Â°/g, to: '°' },

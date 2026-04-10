@@ -104,6 +104,7 @@ interface PuestoState {
 
     getCobertura24Horas: (puestoId: string) => { completa: boolean; huecos: string[] };
     verificarCoberturaTotal: () => { puestosDesprotegidos: Puesto[] };
+    setupRealtime: () => void;
 }
 
 // Nota: el estado de un puesto se calcula dinámicamente al cargarlo
@@ -128,6 +129,7 @@ export const usePuestoStore = create<PuestoState>()(
                             .from('puestos')
                             .select('*')
                             .eq('empresa_id', currentEmpresaId)
+                            .neq('estado', 'inactivo')
                             .range(from, from + BATCH - 1)
                             .order('codigo', { ascending: true });
 
@@ -340,7 +342,7 @@ export const usePuestoStore = create<PuestoState>()(
                 }));
 
                 if (puesto?.dbId) {
-                    await supabase.from('puestos').update({ estado: 'Inactivo' }).eq('id', puesto.dbId);
+                    await supabase.from('puestos').update({ estado: 'inactivo' }).eq('id', puesto.dbId);
                 }
 
                 showTacticalToast({ title: 'Puesto Removido', message: 'Nodo desactivado y eliminado del sistema.', type: 'warning' });
@@ -565,6 +567,33 @@ export const usePuestoStore = create<PuestoState>()(
                     return !cobertura.completa;
                 });
                 return { puestosDesprotegidos: desprotegidos };
+            },
+
+            setupRealtime: () => {
+                const currentEmpresaId = useAuthStore.getState().empresaId || EMPRESA_ID;
+                
+                supabase
+                    .channel('puestos-realtime')
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: '*',
+                            schema: 'public',
+                            table: 'puestos',
+                            filter: `empresa_id=eq.${currentEmpresaId}`
+                        },
+                        async (payload) => {
+                            console.log('[Realtime] Cambio detectado en puestos:', payload.eventType);
+                            if (payload.eventType === 'DELETE') {
+                                set(state => ({
+                                    puestos: state.puestos.filter(p => p.dbId !== payload.old.id)
+                                }));
+                            } else {
+                                await get().fetchPuestos();
+                            }
+                        }
+                    )
+                    .subscribe();
             }
         })
 );

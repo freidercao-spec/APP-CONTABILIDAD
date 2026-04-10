@@ -53,9 +53,14 @@ export const PuestoCard = React.memo(({ puesto, anio, mes, onClick }: PuestoCard
       </div>
 
       <div className="flex items-center justify-between">
-        <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${progEstado === "publicado" ? "bg-emerald-500/10 text-emerald-600" : progEstado === "borrador" ? "bg-orange-500/10 text-orange-600" : "bg-slate-100 text-slate-400"}`}>
-          {progEstado === "publicado" ? "Publicado" : progEstado === "borrador" ? "Borrador" : "Pendiente"}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${progEstado === "publicado" ? "bg-emerald-500/10 text-emerald-600" : progEstado === "borrador" ? "bg-orange-500/10 text-orange-600" : "bg-slate-100 text-slate-400"}`}>
+            {progEstado === "publicado" ? "Publicado" : progEstado === "borrador" ? "Borrador" : "Pendiente"}
+          </span>
+          {prog?.syncStatus === 'pending' && (
+            <span className="material-symbols-outlined text-primary text-[14px] animate-spin">sync</span>
+          )}
+        </div>
         {alertas.length > 0 && (
           <span className="text-[10px] font-black text-red-500 flex items-center gap-1">
             <span className="material-symbols-outlined text-[14px]">warning</span>

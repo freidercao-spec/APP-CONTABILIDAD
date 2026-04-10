@@ -58,9 +58,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 }) => {
     const [inputValue, setInputValue] = useState('');
 
-    useEffect(() => {
-        if (isOpen) setInputValue('');
-    }, [isOpen]);
+
 
     if (!isOpen) return null;
 
@@ -103,14 +101,20 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                 {/* Buttons */}
                 <div className="grid grid-cols-2 gap-3 px-6 pb-6">
                     <button
-                        onClick={onCancel}
+                        onClick={() => {
+                            onCancel();
+                            setInputValue('');
+                        }}
                         className="py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all active:scale-95"
                     >
                         <span className="material-symbols-outlined text-[14px] mr-1 align-middle notranslate">close</span>
                         {cancelLabel}
                     </button>
                     <button
-                        onClick={() => { onConfirm(requireInput ? inputValue : true); }}
+                        onClick={() => {
+                            onConfirm(requireInput ? inputValue : true);
+                            setInputValue('');
+                        }}
                         disabled={requireInput && !inputValue.trim()}
                         className={`py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${cfg.btnClass}`}
                     >

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useVigilanteStore } from '../../store/vigilanteStore';
 import { usePuestoStore } from '../../store/puestoStore';
@@ -36,26 +36,31 @@ const GuardModal = ({ isOpen, onClose }: GuardModalProps) => {
     const nextIdNumber = useVigilanteStore((state) => state.nextIdNumber);
     const formattedPreview = `C-${String(nextIdNumber).padStart(4, '0')}`;
 
-    useEffect(() => {
-        if (isOpen) {
-            setNombre('');
-            setCedula('');
-            setRango('Vigilante');
-            setPuestoId('');
-            setAsignarPuesto(false);
-            setIsSubmitting(false);
-            setModulo('disponible');
-            setJustificacion('');
-        }
-    }, [isOpen]);
+    const resetForm = useCallback(() => {
+        setNombre('');
+        setCedula('');
+        setRango('Vigilante');
+        setPuestoId('');
+        setAsignarPuesto(false);
+        setIsSubmitting(false);
+        setModulo('disponible');
+        setJustificacion('');
+        setHoraInicio('06:00');
+        setHoraFin('18:00');
+    }, []);
+
+    const handleClose = useCallback(() => {
+        resetForm();
+        onClose();
+    }, [onClose, resetForm]);
 
     useEffect(() => {
         const handleKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && isOpen) onClose();
+            if (e.key === 'Escape' && isOpen) handleClose();
         };
         window.addEventListener('keydown', handleKey);
         return () => window.removeEventListener('keydown', handleKey);
-    }, [isOpen, onClose]);
+    }, [isOpen, handleClose]);
 
     if (!isOpen) return null;
 
@@ -63,20 +68,15 @@ const GuardModal = ({ isOpen, onClose }: GuardModalProps) => {
         e.preventDefault();
         e.stopPropagation();
         if (!nombre.trim() || !cedula.trim()) return;
-        if (modulo === 'disponible' && !justificacion.trim()) {
-            return;
-        }
-        if (asignarPuesto && !puestoId) return;
-
         setIsSubmitting(true);
         try {
             const assignment = (modulo === 'activo' && asignarPuesto) ? { puestoId, horaInicio, horaFin } : undefined;
-            const newId = await addVigilante(nombre.trim(), cedula.trim(), rango, modulo, justificacion, assignment);
+            const newId = await addVigilante(nombre.trim(), cedula.trim(), rango, modulo, justificacion.trim() || 'Ingreso manual', assignment);
 
             if (assignment && newId) {
                 assignGuardInPuesto(puestoId, newId, horaInicio, horaFin);
             }
-            onClose();
+            handleClose();
         } catch {
             setIsSubmitting(false);
         }
@@ -85,7 +85,7 @@ const GuardModal = ({ isOpen, onClose }: GuardModalProps) => {
     return createPortal(
         <div
             className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300"
-            onClick={onClose}
+            onClick={handleClose}
         >
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"></div>
 
@@ -106,7 +106,7 @@ const GuardModal = ({ isOpen, onClose }: GuardModalProps) => {
                     </div>
                     <button
                         type="button"
-                        onClick={onClose}
+                        onClick={handleClose}
                         className="size-10 rounded-full flex items-center justify-center hover:bg-white/10 text-slate-400 hover:text-white transition-all active:scale-90"
                     >
                         <span className="material-symbols-outlined notranslate" translate="no">close</span>
@@ -169,92 +169,88 @@ const GuardModal = ({ isOpen, onClose }: GuardModalProps) => {
                             </div>
                         </div>
 
-                        {/* ── Modulo de destino ── */}
+                        {/* ── Modulo de Registro ── */}
                         <div className="bg-[#111c44] border border-primary/20 rounded-[24px] p-5 space-y-4 shadow-2xl">
                             <p className="text-[11px] font-black text-white uppercase tracking-widest flex items-center gap-2">
                                 <span className="material-symbols-outlined text-primary text-lg notranslate" translate="no">hub</span>
-                                Modulo de Destino
+                                Ubicación Operativa Inicial
                             </p>
 
-                            {/* Tabs Modulo */}
                             <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => { setModulo('activo'); setAsignarPuesto(false); }}
+                                    className={`py-3 px-4 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all flex flex-col items-center gap-1.5 border-2 ${modulo === 'activo' ? 'bg-primary/10 border-primary text-primary' : 'border-white/10 text-slate-500 hover:border-white/20'}`}
+                                >
+                                    <span className="material-symbols-outlined text-[20px] notranslate" translate="no">local_police</span>
+                                    Fuerza Operativa
+                                </button>
                                 <button
                                     type="button"
                                     onClick={() => { setModulo('disponible'); setAsignarPuesto(false); }}
                                     className={`py-3 px-4 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all flex flex-col items-center gap-1.5 border-2 ${modulo === 'disponible' ? 'bg-success/10 border-success text-success' : 'border-white/10 text-slate-500 hover:border-white/20'}`}
                                 >
                                     <span className="material-symbols-outlined text-[20px] notranslate" translate="no">group_add</span>
-                                    Disponibles
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setModulo('activo')}
-                                    className={`py-3 px-4 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all flex flex-col items-center gap-1.5 border-2 ${modulo === 'activo' ? 'bg-primary/10 border-primary text-primary' : 'border-white/10 text-slate-500 hover:border-white/20'}`}
-                                >
-                                    <span className="material-symbols-outlined text-[20px] notranslate" translate="no">local_police</span>
-                                    Vigilantes
+                                    En Disponibilidad
                                 </button>
                             </div>
 
+                            {/* ── SECCIÓN OPCIONAL DE ASIGNACIÓN (Simplificada) ── */}
+                            <div className="pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setAsignarPuesto(!asignarPuesto)}
+                                    className={`w-full py-2.5 px-4 rounded-xl flex items-center justify-between border transition-all ${asignarPuesto ? 'bg-primary/10 border-primary/40 text-primary' : 'bg-white/2 border-white/5 text-slate-500 hover:bg-white/5'}`}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-sm">{asignarPuesto ? 'expand_more' : 'chevron_right'}</span>
+                                        <span className="text-[9px] font-black uppercase tracking-widest">Asignación Rápida a Puesto (Opcional)</span>
+                                    </div>
+                                    {asignarPuesto && <span className="text-[9px] bg-primary text-white px-2 py-0.5 rounded-full font-bold">Activo</span>}
+                                </button>
+
+                                {asignarPuesto && (
+                                    <div className="mt-3 p-4 bg-black/40 rounded-2xl border border-white/5 space-y-4 animate-in slide-in-from-top-1 duration-200">
+                                        <div className="relative">
+                                            <select
+                                                value={puestoId}
+                                                onChange={(e) => setPuestoId(e.target.value)}
+                                                className="w-full bg-[#0d1a2e] border border-white/8 rounded-xl py-3 px-5 text-sm text-white appearance-none outline-none focus:border-primary/50"
+                                            >
+                                                <option value="">Seleccione el puesto destino...</option>
+                                                {puestos.map(p => (
+                                                    <option key={p.id} value={p.id}>{p.id} - {p.nombre}</option>
+                                                ))}
+                                            </select>
+                                            <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none notranslate" translate="no">expand_more</span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] font-bold text-slate-500 uppercase ml-1">Entrada</label>
+                                                <MilitaryTimeInput value={horaInicio} onChange={val => setHoraInicio(val)}
+                                                    className="w-full bg-[#0d1a2e] border border-white/8 rounded-xl py-2.5 px-3 text-xs text-white"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] font-bold text-slate-500 uppercase ml-1">Salida</label>
+                                                <MilitaryTimeInput value={horaFin} onChange={val => setHoraFin(val)}
+                                                    className="w-full bg-[#0d1a2e] border border-white/8 rounded-xl py-2.5 px-3 text-xs text-white"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
                             {modulo === 'disponible' && (
-                                <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                                        Justificacion de Disponibilidad <span className="text-danger">*</span>
-                                    </label>
+                                <div className="space-y-1.5 animate-in fade-in duration-300">
+                                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest ml-1">Nota Adicional / Estado</label>
                                     <textarea
                                         value={justificacion}
                                         onChange={e => setJustificacion(e.target.value)}
-                                        className="w-full bg-[#0d2020] border border-success/30 rounded-xl py-3 px-4 text-xs text-white outline-none focus:border-success/60 h-16 resize-none placeholder:text-slate-600"
-                                        placeholder="Ej: En periodo de induccion, proximo a iniciar turno, licencia medica..."
+                                        className="w-full bg-[#0d2020] border border-white/5 rounded-xl py-3 px-4 text-xs text-white outline-none focus:border-success/30 h-16 resize-none"
+                                        placeholder="Motivo de disponibilidad (Ej: Turno pendiente, Licencia...)"
                                     />
-                                    <p className="text-[9px] text-slate-500 ml-1">Campo obligatorio para modulo Disponibles</p>
-                                </div>
-                            )}
-
-                            {modulo === 'activo' && (
-                                <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-4">
-                                    <button
-                                        type="button"
-                                        onClick={() => setAsignarPuesto(!asignarPuesto)}
-                                        className={`w-full py-2.5 px-4 rounded-xl flex items-center justify-between border transition-all ${asignarPuesto ? 'bg-primary/10 border-primary/40 text-primary' : 'bg-white/5 border-white/10 text-slate-400'}`}
-                                    >
-                                        <span className="text-[10px] font-black uppercase tracking-wider">Asignar a Puesto Ahora</span>
-                                        <span className={`size-5 rounded-full border-2 flex items-center justify-center transition-all ${asignarPuesto ? 'bg-primary border-primary' : 'border-slate-600'}`}>
-                                            {asignarPuesto && <span className="material-symbols-outlined text-white text-[12px]">check</span>}
-                                        </span>
-                                    </button>
-
-                                    {asignarPuesto && (
-                                        <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                                            <div className="relative">
-                                                <select
-                                                    value={puestoId}
-                                                    onChange={(e) => setPuestoId(e.target.value)}
-                                                    className="w-full bg-[#0d1a2e] border border-white/8 rounded-xl py-3 px-5 text-sm text-white appearance-none outline-none focus:border-primary/50"
-                                                >
-                                                    <option value="">Seleccione Puesto...</option>
-                                                    {puestos.map(p => (
-                                                        <option key={p.id} value={p.id}>{p.id} - {p.nombre}</option>
-                                                    ))}
-                                                </select>
-                                                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none notranslate" translate="no">expand_more</span>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div className="space-y-1">
-                                                    <label className="text-[9px] font-bold text-slate-500 uppercase ml-1">Inicio Turno</label>
-                                                    <MilitaryTimeInput value={horaInicio} onChange={val => setHoraInicio(val)}
-                                                        className="w-full bg-[#0d1a2e] border border-white/8 rounded-xl py-2.5 px-3 text-xs text-white outline-none focus:border-primary/50"
-                                                    />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-[9px] font-bold text-slate-500 uppercase ml-1">Fin Turno</label>
-                                                    <MilitaryTimeInput value={horaFin} onChange={val => setHoraFin(val)}
-                                                        className="w-full bg-[#0d1a2e] border border-white/8 rounded-xl py-2.5 px-3 text-xs text-white outline-none focus:border-primary/50"
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
                             )}
                         </div>
@@ -264,14 +260,14 @@ const GuardModal = ({ isOpen, onClose }: GuardModalProps) => {
                     <div className="p-8 border-t border-white/5 bg-black/20 flex gap-4 shrink-0">
                         <button
                             type="button"
-                            onClick={onClose}
+                            onClick={handleClose}
                             className="flex-1 py-3.5 bg-white/3 text-slate-400 font-bold rounded-2xl uppercase tracking-widest hover:bg-white/8 active:scale-95 transition-all text-[10px] border border-white/5"
                         >
                             Cancelar
                         </button>
                         <button
                             type="submit"
-                            disabled={isSubmitting || !nombre.trim() || !cedula.trim() || (modulo === 'disponible' && !justificacion.trim())}
+                            disabled={isSubmitting || !nombre.trim() || !cedula.trim() || (asignarPuesto && !puestoId)}
                             className="flex-1 py-3.5 bg-primary text-white font-bold rounded-2xl uppercase tracking-[0.2em] shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all text-[10px] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {isSubmitting ? (

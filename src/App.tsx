@@ -2,6 +2,7 @@ import React, { Suspense, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
+import { useProgramacionStore } from './store/programacionStore';
 import { useSupabaseInit } from './hooks/useSupabaseInit';
 import AppLayout from './components/layout/AppLayout';
 import TacticalLoading from './components/shared/TacticalLoading';
@@ -104,7 +105,37 @@ const AppRouter = () => {
   );
 };
 
+/**
+ * INDICADOR DE SINCRONIZACIÓN GLOBAL
+ */
+const SyncStatusBar = () => {
+    const isSyncing = useProgramacionStore(s => s.isSyncing);
+    if (!isSyncing) return null;
+    return (
+        <div className="fixed bottom-6 right-6 z-[9999] flex items-center gap-3 bg-indigo-600 px-5 py-3 rounded-2xl shadow-[0_15px_40px_rgba(79,70,229,0.5)] border border-white/20 animate-pulse">
+            <div className="size-2 bg-white rounded-full animate-ping" />
+            <span className="material-symbols-outlined text-white animate-spin text-[18px]">sync</span>
+            <span className="text-[10px] font-black text-white uppercase tracking-tighter">Sincronizando Cambios...</span>
+        </div>
+    );
+};
+
 function App() {
+  const isSyncing = useProgramacionStore(s => s.isSyncing);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      const hasPending = useProgramacionStore.getState().hasPendingChanges();
+      if (isSyncing || hasPending) {
+        e.preventDefault();
+        e.returnValue = '¡AVISO DE CORAZA! Hay cambios tácticos aún en proceso de guardado. Si cierra ahora, podría perder los últimos movimientos del tablero. ¿Seguro que desea salir?';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isSyncing]);
+
   return (
     <ErrorBoundary>
       <BrowserRouter>
@@ -124,6 +155,7 @@ function App() {
           }}
         />
         <AppRouter />
+        <SyncStatusBar />
       </BrowserRouter>
     </ErrorBoundary>
   );

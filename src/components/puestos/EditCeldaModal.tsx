@@ -14,7 +14,10 @@ interface EditCeldaModalProps {
   initialVigilanteId?: string;
 }
 
-const ROL_LABELS: Record<string, string> = { titular_a: "Titular A", titular_b: "Titular B", relevante: "Relevante" };
+const getRolLabel = (rol: string) => {
+  const base: Record<string, string> = { titular_a: "Titular A", titular_b: "Titular B", relevante: "Relevante" };
+  return base[rol] || rol.replace(/_/g, " ").toUpperCase();
+};
 
 const DEFAULT_TURNOS: TurnoConfig[] = [
   { id: "AM", nombre: "Turno AM", inicio: "06:00", fin: "18:00" },
@@ -67,10 +70,23 @@ export const EditCeldaModal = ({
   const filteredVigilantes = React.useMemo(() => {
     const q = vigSearch.toLowerCase().trim();
     if (!q) {
-      // Sin búsqueda: mostrar titulares primero + disponibles
+      // Sin búsqueda: mostrar titulares primero
       const titulares = vigilantes.filter(v => titularesId.includes(v.id));
-      const otros = vigilantes.filter(v => !titularesId.includes(v.id) && v.estado === 'disponible').slice(0, 15);
-      return [...titulares, ...otros];
+      
+      // Obtener el resto de vigilantes (que no son titulares)
+      const nonTitulares = vigilantes.filter(v => !titularesId.includes(v.id));
+      
+      const disponibles = nonTitulares.filter(v => v.estado === 'disponible');
+      const activos = nonTitulares.filter(v => v.estado !== 'disponible');
+      
+      let finalOtros = [...disponibles];
+      
+      // Si hay menos de 20 disponibles, rellenamos con activos para no dejar la lista vacía
+      if (finalOtros.length < 20) {
+          finalOtros = [...finalOtros, ...activos];
+      }
+      
+      return [...titulares, ...finalOtros.slice(0, 30)]; // Mostramos máximo unos 30 iniciales
     }
     return vigilantes.filter(v =>
       v.nombre?.toLowerCase().includes(q) || v.id?.toLowerCase().includes(q)
@@ -113,7 +129,7 @@ export const EditCeldaModal = ({
                 Asignar Turno · Día {asig.dia}
               </h2>
               <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-black rounded-lg uppercase">
-                {ROL_LABELS[asig.rol] || asig.rol}
+                {getRolLabel(asig.rol)}
               </span>
             </div>
             <button onClick={onClose} className="size-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors">

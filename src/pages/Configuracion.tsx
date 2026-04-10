@@ -346,6 +346,58 @@ const Configuracion = () => {
                         {edited ? '✓ Guardar Configuracion' : 'Sin cambios pendientes'}
                     </button>
                 </div>
+
+                {/* HERRAMIENTAS DE DEPURACION */}
+                <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm flex flex-col gap-8 md:col-span-2">
+                    <div className="flex items-center gap-3">
+                        <span className="material-symbols-outlined text-danger notranslate" translate="no">database</span>
+                        <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Herramientas Avanzadas de Datos</h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                            <h4 className="text-sm font-bold text-slate-900 mb-2">Sincronizacion Forzada</h4>
+                            <p className="text-[11px] text-slate-500 mb-6">Recalcula todos los KPIs y descarga el estado mas reciente desde el servidor de Supabase.</p>
+                            <button 
+                                onClick={async () => {
+                                    const { useVigilanteStore } = await import('../store/vigilanteStore');
+                                    const { usePuestoStore } = await import('../store/puestoStore');
+                                    const { useProgramacionStore } = await import('../store/programacionStore');
+                                    
+                                    showTacticalToast({ title: 'Sincronizando', message: 'Descargando datos operativos...', type: 'info' });
+                                    
+                                    await Promise.all([
+                                        useVigilanteStore.getState().fetchVigilantes(),
+                                        usePuestoStore.getState().fetchPuestos(),
+                                        useProgramacionStore.getState().fetchProgramaciones()
+                                    ]);
+                                    
+                                    showTacticalToast({ title: 'Base de Datos Sincronizada', message: 'El estado local coincide con el servidor.', type: 'success' });
+                                }}
+                                className="w-full py-3 bg-white border border-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-900 hover:text-white transition-all shadow-sm"
+                            >
+                                Recargar Datos del Servidor
+                            </button>
+                        </div>
+
+                        <div className="p-6 bg-danger/5 rounded-2xl border border-danger/10">
+                            <h4 className="text-sm font-bold text-danger mb-2">Limpieza de Memoria</h4>
+                            <p className="text-[11px] text-slate-500 mb-6">Elimina todas las variables de sesion locales y refresca la aplicacion. Util para resolver errores de visualizacion.</p>
+                            <button 
+                                onClick={() => {
+                                    if(confirm('¿Seguro? Se cerrara la sesion y se limpiara la cache local.')) {
+                                        localStorage.clear();
+                                        sessionStorage.clear();
+                                        window.location.reload();
+                                    }
+                                }}
+                                className="w-full py-3 bg-danger text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:brightness-110 transition-all shadow-lg shadow-danger/20"
+                            >
+                                Purgar Cache y Reiniciar
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );

@@ -13,7 +13,7 @@ const Novedades = () => {
     const puestos = usePuestoStore(s => s.puestos);
     const now = new Date();
 
-    // Fetch from Supabase novedades table
+    // Fetch from Supabase novedades table with Realtime Sync
     useEffect(() => {
         const fetchDbNovedades = async () => {
             try {
@@ -31,7 +31,28 @@ const Novedades = () => {
                 setLoadingNovedades(false);
             }
         };
+
         fetchDbNovedades();
+
+        // Suscripcion Realtime
+        const channel = supabase
+            .channel('novedades_live')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'novedades',
+                },
+                () => {
+                    fetchDbNovedades();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     // FIX: envolver en useMemo para evitar O(N) recalculación en cada render

@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import DeckGL from '@deck.gl/react';
 import { Map } from 'react-map-gl/maplibre';
+import maplibregl from 'maplibre-gl';
 import { ColumnLayer, ScatterplotLayer, TextLayer, ArcLayer, IconLayer } from '@deck.gl/layers';
 import { usePuestoStore } from '../store/puestoStore';
 import type { Puesto } from '../store/puestoStore';
@@ -40,7 +41,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { useTacticalOps } from '../hooks/useTacticalOps';
 import { MilitaryTimeInput } from '../components/ui/MilitaryTimeInput';
 
-const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 
 // ─── Especificaciones de modelos por tipo ────────────────────────────────────
 const BUILDING_SPECS: Record<string, { height: number; radius: number; color: [number, number, number]; icon: string }> = {
@@ -57,10 +58,14 @@ const BUILDING_SPECS: Record<string, { height: number; radius: number; color: [n
 const getSpec = (tipo: string) => BUILDING_SPECS[tipo] ?? BUILDING_SPECS.edificio;
 
 // ─── Genera el SVG de bandera con logo CORAZA ─────────────────────────────────
-const makeFlagIcon = (color: [number, number, number], isAlerta: boolean) => {
-    const r = isAlerta ? 255 : color[0];
-    const g = isAlerta ? 71 : color[1];
-    const b = isAlerta ? 87 : color[2];
+const makeFlagIcon = (color: [number, number, number], estado: Puesto['estado']) => {
+    const isAlerta = estado === 'alerta';
+    const isDesprotegido = estado === 'desprotegido';
+    
+    // Colores tácticos
+    const r = isAlerta ? 255 : isDesprotegido ? 245 : color[0];
+    const g = isAlerta ? 71 : isDesprotegido ? 158 : color[1];
+    const b = isAlerta ? 87 : isDesprotegido ? 11 : color[2];
     const hex = `${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 
     const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="120" viewBox="0 0 80 120">
@@ -93,9 +98,9 @@ const makeFlagIcon = (color: [number, number, number], isAlerta: boolean) => {
       <!-- Circulo Central Oscuro Premium -->
       <circle cx="40" cy="36" r="19" fill="#0f172a" stroke="#${hex}" stroke-width="1.5" filter="url(#glow-inner)"/>
       
-      ${isAlerta ? `<circle cx="40" cy="36" r="13" fill="#${hex}" opacity="0.3">
-          <animate attributeName="r" values="13;22;13" dur="1.2s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="0.6;0;0.6" dur="1.2s" repeatCount="indefinite"/>
+      ${isAlerta || isDesprotegido ? `<circle cx="40" cy="36" r="13" fill="#${hex}" opacity="0.3">
+          <animate attributeName="r" values="13;22;13" dur="${isAlerta ? '1.2s' : '2.5s'}" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0.6;0;0.6" dur="${isAlerta ? '1.2s' : '2.5s'}" repeatCount="indefinite"/>
       </circle>` : ''}
 
       <!-- Logo de Escudo Coraza -->
@@ -202,7 +207,7 @@ const Puestos = () => {
         }, 2000); // Debounce: esperar 2s antes de procesar
 
         return () => clearTimeout(timer);
-    }, [puestos.length, getCobertura24Horas, updatePuestoStatus, verificarCoberturaTotal]);
+    }, [puestos, getCobertura24Horas, updatePuestoStatus, verificarCoberturaTotal]);
 
     const vigilantes = useVigilanteStore(s => s.vigilantes) || [];
     const updateGuardStatus = useVigilanteStore(s => s.updateGuardStatus);
@@ -300,30 +305,35 @@ const Puestos = () => {
         };
 
         const currentPuestos = puestos.filter(p => typeof p.lat === 'number' && typeof p.lng === 'number' && !isNaN(p.lat) && !isNaN(p.lng));
-        // Agregamos la HQ a la lista de puntos a renderizar
         const renderPoints = [...currentPuestos.filter(p => p.id !== hq.id), hq];
+        
+        // PERF: precompute estado string once — avoid re-computing inside each layer
+        const estadoKey = renderPoints.map(p => `${p.id}:${p.estado}`).join('|');
+        const totalCount = currentPuestos.length;
 
-        const arcLayer = new ArcLayer({
+        // ── ARC LAYER: skip when there are many puestos (big perf win) ──────────
+        // Each arc = geometry + texture upload per frame. With 100+ puestos = GPU stall
+        const arcLayer = totalCount <= 60 ? new ArcLayer({
             id: 'flow-arcs',
-            data: currentPuestos.filter(p => p.id !== hq.id), // Desde cada puesto a la sede central
+            data: currentPuestos.filter(p => p.id !== hq.id),
             getSourcePosition: (d: Puesto) => [d.lng, d.lat, 0],
             getTargetPosition: () => [hq.lng, hq.lat, 60],
             getSourceColor: (d: Puesto) => {
                 const index = currentPuestos.findIndex(p => p.id === d.id);
-                const h = (index * 137.5) % 360; // Usar el angulo dorado para maxima distincion de color
-                const [r, g, b] = hslToRgb(h, 100, 55); 
-                return [r, g, b, 255];
+                const h = (index * 137.5) % 360;
+                const [r, g, b] = hslToRgb(h, 100, 55);
+                return [r, g, b, 180];
             },
             getTargetColor: (d: Puesto) => {
                 const index = currentPuestos.findIndex(p => p.id === d.id);
                 const h = (index * 137.5) % 360;
-                const [r, g, b] = hslToRgb(h, 100, 65); 
-                return [r, g, b, 255]; // Toda la linea usa el mismo color distinto por puesto
+                const [r, g, b] = hslToRgb(h, 100, 65);
+                return [r, g, b, 180];
             },
-            getWidth: () => 3,
-            getHeight: 0.4,
+            getWidth: () => 2,
+            getHeight: 0.3,
             pickable: false,
-        });
+        }) : null;
 
         const buildingsLayer = new ColumnLayer({
             id: 'buildings-3d',
@@ -339,21 +349,31 @@ const Puestos = () => {
                 const c = getSpec(d.tipo).color;
                 const isSelected = d.id === selectedId;
                 const isHQ = d.id === hq.id;
-                const base = isHQ ? [138, 43, 226] : d.estado === 'alerta' ? [255, 71, 87] : c;
-                return [...base, isSelected ? 200 : 120] as any;
+                const base = isHQ ? [138, 43, 226] : d.estado === 'alerta' ? [255, 71, 87] : d.estado === 'desprotegido' ? [245, 158, 11] : c;
+                return [...base, isSelected ? 220 : 130] as any;
             },
-            getLineColor: (d: Puesto) => d.estado === 'alerta'
-                ? [255, 71, 87, 255]
-                : d.id === selectedId ? [255, 255, 255, 255] : [255, 255, 255, 120],
-            lineWidthMinPixels: 2,
+            getLineColor: (d: Puesto) => {
+                if (d.estado === 'alerta') return [255, 71, 87, 255];
+                if (d.estado === 'desprotegido') return [245, 158, 11, 255];
+                return d.id === selectedId ? [255, 255, 255, 255] : [255, 255, 255, 100];
+            },
+            lineWidthMinPixels: 1,
             getElevation: (d: Puesto) => getSpec(d.tipo).height,
-            transitions: { getElevation: 700, getFillColor: 500, getRadius: 500 },
-            updateTriggers: { getFillColor: [selectedId], getLineColor: [selectedId] },
+            // Simpler transitions = much faster redraws
+            transitions: { getFillColor: 300 },
+            updateTriggers: {
+                getFillColor: [selectedId, estadoKey],
+                getLineColor: [selectedId, estadoKey]
+            },
         });
 
+        // PERF: pulse rings only for alertas + selected + HQ — not every puesto
+        const pulsePuntos = renderPoints.filter(p =>
+            p.id === hq.id || p.id === selectedId || p.estado === 'alerta'
+        );
         const pulseLayer = new ScatterplotLayer({
             id: 'pulse-rings',
-            data: renderPoints,
+            data: pulsePuntos,
             pickable: false,
             opacity: 0.55,
             stroked: true,
@@ -364,7 +384,7 @@ const Puestos = () => {
             getPosition: (d: Puesto) => [d.lng, d.lat, 0],
             getRadius: (d: Puesto) => d.id === hq.id ? 150 : d.estado === 'alerta' ? 130 : 70,
             getLineColor: (d: Puesto) => d.id === hq.id ? [138, 43, 226, 200] : d.estado === 'alerta' ? [255, 71, 87, 220] : [...getSpec(d.tipo).color, 140] as any,
-            transitions: { getRadius: { type: 'spring', stiffness: 0.05, damping: 0.3 } },
+            updateTriggers: { getRadius: [estadoKey], getLineColor: [estadoKey] },
         });
 
         const selectionRing = new ScatterplotLayer({
@@ -393,7 +413,7 @@ const Puestos = () => {
             getColor: [255, 255, 255, 220],
             getTextAnchor: 'middle',
             getAlignmentBaseline: 'bottom',
-            fontFamily: 'Rajdhani, Inter, sans-serif',
+            fontFamily: 'Inter, sans-serif',
             fontWeight: 700,
             background: true,
             backgroundPadding: [8, 4, 8, 4],
@@ -401,17 +421,28 @@ const Puestos = () => {
                 ? [138, 43, 226, 240]
                 : d.estado === 'alerta'
                 ? [200, 30, 30, 230]
+                : d.estado === 'desprotegido'
+                ? [245, 158, 11, 230]
                 : d.id === selectedId ? [19, 100, 200, 240] : [8, 14, 30, 220],
             fontSettings: { sdf: true, radius: 4 },
-            updateTriggers: { getBackgroundColor: [selectedId], getSize: [selectedId] },
+            updateTriggers: {
+                getBackgroundColor: [selectedId, estadoKey],
+                getSize: [selectedId]
+            },
         });
+
+        // PERF: SVG flag icons per-puesto are expensive GPU uploads.
+        // Only render flags for: HQ + selected puesto + alertas (not all puestos)
+        const flagPoints = totalCount > 80
+            ? renderPoints.filter(p => p.id === hq.id || p.id === selectedId || p.estado === 'alerta')
+            : renderPoints;
 
         const flagLayer = new IconLayer({
             id: 'coraza-flags',
-            data: renderPoints,
+            data: flagPoints,
             pickable: true,
             getIcon: (d: Puesto) => ({
-                url: makeFlagIcon(d.id === hq.id ? [138, 43, 226] : getSpec(d.tipo).color, d.estado === 'alerta'),
+                url: makeFlagIcon(d.id === hq.id ? [138, 43, 226] : getSpec(d.tipo).color, d.estado),
                 width: 80,
                 height: 120,
                 anchorY: 120,
@@ -419,8 +450,10 @@ const Puestos = () => {
             getSize: (d: Puesto) => d.id === hq.id ? 90 : d.id === selectedId ? 75 : d.estado === 'alerta' ? 65 : 55,
             getPosition: (d: Puesto) => [d.lng, d.lat, getSpec(d.tipo).height + 25],
             sizeScale: 1,
-            transitions: { getSize: { type: 'spring', stiffness: 0.1, damping: 0.4 } },
-            updateTriggers: { getSize: [selectedId], getIcon: renderPoints.map(p => p.estado).join() },
+            updateTriggers: {
+                getSize: [selectedId],
+                getIcon: [estadoKey]
+            },
         });
 
         return [arcLayer, pulseLayer, selectionRing, buildingsLayer, labelsLayer, flagLayer].filter(Boolean);
@@ -595,10 +628,11 @@ const Puestos = () => {
                 </aside>
 
                 {/* Mapa */}
-                <main className="flex-1 relative bg-[#02060b] overflow-hidden outline-none z-0">
+                <main className="flex-1 relative bg-[#02060b] overflow-hidden outline-none z-0 min-h-0">
                     <DeckGL
                         viewState={viewState}
                         onViewStateChange={({ viewState: vs }: any) => {
+                            if (!vs || isNaN(vs.longitude) || isNaN(vs.latitude)) return;
                             const { transitionDuration: _td, transitionInterpolator: _ti, ...cleanState } = vs as any;
                             setViewState({ ...cleanState, maxZoom: 20, minZoom: 8 });
                         }}
@@ -606,8 +640,15 @@ const Puestos = () => {
                         layers={layers}
                         onClick={handleMapClick}
                         getCursor={({ isDragging }) => isDragging ? 'grabbing' : 'crosshair'}
+                        width="100%"
+                        height="100%"
+                        style={{ background: '#02060b' }}
                     >
-                        <Map mapStyle={MAP_STYLE} reuseMaps />
+                        <Map 
+                            mapLib={maplibregl} 
+                            mapStyle={MAP_STYLE} 
+                            reuseMaps
+                        />
                     </DeckGL>
 
                     {/* Controles Flotantes */}

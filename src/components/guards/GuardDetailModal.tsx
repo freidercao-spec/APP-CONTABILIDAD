@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { Vigilante, Descargo } from '../../store/vigilanteStore';
 import { useVigilanteStore } from '../../store/vigilanteStore';
 import { usePuestoStore } from '../../store/puestoStore';
+import { useProgramacionStore } from '../../store/programacionStore';
 import { ConfirmDialog, useConfirm } from '../ui/ConfirmDialog';
 
 interface GuardDetailModalProps {
@@ -11,7 +12,7 @@ interface GuardDetailModalProps {
     guard: Vigilante;
 }
 
-type TabType = 'historial' | 'descargos' | 'vacaciones';
+type TabType = 'historial' | 'cronograma' | 'descargos' | 'vacaciones';
 
 const TIPOS_DESCARGO: { value: Descargo['tipo']; label: string; color: string }[] = [
     { value: 'disciplinario', label: 'Disciplinario', color: 'text-red-400 bg-red-400/10 border-red-400/20' },
@@ -193,7 +194,11 @@ const GuardDetailModal = ({ isOpen, onClose, guard }: GuardDetailModalProps) => 
                     <div className="px-6 py-3 flex gap-2 border-b border-white/5 flex-shrink-0 bg-black/20">
                         <button className={tabCls('historial')} onClick={() => setActiveTab('historial')}>
                             <span className="material-symbols-outlined text-[14px] mr-1 notranslate align-middle" translate="no">history</span>
-                            Historial
+                            Novedades
+                        </button>
+                        <button className={tabCls('cronograma')} onClick={() => setActiveTab('cronograma')}>
+                            <span className="material-symbols-outlined text-[14px] mr-1 notranslate align-middle" translate="no">calendar_month</span>
+                            Reporte Diario
                         </button>
                         <button className={tabCls('descargos')} onClick={() => setActiveTab('descargos')}>
                             <span className="material-symbols-outlined text-[14px] mr-1 notranslate align-middle" translate="no">gavel</span>
@@ -314,6 +319,92 @@ const GuardDetailModal = ({ isOpen, onClose, guard }: GuardDetailModalProps) => 
                                     Guardar Cambios
                                 </button>
                             </div>
+                        </div>
+                    )}
+
+                    {/* ── TAB CRONOGRAMA (DIARIO) ── */}
+                    {activeTab === 'cronograma' && !isEditing && (
+                        <div className="p-6">
+                            {(() => {
+                                const now = new Date();
+                                const currentMonth = now.getMonth();
+                                const currentYear = now.getFullYear();
+                                const myAssignments = useProgramacionStore.getState().getAssignmentsForVigilante(guard.id, currentYear, currentMonth);
+                                
+                                const totalDias = myAssignments.filter(a => a.jornada === 'normal').length;
+                                const totalDescansos = myAssignments.filter(a => a.jornada?.includes('descanso')).length;
+                                const totalVacas = myAssignments.filter(a => a.jornada === 'vacacion').length;
+
+                                return (
+                                    <>
+                                        <div className="grid grid-cols-3 gap-3 mb-8">
+                                            <div className="bg-white/5 border border-white/5 rounded-2xl p-4 text-center">
+                                                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Días Laborados</p>
+                                                <p className="text-xl font-black text-white">{totalDias}</p>
+                                            </div>
+                                            <div className="bg-white/5 border border-white/5 rounded-2xl p-4 text-center">
+                                                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Descansos</p>
+                                                <p className="text-xl font-black text-primary">{totalDescansos}</p>
+                                            </div>
+                                            <div className="bg-white/5 border border-white/5 rounded-2xl p-4 text-center">
+                                                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Otros / Vacac.</p>
+                                                <p className="text-xl font-black text-amber-500">{totalVacas}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between mb-5 px-1">
+                                            <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Detalle de Operaciones · {new Date().toLocaleDateString('es-CO', { month: 'long' }).toUpperCase()}</h5>
+                                            <button 
+                                                onClick={() => window.print()} 
+                                                className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline flex items-center gap-1"
+                                            >
+                                                <span className="material-symbols-outlined text-[14px]">print</span>
+                                                Exportar PDF
+                                            </button>
+                                        </div>
+
+                                        {myAssignments.length === 0 ? (
+                                            <div className="text-center py-16 opacity-40">
+                                                <span className="material-symbols-outlined text-4xl notranslate" translate="no">event_note</span>
+                                                <p className="text-xs font-bold uppercase tracking-widest mt-3">Sin asignaciones registradas para este periodo</p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-2.5">
+                                                {myAssignments.map((asig, idx) => {
+                                                    const isRest = asig.jornada?.includes('descanso');
+                                                    const isVaca = asig.jornada === 'vacacion';
+                                                    
+                                                    return (
+                                                        <div key={`${asig.dia}-${idx}`} className="bg-[#111c44]/30 border border-white/5 rounded-xl p-3.5 flex items-center gap-4 hover:border-primary/30 transition-all group group-hover:bg-[#111c44]/50">
+                                                            <div className={`size-11 rounded-xl flex flex-col items-center justify-center border shrink-0 ${isRest ? 'bg-indigo-500/10 border-indigo-500/20' : isVaca ? 'bg-amber-500/10 border-amber-500/20' : 'bg-primary/10 border-primary/20'}`}>
+                                                                <span className={`text-[8px] font-black uppercase opacity-60 ${isRest ? 'text-indigo-400' : isVaca ? 'text-amber-400' : 'text-primary'}`}>Día</span>
+                                                                <span className="text-base font-black text-white leading-none">{asig.dia}</span>
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2 mb-0.5">
+                                                                    <span className="text-[11px] font-black text-white truncate uppercase tracking-tight">{asig.puestoNombre}</span>
+                                                                    {isRest && <span className="text-[8px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded uppercase font-black">Descanso</span>}
+                                                                    {isVaca && <span className="text-[8px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded uppercase font-black">Vacación</span>}
+                                                                </div>
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="flex items-center gap-1 text-slate-500">
+                                                                        <span className="material-symbols-outlined text-[12px] notranslate" translate="no">schedule</span>
+                                                                        <span className="text-[10px] font-bold capitalize">{asig.jornada === 'normal' ? (asig.turno || 'General') : asig.jornada.replace(/_/g, ' ')}</span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1 text-slate-500">
+                                                                        <span className="material-symbols-outlined text-[12px] notranslate" translate="no">stars</span>
+                                                                        <span className="text-[10px] font-bold uppercase tracking-tighter">{asig.rol?.replace(/_/g, ' ') || 'Titular'}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </>
+                                );
+                            })()}
                         </div>
                     )}
 

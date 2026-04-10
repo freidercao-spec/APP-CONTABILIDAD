@@ -316,8 +316,18 @@ const Sidebar = () => {
                             <span className="material-symbols-outlined text-[28px] text-red-400">logout</span>
                         </div>
                         <h3 className="text-[17px] font-black text-white text-center uppercase tracking-tight mb-2">¿Cerrar Sesión?</h3>
+                        
+                        {useProgramacionStore.getState().hasPendingChanges() && (
+                            <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-3 animate-pulse">
+                                <span className="material-symbols-outlined text-amber-400 text-[18px]">cloud_sync</span>
+                                <p className="text-[10px] font-black text-amber-300 uppercase leading-none">
+                                    ¡Atención! Aún hay cambios sincronizando...
+                                </p>
+                            </div>
+                        )}
+
                         <p className="text-slate-400 text-center text-[12px] font-medium mb-6 leading-relaxed">
-                            Saldrás del sistema Coraza CTA. Necesitarás tus credenciales para volver a ingresar.
+                            Saldrás del sistema Coraza CTA. {useProgramacionStore.getState().hasPendingChanges() ? '⚠️ Se recomienda esperar a que termine la sincronización.' : 'Necesitarás tus credenciales para volver a ingresar.'}
                         </p>
                         <div className="flex gap-2.5">
                             <button

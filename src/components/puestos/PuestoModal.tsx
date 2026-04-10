@@ -321,20 +321,24 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        if (!nombre.trim() || !tipo || isNaN(Number(lat)) || isNaN(Number(lng))) return;
+        // Only name is required — all other fields are optional
+        if (!nombre.trim()) return;
+
+        const finalLat = isNaN(Number(lat)) ? initialLat : Number(lat);
+        const finalLng = isNaN(Number(lng)) ? initialLng : Number(lng);
 
         setIsSubmitting(true);
         try {
-            const newId = await addPuesto(nombre.trim(), tipo, Number(lat), Number(lng), 9.14, {
-                contacto,
-                telefono,
-                requisitos,
-                instrucciones,
+            const newId = await addPuesto(nombre.trim(), tipo, finalLat, finalLng, 9.14, {
+                contacto: contacto || undefined,
+                telefono: telefono || undefined,
+                requisitos: requisitos || undefined,
+                instrucciones: instrucciones || undefined,
                 prioridad,
-                numeroContrato,
-                cliente,
-                tipoServicio,
-                direccion,
+                numeroContrato: numeroContrato || undefined,
+                cliente: cliente || undefined,
+                tipoServicio: tipoServicio || undefined,
+                direccion: direccion || undefined,
                 conArmamento,
             });
             if (onCreated && newId) onCreated(newId);
@@ -513,18 +517,20 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                                 {/* Campo de Direccion (Extraido de avanzado para visibilidad) */}
                                 <div className="mt-2 space-y-1.5 animate-in fade-in slide-in-from-top-1">
                                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                                        Direccion Especifica / Detallada <span className="text-danger">*</span>
+                                        Direccion Especifica <span className="text-slate-600">(opcional)</span>
                                     </label>
                                     <div className="relative">
                                         <input
-                                            required
                                             value={direccion}
                                             onChange={(e) => setDireccion(e.target.value)}
                                             className="w-full bg-[#0b1424] border border-white/10 rounded-xl py-3 px-4 text-xs text-white focus:border-primary/50 outline-none"
-                                            placeholder="Ej: Calle 49 # 81-24, Interior 201..."
+                                            placeholder="Ej: Calle 49 # 81-24, Interior 201...  (se puede completar después)"
                                         />
                                         <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-primary/40 text-[18px]">location_on</span>
                                     </div>
+                                    <p className="text-[9px] text-slate-600 ml-1">
+                                        ✅ <span className="text-success/80 font-bold">Solo el nombre es obligatorio</span> — puedes completar el resto después
+                                    </p>
                                 </div>
                             </div>
 
@@ -698,7 +704,7 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                         </button>
                         <button
                             type="submit"
-                            disabled={isSubmitting || !nombre.trim() || isNaN(Number(lat)) || isNaN(Number(lng))}
+                            disabled={isSubmitting || !nombre.trim()}
                             className="flex-1 py-3.5 bg-primary text-white font-bold rounded-2xl uppercase tracking-[0.2em] shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all text-[10px] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {isSubmitting ? (
