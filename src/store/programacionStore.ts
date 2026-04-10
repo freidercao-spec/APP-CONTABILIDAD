@@ -973,11 +973,13 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         historialCambios: [...(p.historialCambios || []), nuevoCambio]
                     } : p);
                     
+                    const updatedProg = newProgs.find((p: any) => p.id === progId);
+                    
                     // PROYECTAR NOVEDAD EN FICHA DEL VIGILANTE
                     if (data.vigilanteId) {
                         const vStore = useVigilanteStore.getState();
                         const pStore = usePuestoStore.getState();
-                        const puestoNombre = pStore.puestos.find(px => px.id === prog.puestoId || px.dbId === prog.puestoId)?.nombre || 'Puesto';
+                        const puestoNombre = pStore.puestos.find(px => px.id === (updatedProg?.puestoId || prog.puestoId))?.nombre || 'Puesto';
                         vStore.addActivity(
                             data.vigilanteId, 
                             'Asignación Diaria', 
@@ -997,10 +999,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             const oldBusySet = s._busyMap.get(oldKey);
                             
                             if (oldBusySet) {
-                                // Clonar el Set para inmutabilidad
                                 const nextSet = new Set(oldBusySet);
                                 const oldJ = (oldAsig.jornada || (oldAsig as any).turno || 'normal') as string;
-                                
                                 if (oldJ === '24H' || oldJ === 'normal' || oldJ === 'vacacion' || oldJ.startsWith('descanso')) {
                                     nextSet.delete(`${dia}-AM`);
                                     nextSet.delete(`${dia}-PM`);
@@ -1009,11 +1009,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                 } else {
                                     nextSet.delete(`${dia}-${oldJ}`);
                                 }
-                                
-                                // Limpiar el día si no quedan más turnos
                                 const hasMore = Array.from(nextSet).some((k: any) => String(k).startsWith(`${dia}-`));
                                 if (!hasMore) nextSet.delete(dia);
-
                                 if (nextSet.size === 0) s._busyMap.delete(oldKey);
                                 else s._busyMap.set(oldKey, nextSet);
                             }
@@ -1025,10 +1022,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             const newKey = `${newVid}-${anio}-${mes}`;
                             const currentSet = s._busyMap.get(newKey) || new Set();
                             const nextSet = new Set(currentSet);
-                            
                             const j = (data.jornada || (data as any).turno || 'normal') as string;
                             nextSet.add(dia);
-                            
                             if (j === '24H' || j === 'normal' || j.startsWith('descanso') || j === 'vacacion') {
                                 nextSet.add(`${dia}-AM`);
                                 nextSet.add(`${dia}-PM`);
@@ -1041,26 +1036,20 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             } else {
                                 nextSet.add(`${dia}-${j}`);
                             }
-                            
                             s._busyMap.set(newKey, nextSet);
                         }
-
-                        // Clonar Mapa para reactividad crucial
                         s._busyMap = new Map(s._busyMap);
                     }
                     
-                    // Update index map
+                    // 3. ACTUALIZAR MAPA DE PROGRAMACIÓN (CLAVE PARA EL TABLERO)
                     if (updatedProg && s._progMap) {
                         const key1 = `${updatedProg.puestoId}-${updatedProg.anio}-${updatedProg.mes}`;
                         const dbUuid = translatePuestoToUuid(updatedProg.puestoId);
-                        
                         s._progMap.set(updatedProg.id, updatedProg);
                         s._progMap.set(key1, updatedProg);
                         if (dbUuid && dbUuid !== updatedProg.puestoId) {
                             s._progMap.set(`${dbUuid}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
                         }
-                        
-                        // CLONACIÓN VITAL PARA REACTIVIDAD
                         s._progMap = new Map(s._progMap);
                     }
 
@@ -1068,7 +1057,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 });
                 
                 queueSync(progId, set, get, true);
-                return { permitido: true, tipo: 'ok', mensaje: 'Asignación guardada' };
+                return { permitido: true, tipo: (conflictResult ? 'advertencia' : 'ok'), mensaje: (conflictResult || 'Asignación guardada') };
             },
 
             actualizarPersonalPuesto: (progId, personal, usuario) => {
