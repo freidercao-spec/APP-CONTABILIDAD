@@ -213,52 +213,66 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
 
             const currentEmpresaId = String(useAuthStore.getState().empresaId || EMPRESA_ID).trim();
             
-            // PREPARAR PAYLOAD JSONB ATÓMICO
-            const asignacionesPayload = prog.asignaciones
-                .filter(a => a.vigilanteId)
-                .map(a => {
-                    const mappedVid = translateToUuid(a.vigilanteId);
-                    return mappedVid ? {
-                        dia: a.dia,
-                        vigilante_id: mappedVid,
-                        turno: a.turno,
-                        jornada: a.jornada,
-                        rol: a.rol,
-                        inicio: a.inicio || null,
-                        fin: a.fin || null
-                    } : null;
-                })
-                .filter(r => r !== null);
+            // UPSERT DIRECTO - Sin dependencia de funcion RPC
+            // 1. Cabecera
+            const { error: headerErr } = await supabase
+                .from('programacion_mensual')
+                .upsert({
+                    id: dbId,
+                    empresa_id: currentEmpresaId,
+                    puesto_id: dbPuestoId,
+                    anio: prog.anio,
+                    mes: prog.mes,
+                    estado: prog.estado,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'id' });
+            if (headerErr) throw new Error(`Cabecera: ${headerErr.message}`);
 
+            // 2. Personal
             const personalPayload = prog.personal
+                .filter(p => p.rol)
                 .map(p => {
                     const mappedVid = p.vigilanteId ? translateToUuid(p.vigilanteId) : null;
-                    return { 
-                        rol: p.rol, 
-                        vigilante_id: mappedVid || null,
-                        turno_id: p.turnoId || null 
-                    };
+                    const validVid = mappedVid && uuidRegex.test(mappedVid) ? mappedVid : null;
+                    return { programacion_id: dbId, rol: p.rol, vigilante_id: validVid, turno_id: p.turnoId || null };
                 });
-
-            // LLAMADA ATÓMICA AL RPC (Transacción en Servidor)
-            const { error: rpcErr } = await supabase.rpc('guardar_programacion_atomica', {
-                p_prog_id: dbId,
-                p_empresa_id: currentEmpresaId,
-                p_puesto_id: dbPuestoId,
-                p_anio: prog.anio,
-                p_mes: prog.mes,
-                p_estado: prog.estado,
-                p_asignaciones: asignacionesPayload,
-                p_personal: personalPayload,
-                p_historial: prog.historialCambios || []
-            });
-
-            if (rpcErr) {
-                console.error('[Coraza] ❌ Fallo en Guardado Atómico RPC:', rpcErr);
-                throw new Error(`Servidor: ${rpcErr.message}`);
+            if (personalPayload.length > 0) {
+                const { error: persErr } = await supabase
+                    .from('personal_puesto')
+                    .upsert(personalPayload, { onConflict: 'programacion_id,rol' });
+                if (persErr) console.warn('[Coraza] Personal warning:', persErr.message);
             }
 
-            console.log(`[Coraza] 🛡️ Sincronización ATÓMICA Exitosa: ${prog.id}`);
+            // 3. Asignaciones en lotes de 100
+            const asignacionesPayload = prog.asignaciones
+                .filter(a => a.vigilanteId && a.jornada !== 'sin_asignar')
+                .map(a => {
+                    const mappedVid = translateToUuid(a.vigilanteId);
+                    if (!mappedVid || !uuidRegex.test(mappedVid)) return null;
+                    return {
+                        programacion_id: dbId,
+                        dia: a.dia,
+                        vigilante_id: mappedVid,
+                        turno: a.turno || 'AM',
+                        jornada: a.jornada || 'sin_asignar',
+                        rol: a.rol || 'titular_a',
+                        inicio: a.inicio || null,
+                        fin: a.fin || null,
+                        updated_at: new Date().toISOString()
+                    };
+                })
+                .filter(r => r !== null) as any[];
+
+            const BATCH_SIZE = 100;
+            for (let i = 0; i < asignacionesPayload.length; i += BATCH_SIZE) {
+                const chunk = asignacionesPayload.slice(i, i + BATCH_SIZE);
+                const { error: asigErr } = await supabase
+                    .from('asignaciones_dia')
+                    .upsert(chunk, { onConflict: 'programacion_id,dia,rol' });
+                if (asigErr) console.warn('[Coraza] Asignaciones warning:', asigErr.message);
+            }
+
+            console.log(`[Coraza] Guardado directo OK: ${prog.id} | ${asignacionesPayload.length} asignaciones`);
             return { success: true, serverVersion: (prog.version || 0) + 1, serverUpdatedAt: new Date().toISOString() };
         } catch (err: any) {
             console.error('[Coraza] ❌ Error de Persistencia:', err);
@@ -1021,10 +1035,17 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     }
                     
                     // Update index map
-                    const updatedProg = newProgs.find((p: any) => p.id === progId);
                     if (updatedProg && s._progMap) {
+                        const key1 = `${updatedProg.puestoId}-${updatedProg.anio}-${updatedProg.mes}`;
+                        const dbUuid = translatePuestoToUuid(updatedProg.puestoId);
+                        
                         s._progMap.set(updatedProg.id, updatedProg);
-                        s._progMap.set(`${updatedProg.puestoId}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
+                        s._progMap.set(key1, updatedProg);
+                        if (dbUuid && dbUuid !== updatedProg.puestoId) {
+                            s._progMap.set(`${dbUuid}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
+                        }
+                        
+                        // CLONACIÓN VITAL PARA REACTIVIDAD
                         s._progMap = new Map(s._progMap);
                     }
 
@@ -1079,13 +1100,31 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     }
                 });
 
-                set((s: any) => ({
-                    programaciones: s.programaciones.map((p: any) =>
+                set((s: any) => {
+                    const updatedProgs = s.programaciones.map((p: any) =>
                         p.id === progId
                             ? { ...p, personal, asignaciones: newAsignaciones, actualizadoEn: new Date().toISOString(), syncStatus: 'pending' as const }
                             : p
-                    )
-                }));
+                    );
+                    
+                    const target = updatedProgs.find((p: any) => p.id === progId);
+                    if (target && s._progMap) {
+                        const key1 = `${target.puestoId}-${target.anio}-${target.mes}`;
+                        const dbUuid = translatePuestoToUuid(target.puestoId);
+                        
+                        s._progMap.set(target.id, target);
+                        s._progMap.set(key1, target);
+                        if (dbUuid && dbUuid !== target.puestoId) {
+                            s._progMap.set(`${dbUuid}-${target.anio}-${target.mes}`, target);
+                        }
+                        s._progMap = new Map(s._progMap);
+                    }
+
+                    return { 
+                        programaciones: updatedProgs,
+                        _progMap: s._progMap
+                    };
+                });
                 queueSync(progId, set, get, true);
             },
 

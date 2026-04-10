@@ -64,26 +64,26 @@ export const CeldaCalendario = React.memo(({
 
   const isSinAsignar = asig.jornada === 'sin_asignar' || !asig.vigilanteId;
 
-  // ── CELDA VACÍA ─────────────────────────────────────────────────────────────
+  // ── CELDA VACÍA (Diseño Crystal Dark) ──────────────────────────────────────
   if (isSinAsignar) {
     return (
       <button
         onClick={onEdit}
         title={`Día ${asig.dia} · Clic para asignar`}
-        style={{ minWidth: 72, minHeight: 68 }}
-        className="w-full h-full flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-300 transition-all group"
+        style={{ minHeight: 74 }}
+        className="w-full h-full flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-white/5 bg-white/[0.03] backdrop-blur-sm hover:bg-white/[0.08] hover:border-white/10 transition-all duration-300 group shadow-inner"
       >
-        <span className="material-symbols-outlined text-slate-300 group-hover:text-blue-400 transition-colors" style={{ fontSize: 20 }}>
-          add_circle
-        </span>
-        <span className="text-[9px] font-bold text-slate-300 group-hover:text-blue-400 uppercase tracking-wide transition-colors">
+        <div className="size-8 rounded-xl bg-slate-900/50 border border-white/10 flex items-center justify-center text-slate-500 group-hover:text-indigo-400 group-hover:border-indigo-500/30 group-hover:scale-110 transition-all duration-300 shadow-lg">
+          <span className="material-symbols-outlined text-[18px]">add</span>
+        </div>
+        <span className="text-[8px] font-black text-slate-600 group-hover:text-indigo-400 uppercase tracking-[0.2em] transition-colors">
           Asignar
         </span>
       </button>
     );
   }
 
-  // ── CELDA CON ASIGNACIÓN ──────────────────────────────────────────────────
+  // ── CELDA CON ASIGNACIÓN (Diseño Premium) ──────────────────────────────────
   const turnoConf = turnosConfig?.find(t => t.id === asig.turno);
   const style = getStyle(asig.jornada, asig.rol, turnoConf);
   const isNight = style.label === 'N';
@@ -95,53 +95,60 @@ export const CeldaCalendario = React.memo(({
       onClick={onEdit}
       title={`${vigilanteNombre} · ${style.label}`}
       style={{
-        minWidth: 72,
-        minHeight: 68,
-        background: style.bg,
-        border: `1.5px solid ${style.badge}33`,
+        minHeight: 74,
+        background: `linear-gradient(135deg, ${style.bg} 0%, white 100%)`,
+        borderColor: `${style.badge}44`,
       }}
-      className="w-full h-full flex flex-col items-center justify-center gap-0.5 rounded-lg hover:brightness-95 hover:shadow-md transition-all group overflow-hidden px-1 py-1 relative"
+      className="w-full h-full flex flex-col items-center justify-center gap-0.5 rounded-2xl border-2 hover:brightness-95 hover:shadow-xl hover:scale-[1.03] transition-all duration-300 group overflow-hidden px-1.5 py-2 relative shadow-md shadow-slate-200/50"
     >
-      {/* Icono de Sol/Luna (Evidencia Clara) */}
-      <div className="absolute top-1.5 left-1.5 opacity-40">
-        <span className="material-symbols-outlined text-[12px]" style={{ color: style.text }}>
+      {/* Glow de Fondo */}
+      <div 
+        className="absolute -top-10 -right-10 size-20 rounded-full blur-2xl opacity-20 pointer-events-none"
+        style={{ background: style.badge }}
+      />
+
+      {/* Icono de Sol/Luna con Estilo Glass */}
+      <div className="absolute top-2 left-2 flex items-center justify-center size-5 rounded-full bg-white/60 backdrop-blur-sm border border-white/80 shadow-sm">
+        <span className="material-symbols-outlined text-[12px] font-black" style={{ color: style.badge }}>
           {isNight ? 'dark_mode' : 'light_mode'}
         </span>
       </div>
 
-      {/* Badge de jornada (esquina sup derecha) */}
+      {/* Badge de jornada elegante */}
       <span
-        className="absolute top-1 right-1 text-[7px] font-black px-1 py-0.5 rounded"
+        className="absolute top-2 right-2 text-[8px] font-black px-1.5 py-0.5 rounded-lg shadow-sm border border-white/20"
         style={{ background: style.badge, color: '#fff' }}
       >
         {style.label}
       </span>
 
-      {/* Nombre del vigilante */}
-      <span
-        className="text-[9px] font-black leading-tight text-center w-full truncate mt-2 px-0.5"
-        style={{ color: style.text }}
-      >
-        {nameParts[0]}
-      </span>
-      {nameParts[1] && (
+      {/* Nombre del vigilante (Tipografía Refinada) */}
+      <div className="flex flex-col items-center justify-center w-full mt-3">
         <span
-          className="text-[8px] font-semibold leading-none text-center w-full truncate opacity-70 px-0.5"
-          style={{ color: style.text }}
+          className="text-[10px] font-black leading-tight text-center w-full truncate px-0.5 uppercase tracking-tighter"
+          style={{ color: '#1e293b' }}
         >
-          {nameParts[1]}
+          {nameParts[0]}
         </span>
-      )}
+        {nameParts[1] && (
+          <span
+            className="text-[8px] font-bold leading-none text-center w-full truncate opacity-60 px-0.5 uppercase tracking-widest mt-0.5"
+            style={{ color: '#475569' }}
+          >
+            {nameParts[1]}
+          </span>
+        )}
+      </div>
 
-      {/* Turno custom (hora) */}
-      {turnoConf && (
-        <span
-          className="text-[7px] font-bold mt-0.5 opacity-60"
-          style={{ color: style.text }}
-        >
-          {turnoConf.inicio}
-        </span>
-      )}
+      {/* Info de Turno / Horario */}
+      <div className="mt-1.5 flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-900/5 border border-slate-900/5">
+         <span className="text-[7px] font-black uppercase opacity-60" style={{ color: style.badge }}>
+            {turnoConf?.nombre || (isNight ? 'Nocturno' : 'Diurno')}
+         </span>
+         {turnoConf?.inicio && (
+           <span className="text-[7px] font-bold text-slate-400">• {turnoConf.inicio}</span>
+         )}
+      </div>
     </button>
   );
 });

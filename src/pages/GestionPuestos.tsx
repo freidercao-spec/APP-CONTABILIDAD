@@ -567,13 +567,24 @@ const PanelMensualPuesto = ({
     [allPuestos, puestoId]
   );
 
+  const isInitialLoading = !useProgramacionStore(s => (s as any).loaded);
+
   useEffect(() => {
+    // Si todavía estamos cargando el 'índice' global, esperamos. 0 KM Safety.
+    if (isInitialLoading) return;
+
     if (!prog) {
-      crearOObtenerProgramacion(puestoId, anio, mes, currentUser);
+      // Búsqueda de emergencia por si el fetch global falló o es lento
+      (useProgramacionStore.getState() as any).fetchProgramacionesByMonth(anio, mes).then(() => {
+        const recheck = getProgramacion(puestoId, anio, mes);
+        if (!recheck) {
+          crearOObtenerProgramacion(puestoId, anio, mes, currentUser);
+        }
+      });
     } else if (!prog.isDetailLoaded && !prog.isFetching) {
       fetchProgramacionDetalles(prog.id);
     }
-  }, [prog?.id, puestoId, anio, mes]);
+  }, [prog?.id, puestoId, anio, mes, isInitialLoading]);
 
   const daysInMonth = new Date(anio, mes + 1, 0).getDate();
   const daysArr = useMemo(
@@ -1070,14 +1081,6 @@ const PanelMensualPuesto = ({
             {isSyncing && (
               <span className="ml-3 text-primary animate-pulse">⟳ Sincronizando...</span>
             )}
-            {!isSyncing && staffAsignado.length === 0 && (
-              <button 
-                onClick={() => (useProgramacionStore.getState() as any).recuperarDatosHuerfanos(puestoId, anio, mes)}
-                className="ml-4 px-3 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 rounded-lg text-[9px] font-black uppercase border border-amber-500/20 transition-all"
-              >
-                ¿Tablero vacío? Intentar Recuperación Forzada
-              </button>
-            )}
           </p>
         </div>
 
@@ -1435,50 +1438,48 @@ const PanelMensualPuesto = ({
       </div>
 
       {/* ── GRILLA PRINCIPAL ────────────────────────────────────────────── */}
-      <div className="bg-white rounded-[40px] border border-slate-200 shadow-2xl overflow-hidden mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="bg-slate-950 rounded-[40px] border border-white/5 shadow-[0_0_50px_rgba(0,0,0,0.4)] overflow-hidden mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="overflow-x-auto custom-scrollbar">
           <table className="border-collapse select-none" style={{ width: '100%', tableLayout: 'auto' }}>
             <thead>
-              <tr className="bg-slate-900 border-b border-white/10" style={{ height: 60 }}>
-                <th className="sticky left-0 z-40 bg-slate-900 px-5 text-left border-r border-white/5 shadow-[4px_0_12px_rgba(0,0,0,0.3)]" style={{ minWidth: 220, width: 220 }}>
-                  <div className="flex items-center gap-3">
-                    <div className="size-8 rounded-xl bg-primary flex items-center justify-center text-white">
-                      <span className="material-symbols-outlined text-[18px]">verified_user</span>
+              <tr className="bg-slate-900/80 backdrop-blur-md border-b border-white/5" style={{ height: 70 }}>
+                <th className="sticky left-0 z-40 bg-slate-900 px-6 text-left border-r border-white/10 shadow-[8px_0_20px_rgba(0,0,0,0.5)]" style={{ minWidth: 260, width: 260 }}>
+                  <div className="flex items-center gap-4">
+                    <div className="size-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+                      <span className="material-symbols-outlined text-[20px] font-black">shield</span>
                     </div>
                     <div>
-                      <span className="text-[11px] font-black text-white uppercase tracking-tighter block leading-none">Turno Operativo</span>
-                      <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-1 block">Estado / Personal Asignado</span>
+                      <span className="text-[12px] font-black text-white uppercase tracking-tighter block leading-none">Control táctico</span>
+                      <span className="text-[8px] font-black text-indigo-400/60 uppercase tracking-[0.2em] mt-1.5 block">Programación Mensual</span>
                     </div>
                   </div>
                 </th>
                 {daysArr.map((d) => (
-                  <th key={d} className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-r border-white/10" style={{ minWidth: 78, width: 78 }}>
-                    {d}
+                  <th key={d} className="text-[11px] font-black text-slate-500 uppercase tracking-[0.1em] border-r border-white/5 px-2" style={{ minWidth: 84, width: 84 }}>
+                    <div className="flex flex-col items-center">
+                       <span className="text-white/20 text-[8px] mb-0.5">{new Date(anio, mes, d).toLocaleDateString('es', {weekday: 'short'}).toUpperCase()}</span>
+                       <span className="text-white/80">{d}</span>
+                    </div>
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {(() => {
-                const rolesToShow = Array.from(new Set((prog.personal || []).map(p => p.rol)));
-                return rolesToShow.map(rol => {
-                   const firstAsigMatch = (prog.asignaciones || []).find(a => a.rol === rol && a.turno && a.turno !== 'sin_asignar');
-                   const isNightRole = ['b', 'pm', 'noche', 'nocturno', 'vigilia'].some(k => rol.toLowerCase().includes(k));
-                   const fallbackTurno = firstAsigMatch?.turno || (isNightRole ? 'PM' : 'AM');
+                const personalDefinido = prog.personal || [];
+                const rolesBase = ['titular_a', 'titular_b', 'relevante'];
+                const rolesDefinidos = personalDefinido.map(p => p.rol);
+                const allRoles = Array.from(new Set([...rolesBase, ...rolesDefinidos]));
 
-                   const inPersonal = (prog.personal || []).find(p => p.rol === rol);
-                   if (inPersonal) {
-                     return {
-                       ...inPersonal,
-                       turnoId: inPersonal.turnoId || fallbackTurno
-                     };
-                   }
-
-                   return { 
-                     rol, 
-                     vigilanteId: null, 
-                     turnoId: fallbackTurno 
-                   };
+                return allRoles.map(rol => {
+                   const config = personalDefinido.find(p => p.rol === rol);
+                   const isNight = ['b', 'pm', 'noche', 'nocturno', 'vigilia'].some(k => rol.toLowerCase().includes(k));
+                   
+                    return {
+                      rol,
+                      vigilanteId: config?.vigilanteId || null,
+                      turnoId: config?.turnoId || (isNight ? 'PM' : 'AM')
+                    };
                 });
               })().map((per: PersonalPuesto, index: number) => {
                 const rolLabel = getRolLabel(per.rol);
@@ -1499,72 +1500,86 @@ const PanelMensualPuesto = ({
                 
                 const isActuallyNight = turno.id === 'PM' || 
                                        (turno.inicio && parseInt(turno.inicio.split(':')[0]) >= 16) ||
-                                       (['b', 'pm', 'noche', 'nocturno', 'vigilia'].some(k => per.rol.toLowerCase().includes(k) || rolLabel.toLowerCase().includes(k)));
+                                       isNightRole;
 
                 return (
-                   <tr 
-                     key={`${per.rol}-${index}`} 
-                     className="group transition-colors border-b last:border-0 border-slate-100 bg-white hover:bg-slate-50/80"
-                     style={{ height: 78 }}
+                  <tr 
+                    key={`${per.rol}-${index}`} 
+                    className="group/row transition-colors border-b last:border-0 border-slate-100 bg-white hover:bg-slate-50/50"
+                    style={{ height: 84 }}
+                  >
+                   <td 
+                     className="sticky left-0 z-30 transition-shadow border-r shadow-[8px_0_20px_rgba(0,0,0,0.4)] px-6 bg-slate-900/60 backdrop-blur-md border-white/5 group-hover/row:bg-slate-800/80"
+                     style={{ minWidth: 260, width: 260 }}
                    >
-                    <td 
-                      className="sticky left-0 z-30 transition-colors border-r shadow-[4px_0_8px_rgba(0,0,0,0.1)] px-4 bg-white border-slate-100"
-                      style={{ 
-                        minWidth: 220, 
-                        width: 220
-                      }}
-                    >
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                           <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border font-black text-[8px] tracking-widest uppercase ${isActuallyNight ? 'bg-slate-800 border-white/20 text-indigo-300' : 'bg-blue-50 border-blue-100 text-blue-600'}`}>
-                             <span className="material-symbols-outlined text-[10px]">
-                               {isActuallyNight ? 'dark_mode' : 'light_mode'}
-                             </span>
-                             {isActuallyNight ? 'Noche' : 'Día'}
-                           </div>
-                           <div className="size-2.5 rounded-full shadow-sm" style={{ backgroundColor: turno.color || '#6366f1' }}></div>
-                           <span className="text-[11px] font-black uppercase tracking-tight truncate text-slate-800">{rolLabel}</span>
-                        </div>
-                         <p className="text-[9px] font-bold flex items-center gap-1 text-slate-500">
-                          <span className="material-symbols-outlined text-[10px]">schedule</span>
-                          {turno.nombre} ({turno.inicio} - {turno.fin})
-                        </p>
-                        {assignedVig ? (
-                           <div className="mt-1 flex items-center gap-1.5 px-2 py-1 rounded-lg border w-fit bg-emerald-50 border-emerald-100">
-                              <span className="material-symbols-outlined text-[12px] text-emerald-500">check_circle</span>
-                              <span className="text-[9px] font-black uppercase truncate max-w-[120px] text-emerald-700">
-                                {typeof assignedVig === 'string' ? assignedVig : assignedVig.nombre}
-                              </span>
-                           </div>
-                        ) : (
-                           <div className="mt-1 flex items-center gap-1.5 px-2 py-1 rounded-lg border w-fit bg-amber-50 border-amber-100">
-                              <span className="material-symbols-outlined text-amber-500 text-[12px]">error</span>
-                              <span className="text-[10px] font-black uppercase text-amber-700">Sin titular fijo</span>
-                           </div>
-                        )}
-                      </div>
-                    </td>
+                     <div className="flex flex-col gap-2">
+                       <div className="flex items-center gap-3">
+                          {/* Badge de Turno Rediseñado - ULTRA PRO */}
+                          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl border font-black text-[9px] tracking-[0.1em] uppercase shadow-inner ${
+                            isActuallyNight 
+                            ? 'bg-slate-950 border-white/10 text-amber-400 shadow-amber-900/20' 
+                            : 'bg-indigo-600 border-indigo-500 text-white shadow-indigo-900/30'
+                          }`}>
+                            <span className="material-symbols-outlined text-[14px] font-black">
+                              {isActuallyNight ? 'dark_mode' : 'light_mode'}
+                            </span>
+                            {isActuallyNight ? 'Noche' : 'Día'}
+                          </div>
+                          
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-[12px] font-black uppercase tracking-tighter truncate text-white">
+                              {rolLabel}
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                               <div className="size-2 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)]" style={{ backgroundColor: turno.color || '#6366f1' }}></div>
+                               <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{turno.nombre}</span>
+                            </div>
+                          </div>
+                       </div>
+                       
+                       {assignedVig ? (
+                          <div className="mt-1 flex items-center gap-2.5 px-4 py-2 rounded-2xl border bg-gradient-to-r from-emerald-600/20 to-transparent border-emerald-500/30 shadow-lg group-hover/row:scale-[1.03] transition-all">
+                             <div className="size-7 rounded-xl bg-emerald-500 flex items-center justify-center text-white shrink-0 shadow-lg shadow-emerald-500/40">
+                                <span className="material-symbols-outlined text-[16px] font-black">verified</span>
+                             </div>
+                             <div className="min-w-0">
+                                <span className="text-[11px] font-black uppercase truncate block text-emerald-400 leading-none tracking-tight">
+                                  {typeof assignedVig === 'string' ? assignedVig : assignedVig.nombre}
+                                </span>
+                                <span className="text-[7px] font-black text-emerald-600/80 uppercase tracking-widest mt-1 block">Titular Asignado</span>
+                             </div>
+                          </div>
+                       ) : (
+                          <div className="mt-1 flex items-center gap-2.5 px-4 py-2 border border-dashed border-slate-700 bg-slate-800/40 rounded-2xl">
+                             <span className="material-symbols-outlined text-slate-500 text-[16px]">person_off</span>
+                             <span className="text-[9px] font-black uppercase text-slate-500 tracking-tighter">Sin Guardia Fijo</span>
+                          </div>
+                       )}
+                     </div>
+                   </td>
 
-                    {/* Celdas de días por rol */}
-                    {daysArr.map((d) => {
-                      const dow = new Date(anio, mes, d).getDay();
-                      const asig = (prog.asignaciones || []).find(
-                        (a: AsignacionDia) => a.dia === d && a.rol === per.rol
-                      ) || { dia: d, turno: per.turnoId || 'AM', jornada: "sin_asignar", rol: per.rol };
+                   {/* Celdas de días por rol */}
+                   {daysArr.map((d) => {
+                     const asig = (prog.asignaciones || []).find(
+                       (a: AsignacionDia) => a.dia === d && a.rol === per.rol
+                     ) || { dia: d, turno: per.turnoId || 'AM', jornada: "sin_asignar", rol: per.rol };
 
-                      return (
-                        <td key={d} style={{ padding: 4, minWidth: 78, width: 78 }} className={`border-r border-slate-100 ${dow === 0 || dow === 6 ? 'bg-slate-50/60' : ''}`}>
-                          <CeldaCalendario
-                            asig={asig}
-                            vigilanteNombre={asig.vigilanteId ? (vigilanteMap.get(asig.vigilanteId) || "Asignado") : undefined}
-                            onEdit={() => setEditCell({ asig, progId: prog.id, preSelectVigilanteId: per.vigilanteId || undefined })}
-                            turnosConfig={turnosConfig}
-                            jornadasCustom={jornadasCustom}
-                          />
-                        </td>
-                      );
-                    })}
-                  </tr>
+                     const dow = new Date(anio, mes, d).getDay();
+                     const isWeekend = dow === 0 || dow === 6;
+
+                     return (
+                       <td key={d} style={{ padding: 8, minWidth: 84, width: 84 }} className={`border-r border-white/5 transition-colors ${isWeekend ? 'bg-white/[0.02]' : 'group-hover/row:bg-white/[0.03]'}`}>
+                         <CeldaCalendario
+                           asig={asig}
+                           vigilanteNombre={asig.vigilanteId ? (vigilanteMap.get(asig.vigilanteId) || "Asignado") : undefined}
+                           onEdit={() => setEditCell({ asig, progId: prog.id, preSelectVigilanteId: per.vigilanteId || undefined })}
+                           turnosConfig={turnosConfig}
+                           jornadasCustom={jornadasCustom}
+                         />
+                       </td>
+                     );
+                   })}
+                 </tr>
                 );
               })}
 
