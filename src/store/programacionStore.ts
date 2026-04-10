@@ -965,11 +965,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         );
 
                         if (!samePostConflict) {
-                            showTacticalToast({ 
-                                title: "Carga Duplicada", 
-                                message: `Vigilante ya tiene turno ${jornadaSolicitada} en otro puesto el día ${dia}. Asignación realizada con advertencia.`, 
-                                type: "warning" 
-                            });
+                            // Dejamos que el componente muestre el toast de exito
                         }
                     }
                 }
