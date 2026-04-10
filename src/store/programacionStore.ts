@@ -214,8 +214,6 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
 
             const currentEmpresaId = String(useAuthStore.getState().empresaId || EMPRESA_ID).trim();
             
-            // UPSERT DIRECTO - Sin dependencia de funcion RPC
-            // 1. Cabecera
             const { error: headerErr } = await supabase
                 .from('programacion_mensual')
                 .upsert({
@@ -226,7 +224,7 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                     mes: prog.mes,
                     estado: prog.estado,
                     updated_at: new Date().toISOString()
-                }, { onConflict: 'id' });
+                }, { onConflict: 'empresa_id,puesto_id,anio,mes' }); 
             if (headerErr) throw new Error(`Cabecera: ${headerErr.message}`);
 
             // 2. Personal
@@ -245,8 +243,6 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
             }
 
             // 3. Asignaciones en lotes de 100
-            // CORRECCIÓN: NO filtrar asignaciones vacías ni validar UUID de forma restrictiva
-            // Mandamos todo el payload para espejo total con la DB.
             const asignacionesPayload = prog.asignaciones
                 .map(a => {
                     const mappedVid = a.vigilanteId ? translateToDb(a.vigilanteId) : null;
@@ -326,10 +322,8 @@ const queueSync = (progId: string, set: any, get: any, immediate = false) => {
     if (immediate) {
         runSync();
     } else {
-        // Reducido a 800ms para mayor agilidad sin sobrecargar
         const timeout = setTimeout(runSync, 800);
         pendingSyncs.set(progId, timeout);
-        // Marcamos como syncing inmediatamente si hay un timeout pendiente
         set({ isSyncing: true });
     }
 };
@@ -363,8 +357,6 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     const anio = now.getFullYear();
                     const mesActual = now.getMonth();
                     
-                    // CORRECCIÓN: Cargar mes actual + mes anterior + mes siguiente
-                    // para que la navegación del calendario funcione sin recargas
                     const meses = [
                         { anio: mesActual === 0 ? anio - 1 : anio, mes: mesActual === 0 ? 11 : mesActual - 1 },
                         { anio, mes: mesActual },
@@ -429,7 +421,6 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             const merged = [...state.programaciones];
                             headers.forEach(h => {
                                 const dbUuid = translatePuestoToUuid(h.puestoId) || h.puestoId;
-                                // BUSCAR SI YA EXISTE EN EL ESTADO LOCAL
                                 let idx = merged.findIndex(p => p.id === h.id);
                                 if (idx < 0) {
                                     idx = merged.findIndex(p => 
@@ -442,18 +433,10 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                 if (idx >= 0) {
                                     const existing = merged[idx];
                                     
-                                    // REQUERIMIENTO ESPECIAL: Si tenemos un duplicado (mismo mes/puesto pero distinto ID),
-                                    // DEBEMOS favorecer la versión que viene del servidor (el header h) 
-                                    // A MENOS que la local tenga cambios pendientes ('pending').
-                                    
                                     if (existing.syncStatus === 'pending' && existing.id !== h.id) {
-                                        // Conflicto: Se creó uno local pero ya había uno en servidor.
-                                        // Mantener el local pero intentar 're-aliasear' al ID del servidor si fuera posible
-                                        // (Pero por ahora lo dejamos así para no perder el rastro del sync actual).
                                     } else {
                                         merged[idx] = { 
                                             ...h, 
-                                            // Conservar datos locales solo si el servidor los mandó vacíos (cache local)
                                             asignaciones: (existing.asignaciones?.length > 0) ? existing.asignaciones : [],
                                             personal: (existing.personal?.length > 0) ? existing.personal : [],
                                             isDetailLoaded: existing.isDetailLoaded || false,
@@ -497,32 +480,29 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                     const hasLocalData = prog.asignaciones && prog.asignaciones.length > 0;
                     if (prog.isDetailLoaded || hasLocalData) {
-                        return; // Already loaded or has data
+                        return; 
                     }
 
-                    // LOCK: inhibit multiple requests for the same ID
                     set((s: any) => ({
                         programaciones: s.programaciones.map((p: any) => p.id === progId ? { ...p, isFetching: true } : p)
                     }));
 
                     const [persRes, asigsRes] = await Promise.all([
                         supabase.from('personal_puesto').select('*').eq('programacion_id', progId),
-                        supabase.from('asignaciones_dia').select('*').eq('programacion_id', progId).limit(1500) // 93 max -> Incremented to 1500 to prevent silent data truncation in full months
+                        supabase.from('asignaciones_dia').select('*').eq('programacion_id', progId).limit(1500)
                     ]);
 
                     if (persRes.error || asigsRes.error) {
                         console.error('[Laser Loading] ❌ Fallo en red:', persRes.error || asigsRes.error);
-                        return; // Abortamos para no sobreescribir con arrays vacíos por error de red
+                        return; 
                     }
 
-                    // CORRECCIÓN: mapear turno_id también para preservar roles personalizados
                     const personal = (persRes.data || []).map((p: any) => ({ 
                         rol: p.rol as RolPuesto, 
                         vigilanteId: translateFromDb(p.vigilante_id),
                         turnoId: p.turno_id || undefined
                     }));
 
-                    // Solo añadir roles default si no existen en DB (no sobreescribe roles custom)
                     ['titular_a', 'titular_b', 'relevante'].forEach(rol => {
                         if (!personal.find(p => p.rol === rol)) personal.push({ rol, vigilanteId: null, turnoId: undefined });
                     });
@@ -534,13 +514,11 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                     const daysInMonth = new Date(prog?.anio || 2026, (prog?.mes || 0) + 1, 0).getDate();
                     const asignaciones: AsignacionDia[] = [];
-                    // CORRECCIÓN: usar todos los roles del personal cargado, NO solo los 3 hardcoded
                     const rolesToEnsure: RolPuesto[] = personal.length > 0 
                         ? personal.map(p => p.rol)
                         : ['titular_a', 'titular_b', 'relevante'];
 
                     for (let d = 1; d <= daysInMonth; d++) {
-                        // También incluir cualquier rol de la DB que no esté en personal
                         const allRolesForDay = new Set<string>(rolesToEnsure);
                         asigMap.forEach((_v: any, key: string) => {
                             const [dayStr, ...rolParts] = key.split('-');
@@ -577,7 +555,6 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             const localHasData = p.asignaciones && p.asignaciones.some((a: AsignacionDia) => a.vigilanteId !== null);
                             const remoteHasData = asignaciones && asignaciones.some(a => a.vigilanteId !== null);
                             
-                            // Si local tiene cambios pendientes o datos más recientes, NO sobreescribir con datos remotos vacíos
                             if (localIsPending) return { ...p, isDetailLoaded: true, isFetching: false };
                             if (localHasData && !remoteHasData) return { ...p, isDetailLoaded: true, isFetching: false };
 
@@ -616,7 +593,6 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 let allPersonal: any[] = [];
                 let allAsignaciones: any[] = [];
 
-                // CORRECCIÓN C-6: Bloqueo de duplicados. Marcamos como 'isFetching' inmediatamente
                 set((state: any) => {
                     const nextProgs: any[] = state.programaciones.map((p: any) => 
                         progIds.includes(p.id) ? { ...p, isFetching: true } : p
@@ -653,7 +629,6 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         if (asigsRes.data) allAsignaciones = [...allAsignaciones, ...asigsRes.data];
                     });
 
-                    // [Lógica interna de mapeo...]
                     const currentVigilantes = useVigilanteStore.getState().vigilantes;
                     const vigLookup = new Map<string, string>();
                     currentVigilantes.forEach(v => {
@@ -749,12 +724,10 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 return get().getProgramacionRapid(puestoId, anio, mes);
             },
 
-            // USAR ESTE PARA RENDERING MASIVO (O(1))
             getProgramacionRapid: (puestoId: string, anio: number, mes: number) => {
                 const s = get();
                 const map = (s as any)._progMap;
                 
-                // 1. Intento por clave en mapa (Rápido)
                 if (map) {
                     const key1 = `${puestoId}-${anio}-${mes}`;
                     if (map.has(key1)) return map.get(key1);
@@ -766,8 +739,6 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     }
                 }
 
-                // 2. Búsqueda de EMERGENCIÀ (Lento pero INFALIBLE)
-                // Si el mapa falló, buscamos en el array real.
                 return (s as any).programaciones.find((p: any) => 
                     (p.puestoId === puestoId || translatePuestoToUuid(p.puestoId) === translatePuestoToUuid(puestoId)) && 
                     p.anio === anio && 
@@ -777,23 +748,24 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
             crearOObtenerProgramacion: (puestoId, anio, mes, usuario) => {
                 const s = get();
-                // SEGURIDAD: Si aún no hemos cargado cabeceras, no podemos saber si 'existía' o no.
-                // Evitamos crear duplicados en el limbo.
                 if (!s.loaded && !s.programaciones.length) return null;
 
                 const existing = s.getProgramacion(puestoId, anio, mes);
                 if (existing) return existing;
 
                 const dbPuestoId = translatePuestoToUuid(puestoId) || puestoId;
+                
+                const deterministicId = `${dbPuestoId}-${anio}-${mes}`;
+                
                 const daysInMonth = new Date(anio, mes + 1, 0).getDate();
                 const asignaciones: AsignacionDia[] = [];
                 const roles: RolPuesto[] = ['titular_a', 'titular_b', 'relevante'];
                 for (let dia = 1; dia <= daysInMonth; dia++) {
                     roles.forEach(rol => asignaciones.push({ dia, vigilanteId: null, turno: 'AM', jornada: 'sin_asignar', rol }));
                 }
-
+ 
                 const newProg: ProgramacionMensual = {
-                    id: crypto.randomUUID(),
+                    id: deterministicId,
                     puestoId: dbPuestoId, anio, mes,
                     personal: [
                         { rol: 'titular_a', vigilanteId: null, turnoId: 'AM' }, 

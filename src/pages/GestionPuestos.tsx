@@ -1453,12 +1453,12 @@ const PanelMensualPuesto = ({
       {/* ── GRILLA PRINCIPAL ────────────────────────────────────────────── */}
       <div className="bg-slate-950 rounded-[40px] border border-white/5 shadow-[0_0_50px_rgba(0,0,0,0.4)] overflow-hidden mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="overflow-x-auto custom-scrollbar">
-          <table className="border-collapse select-none" style={{ width: '100%', tableLayout: 'auto' }}>
+          <table className="border-collapse select-none" style={{ width: 'max-content', tableLayout: 'fixed' }}>
             <thead>
               <tr className="h-20 bg-slate-900 border-b-2 border-indigo-500/20">
                 <th 
                   className="sticky left-0 z-40 px-6 bg-slate-900 border-r-2 border-indigo-500/30 shadow-[4px_0_15px_rgba(0,0,0,0.5)]"
-                  style={{ minWidth: 260, width: 260 }}
+                  style={{ width: 260 }}
                 >
                   <div className="flex items-center gap-4">
                     <div className="size-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-500/30">
