@@ -295,15 +295,15 @@ export const EditCeldaModal = ({
             </div>
           </div>
 
-          {/* MENSAJE DE CONFLICTO / INFO */}
+          {/* MENSAJE DE ADVERTENCIA DE CARGA DUPLICADA */}
           {conflicto && (
-            <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-3xl flex items-center gap-4 animate-in shake duration-500">
-               <div className="size-10 rounded-2xl bg-rose-500/20 flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-rose-500 text-[20px]">warning</span>
+            <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-3xl flex items-center gap-4 animate-in pulse duration-500">
+               <div className="size-10 rounded-2xl bg-amber-500/20 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-amber-500 text-[20px]">notification_important</span>
                </div>
-               <div>
-                  <p className="text-[11px] font-black text-rose-200 uppercase tracking-wide">Conflicto de Operación Detectado</p>
-                  <p className="text-[10px] font-medium text-rose-400 mt-0.5">Vigilante ocupado en <b>{conflicto.puesto}</b> durante este mismo turno.</p>
+               <div className="pr-4">
+                  <p className="text-[11px] font-black text-amber-200 uppercase tracking-wide">Aviso de Carga Duplicada</p>
+                  <p className="text-[10px] font-medium text-amber-400 mt-0.5">El vigilante ya tiene un turno en <b>{conflicto.puesto}</b>. ¿Deseas confirmar este despacho?</p>
                </div>
             </div>
           )}
@@ -343,8 +343,13 @@ export const EditCeldaModal = ({
             {/* Efecto de brillo al pasar el mouse por el botón */}
             <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
             
-            <span className="material-symbols-outlined text-[18px]">verified_user</span>
-            {vigilanteId ? `Asignar a ${selectedVig?.nombre?.split(' ')[0]}` : 'Confirmar Registro de Vacante'}
+            <span className="material-symbols-outlined text-[18px]">
+              {conflicto ? 'priority_high' : 'verified_user'}
+            </span>
+            {vigilanteId 
+              ? (conflicto ? `Confirmar Doble Turno` : `Asignar a ${selectedVig?.nombre?.split(' ')[0]}`) 
+              : 'Confirmar Registro de Vacante'
+            }
           </button>
         </div>
       </div>

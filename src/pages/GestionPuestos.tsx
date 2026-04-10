@@ -1662,9 +1662,9 @@ const PanelMensualPuesto = ({
               });
             } else if (result?.tipo === "advertencia") {
                showTacticalToast({
-                title: "⚠️ Carga Duplicada",
-                message: result.mensaje,
-                type: "warning",
+                title: "✓ Doble Turno Registrado",
+                message: "Asignación confirmada con aviso de ocupación previa.",
+                type: "success",
                 duration: 4000,
               });
             } else {
