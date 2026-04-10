@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { usePuestoStore } from '../../store/puestoStore';
 
 // ─── Tipos de geocodificacion ─────────────────────────────────────────────────
@@ -109,6 +109,7 @@ interface PuestoModalProps {
     initialLat?: number;
     initialLng?: number;
     onCreated?: (id: string) => void;
+    puestoId?: string | null; // Nuevo prop para modo edición
 }
 
 const TIPOS = [
@@ -122,7 +123,8 @@ const TIPOS = [
     { value: 'puerto', label: 'Puerto / Aduana' },
 ];
 
-const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.5812, onCreated }: PuestoModalProps) => {
+const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.5812, onCreated, puestoId }: PuestoModalProps) => {
+    const isEditing = !!puestoId;
     const [nombre, setNombre] = useState('');
     const [tipo, setTipo] = useState<any>('hospital');
     const [lat, setLat] = useState(initialLat.toString());
@@ -151,8 +153,16 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const addPuesto = usePuestoStore((state) => state.addPuesto);
+    const updatePuesto = usePuestoStore((state) => state.updatePuesto);
+    const puestos = usePuestoStore((state) => state.puestos);
     const nextIdNumber = usePuestoStore((state) => state.nextIdNumber);
-    const formattedPreview = `MED-${String(nextIdNumber).padStart(4, '0')}`;
+    
+    // Buscar el puesto si estamos editando
+    const existingPuesto = useMemo(() => 
+        isEditing ? puestos.find(p => p.id === puestoId || p.dbId === puestoId) : null
+    , [isEditing, puestoId, puestos]);
+
+    const formattedPreview = isEditing ? existingPuesto?.id : `MED-${String(nextIdNumber).padStart(4, '0')}`;
 
     // ======== Motor de Busqueda Triple (Google Places → Photon → Nominatim) ========
     const handleSearch = (query: string) => {
@@ -265,32 +275,48 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
 
     useEffect(() => {
         if (isOpen) {
-            setNombre('');
-            setTipo('hospital');
-            setLat(initialLat.toFixed(6));
-            setLng(initialLng.toFixed(6));
+            if (isEditing && existingPuesto) {
+                // MODO EDICIÓN: Hidratar con datos existentes
+                setNombre(existingPuesto.nombre || '');
+                setTipo(existingPuesto.tipo || 'hospital');
+                setLat((existingPuesto.lat || initialLat).toString());
+                setLng((existingPuesto.lng || initialLng).toString());
+                setContacto(existingPuesto.contacto || '');
+                setTelefono(existingPuesto.telefono || '');
+                setRequisitos(existingPuesto.requisitos || '');
+                setInstrucciones(existingPuesto.instrucciones || '');
+                setPrioridad(existingPuesto.prioridad || 'media');
+                setNumeroContrato(existingPuesto.numeroContrato || '');
+                setCliente(existingPuesto.cliente || '');
+                setTipoServicio(existingPuesto.tipoServicio || '');
+                setDireccion(existingPuesto.direccion || '');
+                setConArmamento(existingPuesto.conArmamento || false);
+                setShowAdvanced(true); // Mostrar campos avanzados al editar
+            } else {
+                // MODO CREACIÓN: Limpiar campos
+                setNombre('');
+                setTipo('hospital');
+                setLat(initialLat.toFixed(6));
+                setLng(initialLng.toFixed(6));
+                setContacto('');
+                setTelefono('');
+                setRequisitos('');
+                setInstrucciones('');
+                setPrioridad('media');
+                setNumeroContrato('');
+                setCliente('');
+                setTipoServicio('');
+                setDireccion('');
+                setConArmamento(false);
+                setShowAdvanced(false);
+            }
             setIsSubmitting(false);
             setSuggestions([]);
             setIsSearching(false);
             setSelectedIndex(-1);
-            setShowAdvanced(false);
-            setContacto('');
-            setTelefono('');
-            setRequisitos('');
-            setInstrucciones('');
-            setPrioridad('media');
-            setNumeroContrato('');
-            setCliente('');
-            setTipoServicio('');
-            setDireccion('');
-            setConArmamento(false);
             setSearchStatus('idle');
         }
-        return () => {
-            if (debounceRef.current) clearTimeout(debounceRef.current);
-            if (abortRef.current) abortRef.current.abort();
-        };
-    }, [isOpen, initialLat, initialLng]);
+    }, [isOpen, initialLat, initialLng, isEditing, existingPuesto]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (suggestions.length === 0) return;
@@ -321,7 +347,6 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        // Only name is required — all other fields are optional
         if (!nombre.trim()) return;
 
         const finalLat = isNaN(Number(lat)) ? initialLat : Number(lat);
@@ -329,7 +354,7 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
 
         setIsSubmitting(true);
         try {
-            const newId = await addPuesto(nombre.trim(), tipo, finalLat, finalLng, 9.14, {
+            const detalles = {
                 contacto: contacto || undefined,
                 telefono: telefono || undefined,
                 requisitos: requisitos || undefined,
@@ -340,10 +365,28 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                 tipoServicio: tipoServicio || undefined,
                 direccion: direccion || undefined,
                 conArmamento,
-            });
-            if (onCreated && newId) onCreated(newId);
+            };
+
+            if (isEditing && existingPuesto) {
+                // ACTUALIZAR PUESTO
+                await updatePuesto(existingPuesto.id, {
+                    nombre: nombre.trim(),
+                    tipo: tipo as any,
+                    ...detalles
+                });
+                showTacticalToast({ 
+                    title: 'Objetivo Actualizado', 
+                    message: `Los cambios en ${formattedPreview} han sido persistidos.`, 
+                    type: 'success' 
+                });
+            } else {
+                // CREAR NUEVO PUESTO
+                const newId = await addPuesto(nombre.trim(), tipo, finalLat, finalLng, 9.14, detalles);
+                if (onCreated && newId) onCreated(newId);
+            }
             onClose();
-        } catch {
+        } catch (err) {
+            console.error('Error en PuestoModal submit:', err);
             setIsSubmitting(false);
         }
     };
@@ -366,11 +409,11 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                 <div className="bg-gradient-to-r from-primary/15 to-transparent px-8 py-6 flex items-center justify-between border-b border-white/5 shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="size-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary border border-primary/20">
-                            <span className="material-symbols-outlined text-2xl notranslate" translate="no">location_on</span>
+                            <span className="material-symbols-outlined text-2xl notranslate" translate="no">{isEditing ? 'edit_location' : 'location_on'}</span>
                         </div>
                         <div>
-                            <h4 className="text-lg font-bold text-white uppercase tracking-tight">Recrear <span className="text-primary">Puesto</span></h4>
-                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">Escala Real + Elevacion</p>
+                            <h4 className="text-lg font-bold text-white uppercase tracking-tight">{isEditing ? 'Ajustes' : 'Recrear'} <span className="text-primary">Objetivo</span></h4>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">{isEditing ? 'Modificar parámetros de red' : 'Escala Real + Elevacion'}</p>
                         </div>
                     </div>
                     <button
@@ -710,12 +753,12 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                             {isSubmitting ? (
                                 <>
                                     <span className="material-symbols-outlined text-[16px] animate-spin notranslate" translate="no">progress_activity</span>
-                                    Instanciando 3D...
+                                    {isEditing ? 'Sincronizando...' : 'Instanciando...'}
                                 </>
                             ) : (
                                 <>
-                                    <span className="material-symbols-outlined text-[16px] notranslate" translate="no">view_in_ar</span>
-                                    Recrear Punto en Mapa
+                                    <span className="material-symbols-outlined text-[16px] notranslate" translate="no">{isEditing ? 'save' : 'view_in_ar'}</span>
+                                    {isEditing ? 'Guardar Cambios' : 'Recrear Punto en Mapa'}
                                 </>
                             )}
                         </button>

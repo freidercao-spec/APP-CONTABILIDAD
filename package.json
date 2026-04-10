@@ -20,6 +20,7 @@
     "@tailwindcss/vite": "^4.2.1",
     "@types/leaflet": "^1.9.21",
     "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
     "deck.gl": "^9.2.11",
     "exceljs": "^4.4.0",
     "jspdf": "^4.2.0",

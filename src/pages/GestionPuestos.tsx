@@ -16,11 +16,14 @@ import { showTacticalToast } from "../utils/tacticalToast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from 'xlsx';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 // Sub-components
 import { CeldaCalendario } from "../components/puestos/CeldaCalendario";
 import { EditCeldaModal } from "../components/puestos/EditCeldaModal";
-import { PuestoCard } from "../components/puestos/PuestoCard";
+import { PuestoCard } from '../components/puestos/PuestoCard';
+import PuestoModal from '../components/puestos/PuestoModal';
 import { CoordinationPanel } from "../components/puestos/CoordinationPanel";
 
 // Constants
@@ -30,15 +33,34 @@ import {
   MONTH_NAMES,
 } from "../utils/puestosConstants";
 
+// ─── TIPOS DISPONIBLES EN EL SISTEMA ───────────────
+const TIPOS_PUESTO = [
+  { value: 'hospital', icon: 'local_hospital', color: 'text-blue-500' },
+  { value: 'comando', icon: 'local_police', color: 'text-purple-500' },
+  { value: 'torre', icon: 'cell_tower', color: 'text-cyan-500' },
+  { value: 'edificio', icon: 'domain', color: 'text-slate-400' },
+  { value: 'retail', icon: 'shopping_bag', color: 'text-amber-500' },
+  { value: 'logistica', icon: 'local_shipping', color: 'text-orange-500' },
+  { value: 'banco', icon: 'account_balance', color: 'text-emerald-500' },
+  { value: 'puerto', icon: 'sailing', color: 'text-sky-500' },
+];
+
+const getPuestoNombre = (prog: any, allPuestos: any[]) => {
+    if (!prog || !allPuestos) return "Puesto";
+    const pId = prog.puestoId;
+    const p = allPuestos.find(px => px.id === pId || px.dbId === pId);
+    return p?.nombre || "Puesto Desconocido";
+};
+
+const getTipoIcon = (tipo: string) => TIPOS_PUESTO.find(t => t.value === tipo) || TIPOS_PUESTO[3];
+
 const getRolLabel = (rol: string) => {
   const base: Record<string, string> = { titular_a: "Titular A", titular_b: "Titular B", relevante: "Relevante" };
   if (base[rol]) return base[rol];
-  // Si parece un ID (numérico largo), intentamos no mostrarlo feo
   if (/^\d+$/.test(rol) || rol.length > 10) return "Rol Personalizado";
   return rol.replace(/_/g, " ").toUpperCase();
 };
 
-// ─── Jornada shorthand para PDF ───────────────────────────────────────────────
 const JORNADA_PDF: Record<string, string> = {
   normal: "D",
   descanso_remunerado: "DR",
@@ -56,63 +78,10 @@ const ROL_PDF_BASE: Record<string, string> = {
   relevante: "RELEVANTE",
 };
 
-// Combinar base con etiquetas personalizadas
 const getRolPdfLabel = (rol: string) => {
   return ROL_PDF_BASE[rol] || rol.replace(/_/g, " ").toUpperCase();
 };
 
-// ─── Celda vacía ──────────────────────────────────────────────────────────────
-const CeldaVacia = React.memo(
-  ({
-    onAdd,
-    isWeekend,
-    isCompatible,
-  }: {
-    onAdd: () => void;
-    isWeekend?: boolean;
-    isCompatible?: boolean;
-  }) => (
-    <button
-      onClick={onAdd}
-      className={`w-full h-full rounded-lg flex items-center justify-center border transition-all group relative ${
-        isCompatible
-          ? "border-yellow-400 bg-yellow-400/10 shadow-[0_0_10px_rgba(250,204,21,0.2)]"
-          : isWeekend
-          ? "border-slate-200 border-dashed bg-slate-50/80"
-          : "border-slate-100 border-dashed bg-slate-50/40"
-      } hover:border-primary/40 hover:bg-primary/5`}
-      style={{ minHeight: "72px" }}
-    >
-      <div className="flex flex-col items-center gap-1">
-        <span
-          className={`material-symbols-outlined text-[16px] ${
-            isCompatible
-              ? "text-yellow-500 animate-pulse"
-              : "text-slate-300 group-hover:text-primary/60"
-          }`}
-        >
-          {isCompatible ? "stars" : "add_circle"}
-        </span>
-      </div>
-    </button>
-  )
-);
-
-// ─── Helper nombre puesto ─────────────────────────────────────────────────────
-const getPuestoNombre = (
-  prog: ProgramacionMensual | null | undefined,
-  allPuestos: any[]
-): string => {
-  if (!prog) return "";
-  const progAny = prog as any;
-  if (progAny.puestoNombre) return progAny.puestoNombre;
-  const found = allPuestos.find(
-    (p) => p.id === prog.puestoId || p.dbId === prog.puestoId
-  );
-  return found?.nombre || prog.puestoId || "Puesto";
-};
-
-// ─── Modal: Gestión de Personal del Puesto ───────────────────────────────────
 const GestionPersonalModal = ({
   prog,
   puestoNombre,
@@ -140,14 +109,12 @@ const GestionPersonalModal = ({
   const [newRolName, setNewRolName] = useState("");
   const [showAddRol, setShowAddRol] = useState(false);
 
-  // Roles estáticos base
   const BASE_ROLES: { rol: string; label: string; color: string; icon: string }[] = [
     { rol: "titular_a", label: "Titular A", color: "bg-primary", icon: "shield" },
     { rol: "titular_b", label: "Titular B", color: "bg-indigo-600", icon: "shield_person" },
     { rol: "relevante", label: "Relevante / Backup", color: "bg-slate-600", icon: "groups" },
   ];
 
-  // Roles activos: base + cualquier rol custom que ya exista en personal
   const activeRoles = useMemo(() => {
     const baseRolIds = BASE_ROLES.map(r => r.rol);
     const customRoles = personal
@@ -165,7 +132,6 @@ const GestionPersonalModal = ({
     const clean = newRolName.trim().toLowerCase().replace(/\s+/g, '_');
     if (!clean) return;
     
-    // VALIDACIÓN CRÍTICA: Impedir roles puramente numéricos
     if (/^\d+$/.test(clean)) {
       showTacticalToast({ 
         title: "Nombre Inválido", 
@@ -180,7 +146,6 @@ const GestionPersonalModal = ({
       return;
     }
 
-    // Determinar turno predeterminado basado en el nombre del rol
     const inferedTurnoId = (clean.toLowerCase().includes('b') || clean.toLowerCase().includes('pm') || clean.toLowerCase().includes('noche')) ? "PM" : "AM";
 
     setPersonal(prev => [...prev, { rol: clean, vigilanteId: null, turnoId: inferedTurnoId }]);
@@ -241,7 +206,6 @@ const GestionPersonalModal = ({
         className="bg-slate-900 rounded-[40px] w-full max-w-2xl shadow-2xl overflow-hidden border border-white/10"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="px-8 py-6 border-b border-white/10 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-black text-white uppercase tracking-tighter">
@@ -275,7 +239,6 @@ const GestionPersonalModal = ({
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <p className="text-[12px] font-black text-white uppercase">{label}</p>
-                      {/* ── Selector de Turno vinculado ── */}
                       <div className="flex items-center gap-2 bg-white/5 px-2 py-0.5 rounded-lg border border-white/10">
                         <span className="material-symbols-outlined text-[14px] text-slate-400">
                           {(personal.find(p => p.rol === rol)?.turnoId?.includes('PM') || personal.find(p => p.rol === rol)?.rol.toLowerCase().includes('b')) ? 'dark_mode' : 'light_mode'}
@@ -359,7 +322,6 @@ const GestionPersonalModal = ({
             );
           })}
 
-          {/* Botón para agregar más roles (Personalización 100%) */}
           {showAddRol ? (
             <div className="bg-violet-500/10 border border-violet-500/30 rounded-3xl p-5 animate-in fade-in zoom-in duration-200">
               <p className="text-[10px] font-black text-violet-300 uppercase mb-3 tracking-widest">Nuevo Turno / Rol Adicional</p>
@@ -399,7 +361,6 @@ const GestionPersonalModal = ({
           )}
         </div>
 
-        {/* Footer */}
         <div className="px-8 py-5 border-t border-white/10 bg-black/20 flex gap-3">
           <button
             onClick={onClose}
@@ -420,7 +381,6 @@ const GestionPersonalModal = ({
   );
 };
 
-// ─── AddTurnoForm: mini-formulario para agregar un nuevo turno ────────────────
 const AddTurnoForm = ({
   turnosActuales,
   onAdd,
@@ -506,7 +466,6 @@ const AddTurnoForm = ({
   );
 };
 
-// ─── Panel Mensual Principal ──────────────────────────────────────────────────
 const PanelMensualPuesto = ({
   puestoId,
   puestoNombre,
@@ -568,13 +527,13 @@ const PanelMensualPuesto = ({
   );
 
   const isInitialLoading = !useProgramacionStore(s => (s as any).loaded);
+  const isPuestosLoaded = usePuestoStore(s => s.loaded);
 
   useEffect(() => {
-    // Si todavía estamos cargando el 'índice' global, esperamos. 0 KM Safety.
-    if (isInitialLoading) return;
+    // PROTECCIÓN TÁCTICA: Evitar que el sistema entre en pánico si los puestos aún no se han traducido desde la DB
+    if (isInitialLoading || !isPuestosLoaded) return;
 
     if (!prog) {
-      // Búsqueda de emergencia por si el fetch global falló o es lento
       (useProgramacionStore.getState() as any).fetchProgramacionesByMonth(anio, mes).then(() => {
         const recheck = getProgramacion(puestoId, anio, mes);
         if (!recheck) {
@@ -584,7 +543,7 @@ const PanelMensualPuesto = ({
     } else if (!prog.isDetailLoaded && !prog.isFetching) {
       fetchProgramacionDetalles(prog.id);
     }
-  }, [prog?.id, puestoId, anio, mes, isInitialLoading]);
+  }, [prog?.id, puestoId, anio, mes, isInitialLoading, isPuestosLoaded]);
 
   const daysInMonth = new Date(anio, mes + 1, 0).getDate();
   const daysArr = useMemo(
@@ -600,13 +559,12 @@ const PanelMensualPuesto = ({
     [compareProgId, allProgramaciones]
   );
 
-  // ── BLINDAJE DE SALIDA: Evita perder datos si el sync está pendiente ────────
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       const hasChanges = (useProgramacionStore.getState() as any).hasPendingChanges();
       if (hasChanges) {
         e.preventDefault();
-        e.returnValue = ''; // Muestra el mensaje de "¿Estás seguro de que quieres salir?"
+        e.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -640,7 +598,6 @@ const PanelMensualPuesto = ({
     return m;
   }, [vigilantes]);
 
-  // ── Guardar personal desde modal ─────────────────────────────────────────
   const handleSavePersonal = useCallback(
     (personal: PersonalPuesto[]) => {
       if (!prog) return;
@@ -651,7 +608,6 @@ const PanelMensualPuesto = ({
         message: `${personal.filter((p) => p.vigilanteId).length} efectivos asignados al puesto.`,
         type: "success",
       });
-      // Forzar sync
       const queueSync = (useProgramacionStore as any).__syncQueue;
       if (queueSync) queueSync(prog.id);
       logAction("PROGRAMACION", "Personal Actualizado", `Puesto: ${puestoNombre}`, "success");
@@ -659,7 +615,6 @@ const PanelMensualPuesto = ({
     [prog, puestoNombre, logAction]
   );
 
-  // ── Generación de PDF del puesto — VERSIÓN CAMPO OPERATIVO ────────────────
   const handleGeneratePDF = useCallback(async () => {
     if (!prog) return;
     setIsGeneratingPDF(true);
@@ -672,7 +627,6 @@ const PanelMensualPuesto = ({
       const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
       const DAY_NAMES = ["DOM","LUN","MAR","MIE","JUE","VIE","SAB"];
 
-      // ── Cargar logo ──────────────────────────────────────────────────────
       let logoDataUrl: string | null = null;
       try {
         const resp = await fetch("/logo.png");
@@ -684,9 +638,8 @@ const PanelMensualPuesto = ({
             r.readAsDataURL(blob);
           });
         }
-      } catch { /* sin logo */ }
+      } catch { }
 
-      // ═ CABECERA ══════════════════════════════════════════════════════════
       doc.setFillColor(15, 23, 84);
       doc.rect(0, 0, pageW, 40, "F");
       doc.setFillColor(67, 24, 255);
@@ -702,8 +655,6 @@ const PanelMensualPuesto = ({
         doc.text("C.T.A", 21, 22, { align: "center" });
       }
 
-      // ── Bloque PUESTO (derecha) — definir primero para calcular área central ──
-      // A4 horizontal = 297mm. Bloque derecho: últimos 120mm → pX = 177mm
       const pX = pageW - 120;
       doc.setFillColor(255,255,255);
       doc.setGState(new (doc as any).GState({ opacity: 0.08 }));
@@ -713,7 +664,6 @@ const PanelMensualPuesto = ({
       doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(155,185,255);
       doc.text("PUESTO / OBJETIVO:", pX+4, 12);
       doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(255,255,255);
-      // Recortar nombre para que quepa (máx 44 chars a esta escala)
       doc.text(puestoNombre.toUpperCase().slice(0, 44), pX+4, 19);
       doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(155,185,255);
       doc.text("DIRECCIÓN:", pX+4, 26);
@@ -722,30 +672,22 @@ const PanelMensualPuesto = ({
       doc.setTextColor(140,165,220); doc.setFontSize(5.5);
       doc.text(`Impreso: ${fechaActual}`, pX+4, 33);
 
-      // ── Zona de texto central: entre x=42 y x=pX-4 ────────────────────────
-      // Centro de esa zona = (42 + pX-4) / 2
       const centerX = (42 + pX - 4) / 2;
 
-      // Título principal — centrado en zona central
       doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(12);
       doc.text("CUADRO DE PROGRAMACIÓN MENSUAL", centerX, 11, { align: "center" });
 
-      // Subtítulo empresa — misma zona central, fuente más pequeña
       doc.setFont("helvetica","normal"); doc.setFontSize(6.2); doc.setTextColor(170,195,255);
       doc.text(
         "COOPERATIVA DE VIGILANCIA Y SEGURIDAD PRIVADA CORAZA C.T.A  —  NIT: 901.509.121",
         centerX, 17, { align: "center", maxWidth: pX - 4 - 42 }
       );
 
-      // Mes y año — alineado a la izquierda del área central
       doc.setFont("helvetica","bold"); doc.setFontSize(18); doc.setTextColor(255,255,255);
       doc.text(`${MONTH_NAMES[mes].toUpperCase()}  ${anio}`, 44, 30);
 
-      // ──────────────── TABLA PERSONAL ──────────────────────────────────────────
-      // Agrupar asignaciones por vigilante
       const vigDataMap = new Map<string, { nombre:string; cedula:string; rol:string; asigs: Map<number,string> }>();
 
-      // Inicializar con personal del cuadro
       (prog.personal || []).forEach((per: any) => {
         if (!per.vigilanteId) return;
         const vid = per.vigilanteId;
@@ -755,7 +697,6 @@ const PanelMensualPuesto = ({
         }
       });
 
-      // Volcar asignaciones reales
       (prog.asignaciones||[]).forEach((a: AsignacionDia) => {
         if (!a.vigilanteId || a.jornada==="sin_asignar") return;
         if (!vigDataMap.has(a.vigilanteId)) {
@@ -764,7 +705,6 @@ const PanelMensualPuesto = ({
           vigDataMap.set(a.vigilanteId, { nombre:(vig?.nombre||a.vigilanteId).toUpperCase(), cedula:vig?.cedula||"—", rol:getRolPdfLabel(rolDef?.rol||"—"), asigs:new Map() });
         }
         const code = JORNADA_PDF[a.jornada] || a.jornada;
-        // ── Cristalizar Horario en el PDF ──
         let finalContent = code;
         if (code === "D") finalContent = "D\n06-18";
         else if (code === "N") finalContent = "N\n18-06";
@@ -775,7 +715,6 @@ const PanelMensualPuesto = ({
 
       const vigEntries = Array.from(vigDataMap.entries());
 
-      // Encabezado tabla
       const headRow = [
         "ROL", "C.C.", "APELLIDOS Y NOMBRES",
         ...days.map(d => { const dow=new Date(anio,mes,d).getDay(); return `${DAY_NAMES[dow]}\n${String(d).padStart(2,"0")}`; }),
@@ -845,7 +784,7 @@ const PanelMensualPuesto = ({
           }
           if (data.row.section === "body" && data.column.index >= 3 && data.column.index < tN - 3) {
             const raw = (data.cell.text[0] || "").trim();
-            const val = raw.split("\n")[0]; // El código (D, N, 24...)
+            const val = raw.split("\n")[0];
             
             const dIdx = data.column.index - 3;
             const dow = dIdx >= 0 && dIdx < days.length ? new Date(anio, mes, days[dIdx]).getDay() : -1;
@@ -855,16 +794,13 @@ const PanelMensualPuesto = ({
               return;
             }
 
-            // ── BUSCAR COLOR DENTRO DE turnosConfig ──
             const tConf = turnosConfig.find(t => t.id === val || t.nombre === val);
             if (tConf && tConf.color) {
-              // Convertir hex a RGB para jsPDF
               const hex = tConf.color.replace('#', '');
               const r = parseInt(hex.substring(0, 2), 16);
               const g = parseInt(hex.substring(2, 4), 16);
               const b = parseInt(hex.substring(4, 6), 16);
               data.cell.styles.fillColor = [r, g, b];
-              // Decidir color de texto basado en brillo
               const brightness = (r * 299 + g * 587 + b * 114) / 1000;
               const textRgb = brightness > 128 ? [30, 41, 59] : [255, 255, 255];
               data.cell.styles.textColor = textRgb as [number, number, number];
@@ -872,7 +808,6 @@ const PanelMensualPuesto = ({
               return;
             }
 
-            // Estilos por defecto para tipos de licencia/descanso
             if (val === "DR") {
               data.cell.styles.fillColor = [209, 250, 229];
               data.cell.styles.textColor = [4, 120, 87];
@@ -891,7 +826,6 @@ const PanelMensualPuesto = ({
         margin: { left:8, right:8 },
       });
 
-      // ═ FIRMA ════════════════════════════════════════════════════════════
       const afterTable = (doc as any).lastAutoTable?.finalY || 130;
       let firmaY = afterTable + 5;
 
@@ -913,7 +847,6 @@ const PanelMensualPuesto = ({
         firmaY += 30;
       }
 
-      // ═ LEYENDA ══════════════════════════════════════════════════════════
       const legendY = Math.min(firmaY + 2, pageH - 18);
       const baseLeyendas = [
         {code:"DR", label:"DESCANSO REMUN.", bg:[209,250,229] as [number,number,number], fg:[4,120,87] as [number,number,number]},
@@ -951,7 +884,6 @@ const PanelMensualPuesto = ({
         doc.text(l.label.length > 25 ? l.label.slice(0,22)+"..." : l.label, lx+7, legendY+5);
       });
 
-      // ═ FOOTER ═══════════════════════════════════════════════════════════
       doc.setFillColor(15,23,84);
       doc.rect(0, pageH-9, pageW, 9, "F");
       doc.setFont("helvetica","normal"); doc.setFontSize(5.5); doc.setTextColor(170,195,255);
@@ -969,21 +901,19 @@ const PanelMensualPuesto = ({
 
   const handleGenerateExcel = useCallback(async () => {
     if (!prog) return;
-    setIsGeneratingPDF(true); // Using same loading state
+    setIsGeneratingPDF(true);
     logAction("PROGRAMACION", "Exportar Excel", `${puestoNombre} ${MONTH_NAMES[mes]} ${anio}`, "info");
 
     try {
       const wb = XLSX.utils.book_new();
       const rows: any[] = [];
 
-      // Header info
       rows.push(["CUADRO DE PROGRAMACIÓN MENSUAL"]);
       rows.push(["COOPERATIVA DE VIGILANCIA Y SEGURIDAD PRIVADA CORAZA C.T.A - NIT: 901.509.121"]);
       rows.push([`PUESTO: ${puestoNombre.toUpperCase()}`]);
       rows.push([`MES: ${MONTH_NAMES[mes].toUpperCase()} ${anio}`]);
       rows.push([]);
 
-      // Data preparation (same logic as PDF)
       const vigDataMap = new Map<string, { nombre:string; cedula:string; rol:string; asigs: Map<number,string> }>();
 
       (prog.personal || []).forEach((per: any) => {
@@ -1041,10 +971,6 @@ const PanelMensualPuesto = ({
     }
   }, [prog, puestoNombre, mes, anio, daysInMonth, vigilantes, logAction]);
 
-
-
-
-
   if (!prog || prog.isFetching) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
@@ -1071,7 +997,6 @@ const PanelMensualPuesto = ({
 
   return (
     <div className="page-container animate-fade-in bg-slate-50 min-h-screen pb-32">
-      {/* ── HEADER ─────────────────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-8">
         <div>
           <div className="flex items-center gap-2 mb-2 text-[10px] font-black text-primary uppercase tracking-[0.2em]">
@@ -1098,7 +1023,6 @@ const PanelMensualPuesto = ({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {/* CONFIGURAR PERSONAL */}
           <button
             onClick={() => setShowPersonalModal(true)}
             className="px-5 py-2.5 bg-slate-800 text-white border border-white/10 rounded-2xl text-[10px] font-black uppercase hover:bg-slate-700 transition-all flex items-center gap-2"
@@ -1112,7 +1036,6 @@ const PanelMensualPuesto = ({
             )}
           </button>
 
-          {/* PDF & EXCEL */}
           <div className="flex gap-2">
             <button
               onClick={handleGenerateExcel}
@@ -1141,7 +1064,6 @@ const PanelMensualPuesto = ({
             </button>
           </div>
 
-          {/* BORRADOR */}
           <button
             onClick={() => guardarBorrador(prog.id, currentUser)}
             className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl text-[10px] font-black uppercase hover:bg-slate-50 transition-all flex items-center gap-2"
@@ -1150,7 +1072,6 @@ const PanelMensualPuesto = ({
             Borrador
           </button>
 
-          {/* PUBLICAR */}
           <button
             onClick={() => publicarProgramacion(prog.id, currentUser)}
             className="px-6 py-2.5 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2"
@@ -1191,7 +1112,6 @@ const PanelMensualPuesto = ({
         </div>
       </div>
 
-      {/* ── ESTADO VISUAL DEL PERSONAL ──────────────────────────────────── */}
       {staffAsignado.length === 0 && (
         <div
           onClick={() => setShowPersonalModal(true)}
@@ -1258,7 +1178,6 @@ const PanelMensualPuesto = ({
         </div>
       )}
 
-      {/* ── BARRA DE PERSONALIZACIÓN ────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3 p-4 bg-slate-900 rounded-[30px] border border-white/5 shadow-2xl mb-8 animate-in slide-in-from-top-4 duration-500">
         <div className="flex items-center gap-2 px-4 border-r border-white/10 shrink-0">
           <span className="material-symbols-outlined text-indigo-400 text-[20px]">magic_button</span>
@@ -1267,7 +1186,6 @@ const PanelMensualPuesto = ({
           </span>
         </div>
 
-        {/* ── Botón: Configurar Turnos del Tablero ── */}
         <div className="relative">
           <button
             onClick={() => setShowTurnosConfig(!showTurnosConfig)}
@@ -1320,7 +1238,6 @@ const PanelMensualPuesto = ({
                 ))}
               </div>
 
-              {/* ── Agregar nuevo turno ── */}
               <div className="border-t border-white/10 pt-3">
                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2">Añadir Turno Personalizado</p>
                 <AddTurnoForm
@@ -1416,7 +1333,6 @@ const PanelMensualPuesto = ({
           </div>
         </div>
 
-        {/* Estado de sync */}
         <div className="ml-auto hidden lg:flex items-center gap-3 pr-4">
           {prog.syncStatus === "synced" && (
             <div className="flex items-center gap-2">
@@ -1437,7 +1353,6 @@ const PanelMensualPuesto = ({
         </div>
       </div>
 
-      {/* ── LEYENDA DINÁMICA DEL TABLERO ── */}
       <div className="flex flex-wrap items-center gap-4 mb-4 px-6 py-3 bg-white/40 rounded-2xl border border-slate-100 backdrop-blur-sm shadow-sm">
         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Turnos de este Puesto:</span>
         {turnosConfig.map(t => (
@@ -1450,7 +1365,6 @@ const PanelMensualPuesto = ({
         {turnosConfig.length === 0 && <span className="text-[9px] italic text-slate-400">Sin turnos configurados</span>}
       </div>
 
-      {/* ── GRILLA PRINCIPAL ────────────────────────────────────────────── */}
       <div className="bg-slate-950 rounded-[40px] border border-white/5 shadow-[0_0_50px_rgba(0,0,0,0.4)] overflow-hidden mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="overflow-x-auto custom-scrollbar">
           <table className="border-collapse select-none" style={{ width: 'max-content', tableLayout: 'fixed' }}>
@@ -1458,7 +1372,7 @@ const PanelMensualPuesto = ({
               <tr className="h-28 bg-slate-950 border-b-2 border-amber-500/40 shadow-2xl">
                 <th 
                   className="sticky left-0 z-40 px-8 bg-slate-900 border-r-2 border-amber-500/30 shadow-[10px_0_40px_rgba(0,0,0,0.7)]"
-                  style={{ width: 320 }}
+                  style={{ width: 360 }}
                 >
                   <div className="flex items-center gap-5">
                     <div className="size-16 rounded-[22px] bg-gradient-to-br from-amber-400 via-amber-600 to-amber-700 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.4)] border border-amber-300/30">
@@ -1474,7 +1388,7 @@ const PanelMensualPuesto = ({
                   const dayDate = new Date(anio, mes, d);
                   const isSun = dayDate.getDay() === 0;
                   return (
-                    <th key={d} className={`text-[12px] font-black uppercase tracking-[0.1em] border-r border-white/5 px-2 relative transition-all ${isSun ? 'bg-red-500/10' : 'hover:bg-white/[0.02]'}`} style={{ width: 110 }}>
+                    <th key={d} className={`text-[13px] font-black uppercase tracking-[0.1em] border-r border-white/5 px-2 relative transition-all ${isSun ? 'bg-red-500/20' : 'hover:bg-white/[0.05]'}`} style={{ width: 130 }}>
                       <div className="flex flex-col items-center justify-center h-full gap-1">
                          <span className={`text-[10px] tracking-widest font-black ${isSun ? 'text-red-400' : 'text-slate-500'}`}>
                            {dayDate.toLocaleDateString('es', {weekday: 'short'}).toUpperCase()}
@@ -1533,11 +1447,10 @@ const PanelMensualPuesto = ({
                   >
                    <td 
                      className="sticky left-0 z-30 transition-all border-r-2 border-amber-500/10 px-8 bg-slate-900 shadow-[10px_0_40px_rgba(0,0,0,0.8)] group-hover/row:bg-slate-800"
-                     style={{ width: 320 }}
+                     style={{ width: 360 }}
                    >
                      <div className="flex flex-col gap-3.5">
                        <div className="flex items-center gap-4">
-                          {/* Badge de Turno Inteligente PREMIUM */}
                           <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl border-2 font-black text-[10px] tracking-[0.15em] uppercase shadow-lg ${
                             isActuallyNight 
                             ? 'bg-slate-950 border-amber-500/40 text-amber-500 shadow-amber-500/10' 
@@ -1581,7 +1494,6 @@ const PanelMensualPuesto = ({
                      </div>
                    </td>
 
-                   {/* Celdas de días por rol */}
                    {daysArr.map((d) => {
                      const asig = (prog.asignaciones || []).find(
                        (a: AsignacionDia) => a.dia === d && a.rol === per.rol
@@ -1591,7 +1503,7 @@ const PanelMensualPuesto = ({
                      const isWeekend = dow === 0 || dow === 6;
 
                      return (
-                       <td key={d} style={{ padding: 12, width: 110 }} className={`border-r border-white/5 transition-all outline-none ${isWeekend ? 'bg-white/[0.03]' : 'group-hover/row:bg-white/[0.05]'}`}>
+                       <td key={d} style={{ padding: 10, width: 130 }} className={`border-r border-white/5 transition-all outline-none ${isWeekend ? 'bg-white/[0.04]' : 'group-hover/row:bg-white/[0.08]'}`}>
                          <CeldaCalendario
                            asig={asig}
                            vigilanteNombre={asig.vigilanteId ? (vigilanteMap.get(asig.vigilanteId) || "Asignado") : undefined}
@@ -1605,17 +1517,6 @@ const PanelMensualPuesto = ({
                  </tr>
                 );
               })}
-
-
-              {/* Si no hay personal ni turnos configurados */}
-              {!prog.personal?.length && turnosConfig.length === 0 && (
-                <tr>
-                  <td colSpan={daysInMonth + 1} className="py-24 text-center">
-                    <p className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">Configura el personal para comenzar el despacho táctico</p>
-                  </td>
-                </tr>
-              )}
-
             </tbody>
           </table>
         </div>
@@ -1663,10 +1564,7 @@ const PanelMensualPuesto = ({
               data,
               user
             );
-            
-            // Cerrar el modal inmediatamente después del proceso
             setEditCell(null);
-
             if (result?.tipo === "bloqueo") {
               showTacticalToast({
                 title: "⚠️ Conflicto",
@@ -1695,223 +1593,324 @@ const PanelMensualPuesto = ({
   );
 };
 
-// ─── Vista Principal ──────────────────────────────────────────────────────────
 const GestionPuestos = () => {
-  const username = useAuthStore(s => s.username);
-  const puestos = usePuestoStore(s => s.puestos || []);
-  const programaciones = useProgramacionStore(s => s.programaciones);
-  const isSyncing = useProgramacionStore(s => s.isSyncing);
-  const progLoaded = useProgramacionStore(s => s.loaded);
-  const puestosLoaded = usePuestoStore(s => s.loaded);
-  const loaded = progLoaded && puestosLoaded;
-
-  const fetchProgramacionesByMonth = useProgramacionStore(s => s.fetchProgramacionesByMonth);
-  const _fetchBatchDetails = useProgramacionStore(s => s._fetchDetails);
-
   const [anio, setAnio] = useState(new Date().getFullYear());
   const [mes, setMes] = useState(new Date().getMonth());
-  const [busqueda, setBusqueda] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<'cards' | 'master_grid'>('cards');
+  const [isNewPuestoModalOpen, setIsNewPuestoModalOpen] = useState(false);
+  const [puestoToEdit, setPuestoToEdit] = useState<any>(null);
+  const [selectedPuesto, setSelectedPuesto] = useState<any>(null);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+
+  const { puestos, fetchPuestos, loaded: puestosLoaded } = usePuestoStore();
+  const { programaciones, fetchProgramaciones, loaded: progLoaded } = useProgramacionStore();
+  const { vigilantes, fetchVigilantes } = useVigilanteStore();
+
+  const isInitialLoading = !puestosLoaded || !progLoaded;
+
+  useEffect(() => {
+    const bootstrap = async () => {
+      console.log('[Coraza] 🛫 Iniciando secuencia de arranque táctico...');
+      await fetchVigilantes();
+      await fetchPuestos();
+      await fetchProgramaciones();
+      console.log('[Coraza] 🛬 Tablero hidratado y listo para el despacho.');
+    };
+    bootstrap();
+  }, [fetchPuestos, fetchProgramaciones, fetchVigilantes]);
+
   const [visibleCount, setVisibleCount] = useState(60);
-  const [puestoSeleccionado, setPuestoSeleccionado] = useState<{
-    id: string;
-    nombre: string;
-  } | null>(null);
-
-  useEffect(() => {
-    fetchProgramacionesByMonth(anio, mes);
-  }, [anio, mes, fetchProgramacionesByMonth]);
-
+  
   const filteredPuestos = useMemo(() => {
-    const q = busqueda.toLowerCase().trim();
-    if (!q) return puestos;
-    return puestos.filter(
-      (p) =>
-        p?.nombre?.toLowerCase().includes(q) ||
-        p?.id?.toLowerCase().includes(q)
+    const q = searchQuery.toLowerCase().trim();
+    const base = (puestos || []).filter(p => (p as any).estado !== 'inactivo');
+    if (!q) return base;
+    return base.filter(p => 
+      p.nombre?.toLowerCase().includes(q) ||
+      p.id?.toLowerCase().includes(q)
     );
-  }, [puestos, busqueda]);
+  }, [puestos, searchQuery]);
 
-  const pagedPuestos = useMemo(() => {
-    try {
-      return filteredPuestos.slice(0, visibleCount);
-    } catch {
-      return [];
+  const pagedPuestos = filteredPuestos.slice(0, visibleCount);
+
+  const renderMasterGrid = () => {
+    const totalDias = new Date(anio, mes + 1, 0).getDate();
+    
+    if (isInitialLoading) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center bg-white rounded-[40px] border border-slate-200 animate-pulse">
+           <span className="material-symbols-outlined text-[48px] text-primary mb-4 animate-spin">sync</span>
+           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Cargando Red de Puestos...</p>
+        </div>
+      );
     }
-  }, [filteredPuestos, visibleCount]);
+    
+    return (
+      <div className="flex-1 overflow-hidden flex flex-col bg-white rounded-[40px] border border-slate-200 shadow-2xl relative">
+        <div className="overflow-auto custom-scrollbar flex-1">
+          <table className="border-collapse border-none select-none" style={{ width: 'max-content', tableLayout: 'fixed' }}>
+            <thead className="sticky top-0 z-50">
+              <tr>
+                <th className="sticky left-0 z-50 bg-slate-900 border-r-2 border-primary/20 p-6 text-left shadow-[4px_0_20px_rgba(0,0,0,0.1)]" style={{ width: 280 }}>
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-primary text-[20px]">admin_panel_settings</span>
+                    <span className="text-[11px] font-black text-white uppercase tracking-[0.2em]">Red de Puestos</span>
+                  </div>
+                </th>
+                {Array.from({ length: totalDias }, (_, i) => i + 1).map(d => {
+                  const date = new Date(anio, mes, d);
+                  const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                  return (
+                    <th key={d} className={`px-2 py-4 border-r border-slate-100 text-center transition-colors ${isWeekend ? 'bg-slate-50' : 'bg-white'}`} style={{ width: 60 }}>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+                        {date.toLocaleDateString('es', { weekday: 'short' }).substring(0, 1)}
+                      </p>
+                      <p className={`text-sm font-black ${isWeekend ? 'text-primary' : 'text-slate-900'}`}>{d}</p>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredPuestos.map((p) => (
+                <tr key={p.id} className="group hover:bg-slate-50 transition-colors border-b border-slate-50">
+                  <td className="sticky left-0 z-40 bg-white group-hover:bg-slate-50 border-r-2 border-primary/10 px-6 py-4 shadow-[4px_0_20px_rgba(0,0,0,0.05)] transition-colors">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black text-primary uppercase tracking-widest">{p.id}</span>
+                        <div className="flex gap-1">
+                          <button 
+                            onClick={() => { setPuestoToEdit(p); setIsNewPuestoModalOpen(true); }}
+                            className="size-6 rounded-lg hover:bg-primary/10 text-slate-400 hover:text-primary transition-all flex items-center justify-center"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">edit</span>
+                          </button>
+                        </div>
+                      </div>
+                      <span 
+                        onClick={() => setSelectedPuesto({ dbId: p.dbId || p.id, nombre: p.nombre })}
+                        className="text-[12px] font-black text-slate-900 tracking-tight truncate hover:text-primary cursor-pointer transition-colors"
+                      >
+                        {p.nombre}
+                      </span>
+                    </div>
+                  </td>
+                  {Array.from({ length: totalDias }, (_, i) => i + 1).map(d => {
+                    const prog = programaciones.find(pg => pg.puestoId === (p.dbId || p.id) && pg.anio === anio && pg.mes === mes);
+                    const asig = prog?.asignaciones?.find(a => a.dia === d);
+                    return (
+                      <td 
+                        key={d} 
+                        className="p-1 border-r border-slate-50 cursor-pointer hover:bg-primary/5 transition-all"
+                        onClick={() => {
+                          const asigPlaceholder = asig || { dia: d, turno: 'AM', jornada: 'sin_asignar', rol: 'titular_a' };
+                          // Nota: En la grilla maestra abrimos un despacho rápido o podrías abrir el panel mensual
+                          setSelectedPuesto({ dbId: p.id, nombre: p.nombre });
+                        }}
+                      >
+                        <div className={`h-8 rounded-lg flex items-center justify-center text-[9px] font-black border transition-all ${
+                          asig ? 'bg-primary/10 border-primary/20 text-primary' : 'bg-slate-50 border-slate-100 text-slate-300'
+                        }`}>
+                          {asig ? asig.jornada.substring(0,1).toUpperCase() : '·'}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
 
-  // Hydration Observer
-  useEffect(() => {
-    if (!loaded) return;
-    const timer = setTimeout(() => {
-      try {
-        const programaciones = useProgramacionStore.getState().programaciones;
-        const needs = pagedPuestos
-          .filter((p) => {
-            if (!p) return false;
-            const targetId = p.dbId || p.id;
-            const found = programaciones.find(
-              (pr) =>
-                pr.puestoId === targetId &&
-                pr.anio === anio &&
-                pr.mes === mes
-            );
-            return found && !found.isDetailLoaded && !found.isFetching;
-          })
-          .map((p: any) => {
-            const targetId = p.dbId || p.id;
-            return programaciones.find(
-              (pr) =>
-                pr.puestoId === targetId &&
-                pr.anio === anio &&
-                pr.mes === mes
-            )!;
-          })
-          .filter(Boolean);
-
-        if (needs.length > 0) {
-          _fetchBatchDetails(needs, needs.map((n) => n.id));
-        }
-      } catch (err) {
-        console.error("[Coraza] âŒ Error en Hydration Observer:", err);
-      }
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, [pagedPuestos, anio, mes, loaded, _fetchBatchDetails]);
-
-  if (puestoSeleccionado) {
+  if (selectedPuesto) {
     return (
       <PanelMensualPuesto
-        puestoId={puestoSeleccionado.id}
-        puestoNombre={puestoSeleccionado.nombre}
+        puestoId={selectedPuesto.dbId || selectedPuesto.id}
+        puestoNombre={selectedPuesto.nombre}
         anio={anio}
         mes={mes}
-        onClose={() => setPuestoSeleccionado(null)}
+        onClose={() => setSelectedPuesto(null)}
       />
     );
   }
 
   return (
-    <div className="pb-24 space-y-8 animate-fade-in">
-      <header className="flex flex-col md:flex-row justify-between items-end gap-6">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">
-            Gestión <span className="text-primary">Puestos Activos</span>
-          </h1>
-          <p className="text-[10px] font-black text-slate-400 mt-1 uppercase tracking-[0.25em]">
-            {filteredPuestos.length === 0
-              ? "Sin objetivos"
-              : `${filteredPuestos.length} objetivos tácticos`}
-          </p>
+    <div className="h-screen flex flex-col bg-slate-50">
+      <header className="bg-[#0f172a] text-white px-8 py-6 border-b border-white/5 shrink-0 flex items-center justify-between shadow-2xl z-30 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-primary/10 to-transparent pointer-events-none"></div>
+        
+        <div className="flex items-center gap-6 relative">
+          <div className="size-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center p-2 transform -rotate-3 hover:rotate-0 transition-all cursor-pointer group shadow-lg shadow-black/20" onClick={() => window.location.href = '/'}>
+            <img src="/logo.png" alt="CORAZA" className="w-full h-full object-contain brightness-125 group-hover:scale-110 transition-transform" />
+          </div>
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <span className="text-[10px] font-black text-primary uppercase tracking-[0.4em] animate-pulse">Operaciones Live</span>
+              <span className="h-1 w-1 rounded-full bg-white/20"></span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">Master Control</span>
+            </div>
+            <h1 className="text-2xl font-black tracking-tighter uppercase italic leading-none">
+              Gestión de <span className="text-primary not-italic">Puestos</span>
+            </h1>
+          </div>
+          
+          <div className="ml-12 flex items-center bg-black/40 border border-white/10 rounded-2xl p-1 shadow-inner">
+            <button 
+              onClick={() => { const d = new Date(anio, mes - 1); setAnio(d.getFullYear()); setMes(d.getMonth()); }}
+              className="px-3 py-2 text-slate-500 hover:text-white transition-colors"
+            >
+              <span className="material-symbols-outlined text-lg">chevron_left</span>
+            </button>
+            <div className="px-6 py-2 text-center min-w-[140px]">
+              <p className="text-[9px] font-black text-primary uppercase tracking-widest">{anio}</p>
+              <p className="text-sm font-black text-white uppercase">{MONTH_NAMES[mes]}</p>
+            </div>
+            <button 
+              onClick={() => { const d = new Date(anio, mes + 1); setAnio(d.getFullYear()); setMes(d.getMonth()); }}
+              className="px-3 py-2 text-slate-500 hover:text-white transition-colors"
+            >
+              <span className="material-symbols-outlined text-lg">chevron_right</span>
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-3 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
-          <select
-            value={mes}
-            onChange={(e) => setMes(Number(e.target.value))}
-            className="h-10 px-4 bg-slate-50 border-none rounded-xl text-[11px] font-black uppercase outline-none cursor-pointer hover:bg-slate-100 transition-colors"
+
+        <div className="flex items-center gap-4 relative">
+          <div className="relative group hidden lg:block">
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-lg group-focus-within:text-primary transition-colors">search</span>
+            <input 
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Filtro rápido..."
+              className="bg-black/40 border border-white/10 rounded-2xl py-3 pl-12 pr-6 text-sm font-bold focus:outline-none focus:border-primary/40 focus:ring-8 focus:ring-primary/5 transition-all w-64 placeholder:text-slate-600 shadow-inner"
+            />
+          </div>
+
+          <div className="h-8 w-px bg-white/10 mx-2 hidden sm:block"></div>
+
+          <div className="flex bg-black/40 border border-white/10 rounded-2xl p-1 shadow-inner">
+            <button 
+              onClick={() => setViewMode('cards')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'cards' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-slate-500 hover:text-slate-300'}`}
+              title="Vista de Tarjetas"
+            >
+              <span className="material-symbols-outlined text-[18px]">grid_view</span>
+              <span className="hidden xl:inline">Cards</span>
+            </button>
+            <button 
+              onClick={() => setViewMode('master_grid')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'master_grid' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-slate-500 hover:text-slate-300'}`}
+              title="Grilla Maestra Global"
+            >
+              <span className="material-symbols-outlined text-[18px]">table_rows</span>
+              <span className="hidden xl:inline">Master</span>
+            </button>
+          </div>
+
+          <button 
+            onClick={() => setIsNewPuestoModalOpen(true)}
+            className="flex items-center gap-3 bg-white text-[#0f172a] py-3.5 px-6 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-primary hover:text-white transition-all active:scale-95 shadow-xl shadow-black/40 border border-white/20"
           >
-            {MONTH_NAMES.map((m, i) => (
-              <option key={i} value={i}>
-                {m}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            value={anio}
-            onChange={(e) => setAnio(Number(e.target.value))}
-            className="h-10 w-24 px-4 bg-slate-50 border-none rounded-xl text-[11px] font-black outline-none"
-          />
+            <span className="material-symbols-outlined text-[18px]">add_location_alt</span>
+            <span className="hidden sm:inline">Nuevo Puesto</span>
+          </button>
         </div>
       </header>
 
-      {/* LEYENDA DEL TABLERO */}
-      <div className="mx-6 mb-4 flex flex-wrap items-center gap-4 bg-white/50 p-3 rounded-2xl border border-slate-200 shadow-sm backdrop-blur-sm">
-        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Leyenda Global:</span>
-        <div className="flex items-center gap-1.5">
-          <div className="size-2.5 rounded-full bg-blue-600 shadow-sm shadow-blue-200"></div>
-          <span className="text-[10px] font-bold text-slate-600 uppercase">Día (D)</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="size-2.5 rounded-full bg-slate-900 shadow-sm shadow-slate-300"></div>
-          <span className="text-[10px] font-bold text-slate-600 uppercase">Noche (N)</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="size-2.5 rounded-full bg-[#7c3aed] shadow-sm shadow-indigo-200"></div>
-          <span className="text-[10px] font-bold text-slate-600 uppercase">24 Horas (24H)</span>
-        </div>
-        <div className="w-px h-4 bg-slate-300 mx-1"></div>
-        <div className="flex items-center gap-1.5">
-          <div className="px-1.5 py-0.5 rounded bg-emerald-500 text-white text-[9px] font-black">DR</div>
-          <span className="text-[10px] font-bold text-slate-600 uppercase">D. Remunerado</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="px-1.5 py-0.5 rounded bg-violet-500 text-white text-[9px] font-black">VAC</div>
-          <span className="text-[10px] font-bold text-slate-600 uppercase">Vacaciones</span>
-        </div>
-        <div className="ml-auto flex items-center gap-2 pr-2">
-           <span className="material-symbols-outlined text-primary text-[14px] animate-pulse">lock</span>
-           <span className="text-[9px] font-black text-primary uppercase">Cifrado de Operaciones Activo</span>
-        </div>
-      </div>
+      <main className="flex-1 overflow-hidden flex flex-col pt-6 px-8 pb-8">
+        {viewMode === 'cards' ? (
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between mb-8 shrink-0 gap-4">
+              <div className="relative flex-1 max-w-lg group">
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">filter_list</span>
+                <input 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Filtrar por nombre, código o ID..."
+                  className="w-full h-14 pl-12 pr-4 bg-white border-2 border-slate-100 rounded-3xl text-[13px] font-bold outline-none focus:border-primary/20 focus:ring-4 ring-primary/5 transition-all shadow-sm"
+                />
+              </div>
 
-      <div className="bg-white p-4 rounded-[32px] border border-slate-100 shadow-sm flex gap-4 items-center">
-        <div className="relative flex-1">
-          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-            search
-          </span>
-          <input
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Filtrar por nombre, código o ID de puesto..."
-            className="w-full h-12 pl-12 pr-4 bg-slate-50 border-none rounded-2xl text-[13px] font-medium outline-none focus:ring-2 ring-primary/20 transition-all"
-          />
-        </div>
-      </div>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => {
+                    console.log('[Coraza] 🔄 Sincronización manual activada...');
+                    useProgramacionStore.getState().forceSync();
+                  }}
+                  disabled={!progLoaded}
+                  className={`flex items-center gap-2 px-5 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-xl shadow-black/5 border border-slate-100 bg-white ${!progLoaded ? 'opacity-50 cursor-not-allowed text-slate-400' : 'text-slate-600 hover:border-primary/20 hover:text-primary active:scale-95'}`}
+                >
+                  <span className={`material-symbols-outlined text-[18px] ${!progLoaded ? 'animate-spin' : ''}`}>sync</span>
+                  <span>Refrescar</span>
+                </button>
+              </div>
+            </div>
 
-      {!loaded && !isSyncing ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="h-[200px] bg-slate-100 rounded-[40px] border border-slate-200"></div>
-          ))}
-        </div>
-      ) : filteredPuestos.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 bg-white rounded-[40px] border border-dashed border-slate-200">
-          <span className="material-symbols-outlined text-[48px] text-slate-200 mb-4">
-            inventory_2
-          </span>
-          <p className="text-sm font-black text-slate-400 uppercase tracking-widest">
-            No se encontraron puestos.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {pagedPuestos.map((p, idx) => {
-            if (!p) return null;
-            return (
-              <PuestoCard
-                key={p.id || `puesto-${idx}`}
-                puesto={p}
-                anio={anio}
-                mes={mes}
-                onClick={() =>
-                  setPuestoSeleccionado({ id: p.dbId || p.id, nombre: p.nombre })
-                }
-              />
-            );
-          })}
-        </div>
-      )}
+            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+              {isInitialLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="h-64 bg-white border border-slate-100 rounded-3xl p-6 relative overflow-hidden">
+                       <div className="flex justify-between items-start mb-4">
+                          <div className="space-y-2">
+                             <div className="h-2 w-16 bg-slate-100 rounded"></div>
+                             <div className="h-4 w-32 bg-slate-100 rounded"></div>
+                          </div>
+                          <div className="size-8 rounded-full bg-slate-100"></div>
+                       </div>
+                       <div className="mt-8 space-y-4">
+                          <div className="h-2 w-full bg-slate-50 rounded"></div>
+                          <div className="h-2 w-3/4 bg-slate-50 rounded"></div>
+                       </div>
+                       <div className="absolute bottom-0 left-0 w-full h-1 bg-slate-50"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : pagedPuestos.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-24 bg-white rounded-[40px] border border-dashed border-slate-200">
+                  <span className="material-symbols-outlined text-[48px] text-slate-300 mb-4">inventory_2</span>
+                  <p className="text-sm font-black text-slate-400 uppercase tracking-widest">No hay resultados.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
+                  {pagedPuestos.map((p, idx) => (
+                    <PuestoCard
+                      key={p.dbId || p.id || `puesto-${idx}`}
+                      puesto={p}
+                      anio={anio}
+                      mes={mes}
+                      onClick={() => setSelectedPuesto({ dbId: p.dbId || p.id, nombre: p.nombre })}
+                    />
+                  ))}
+                </div>
+              )}
 
-      {visibleCount < filteredPuestos.length && (
-        <div className="flex justify-center pt-8">
-          <button
-            onClick={() => setVisibleCount((v) => v + 60)}
-            className="px-12 py-4 bg-slate-900 text-white rounded-3xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-black hover:scale-105 active:scale-95 transition-all shadow-xl shadow-slate-900/10"
-          >
-            Expandir Cuadro Operativo (+60)
-          </button>
-        </div>
-      )}
+              {visibleCount < filteredPuestos.length && (
+                <div className="flex justify-center pt-8 pb-12">
+                  <button
+                    onClick={() => setVisibleCount((v) => v + 60)}
+                    className="px-12 py-4 bg-[#0f172a] text-white rounded-full font-black uppercase text-[10px] tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-black/20"
+                  >
+                    Expandir Cuadro (+60)
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          renderMasterGrid()
+        )}
+      </main>
+
+      <PuestoModal 
+        isOpen={isNewPuestoModalOpen}
+        puestoId={puestoToEdit?.id}
+        onClose={() => { setIsNewPuestoModalOpen(false); setPuestoToEdit(null); }}
+        onCreated={() => fetchPuestos()}
+      />
     </div>
   );
 };

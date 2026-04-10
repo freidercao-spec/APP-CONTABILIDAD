@@ -70,6 +70,9 @@ export const translateToUuid = (id: string | null): string | null => {
     return found?.dbId || id;
 };
 
+// ALIAS DE SEGURIDAD: Evita el Error de Núcleo si hay llamadas residuales en caché
+export const translateToDb = translateToUuid;
+
 /**
  * Traduce un UUID a ID legible para la UI.
  */
@@ -85,9 +88,16 @@ export const translateToReadableId = (dbId: string): string => {
 export const translateFromDb = (dbId: string | null, lookupMap?: Map<string, string>) => {
     if (!dbId) return null;
     if (lookupMap) return lookupMap.get(dbId) || dbId;
-    const v = useVigilanteStore.getState().getVigilanteById(dbId);
+    
+    // Fallback táctico: Si no hay store de vigilantes todavía, mantenemos el dbId original
+    // para no perder la referencia en la reconstrucción de la UI.
+    const vStore = useVigilanteStore.getState();
+    if (!vStore.vigilantes || vStore.vigilantes.length === 0) return dbId;
+    
+    const v = vStore.getVigilanteById(dbId);
     return v?.id || dbId;
 };
+
 
 export interface PersonalPuesto {
     rol: RolPuesto;
@@ -179,6 +189,7 @@ interface ProgramacionState {
     _fetchDetails: (rows: any[], progIds: string[]) => Promise<void>;
     _updateMap: () => void;
     hasPendingChanges: () => boolean;
+    resumePendingSyncs: () => void;
     setupRealtime: () => void;
 }
 
@@ -195,12 +206,6 @@ interface SyncResult {
     serverUpdatedAt: string | null;
 }
 
-interface SyncResult {
-    success: boolean;
-    serverVersion: number;
-    serverUpdatedAt: string | null;
-}
-
 async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: any): Promise<SyncResult> {
     if (activeSyncPromises.has(prog.id)) {
         try { await activeSyncPromises.get(prog.id); } catch {}
@@ -209,13 +214,21 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
     const syncPromise = (async (): Promise<SyncResult> => {
         try {
             const dbId = String(prog.id).trim();
-            const dbPuestoId = translatePuestoToUuid(prog.puestoId);
-            if (!dbPuestoId) throw new Error("ID de puesto no encontrado");
+            let dbPuestoId = translatePuestoToUuid(prog.puestoId);
+            
+            // Re-intento táctico si los almacenes no han cargado
+            if (!dbPuestoId) {
+                console.log(`[Coraza] ⏳ Esperando carga de almacenes para Puesto ${prog.puestoId}...`);
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                dbPuestoId = translatePuestoToUuid(prog.puestoId);
+            }
+            
+            if (!dbPuestoId) throw new Error("ID de puesto no reconocido. Verifique configuración.");
 
             const currentEmpresaId = String(useAuthStore.getState().empresaId || EMPRESA_ID).trim();
             
-            // 1. Cabecera (UPSERT por Clave de Negocio Inteligente)
-            // NO mandamos el ID local para permitir que la DB use su ID oficial o cree uno nuevo.
+            console.log(`[Coraza] 🚀 Iniciando despliegue a DB: Puesto ${dbPuestoId} | Mes ${prog.mes + 1}`);
+
             const { data: realHeader, error: headerErr } = await supabase
                 .from('programacion_mensual')
                 .upsert({
@@ -223,15 +236,39 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                     puesto_id: dbPuestoId,
                     anio: prog.anio,
                     mes: prog.mes,
-                    estado: prog.estado,
+                    estado: prog.estado || 'borrador',
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'empresa_id,puesto_id,anio,mes' })
                 .select('id')
                 .single();
 
-            if (headerErr) throw new Error(`Cabecera DB: ${headerErr.message}`);
+            if (headerErr) {
+                console.error('[Coraza] ❌ Fallo en Cabecera Supabase:', headerErr);
+                throw new Error(`Supabase: ${headerErr.message}`);
+            }
             
             const dbProgId = realHeader.id;
+            console.log(`[Coraza] ✅ Cabecera sincronizada. ID DB: ${dbProgId}`);
+
+            // ACTUALIZACIÓN TÁCTICA: Si el ID local era temporal, lo reemplazamos por el de la DB
+            // para que las futuras sincronizaciones y referencias sean exactas.
+            if (dbProgId && dbProgId !== prog.id) {
+                console.log(`[Coraza] 🔄 Mapeando ID local ${prog.id} -> ID DB ${dbProgId}`);
+                set((state: any) => {
+                    const newProgs = state.programaciones.map((p: any) => 
+                        p.id === prog.id ? { ...p, id: dbProgId } : p
+                    );
+                    const newMap = new Map(state._progMap);
+                    const p = newProgs.find((px: any) => px.id === dbProgId);
+                    if (p) {
+                        newMap.set(dbProgId, p);
+                        newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
+                        // Limpiamos el ID viejo del mapa para evitar basura
+                        newMap.delete(prog.id);
+                    }
+                    return { programaciones: newProgs, _progMap: newMap };
+                });
+            }
 
             // 2. Personal (Usamos el ID real de la DB)
             const personalPayload = prog.personal
@@ -250,7 +287,7 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
             // 3. Asignaciones en lotes de 100
             const asignacionesPayload = prog.asignaciones
                 .map(a => {
-                    const mappedVid = a.vigilanteId ? translateToDb(a.vigilanteId) : null;
+                    const mappedVid = a.vigilanteId ? translateToUuid(a.vigilanteId) : null;
                     return {
                         programacion_id: dbProgId,
                         dia: a.dia,
@@ -265,12 +302,18 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                 });
 
             const BATCH_SIZE = 100;
+            console.log(`[Coraza] 🛰️ Desplegando ${asignacionesPayload.length} asignaciones en lotes de ${BATCH_SIZE}...`);
+            
             for (let i = 0; i < asignacionesPayload.length; i += BATCH_SIZE) {
                 const chunk = asignacionesPayload.slice(i, i + BATCH_SIZE);
                 const { error: asigErr } = await supabase
                     .from('asignaciones_dia')
                     .upsert(chunk, { onConflict: 'programacion_id,dia,rol' });
-                if (asigErr) console.warn('[Coraza] Asignaciones warning:', asigErr.message);
+                
+                if (asigErr) {
+                    console.error(`[Coraza] ❌ Fallo en lote ${i / BATCH_SIZE + 1}:`, asigErr);
+                    throw new Error(`DB Asignaciones Rechazadas: ${asigErr.message}`);
+                }
             }
 
             console.log(`[Coraza] Guardado directo OK: ${prog.id} | ${asignacionesPayload.length} asignaciones`);
@@ -388,6 +431,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         { anio: mesActual === 11 ? anio + 1 : anio, mes: mesActual === 11 ? 0 : mesActual + 1 },
                     ];
                     await Promise.all(meses.map(m => get().fetchProgramacionesByMonth(m.anio, m.mes)));
+                    set({ loaded: true }); // <--- EL FUSIBLE QUE FALTABA
                 } catch (error) {
                     console.error('[Coraza] ❌ fetchProgramaciones Error:', error);
                     set({ loaded: true });
@@ -458,7 +502,14 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                 if (idx >= 0) {
                                     const existing = merged[idx];
                                     
-                                    if (existing.syncStatus === 'pending' && existing.id !== h.id) {
+                                    if (existing.syncStatus === 'pending') {
+                                        // ESCUDO TÁCTICO: Proteger cambios locales de sobrescritura
+                                        merged[idx] = { 
+                                            ...existing,
+                                            estado: h.estado, 
+                                            actualizadoEn: h.actualizadoEn,
+                                            version: h.version
+                                        };
                                     } else {
                                         merged[idx] = { 
                                             ...h, 
@@ -580,8 +631,12 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             const localHasData = p.asignaciones && p.asignaciones.some((a: AsignacionDia) => a.vigilanteId !== null);
                             const remoteHasData = asignaciones && asignaciones.some(a => a.vigilanteId !== null);
                             
-                            if (localIsPending) return { ...p, isDetailLoaded: true, isFetching: false };
-                            if (localHasData && !remoteHasData) return { ...p, isDetailLoaded: true, isFetching: false };
+                            if (localIsPending) {
+                                return { ...p, isDetailLoaded: true, isFetching: false };
+                            }
+                            if (localHasData && !remoteHasData) {
+                                return { ...p, isDetailLoaded: true, isFetching: false };
+                            }
 
                             return {
                                 ...p,
@@ -708,16 +763,35 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     set((state: any) => {
                         const merged = [...state.programaciones];
                         newProgramaciones.forEach(np => {
-                            const idx = merged.findIndex(p => p.id === np.id);
-                            if (idx >= 0) merged[idx] = { ...merged[idx], ...np, isFetching: false, isDetailLoaded: true };
-                            else merged.push({ ...np, isDetailLoaded: true, isFetching: false });
+                            // BÚSQUEDA TÁCTICA MEJORADA: Buscar por ID, o por la combinación única de Puesto-Año-Mes
+                            const dbUuid = translatePuestoToUuid(np.puestoId);
+                            let idx = merged.findIndex(p => p.id === np.id);
+                            if (idx < 0) {
+                                idx = merged.findIndex(p => 
+                                    (p.puestoId === np.puestoId || p.puestoId === dbUuid || translatePuestoToUuid(p.puestoId) === dbUuid) && 
+                                    p.anio === np.anio && 
+                                    p.mes === np.mes
+                                );
+                            }
+
+                            if (idx >= 0) {
+                                const existing = merged[idx];
+                                if (existing.syncStatus === 'pending') {
+                                    // RESPETAR CAMBIOS LOCALES: Solo actualizar flags de carga, PERO unificar el ID al real de DB
+                                    merged[idx] = { ...existing, id: np.id, isFetching: false, isDetailLoaded: true };
+                                } else {
+                                    merged[idx] = { ...existing, ...np, isFetching: false, isDetailLoaded: true };
+                                }
+                            } else {
+                                merged.push({ ...np, isDetailLoaded: true, isFetching: false });
+                            }
                         });
                         const newMap = new Map<string, ProgramacionMensual>();
                         merged.forEach(p => {
                             newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
                             newMap.set(p.id, p);
-                            const dbUuid = translatePuestoToUuid(p.puestoId);
-                            if (dbUuid && dbUuid !== p.puestoId) newMap.set(`${dbUuid}-${p.anio}-${p.mes}`, p);
+                            const dbUuidLocal = translatePuestoToUuid(p.puestoId);
+                            if (dbUuidLocal && dbUuidLocal !== p.puestoId) newMap.set(`${dbUuidLocal}-${p.anio}-${p.mes}`, p);
                         });
                         return { programaciones: merged, loaded: true, _progMap: newMap };
                     });
@@ -1009,7 +1083,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     return { programaciones: newProgs, _busyMap: s._busyMap, _progMap: s._progMap };
                 });
                 
-                queueSync(progId, set, get, true);
+                queueSync(progId, set, get, false);
 
                 const conflictMsg = get().checkConflict(progId, dia, data.vigilanteId || '', data.turno || 'AM');
                 return { 
@@ -1027,40 +1101,47 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 const daysInMonth = new Date(prog.anio, prog.mes + 1, 0).getDate();
                 const daysArr = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
+                // LÓGICA OPTIMIZADA: Sobrescribimos el mes con el nuevo personal detectado
+                // Esto permite que el cambio se refleje DE INMEDIATO en todo el tablero.
                 const newAsignaciones = [...prog.asignaciones];
 
                 personal.forEach(per => {
-                    if (per.vigilanteId) {
-                        daysArr.forEach(dia => {
-                            const idx = newAsignaciones.findIndex(a => a.dia === dia && a.rol === per.rol);
-                            if (idx === -1) {
-                                newAsignaciones.push({
-                                    dia,
-                                    rol: per.rol,
+                    daysArr.forEach(dia => {
+                        const idx = newAsignaciones.findIndex(a => a.dia === dia && a.rol === per.rol);
+                        
+                        if (idx === -1) {
+                            newAsignaciones.push({
+                                dia,
+                                rol: per.rol,
+                                vigilanteId: per.vigilanteId,
+                                turno: per.turnoId || 'AM',
+                                jornada: per.vigilanteId ? 'normal' : 'sin_asignar'
+                            });
+                        } else {
+                            const exists = newAsignaciones[idx];
+                            
+                            // LÓGICA INTELIGENTE:
+                            // 1. Si la celda está VACÍA (sin vigilante), se le asigna el nuevo titular.
+                            // 2. Si es una de las opciones por defecto (AM o PM) sin modificaciones manuales, se actualiza.
+                            // 3. PERO si ya había alguien asignado manualmente con un turno específico o novedad, SE RESPETA.
+                            
+                            const isCellUnassigned = !exists.vigilanteId || exists.jornada === 'sin_asignar';
+                            
+                            if (isCellUnassigned) {
+                                newAsignaciones[idx] = {
+                                    ...exists,
                                     vigilanteId: per.vigilanteId,
-                                    turno: per.turnoId || 'AM',
-                                    jornada: 'normal'
-                                });
-                            } else {
-                                const exists = newAsignaciones[idx];
-                                if (!exists.vigilanteId || exists.jornada === 'sin_asignar') {
-                                    newAsignaciones[idx] = {
-                                        ...exists,
-                                        vigilanteId: per.vigilanteId,
-                                        turno: per.turnoId || exists.turno || 'AM',
-                                        jornada: exists.jornada === 'sin_asignar' ? 'normal' : exists.jornada
-                                    };
-                                }
+                                    turno: per.turnoId || exists.turno || 'AM',
+                                    jornada: per.vigilanteId ? 'normal' : 'sin_asignar'
+                                };
+                            } else if (!per.vigilanteId) {
+                                // Si el usuario está "quitando" al titular del puesto, NO le quitamos
+                                // sus turnos de las celdas, porque quizás el operario quiera dejarlo solo unos días.
+                                // Si él quiere quitarlo del todo, lo quita del tablero manualmente.
+                                // Si quisiéramos borrar todo al desasignar, sería agresivo. Mantengamos la data.
                             }
-                        });
-                    } else {
-                        // Si liberan el rol, eliminar el asignado de los dias inmutablemente
-                        newAsignaciones.forEach((a, idx) => {
-                            if (a.rol === per.rol) {
-                                newAsignaciones[idx] = { ...a, vigilanteId: null, jornada: 'sin_asignar' };
-                            }
-                        });
-                    }
+                        }
+                    });
                 });
 
                 set((s: any) => {
@@ -1088,21 +1169,21 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         _progMap: s._progMap
                     };
                 });
-                queueSync(progId, set, get, true);
+                queueSync(progId, set, get, false);
             },
 
             publicarProgramacion: (progId, usuario) => {
                 set(s => ({
                     programaciones: s.programaciones.map(p => p.id !== progId ? p : { ...p, estado: 'publicado', syncStatus: 'pending' })
                 }));
-                queueSync(progId, set, get, true);
+                queueSync(progId, set, get, false);
             },
 
             guardarBorrador: (progId, usuario) => {
                 set(s => ({
                     programaciones: s.programaciones.map(p => p.id !== progId ? p : { ...p, estado: 'borrador', syncStatus: 'pending' })
                 }));
-                queueSync(progId, set, get, true);
+                queueSync(progId, set, get, false);
             },
 
             guardarComoPlantilla: async (progId, nombre, puestoNombre, usuario) => {
@@ -1365,6 +1446,15 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         }
                     )
                     .subscribe();
+            },
+
+            resumePendingSyncs: () => {
+                const s = get();
+                const pending = s.programaciones.filter(p => p.syncStatus === 'pending');
+                if (pending.length > 0) {
+                    console.log(`[Coraza] 🔄 Reanudando ${pending.length} sincronizaciones pendientes...`);
+                    pending.forEach(p => queueSync(p.id, set, get, true));
+                }
             }
         }),
         {
@@ -1388,6 +1478,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     });
                     (state as any)._progMap = newMap;
                     (state as any)._updateMap(); // Gatillar la reconstrucción de busyMap
+                    (state as any).resumePendingSyncs(); // REANUDAR MOTOR DE GUARDADO
                     console.log('[Coraza] 💾 Datos rehidratados del disco local. Tablero Listo.');
                 }
             }

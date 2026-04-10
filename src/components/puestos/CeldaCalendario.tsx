@@ -95,58 +95,58 @@ export const CeldaCalendario = React.memo(({
       onClick={onEdit}
       title={`${vigilanteNombre} · ${style.label}`}
       style={{
-        minHeight: 74,
-        background: `linear-gradient(165deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.95) 100%)`,
-        borderColor: `${style.badge}55`, // Borde neón sutil
-        boxShadow: `0 4px 15px -3px rgba(0, 0, 0, 0.5), inset 0 0 10px ${style.badge}11`
+        minHeight: 85,
+        background: `linear-gradient(165deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 1) 100%)`,
+        borderColor: `${style.badge}77`, // Borde neón más fuerte
+        boxShadow: `0 8px 25px -5px rgba(0, 0, 0, 0.6), inset 0 0 15px ${style.badge}22`
       }}
-      className="w-full h-full flex flex-col items-center justify-center gap-0.5 rounded-2xl border backdrop-blur-md hover:border-white/20 hover:scale-[1.02] transition-all duration-300 group overflow-hidden px-1 py-2 relative"
+      className="w-full h-full flex flex-col items-center justify-center gap-1 rounded-2xl border backdrop-blur-md hover:border-white/40 hover:scale-[1.05] hover:z-50 transition-all duration-400 group overflow-hidden px-2 py-3 relative"
     >
-      {/* Luz ambiental del turno */}
+      {/* Luz ambiental del turno (Glow Effect mejorado) */}
       <div 
-        className="absolute -top-6 -left-6 size-12 rounded-full blur-xl opacity-20 pointer-events-none"
+        className="absolute -top-4 -left-4 size-16 rounded-full blur-2xl opacity-30 pointer-events-none animate-pulse"
         style={{ background: style.badge }}
       />
 
-      {/* Indicador de Turno (Glass-Badge) */}
-      <div className="absolute top-1.5 left-1.5 flex items-center gap-1">
-        <div className="flex items-center justify-center size-4 rounded-md bg-white/5 border border-white/10 shadow-sm">
-          <span className="material-symbols-outlined text-[10px] font-black" style={{ color: style.badge }}>
+      {/* Indicador de Turno (Glass-Badge Luxury) */}
+      <div className="absolute top-2 left-2 flex items-center gap-1">
+        <div className="flex items-center justify-center size-5 rounded-lg bg-white/10 border border-white/20 shadow-md">
+          <span className="material-symbols-outlined text-[13px] font-black" style={{ color: style.badge }}>
             {isNight ? 'dark_mode' : 'light_mode'}
           </span>
         </div>
       </div>
 
-      {/* Badge de Jornada Táctica */}
+      {/* Badge de Jornada Táctica High-Visibility */}
       <div 
-        className="absolute top-1.5 right-1.5 text-[7px] font-black px-1.5 py-0.5 rounded-md border border-white/10 uppercase tracking-tighter"
-        style={{ background: `${style.badge}22`, color: style.badge }}
+        className="absolute top-2 right-2 text-[9px] font-black px-2 py-0.5 rounded-lg border border-white/20 uppercase tracking-widest shadow-lg"
+        style={{ background: `${style.badge}44`, color: '#fff' }}
       >
         {style.label}
       </div>
 
-      {/* Identidad del Vigilante */}
-      <div className="flex flex-col items-center justify-center w-full mt-2 space-y-0">
-        <span className="text-[10px] font-black leading-tight text-white text-center w-full truncate px-1 uppercase tracking-tight group-hover:text-indigo-300 transition-colors">
+      {/* Identidad del Vigilante (FUENTES MÁS GRANDES) */}
+      <div className="flex flex-col items-center justify-center w-full mt-3 space-y-0.5">
+        <span className="text-[12px] font-black leading-tight text-white text-center w-full truncate px-1 uppercase tracking-normal group-hover:text-amber-400 transition-colors">
           {nameParts[0]}
         </span>
         {nameParts[1] && (
-          <span className="text-[7.5px] font-bold leading-none text-slate-400 text-center w-full truncate px-1 uppercase tracking-widest mt-0.5 opacity-80">
+          <span className="text-[9px] font-black leading-none text-slate-400 text-center w-full truncate px-1 uppercase tracking-widest opacity-90">
             {nameParts[1]}
           </span>
         )}
       </div>
 
-      {/* Detalle Operativo (Etiqueta Flotante) */}
-      <div className="mt-2 flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/5 border border-white/5">
-         <span className="text-[6.5px] font-black uppercase tracking-widest text-slate-300">
+      {/* Detalle Operativo (Etiqueta de Misión) */}
+      <div className="mt-auto flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm">
+         <span className="text-[8px] font-black uppercase tracking-[0.1em] text-white/70">
             {turnoConf?.nombre || (isNight ? 'NOCHE' : 'DÍA')}
          </span>
          {turnoConf?.inicio && (
-           <span className="text-[6.5px] font-bold text-slate-500">/</span >
+           <div className="w-px h-2 bg-white/20" />
          )}
          {turnoConf?.inicio && (
-           <span className="text-[6.5px] font-bold text-slate-500">{turnoConf.inicio}</span>
+           <span className="text-[8px] font-bold text-amber-500/80">{turnoConf.inicio}</span>
          )}
       </div>
 
