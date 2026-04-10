@@ -1455,18 +1455,18 @@ const PanelMensualPuesto = ({
         <div className="overflow-x-auto custom-scrollbar">
           <table className="border-collapse select-none" style={{ width: 'max-content', tableLayout: 'fixed' }}>
             <thead>
-              <tr className="h-20 bg-slate-900 border-b-2 border-indigo-500/20">
+              <tr className="h-28 bg-slate-950 border-b-2 border-amber-500/40 shadow-2xl">
                 <th 
-                  className="sticky left-0 z-40 px-6 bg-slate-900 border-r-2 border-indigo-500/30 shadow-[4px_0_15px_rgba(0,0,0,0.5)]"
-                  style={{ width: 260 }}
+                  className="sticky left-0 z-40 px-8 bg-slate-900 border-r-2 border-amber-500/30 shadow-[10px_0_40px_rgba(0,0,0,0.7)]"
+                  style={{ width: 320 }}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="size-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                      <span className="material-symbols-outlined text-white text-[24px] font-black">shield</span>
+                  <div className="flex items-center gap-5">
+                    <div className="size-16 rounded-[22px] bg-gradient-to-br from-amber-400 via-amber-600 to-amber-700 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.4)] border border-amber-300/30">
+                      <span className="material-symbols-outlined text-white text-[32px] font-black">security</span>
                     </div>
                     <div className="text-left">
-                      <span className="text-[14px] font-black text-white uppercase tracking-tight block leading-tight">Control Operativo</span>
-                      <span className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em] mt-1 block opacity-80">Dispatcher v3.0</span>
+                      <span className="text-[18px] font-black text-white uppercase tracking-tighter block leading-tight">Mando Operativo</span>
+                      <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.3em] mt-1.5 block opacity-90 animate-pulse">Tactical Elite v4.0</span>
                     </div>
                   </div>
                 </th>
@@ -1474,13 +1474,13 @@ const PanelMensualPuesto = ({
                   const dayDate = new Date(anio, mes, d);
                   const isSun = dayDate.getDay() === 0;
                   return (
-                    <th key={d} className={`text-[11px] font-black uppercase tracking-[0.1em] border-r border-white/5 px-2 relative transition-colors ${isSun ? 'bg-red-500/5' : ''}`} style={{ minWidth: 84, width: 84 }}>
-                      <div className="flex flex-col items-center justify-center h-full gap-0.5">
-                         <span className={`text-[8px] tracking-widest ${isSun ? 'text-red-400' : 'text-slate-500'}`}>
+                    <th key={d} className={`text-[12px] font-black uppercase tracking-[0.1em] border-r border-white/5 px-2 relative transition-all ${isSun ? 'bg-red-500/10' : 'hover:bg-white/[0.02]'}`} style={{ width: 110 }}>
+                      <div className="flex flex-col items-center justify-center h-full gap-1">
+                         <span className={`text-[10px] tracking-widest font-black ${isSun ? 'text-red-400' : 'text-slate-500'}`}>
                            {dayDate.toLocaleDateString('es', {weekday: 'short'}).toUpperCase()}
                          </span>
-                         <span className={`text-[16px] tabular-nums ${isSun ? 'text-red-400' : 'text-white/90'}`}>{d}</span>
-                         {isSun && <div className="absolute top-0 left-0 w-full h-1 bg-red-500/30" />}
+                         <span className={`text-[22px] font-black tabular-nums ${isSun ? 'text-red-400' : 'text-white'}`}>{d}</span>
+                         {isSun && <div className="absolute top-0 left-0 w-full h-1.5 bg-red-600 shadow-[0_0_15px_rgba(220,38,38,0.5)]" />}
                       </div>
                     </th>
                   );
@@ -1528,53 +1528,54 @@ const PanelMensualPuesto = ({
                 return (
                   <tr 
                     key={`${per.rol}-${index}`} 
-                    className="group/row transition-all border-b border-white/5 bg-slate-900/40 hover:bg-indigo-500/[0.03]"
-                    style={{ height: 100 }}
+                    className="group/row transition-all border-b border-white/5 bg-slate-900/60 hover:bg-amber-500/[0.04]"
+                    style={{ height: 120 }}
                   >
                    <td 
-                     className="sticky left-0 z-30 transition-shadow border-r-2 border-indigo-500/20 px-6 bg-slate-900 shadow-[8px_0_30px_rgba(0,0,0,0.6)] group-hover/row:bg-slate-800"
-                     style={{ minWidth: 260, width: 260 }}
+                     className="sticky left-0 z-30 transition-all border-r-2 border-amber-500/10 px-8 bg-slate-900 shadow-[10px_0_40px_rgba(0,0,0,0.8)] group-hover/row:bg-slate-800"
+                     style={{ width: 320 }}
                    >
-                     <div className="flex flex-col gap-2.5">
-                       <div className="flex items-center gap-3">
-                          {/* Badge de Turno Inteligente */}
-                          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-black text-[9px] tracking-[0.1em] uppercase ${
+                     <div className="flex flex-col gap-3.5">
+                       <div className="flex items-center gap-4">
+                          {/* Badge de Turno Inteligente PREMIUM */}
+                          <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl border-2 font-black text-[10px] tracking-[0.15em] uppercase shadow-lg ${
                             isActuallyNight 
-                            ? 'bg-slate-950 border-amber-500/30 text-amber-500' 
-                            : 'bg-indigo-500/20 border-indigo-500/40 text-indigo-400'
+                            ? 'bg-slate-950 border-amber-500/40 text-amber-500 shadow-amber-500/10' 
+                            : 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300 shadow-indigo-500/10'
                           }`}>
-                            <span className="material-symbols-outlined text-[14px] font-black">
-                              {isActuallyNight ? 'dark_mode' : 'light_mode'}
+                            <span className="material-symbols-outlined text-[18px] font-black">
+                              {isActuallyNight ? 'brightness_3' : 'wb_sunny'}
                             </span>
                             {isActuallyNight ? 'Noche' : 'Día'}
                           </div>
                           
                           <div className="flex flex-col min-w-0">
-                            <span className="text-[12.5px] font-black uppercase tracking-tight truncate text-white/90 group-hover/row:text-indigo-400">
+                            <span className="text-[15px] font-black uppercase tracking-tight truncate text-white group-hover/row:text-amber-400 transition-colors">
                               {rolLabel}
                             </span>
-                            <div className="flex items-center gap-1.5 opacity-60">
-                               <div className="size-1.5 rounded-full" style={{ backgroundColor: turno.color || '#6366f1' }}></div>
-                               <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest">{turno.nombre}</span>
+                            <div className="flex items-center gap-2 opacity-80">
+                               <div className="size-2 rounded-full shadow-[0_0_8px_currentColor]" style={{ backgroundColor: turno.color || '#6366f1', color: turno.color || '#6366f1' }}></div>
+                               <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">{turno.nombre}</span>
                             </div>
                           </div>
                        </div>
                        
                        {assignedVig ? (
-                          <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl border bg-emerald-500/[0.05] border-emerald-500/30 shadow-md group-hover/row:border-emerald-500/50 transition-colors">
-                             <div className="size-6 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-500 border border-emerald-500/30">
-                                <span className="material-symbols-outlined text-[13px] font-black">task_alt</span>
+                          <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl border-2 bg-emerald-500/[0.08] border-emerald-500/40 shadow-[0_5px_15px_rgba(16,185,129,0.15)] group-hover/row:border-emerald-500/70 transition-all transform group-hover/row:scale-[1.02]">
+                             <div className="size-8 rounded-xl bg-emerald-500/30 flex items-center justify-center text-emerald-400 border border-emerald-500/40 shadow-inner">
+                                <span className="material-symbols-outlined text-[16px] font-black">verified_user</span>
                              </div>
                              <div className="min-w-0">
-                                <span className="text-[10px] font-black uppercase truncate block text-emerald-200 leading-none">
+                                <span className="text-[11px] font-black uppercase truncate block text-white tracking-wide">
                                   {typeof assignedVig === 'string' ? assignedVig : assignedVig.nombre}
                                 </span>
+                                <span className="text-[8px] font-black text-emerald-400/70 uppercase tracking-widest">Personal Activo</span>
                              </div>
                           </div>
                        ) : (
-                          <div className="flex items-center gap-2.5 px-3 py-2 border border-dashed border-slate-700 bg-slate-800/20 rounded-xl opacity-40">
-                             <span className="material-symbols-outlined text-slate-500 text-[14px]">person_off</span>
-                             <span className="text-[8.5px] font-black uppercase text-slate-500 tracking-tighter">Sin Guardia Fijo</span>
+                          <div className="flex items-center gap-3 px-4 py-2.5 border-2 border-dashed border-slate-700 bg-slate-800/30 rounded-2xl opacity-50 group-hover/row:opacity-80 transition-opacity">
+                             <span className="material-symbols-outlined text-slate-500 text-[20px]">person_add</span>
+                             <span className="text-[9px] font-black uppercase text-slate-500 tracking-wider">Vacante Operativa</span>
                           </div>
                        )}
                      </div>
@@ -1590,7 +1591,7 @@ const PanelMensualPuesto = ({
                      const isWeekend = dow === 0 || dow === 6;
 
                      return (
-                       <td key={d} style={{ padding: 8, minWidth: 84, width: 84 }} className={`border-r border-white/5 transition-colors ${isWeekend ? 'bg-white/[0.02]' : 'group-hover/row:bg-white/[0.03]'}`}>
+                       <td key={d} style={{ padding: 12, width: 110 }} className={`border-r border-white/5 transition-all outline-none ${isWeekend ? 'bg-white/[0.03]' : 'group-hover/row:bg-white/[0.05]'}`}>
                          <CeldaCalendario
                            asig={asig}
                            vigilanteNombre={asig.vigilanteId ? (vigilanteMap.get(asig.vigilanteId) || "Asignado") : undefined}
