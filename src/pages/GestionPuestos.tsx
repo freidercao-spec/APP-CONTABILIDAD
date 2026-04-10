@@ -1505,7 +1505,7 @@ const PanelMensualPuesto = ({
                 return (
                   <tr 
                     key={`${per.rol}-${index}`} 
-                    className="group/row transition-colors border-b last:border-0 border-slate-100 bg-white hover:bg-slate-50/50"
+                    className="group/row transition-colors border-b last:border-0 border-white/5 bg-slate-900/20 hover:bg-white/[0.02]"
                     style={{ height: 84 }}
                   >
                    <td 
