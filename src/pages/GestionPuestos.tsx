@@ -1634,12 +1634,16 @@ const PanelMensualPuesto = ({
           onClose={() => setEditCell(null)}
           onSave={(data) => {
             const user = useAuthStore.getState().username || "Operador";
-            const result = actualizarAsignacion(
+            const result = (useProgramacionStore.getState() as any).actualizarAsignacion(
               editCell.progId,
               editCell.asig.dia,
               data,
               user
             );
+            
+            // Cerrar el modal inmediatamente después del proceso
+            setEditCell(null);
+
             if (result?.tipo === "bloqueo") {
               showTacticalToast({
                 title: "⚠️ Conflicto",
@@ -1647,14 +1651,20 @@ const PanelMensualPuesto = ({
                 type: "warning",
                 duration: 5000,
               });
+            } else if (result?.tipo === "advertencia") {
+               showTacticalToast({
+                title: "⚠️ Carga Duplicada",
+                message: result.mensaje,
+                type: "warning",
+                duration: 4000,
+              });
             } else {
               showTacticalToast({
-                title: "âœ… Guardado",
-                message: "Asignación registrada correctamente.",
+                title: "✓ Despacho Exitoso",
+                message: "Asignación reflejada en el tablero táctico.",
                 type: "success",
               });
             }
-            setEditCell(null);
           }}
         />
       )}
