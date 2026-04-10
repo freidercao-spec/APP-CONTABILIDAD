@@ -864,7 +864,6 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 });
                 queueSync(progId, set, get, true);
             },
-            },
 
             actualizarAsignacion: (progId, dia, data, usuario) => {
                 const state = get();
