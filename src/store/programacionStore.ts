@@ -791,13 +791,28 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
             // USAR ESTE PARA RENDERING MASIVO (O(1))
             getProgramacionRapid: (puestoId: string, anio: number, mes: number) => {
-                const dbUuid = translatePuestoToUuid(puestoId);
-                const key1 = `${puestoId}-${anio}-${mes}`;
-                const key2 = `${dbUuid}-${anio}-${mes}`;
+                const s = get();
+                const map = (s as any)._progMap;
                 
-                const state = get() as any;
-                const map = state._progMap || new Map<string, any>();
-                return map.get(key1) || map.get(key2) || undefined;
+                // 1. Intento por clave en mapa (Rápido)
+                if (map) {
+                    const key1 = `${puestoId}-${anio}-${mes}`;
+                    if (map.has(key1)) return map.get(key1);
+
+                    const dbUuid = translatePuestoToUuid(puestoId);
+                    if (dbUuid && dbUuid !== puestoId) {
+                        const key2 = `${dbUuid}-${anio}-${mes}`;
+                        if (map.has(key2)) return map.get(key2);
+                    }
+                }
+
+                // 2. Búsqueda de EMERGENCIÀ (Lento pero INFALIBLE)
+                // Si el mapa falló, buscamos en el array real.
+                return (s as any).programaciones.find((p: any) => 
+                    (p.puestoId === puestoId || translatePuestoToUuid(p.puestoId) === translatePuestoToUuid(puestoId)) && 
+                    p.anio === anio && 
+                    p.mes === mes
+                );
             },
 
             crearOObtenerProgramacion: (puestoId, anio, mes, usuario) => {
