@@ -709,7 +709,7 @@ const PanelMensualPuesto = ({
         let finalContent = code;
         
         if (code === "D" || code === "N" || code === "24") {
-          const isNight = ['b', 'pm', 'noche', 'nocturno', 'vigilia'].some(k => a.rol?.toLowerCase().includes(k)) || a.turno === 'PM';
+          const isNight = ['b', 'pm', 'noche', 'nocturno', 'vigilia'].some(k => (a.rol || "").toLowerCase().includes(k)) || a.turno === 'PM';
           const rCode = code === "24" ? "24" : (isNight ? "N" : "D");
           
           let tInicio = "06";
@@ -955,7 +955,7 @@ const PanelMensualPuesto = ({
         let finalContent = code;
         
         if (code === "D" || code === "N" || code === "24") {
-          const isNight = ['b', 'pm', 'noche', 'nocturno', 'vigilia'].some(k => a.rol?.toLowerCase().includes(k)) || a.turno === 'PM';
+          const isNight = ['b', 'pm', 'noche', 'nocturno', 'vigilia'].some(k => (a.rol || "").toLowerCase().includes(k)) || a.turno === 'PM';
           const rCode = code === "24" ? "24" : (isNight ? "N" : "D");
           
           let tInicio = "06";
