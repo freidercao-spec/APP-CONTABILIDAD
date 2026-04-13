@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { usePuestoStore } from "../store/puestoStore";
 import type { TurnoConfig } from "../store/puestoStore";
 import { useVigilanteStore } from "../store/vigilanteStore";
@@ -2041,7 +2041,7 @@ const GestionPuestos = () => {
 
   return (
     <div className="h-screen flex flex-col bg-[#050b16]">
-      <header className="bg-[#0a1120] text-white px-10 py-6 border-b border-white/5 shrink-0 flex items-center justify-between shadow-2xl z-30 relative overflow-hidden">
+      <header className="bg-[#0a1120] text-white px-10 py-6 border-b-4 border-green-500 shrink-0 flex items-center justify-between shadow-2xl z-30 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-1/3 h-full bg-indigo-500/5 blur-[100px] pointer-events-none"></div>
         
         <div className="flex items-center gap-8 flex-1">
