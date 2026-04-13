@@ -1962,7 +1962,7 @@ const GestionPuestos = () => {
                       <span className="material-symbols-outlined text-primary-light text-[24px]">terminal</span>
                     </div>
                     <div>
-                      <span className="text-[13px] font-black text-white uppercase tracking-[0.3em] block leading-none">Red de Objetivos</span>
+                      <span className="text-[13px] font-black text-white uppercase tracking-[0.3em] block leading-none">Matriz de Objetivos</span>
                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mt-1.5 block">Nivel Ops: 1</span>
                     </div>
                   </div>
@@ -2040,168 +2040,150 @@ const GestionPuestos = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-[#060d1a]">
-      <header className="bg-[#0b1221] text-white px-12 py-8 border-b border-white/5 shrink-0 flex items-center justify-between shadow-2xl z-30 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-indigo-500/10 to-transparent pointer-events-none"></div>
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.03] pointer-events-none"></div>
+    <div className="h-screen flex flex-col bg-[#050b16]">
+      <header className="bg-[#0a1120] text-white px-10 py-6 border-b border-white/5 shrink-0 flex items-center justify-between shadow-2xl z-30 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-1/3 h-full bg-indigo-500/5 blur-[100px] pointer-events-none"></div>
         
-        <div className="flex items-center gap-10 relative flex-1">
-          <div className="relative group cursor-pointer" onClick={() => window.location.href = '/'}>
-            <div className="absolute -inset-2 bg-indigo-500/20 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-            <div className="size-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center p-3 relative overflow-hidden shadow-2xl shadow-black/60 group-hover:border-indigo-500/50 transition-all transform group-hover:rotate-0 -rotate-3">
-              <img src="/logo.png" alt="CORAZA" className="w-full h-full object-contain brightness-125 group-hover:scale-110 transition-transform duration-500" />
-            </div>
-          </div>
-
+        <div className="flex items-center gap-8 flex-1">
           <div className="flex flex-col">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="size-2 bg-indigo-500 rounded-full animate-ping"></div>
-              <span className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.4em]">CENTRO DE CONTROL</span>
+            <div className="flex items-center gap-2 mb-0.5">
+              <div className="size-2 bg-primary rounded-full animate-pulse shadow-[0_0_8px_#4318ff]"></div>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">SISTEMA DE CONTROL TÃCTICO</span>
             </div>
-            <h1 className="text-3xl font-black text-white uppercase tracking-tighter leading-none italic">
-              GESTIÃ“N <span className="text-primary not-italic">DE</span> <span className="bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent not-italic">PUESTOS</span>
+            <h1 className="text-3xl font-black text-white uppercase tracking-tighter leading-none italic flex items-baseline gap-3">
+              GESTIÃ“N <span className="text-primary text-[28px] not-italic">DE</span> <span className="bg-gradient-to-r from-white to-slate-500 bg-clip-text text-transparent not-italic">PUESTOS</span>
             </h1>
           </div>
 
-          <div className="flex items-center bg-black/40 border border-white/5 rounded-[22px] p-1 ml-4 shadow-inner">
+          <div className="flex items-center bg-black/50 border border-white/5 rounded-3xl p-1 ml-6 shadow-2xl backdrop-blur-xl">
             <button 
               onClick={() => { const d = new Date(anio, mes - 1); setAnio(d.getFullYear()); setMes(d.getMonth()); }}
-              className="p-3 text-slate-500 hover:text-white transition-all transform active:scale-95 hover:bg-white/5 rounded-xl"
+              className="p-3 text-slate-500 hover:text-white transition-all transform active:scale-90"
             >
-              <span className="material-symbols-outlined text-2xl">chevron_left</span>
+              <span className="material-symbols-outlined text-2xl">arrow_back_ios_new</span>
             </button>
-            <div className="px-6 py-1 text-center min-w-[140px] border-x border-white/5">
-              <p className="text-[9px] font-black text-primary uppercase tracking-[0.4em] mb-0.5 opacity-60">{anio}</p>
-              <p className="text-[15px] font-black text-white uppercase tracking-[0.15em]">{MONTH_NAMES[mes]}</p>
+            <div className="px-5 py-0.5 text-center min-w-[130px] border-x border-white/5">
+              <p className="text-[9px] font-black text-primary uppercase tracking-[0.4em] mb-0">{anio}</p>
+              <p className="text-[16px] font-black text-white uppercase tracking-[0.1em] italic">{MONTH_NAMES[mes]}</p>
             </div>
             <button 
               onClick={() => { const d = new Date(anio, mes + 1); setAnio(d.getFullYear()); setMes(d.getMonth()); }}
-              className="p-3 text-slate-500 hover:text-white transition-all transform active:scale-95 hover:bg-white/5 rounded-xl"
+              className="p-3 text-slate-500 hover:text-white transition-all transform active:scale-90"
             >
-              <span className="material-symbols-outlined text-2xl">chevron_right</span>
+              <span className="material-symbols-outlined text-2xl">arrow_forward_ios</span>
             </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-6 relative">
-          <div className="flex bg-black/40 border border-white/5 rounded-[28px] p-1.5 shadow-xl backdrop-blur-md">
+        <div className="flex items-center gap-5">
+          <div className="flex bg-black/40 border border-white/5 rounded-3xl p-1.5 shadow-xl">
             <button 
               onClick={() => setViewMode('cards')}
-              className={lex items-center gap-3 px-6 py-3.5 rounded-[22px] text-[11px] font-black uppercase tracking-widest transition-all duration-500 }
+              className={lex items-center gap-3 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all }
             >
-              <span className="material-symbols-outlined text-[20px]">grid_view</span>
-              <span>TARJETAS</span>
+              <span className="material-symbols-outlined text-[18px]">grid_view</span>
+              <span>CARPETAS</span>
             </button>
             <button 
               onClick={() => setViewMode('master_grid')}
-              className={lex items-center gap-3 px-6 py-3.5 rounded-[22px] text-[11px] font-black uppercase tracking-widest transition-all duration-500 }
+              className={lex items-center gap-3 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all }
             >
-              <span className="material-symbols-outlined text-[20px]">table_rows</span>
+              <span className="material-symbols-outlined text-[18px]">table_chart</span>
               <span>MAESTRO</span>
             </button>
           </div>
 
           <button 
             onClick={() => setIsNewPuestoModalOpen(true)}
-            className="flex items-center gap-4 bg-white text-[#0f172a] h-[64px] px-8 rounded-[28px] font-black text-[12px] uppercase tracking-[0.15em] hover:bg-indigo-500 hover:text-white transition-all transform hover:-translate-y-1 active:scale-95 shadow-xl border border-white/20 relative overflow-hidden group"
+            className="flex items-center gap-3 bg-white text-black h-[54px] px-6 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-primary hover:text-white transition-all transform hover:-translate-y-1 active:scale-95 shadow-2xl relative overflow-hidden group"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
-            <span className="material-symbols-outlined text-[24px]">add_location_alt</span>
-            <span>Nuevo Puesto</span>
+            <span className="material-symbols-outlined text-[20px]">add_location</span>
+            <span>Nuevo Objetivo</span>
           </button>
         </div>
       </header>
 
-      <main className="flex-1 overflow-hidden flex flex-col" style={{ background: '#060d1a' }}>
+      <main className="flex-1 overflow-hidden flex flex-col" style={{ background: '#050b16' }}>
         {viewMode === 'cards' ? (
-          <div className="flex-1 flex flex-col overflow-hidden px-12 pt-10 pb-10">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mb-12 shrink-0">
+          <div className="flex-1 flex flex-col overflow-hidden px-10 pt-8 pb-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-10 shrink-0">
               {[
-                { label: 'Total Activos', value: (puestos||[]).filter(p=>(p as any).estado!=='inactivo').length, icon: 'location_city', color: '#6366f1' },
-                { label: 'Cubiertos',     value: (puestos||[]).filter(p=>(p as any).estado==='cubierto').length, icon: 'verified_user', color: '#10b981' },
-                { label: 'Con Alertas',   value: programaciones.filter(pg => pg.anio===anio && pg.mes===mes && ((useProgramacionStore.getState() as any).getAlertas(pg.id)||[]).length>0).length, icon: 'warning', color: '#f43f5e' },
-                { label: 'Sin Personal',  value: programaciones.filter(pg => pg.anio===anio && pg.mes===mes && pg.personal.filter((x:any)=>x.vigilanteId).length===0).length, icon: 'person_off', color: '#f59e0b' },
+                { label: 'Total Puestos', value: (puestos||[]).filter(p=>(p as any).estado!=='inactivo').length, icon: 'shield', color: '#6366f1' },
+                { label: 'Cubiertos',     value: (puestos||[]).filter(p=>(p as any).estado==='cubierto').length, icon: 'verified', color: '#10b981' },
+                { label: 'Con Alertas',   value: programaciones.filter(pg => pg.anio===anio && pg.mes===mes && ((useProgramacionStore.getState() as any).getAlertas(pg.id)||[]).length>0).length, icon: 'priority_high', color: '#f43f5e' },
+                { label: 'Sin Asignar',   value: programaciones.filter(pg => pg.anio===anio && pg.mes===mes && pg.personal.filter((x:any)=>x.vigilanteId).length===0).length, icon: 'person_search', color: '#f59e0b' },
               ].map((s, i) => (
-                <div key={i} className="group rounded-[45px] p-8 flex items-center gap-8 border transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1"
-                  style={{ 
-                    background: 'rgba(15,23,42,0.6)', 
-                    borderColor: ${s.color}22, 
-                    boxShadow:   20px 50px -12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05),
-                    backdropFilter: 'blur(20px)'
-                  }}>
-                  <div className="size-20 rounded-[28px] flex items-center justify-center shrink-0 relative transition-transform duration-500 group-hover:rotate-6"
-                    style={{ background: ${s.color}15, border: 1px solid 35 }}>
-                    <div className="absolute inset-0 blur-lg opacity-40 rounded-full" style={{ background: s.color }}></div>
-                    <span className="material-symbols-outlined text-[42px] relative z-10" style={{ color: s.color }}>{s.icon}</span>
+                <div key={i} className="group rounded-[35px] p-6 flex items-center gap-6 border border-white/5 transition-all duration-500 hover:bg-white/[0.02] shadow-xl"
+                  style={{ background: 'rgba(255,255,255,0.02)', backdropFilter: 'blur(10px)' }}>
+                  <div className="size-16 rounded-2xl flex items-center justify-center shrink-0 relative"
+                    style={{ background: ${s.color}10, border: 1px solid 25 }}>
+                    <span className="material-symbols-outlined text-[32px]" style={{ color: s.color }}>{s.icon}</span>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[48px] font-black text-white leading-none mb-1.5 tracking-tighter italic">{s.value}</p>
-                    <p className="text-[13px] font-black uppercase tracking-[0.3em] opacity-80" style={{ color: s.color }}>{s.label}</p>
+                    <p className="text-[36px] font-black text-white leading-none mb-1 tracking-tighter italic">{s.value}</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40" style={{ color: s.color }}>{s.label}</p>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="flex flex-col xl:flex-row gap-8 mb-12 shrink-0">
+            <div className="flex flex-col xl:flex-row gap-6 mb-8 shrink-0">
               <div className="relative flex-1 group">
-                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-[35px] blur opacity-0 group-focus-within:opacity-100 transition-opacity duration-700"></div>
-                <span className="material-symbols-outlined absolute left-8 top-1/2 -translate-y-1/2 text-slate-700 group-focus-within:text-primary-light transition-colors text-4xl">travel_explore</span>
+                <span className="material-symbols-outlined absolute left-6 top-1/2 -translate-y-1/2 text-slate-700 group-focus-within:text-primary transition-colors text-2xl">search</span>
                 <input
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="Buscar puesto: nombre, direcciÃ³n, cÃ³digo..."
-                  className="w-full h-24 pl-24 pr-12 rounded-[35px] text-[20px] font-black text-white outline-none transition-all placeholder:text-slate-700 relative z-10"
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(10px)' }}
+                  placeholder="Localizar puesto o cÃ³digo tÃ¡ctico..."
+                  className="w-full h-16 pl-16 pr-8 rounded-2xl text-[16px] font-black text-white outline-none transition-all placeholder:text-slate-700 border border-white/5 bg-white/5 focus:border-primary/50"
+                  style={{ backdropFilter: 'blur(10px)' }}
                 />
               </div>
 
-              <div className="flex rounded-[35px] p-2.5 gap-2.5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', backdropFilter: 'blur(10px)' }}>
+              <div className="flex bg-white/5 border border-white/5 rounded-2xl p-1.5 backdrop-blur-md gap-1">
                 {[
-                  { id: 'todos',        label: 'Todos',        icon: 'grid_view'   },
-                  { id: 'alerta',       label: 'Alertas',      icon: 'warning'     },
-                  { id: 'sin_personal', label: 'Sin Personal', icon: 'person_off'  },
-                  { id: 'publicados',   label: 'Publicados',   icon: 'cloud_done'  },
+                  { id: 'todos',        label: 'TODOS',      icon: 'list_alt'    },
+                  { id: 'alerta',       label: 'ALERTAS',    icon: 'warning'     },
+                  { id: 'sin_personal', label: 'VACÃOS',     icon: 'person_off'  },
+                  { id: 'publicados',   label: 'OK',         icon: 'task_alt'    },
                 ].map(t => (
                   <button key={t.id} onClick={() => setFilterTab(t.id as any)}
-                    className={lex items-center gap-4 px-10 py-5 rounded-[28px] text-[14px] font-black uppercase tracking-[0.25em] transition-all duration-500 whitespace-nowrap }>
-                    <span className="material-symbols-outlined text-[28px]">{t.icon}</span>
-                    <span className="hidden 2xl:inline">{t.label}</span>
+                    className={lex items-center gap-3 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 }>
+                    <span className="material-symbols-outlined text-[18px]">{t.icon}</span>
+                    <span className="hidden lg:inline">{t.label}</span>
                   </button>
                 ))}
               </div>
 
               <button onClick={() => useProgramacionStore.getState().forceSync()} disabled={!progLoaded}
-                className="h-24 px-10 flex items-center gap-4 rounded-[35px] text-[13px] font-black uppercase transition-all duration-500 disabled:opacity-40 group border relative overflow-hidden"
-                style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.07)', color: '#475569' }}>
-                <div className="absolute inset-0 bg-indigo-500/10 translate-y-full group-hover:translate-y-0 transition-transform"></div>
-                <span className={material-symbols-outlined text-[32px] relative z-10 transition-transform duration-700 group-hover:rotate-180 }>sync_lock</span>
-                <span className="hidden xl:inline relative z-10 tracking-[0.2em]">SINCRONIZAR</span>
+                className="h-16 px-8 flex items-center gap-3 rounded-2xl text-[11px] font-black uppercase transition-all bg-white/5 border border-white/5 text-slate-500 hover:text-primary hover:border-primary/30">
+                <span className={material-symbols-outlined text-[24px] }>sync_alt</span>
+                <span className="hidden xl:inline tracking-widest">ACTUALIZAR RED</span>
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
               {isInitialLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-pulse">
                   {[1,2,3,4,5,6,7,8].map(i => (
-                    <div key={i} className="h-64 rounded-[28px] overflow-hidden" style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid rgba(255,255,255,0.05)' }} />
+                    <div key={i} className="h-48 rounded-[35px] bg-white/[0.02]" />
                   ))}
                 </div>
               ) : pagedPuestos.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-24 rounded-[32px] border border-white/5">
-                  <span className="material-symbols-outlined text-[56px] text-slate-800 mb-4">search_off</span>
-                  <p className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Sin puestos encontrados</p>
+                <div className="flex flex-col items-center justify-center py-24 border border-white/5 rounded-[35px] bg-black/20">
+                  <span className="material-symbols-outlined text-[48px] text-slate-800 mb-4 font-light">find_in_page</span>
+                  <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">SeÃ±al perdida - No hay objetivos que coincidan</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-20">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20">
                   {pagedPuestos.map(p => (
                     <PuestoCard key={p.id} puesto={p} anio={anio} mes={mes} onClick={() => setSelectedPuesto({ dbId: p.dbId || p.id, nombre: p.nombre })} />
                   ))}
                 </div>
               )}
               {visibleCount < filteredPuestos.length && (
-                <div className="flex justify-center pt-6 pb-12">
-                  <button onClick={() => setVisibleCount(v => v + 60)} className="px-10 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all">
-                    Cargar mÃ¡s
+                <div className="flex justify-center pt-8 pb-12">
+                  <button onClick={() => setVisibleCount(v => v + 60)} className="px-12 py-4 bg-primary hover:bg-indigo-500 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all shadow-2xl">
+                    Expandir Red
                   </button>
                 </div>
               )}
@@ -2218,4 +2200,5 @@ const GestionPuestos = () => {
 };
 
 export default GestionPuestos;
+
 
