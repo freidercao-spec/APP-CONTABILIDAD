@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+﻿import React, { useMemo } from 'react';
 import { useProgramacionStore } from '../../store/programacionStore';
 import { useVigilanteStore } from '../../store/vigilanteStore';
 
@@ -69,7 +69,7 @@ export const PuestoCard = React.memo(({ puesto, anio, mes, onClick }: PuestoCard
   const estadoConfig = {
     publicado: { label: 'CALIFICADO', cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
     borrador:  { label: 'PROCESO',    cls: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
-    default:   { label: 'VACÍO',      cls: 'text-slate-500 bg-white/5 border-white/5' },
+    default:   { label: 'VAC?O',      cls: 'text-slate-500 bg-white/5 border-white/5' },
   };
   const currentEstado = (estadoConfig as any)[prog?.estado] || estadoConfig.default;
 
@@ -105,7 +105,7 @@ export const PuestoCard = React.memo(({ puesto, anio, mes, onClick }: PuestoCard
               </div>
               <div className="flex flex-col">
                  <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest leading-none mb-1">COBERTURA</span>
-                 <span className="text-[10px] font-black text-slate-300">{cobertura >= 85 ? 'ÓPTIMA' : 'REVISAR'}</span>
+                 <span className="text-[10px] font-black text-slate-300">{cobertura >= 85 ? '?PTIMA' : 'REVISAR'}</span>
               </div>
            </div>
            <div className="bg-black/30 rounded-3xl p-5 flex flex-col justify-center border border-white/5 shadow-inner">
@@ -135,7 +135,7 @@ export const PuestoCard = React.memo(({ puesto, anio, mes, onClick }: PuestoCard
 
         <div className="flex items-center justify-between pt-7 border-t border-white/10 relative z-10">
            <div className="flex flex-col">
-              <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest mb-1.5 opacity-60">SITUACIÓN RED</span>
+              <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest mb-1.5 opacity-60">SITUACI?N RED</span>
               <span className={`text-[10px] font-black px-4 py-1.5 rounded-full border-2 uppercase tracking-[0.1em] ${currentEstado.cls}`}>
                 {currentEstado.label}
               </span>

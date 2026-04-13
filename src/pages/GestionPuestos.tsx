@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { usePuestoStore } from '../store/puestoStore';
 import { useProgramacionStore } from '../store/programacionStore';
 import { useVigilanteStore } from '../store/vigilanteStore';
@@ -106,7 +106,7 @@ const GestionPuestos = () => {
            <div className="size-24 rounded-[32px] bg-indigo-500/10 flex items-center justify-center mb-6 border border-indigo-500/20">
               <span className="material-symbols-outlined text-[56px] text-primary animate-spin">sync</span>
            </div>
-           <p className="text-[12px] font-black text-primary-light uppercase tracking-[0.5em]">Reconstruyendo Red Táctica...</p>
+           <p className="text-[12px] font-black text-primary-light uppercase tracking-[0.5em]">Reconstruyendo Red T?ctica...</p>
         </div>
       );
     }
@@ -123,7 +123,7 @@ const GestionPuestos = () => {
                     </div>
                     <div>
                       <span className="text-[14px] font-black text-white uppercase tracking-[0.2em] block leading-none">Matriz Ops</span>
-                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] mt-2 block opacity-50">Sincronización Activa</span>
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] mt-2 block opacity-50">Sincronizaci?n Activa</span>
                     </div>
                   </div>
                 </th>
@@ -170,7 +170,7 @@ const GestionPuestos = () => {
                         <div className={`h-14 w-full rounded-2xl flex items-center justify-center text-[12px] font-black border-2 transition-all ${
                           asig ? 'bg-primary border-primary-light text-white shadow-xl scale-[0.85]' : 'bg-white/5 border-transparent text-slate-800 hover:border-white/10'
                         }`}>
-                          {asig ? asig.jornada.substring(0,1).toUpperCase() : '·'}
+                          {asig ? asig.jornada.substring(0,1).toUpperCase() : '?'}
                         </div>
                       </td>
                     );
@@ -198,7 +198,7 @@ const GestionPuestos = () => {
                <div className="h-[1px] w-12 bg-slate-700"></div>
             </div>
             <h1 className="text-[34px] font-black text-white italic tracking-tighter leading-none flex items-baseline gap-4">
-               GESTIÓN <span className="text-primary not-italic">DE</span> <span className="text-slate-500 font-bold not-italic">PUESTOS</span>
+               GESTI?N <span className="text-primary not-italic">DE</span> <span className="text-slate-500 font-bold not-italic">PUESTOS</span>
             </h1>
           </div>
 
@@ -223,7 +223,7 @@ const GestionPuestos = () => {
               <button onClick={() => setViewMode('cards')} 
                 className={`px-6 py-3 rounded-[15px] flex items-center gap-3 text-[11px] font-black uppercase tracking-widest transition-all ${viewMode === 'cards' ? 'bg-primary text-white shadow-[0_0_20px_rgba(67,24,255,0.4)]' : 'text-slate-600 hover:text-slate-400'}`}>
                 <span className="material-symbols-outlined text-[20px]">grid_view</span>
-                <span>Visión</span>
+                <span>Visi?n</span>
               </button>
               <button onClick={() => setViewMode('master_grid')} 
                 className={`px-6 py-3 rounded-[15px] flex items-center gap-3 text-[11px] font-black uppercase tracking-widest transition-all ${viewMode === 'master_grid' ? 'bg-primary text-white shadow-[0_0_20px_rgba(67,24,255,0.4)]' : 'text-slate-600 hover:text-slate-400'}`}>
@@ -246,7 +246,7 @@ const GestionPuestos = () => {
           <div className="grid grid-cols-4 gap-6 mb-10 shrink-0">
              <StatCard label="Total Objetivos" value={stats.active} icon="military_tech" color="#6366f1" />
              <StatCard label="Puestos Operativos" value={stats.covered} icon="shield" color="#10b981" trend="+2% Hoy" />
-             <StatCard label="Alertas Críticas" value={stats.alertCount} icon="error" color="#f43f5e" />
+             <StatCard label="Alertas Cr?ticas" value={stats.alertCount} icon="error" color="#f43f5e" />
              <StatCard label="Vacantes / Pendientes" value={stats.emptyCount} icon="pending" color="#f59e0b" />
           </div>
 
@@ -256,7 +256,7 @@ const GestionPuestos = () => {
                 <input 
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="Localizar puesto por nombre o código táctico..."
+                  placeholder="Localizar puesto por nombre o c?digo t?ctico..."
                   className="flex-1 bg-transparent outline-none text-[16px] font-bold text-white placeholder:text-slate-700 tracking-tight"
                 />
                 <button className="size-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-500 hover:text-white transition-all shadow-xl">
@@ -268,7 +268,7 @@ const GestionPuestos = () => {
                 {[
                   { id: 'todos',        label: 'TODOS',      icon: 'all_inclusive' },
                   { id: 'alerta',       label: 'ALERTAS',    icon: 'notifications_active' },
-                  { id: 'sin_personal', label: 'VACÍOS',     icon: 'person_off' },
+                  { id: 'sin_personal', label: 'VAC?OS',     icon: 'person_off' },
                   { id: 'publicados',   label: 'OK',         icon: 'verified' },
                 ].map(t => (
                   <button key={t.id} onClick={() => setFilterTab(t.id as any)}
@@ -290,7 +290,7 @@ const GestionPuestos = () => {
                      <div className="size-20 rounded-full bg-slate-900 flex items-center justify-center mb-6 border border-white/5">
                         <span className="material-symbols-outlined text-[42px] text-slate-700">radar</span>
                      </div>
-                     <p className="text-[12px] font-black text-slate-600 uppercase tracking-[0.4em]">Señal perdida - No existen registros para la búsqueda</p>
+                     <p className="text-[12px] font-black text-slate-600 uppercase tracking-[0.4em]">Se?al perdida - No existen registros para la b?squeda</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
@@ -302,7 +302,7 @@ const GestionPuestos = () => {
                 {visibleCount < filteredPuestos.length && (
                   <div className="flex justify-center pt-16">
                     <button onClick={() => setVisibleCount(v => v + 60)} className="px-16 py-5 bg-white text-black hover:bg-primary hover:text-white rounded-2xl font-black uppercase text-[12px] tracking-[0.2em] transition-all transform hover:-translate-y-1 shadow-2xl">
-                      Expandir Conexión
+                      Expandir Conexi?n
                     </button>
                   </div>
                 )}

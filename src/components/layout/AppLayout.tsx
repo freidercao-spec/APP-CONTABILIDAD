@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+﻿import React, { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
@@ -29,7 +29,7 @@ const AppLayout = ({ children }: { children?: React.ReactNode }) => {
             {/* Sidebar */}
             <Sidebar />
 
-            {/* Main — flex-1 se ajusta automáticamente al ancho del sidebar */}
+            {/* Main ? flex-1 se ajusta autom?ticamente al ancho del sidebar */}
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
                 <Topbar />
                 <div

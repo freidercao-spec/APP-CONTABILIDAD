@@ -24,8 +24,8 @@ interface CoordinationPanelProps {
   setCompareProgId?: (id: string | null) => void;
 }
 
-// ─── Helper: convierte cualquier jornada a claves normalizadas ────────────────
-// Garantiza que "normal", "AM", "PM", "24H" y días de descanso se detecten
+// ??? Helper: convierte cualquier jornada a claves normalizadas ????????????????
+// Garantiza que "normal", "AM", "PM", "24H" y d?as de descanso se detecten
 const resolveJornadaKeys = (dia: number, jornada: string): string[] => {
   const keys: string[] = [`${dia}`, `${dia}-${jornada}`];
   
@@ -71,8 +71,8 @@ export const CoordinationPanel = ({
     [currentProg]
   );
 
-  // ── MAPA DE ASIGNACIONES ORIGEN (tablero A) ─────────────────────────────
-  // FIX CRÍTICO: ahora indexa TODOS los tipos de jornada (normal, AM, PM, 24H, descanso, etc.)
+  // ?? MAPA DE ASIGNACIONES ORIGEN (tablero A) ?????????????????????????????
+  // FIX CR?TICO: ahora indexa TODOS los tipos de jornada (normal, AM, PM, 24H, descanso, etc.)
   const originAsigsMap = useMemo(() => {
     const m = new Map<string, Set<string>>();
     currentProg?.asignaciones.forEach(a => {
@@ -86,8 +86,8 @@ export const CoordinationPanel = ({
     return m;
   }, [currentProg]);
 
-  // ── MAPA DE ASIGNACIONES DESTINO (tablero B) ─────────────────────────────
-  // FIX CRÍTICO: mismo patrón de indexación completa
+  // ?? MAPA DE ASIGNACIONES DESTINO (tablero B) ?????????????????????????????
+  // FIX CR?TICO: mismo patr?n de indexaci?n completa
   const destAsigsMap = useMemo(() => {
     const m = new Map<string, Set<string>>();
     (freshCProg?.asignaciones || []).forEach(a => {
@@ -113,7 +113,7 @@ export const CoordinationPanel = ({
     return s;
   }, [freshCProg]);
 
-  // ── VIGILANTES OCUPADOS EN OTROS PUESTOS (mismo mes, excluyendo puesto actual) ─
+  // ?? VIGILANTES OCUPADOS EN OTROS PUESTOS (mismo mes, excluyendo puesto actual) ?
   const localBusyVids = useMemo(() => {
     const busySet = new Set<string>();
     const anio = currentProg?.anio;
@@ -152,7 +152,7 @@ export const CoordinationPanel = ({
     });
   }, [allPuestos, currentProg]);
 
-  // Lista de IDs únicos a mostrar en el panel
+  // Lista de IDs ?nicos a mostrar en el panel
   const uniqueVids = useMemo(() => {
     const base = new Set(
       originStaffVids
@@ -174,11 +174,11 @@ export const CoordinationPanel = ({
     return Array.from(base);
   }, [originStaffVids, showEntireStaff, searchTerm, vigilantes]);
 
-  // ── FIX FILTRO NO-REPETIR ─────────────────────────────────────────────────
+  // ?? FIX FILTRO NO-REPETIR ?????????????????????????????????????????????????
   // Ahora distingue correctamente entre:
-  // 1. Staff del puesto actual → siempre visible
-  // 2. Vigilante solo en puesto actual → visible
-  // 3. Vigilante con asignaciones en OTROS puestos este mes → ocultar si hideBusyGuards
+  // 1. Staff del puesto actual ? siempre visible
+  // 2. Vigilante solo en puesto actual ? visible
+  // 3. Vigilante con asignaciones en OTROS puestos este mes ? ocultar si hideBusyGuards
   const sortedVids = useMemo(() => {
     let result = [...uniqueVids];
 
@@ -186,12 +186,12 @@ export const CoordinationPanel = ({
       const destStaffVids = (freshCProg?.personal || []).map(p => translateToUuid(p.vigilanteId) || p.vigilanteId);
       
       result = result.filter(vid => {
-        // Staff del puesto actual o destino: siempre visible para coordinación
+        // Staff del puesto actual o destino: siempre visible para coordinaci?n
         const isStaff = originStaffVids.some(id => translateToUuid(id) === vid || id === vid) ||
                         destStaffVids.some(id => translateToUuid(id) === vid || id === vid);
         if (isStaff) return true;
 
-        // Ocultar si está ocupado en OTROS puestos (fuera de A y B)
+        // Ocultar si est? ocupado en OTROS puestos (fuera de A y B)
         return !localBusyVids.has(vid);
       });
     }
@@ -211,7 +211,7 @@ export const CoordinationPanel = ({
     <div className="mt-10 bg-[#0f172a]/80 backdrop-blur-xl rounded-[48px] border border-white/10 overflow-hidden shadow-[0_32px_128px_rgba(0,0,0,0.6)] relative">
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent"></div>
       
-      {/* ── HEADER TÁCTICO PREMIUM ────────────────────────────────────────── */}
+      {/* ?? HEADER T?CTICO PREMIUM ?????????????????????????????????????????? */}
       <div className="px-10 py-8 border-b border-white/5 bg-white/[0.01] flex flex-wrap items-center justify-between gap-6">
         <div className="flex items-center gap-6">
           <div className="size-16 rounded-[24px] bg-indigo-600/10 border border-indigo-500/30 flex items-center justify-center">
@@ -219,7 +219,7 @@ export const CoordinationPanel = ({
           </div>
           <div>
             <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">
-              CENTRO <span className="text-indigo-500 not-italic">DE COORDINACIÓN</span>
+              CENTRO <span className="text-indigo-500 not-italic">DE COORDINACI?N</span>
             </h3>
             <div className="flex items-center gap-3 mt-1.5">
                <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded text-[9px] font-black text-emerald-400 uppercase tracking-widest">
@@ -264,7 +264,7 @@ export const CoordinationPanel = ({
                     onClick={() => { setCompareProgId?.(null); setShowDestSelector(false); }}
                     className="w-full text-left p-3.5 mb-3 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-[10px] font-black text-rose-400 uppercase flex items-center justify-center gap-2 transition-all"
                   >
-                    <span className="material-symbols-outlined text-[16px]">close</span> Quitar comparación
+                    <span className="material-symbols-outlined text-[16px]">close</span> Quitar comparaci?n
                   </button>
                 )}
                 <div className="space-y-2 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
@@ -280,7 +280,7 @@ export const CoordinationPanel = ({
                         key={p.id}
                         onClick={() => {
                           if (destProg) setCompareProgId?.(destProg.id);
-                          else showTacticalToast({ title: 'Sin Programación', message: `${p.nombre} no tiene programación este mes.`, type: 'info' });
+                          else showTacticalToast({ title: 'Sin Programaci?n', message: `${p.nombre} no tiene programaci?n este mes.`, type: 'info' });
                           setShowDestSelector(false);
                         }}
                         className={`w-full text-left p-4 rounded-2xl transition-all border ${
@@ -327,22 +327,22 @@ export const CoordinationPanel = ({
         </div>
       </div>
 
-      {/* ── GRILLA TÁCTICA ─────────────────────────────────────────────────── */}
+      {/* ?? GRILLA T?CTICA ??????????????????????????????????????????????????? */}
       <div className="p-10">
         <div className="overflow-x-auto custom-scrollbar-h pb-4">
           <div className="min-w-max space-y-3">
             
-            {/* ── RENDER DÍAS CABECERA XXL ─────────────────────────────────── */}
+            {/* ?? RENDER D?AS CABECERA XXL ??????????????????????????????????? */}
             <div className="flex gap-2 mb-6 ml-[240px]">
                {daysArr.map(d => (
                  <div key={d} className="size-12 rounded-xl bg-white/[0.03] border border-white/5 flex flex-col items-center justify-center shrink-0">
-                    <span className="text-[8px] font-black text-slate-600 uppercase">Día</span>
+                    <span className="text-[8px] font-black text-slate-600 uppercase">D?a</span>
                     <span className="text-[18px] font-black text-white leading-none">{d}</span>
                  </div>
                ))}
             </div>
 
-            {/* ── VACANTES EN B (NEÓN PULSE) ─────────────────────────────── */}
+            {/* ?? VACANTES EN B (NE?N PULSE) ??????????????????????????????? */}
             {freshCProg && (
               <div className="mb-10 space-y-2 pt-6 border-t border-white/5 bg-cyan-400/[0.02] p-4 rounded-[32px]">
                 <div className="flex items-center gap-4 px-2 mb-4">
@@ -351,7 +351,7 @@ export const CoordinationPanel = ({
                   </span>
                   <div>
                     <span className="text-[12px] font-black text-cyan-400 uppercase tracking-[0.3em]">Puestos por Cubrir (Tablero B)</span>
-                    <p className="text-[9px] font-bold text-slate-500 uppercase">Asigna personal directamente a los huecos vacíos</p>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase">Asigna personal directamente a los huecos vac?os</p>
                   </div>
                 </div>
                 
@@ -392,7 +392,7 @@ export const CoordinationPanel = ({
               </div>
             )}
 
-            {/* ── GRILLA DE VIGILANTES XXL ────────────────────────────────── */}
+            {/* ?? GRILLA DE VIGILANTES XXL ?????????????????????????????????? */}
             <div className="space-y-2">
               <div className="flex items-center gap-3 px-2 mb-4">
                  <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.4em]">Personal Disponible</span>
@@ -492,11 +492,166 @@ export const CoordinationPanel = ({
             >
               <span className="flex items-center justify-center gap-3">
                  <span className="material-symbols-outlined text-[20px] group-hover:rotate-180 transition-transform duration-500">sync</span>
-                 Cargar más personal Táctico ({uniqueVids.length - displayCount} restantes)
+                 Cargar m?s personal T?ctico ({uniqueVids.length - displayCount} restantes)
               </span>
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+};
+
+// ─── PANEL MENSUAL PUESTO ──────────────────────────────────────────────────────
+// Overlay completo que muestra la cobertura individual de un puesto por mes.
+// Props: puestoId, puestoNombre, anio, mes, onClose
+interface PanelMensualPuestoProps {
+  puestoId: string;
+  puestoNombre: string;
+  anio: number;
+  mes: number;
+  onClose: () => void;
+}
+
+export const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: PanelMensualPuestoProps) => {
+  const vMap = useVigilanteStore(s => s.vigilanteMap);
+  const allProgramaciones = useProgramacionStore(s => s.programaciones);
+  const allPuestos = usePuestoStore(s => s.puestos);
+
+  const prog = allProgramaciones.find(p => p.puestoId === puestoId && p.anio === anio && p.mes === mes);
+  const puesto = allPuestos.find(p => p.dbId === puestoId || p.id === puestoId);
+
+  const daysInMonth = new Date(anio, mes + 1, 0).getDate();
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+  const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="w-full max-w-[98vw] h-[95vh] bg-[#020617] rounded-[40px] border border-white/10 shadow-[0_32px_128px_rgba(0,0,0,0.9)] overflow-hidden flex flex-col animate-in zoom-in-95 duration-400">
+
+        {/* ── HEADER ── */}
+        <div className="px-10 py-7 border-b border-white/5 flex items-center justify-between shrink-0 bg-white/[0.01]">
+          <div className="flex items-center gap-6">
+            <div className="size-14 rounded-[20px] bg-indigo-600/10 border border-indigo-500/30 flex items-center justify-center">
+              <span className="material-symbols-outlined text-indigo-400 text-[28px]">location_on</span>
+            </div>
+            <div>
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mb-1">Cobertura Individual · {MESES[mes]} {anio}</p>
+              <h2 className="text-[26px] font-black text-white uppercase italic tracking-tighter leading-none">{puestoNombre}</h2>
+              <p className="text-[10px] font-bold text-primary/50 uppercase tracking-widest mt-1">{puestoId}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="size-14 rounded-2xl bg-white/5 hover:bg-rose-500/10 border border-white/5 hover:border-rose-500/30 flex items-center justify-center text-slate-400 hover:text-rose-400 transition-all active:scale-90"
+          >
+            <span className="material-symbols-outlined text-[28px]">close</span>
+          </button>
+        </div>
+
+        {/* ── STATS ROW ── */}
+        {prog && (
+          <div className="px-10 py-4 border-b border-white/5 flex items-center gap-8 shrink-0">
+            {(prog.personal || []).map((per: any, i: number) => {
+              const vid = per.vigilanteId;
+              const v = vid ? vMap.get(vid) : null;
+              const rolLabels: Record<string, string> = { titular_a: 'TIT. A', titular_b: 'TIT. B', relevante: 'REL.' };
+              const label = rolLabels[per.rol] || per.rol?.toUpperCase();
+              return (
+                <div key={i} className="flex items-center gap-3 px-4 py-2 bg-white/[0.03] rounded-2xl border border-white/5">
+                  <div className={`size-8 rounded-xl flex items-center justify-center text-[11px] font-black text-white ${vid ? 'bg-emerald-600' : 'bg-rose-600/50'}`}>
+                    {v?.nombre?.[0] || '?'}
+                  </div>
+                  <div>
+                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{label}</p>
+                    <p className="text-[11px] font-black text-white uppercase truncate max-w-[120px]">{v?.nombre || 'VACANTE'}</p>
+                  </div>
+                </div>
+              );
+            })}
+            {!prog.personal?.length && (
+              <p className="text-[11px] font-black text-slate-600 uppercase tracking-widest">Sin personal configurado este mes</p>
+            )}
+          </div>
+        )}
+
+        {/* ── GRID DE DÍAS ── */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-10">
+          {!prog ? (
+            <div className="flex flex-col items-center justify-center h-full opacity-30">
+              <span className="material-symbols-outlined text-[64px] mb-4">event_busy</span>
+              <p className="text-[14px] font-black uppercase tracking-widest">Sin programación para {MESES[mes]} {anio}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-7 gap-3">
+              {days.map(d => {
+                const asigs = (prog.asignaciones || []).filter((a: any) => a.dia === d);
+                const date = new Date(anio, mes, d);
+                const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                const dayName = date.toLocaleDateString('es', { weekday: 'short' }).toUpperCase();
+                const hasCoverage = asigs.some((a: any) => a.vigilanteId && a.jornada !== 'sin_asignar');
+
+                return (
+                  <div
+                    key={d}
+                    className={`p-4 rounded-[24px] border transition-all ${
+                      isWeekend
+                        ? 'bg-indigo-950/20 border-indigo-500/15'
+                        : 'bg-slate-900/30 border-white/5'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <span className={`text-[22px] font-black italic leading-none ${isWeekend ? 'text-indigo-400' : 'text-white'}`}>{d}</span>
+                      <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">{dayName}</span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      {asigs.length > 0 ? asigs.map((a: any, i: number) => {
+                        const v = a.vigilanteId ? vMap.get(a.vigilanteId) : null;
+                        const isVacant = !a.vigilanteId || a.jornada === 'sin_asignar';
+                        const rolLabels: Record<string, string> = { titular_a: 'A', titular_b: 'B', relevante: 'R' };
+                        return (
+                          <div key={i} className={`flex items-center gap-2 px-2 py-1.5 rounded-xl border ${isVacant ? 'bg-rose-500/10 border-rose-500/20' : 'bg-black/40 border-white/5'}`}>
+                            <span className={`size-4 rounded-md flex items-center justify-center text-[8px] font-black shrink-0 ${isVacant ? 'bg-rose-500/30 text-rose-300' : 'bg-primary/30 text-primary-light'}`}>
+                              {rolLabels[a.rol] || '?'}
+                            </span>
+                            <p className={`text-[9px] font-black truncate uppercase ${isVacant ? 'text-rose-400' : 'text-slate-300'}`}>
+                              {v?.nombre?.split(' ')[0] || (isVacant ? 'VACANTE' : 'N/A')}
+                            </p>
+                          </div>
+                        );
+                      }) : (
+                        <div className="flex items-center justify-center py-3 opacity-20">
+                          <span className="material-symbols-outlined text-[16px]">block</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Barra de cobertura */}
+                    <div className="mt-2 h-0.5 bg-white/5 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${hasCoverage ? 'bg-emerald-500' : 'bg-rose-500/50'}`}
+                        style={{ width: hasCoverage ? '100%' : '20%' }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ── FOOTER ── */}
+        <div className="px-10 py-5 border-t border-white/5 bg-white/[0.01] flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-6 text-[9px] font-black uppercase tracking-widest text-slate-600">
+            <div className="flex items-center gap-2"><div className="size-2 rounded-full bg-emerald-500"/>Cobertura OK</div>
+            <div className="flex items-center gap-2"><div className="size-2 rounded-full bg-rose-500"/>Vacante</div>
+            <div className="flex items-center gap-2"><div className="size-2 rounded-full bg-indigo-400"/>Fin de Semana</div>
+          </div>
+          <p className="text-[9px] font-black text-slate-700 uppercase tracking-[0.2em]">Coraza CTA · Command Console</p>
+        </div>
+
       </div>
     </div>
   );
