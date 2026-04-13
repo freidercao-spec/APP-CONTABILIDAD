@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+﻿import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { usePuestoStore } from "../store/puestoStore";
 import type { TurnoConfig } from "../store/puestoStore";
 import { useVigilanteStore } from "../store/vigilanteStore";
@@ -16,6 +16,7 @@ import { showTacticalToast } from "../utils/tacticalToast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -598,6 +599,32 @@ const PanelMensualPuesto = ({
     return m;
   }, [vigilantes]);
 
+  // ── MAPA DE CONFLICTOS: Detecta doble asignación por vigilante/día ──────
+  const conflictMap = useMemo(() => {
+    const map = new Map<string, string>(); // key: "vidId-dia" => puestoNombre del conflicto
+    if (!prog) return map;
+    
+    allProgramaciones.forEach(otherProg => {
+      if (otherProg.id === prog.id) return;
+      if (otherProg.anio !== prog.anio || otherProg.mes !== prog.mes) return;
+      
+      (otherProg.asignaciones || []).forEach(a => {
+        if (a.vigilanteId && a.jornada !== 'sin_asignar') {
+          const otherPuesto = getPuestoNombre(otherProg, allPuestos);
+          const key = `${a.vigilanteId}-${a.dia}`;
+          map.set(key, otherPuesto);
+        }
+      });
+    });
+    return map;
+  }, [allProgramaciones, allPuestos, prog]);
+
+  // ── ALERTAS ACTIVAS DEL MES ──────────────────────────────────
+  const alertas = useMemo(() => {
+    if (!prog) return [];
+    return (useProgramacionStore.getState() as any).getAlertas(prog.id) || [];
+  }, [prog, allProgramaciones]);
+
   const handleSavePersonal = useCallback(
     (personal: PersonalPuesto[]) => {
       if (!prog) return;
@@ -918,100 +945,256 @@ const PanelMensualPuesto = ({
     }
   }, [prog, puestoNombre, mes, anio, daysInMonth, vigilantes, puesto, logAction]);
 
-  const handleGenerateExcel = useCallback(async () => {
-    if (!prog) return;
-    setIsGeneratingPDF(true);
-    logAction("PROGRAMACION", "Exportar Excel", `${puestoNombre} ${MONTH_NAMES[mes]} ${anio}`, "info");
 
-    try {
-      const wb = XLSX.utils.book_new();
-      const rows: any[] = [];
+    const handleGenerateExcel = useCallback(async () => {
+      try {
+        const wb = new ExcelJS.Workbook();
+        const sheetName = (puestoNombre || "Puesto").slice(0, 31).replace(/[[\]*/\\?:]/g, '');
+        const ws = wb.addWorksheet(sheetName);
 
-      rows.push(["CUADRO DE PROGRAMACIÓN MENSUAL"]);
-      rows.push(["COOPERATIVA DE VIGILANCIA Y SEGURIDAD PRIVADA CORAZA C.T.A - NIT: 901.509.121"]);
-      rows.push([`PUESTO: ${puestoNombre.toUpperCase()}`]);
-      rows.push([`MES: ${MONTH_NAMES[mes].toUpperCase()} ${anio}`]);
-      rows.push([]);
+        const CLR_VERDE_MES = '4ADE80'; 
+        const CLR_D12 = 'FFB547';     
+        const CLR_N12 = '3B82F6';     
+        const CLR_NR  = 'EF4444';     
+        const CLR_X   = 'FACC15';     
+        const CLR_VAC = 'F472B6';     
 
-      const vigDataMap = new Map<string, { nombre:string; cedula:string; rol:string; asigs: Map<number,string> }>();
+        const borderThin = {
+          top: { style: 'thin' as const, color: { argb: '000000' } },
+          left: { style: 'thin' as const, color: { argb: '000000' } },
+          bottom: { style: 'thin' as const, color: { argb: '000000' } },
+          right: { style: 'thin' as const, color: { argb: '000000' } }
+        };
 
-      (prog.personal || []).forEach((per: any) => {
-        if (!per.vigilanteId) return;
-        const vid = per.vigilanteId;
-        if (!vigDataMap.has(vid)) {
-          const vig = vigilantes.find(v => v.id===vid||v.dbId===vid);
-          vigDataMap.set(vid, { nombre:(vig?.nombre||vid).toUpperCase(), cedula:vig?.cedula||"—", rol:getRolPdfLabel(per.rol), asigs:new Map() });
-        }
-      });
-
-      (prog.asignaciones||[]).forEach((a: AsignacionDia) => {
-        if (!a.vigilanteId || a.jornada==="sin_asignar") return;
-        if (!vigDataMap.has(a.vigilanteId)) {
-          const vig = vigilantes.find(v => v.id===a.vigilanteId||v.dbId===a.vigilanteId);
-          const rolDef = (prog.personal||[]).find((p:any)=>p.vigilanteId===a.vigilanteId);
-          vigDataMap.set(a.vigilanteId, { nombre:(vig?.nombre||a.vigilanteId).toUpperCase(), cedula:vig?.cedula||"—", rol:getRolPdfLabel(rolDef?.rol||"—"), asigs:new Map() });
-        }
-        const code = JORNADA_PDF[a.jornada] || a.jornada;
-        let finalContent = code;
-        
-        if (code === "D" || code === "N" || code === "24") {
-          const isNight = ['b', 'pm', 'noche', 'nocturno', 'vigilia'].some(k => (a.rol || "").toLowerCase().includes(k)) || a.turno === 'PM';
-          const rCode = code === "24" ? "24" : (isNight ? "N" : "D");
+        const getTacticalCode = (a: AsignacionDia): string => {
+          const isUnassigned = a.jornada === 'sin_asignar' || !a.jornada;
+          if (isUnassigned) return '-';
           
-          let tInicio = "06";
-          let tFin = code === "24" ? "06" : "18";
+          if (a.codigo_personalizado) return a.codigo_personalizado;
+          if (a.jornada === 'descanso_remunerado') return 'X';
+          if (a.jornada === 'descanso_no_remunerado') return 'NR';
+          if (a.jornada === 'vacacion') return 'VAC';
+          if (a.jornada === 'AM' || a.jornada === 'D') return 'D12';
+          if (a.jornada === 'PM' || a.jornada === 'N') return 'N12';
+          if (a.jornada === '24H') return '24';
           
-          if (isNight && code !== "24") {
-             tInicio = "18"; tFin = "06";
+          if (a.jornada === 'normal') {
+             const isNightRole = ['b', 'pm', 'noche', 'nocturno', 'vigilia'].some(k => (a.rol || "").toLowerCase().includes(k)) || a.turno === 'PM';
+             return isNightRole ? 'N12' : 'D12';
           }
-          
-          if (a.inicio) tInicio = a.inicio.slice(0, 5).replace(":00", "");
-          if (a.fin) tFin = a.fin.slice(0, 5).replace(":00", "");
+          return a.jornada;
+        };
 
-          finalContent = `${rCode} ${tInicio}-${tFin}`;
-        }
+        const getCodeColor = (code: string): string | null => {
+          if (code === '-') return 'EF4444'; // Rojo fuerte para huecos
+          if (code === 'D12') return CLR_D12;
+          if (code === 'N12') return CLR_N12;
+          if (code === 'NR')  return CLR_NR;
+          if (code === 'X')   return CLR_X;
+          if (code === 'VAC') return CLR_VAC;
+          return null;
+        };
+
+        // --- MAPEO DE FILAS (Fiel al Tablero) ---
+        const rowsToExport = new Map<string, any>();
         
-        vigDataMap.get(a.vigilanteId)!.asigs.set(a.dia, finalContent);
-      });
-
-      const vigEntries = Array.from(vigDataMap.entries());
-
-      const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-      const headRow = ["ROL", "C.C.", "APELLIDOS Y NOMBRES", ...days.map(d => String(d).padStart(2,"0")), "TRAB.","DESC.","VAC."];
-      rows.push(headRow);
-
-      vigEntries.forEach(([, v]) => {
-        let trab=0, desc=0, vac=0;
-        const rowData: string[] = [v.rol, v.cedula, v.nombre];
-        days.forEach(d => {
-          const code = v.asigs.get(d) || "-";
-          const isDR = code === "DR";
-          const isDNR = code === "DNR";
-          const isVAC = code === "VAC";
-          
-          if (code && !isDR && !isDNR && !isVAC && code !== "-") trab++;
-          else if (isDR || isDNR) desc++;
-          else if (isVAC) vac++;
-          rowData.push(code);
+        // 1. Cargamos roles del personal definido (titulares)
+        (prog.personal || []).forEach(p => {
+          const v = vigilantes.find(vx => vx.id === p.vigilanteId || vx.dbId === p.vigilanteId);
+          rowsToExport.set(p.rol, {
+            rol: p.rol,
+            cedula: v?.cedula || "—",
+            nombre: (v?.nombre || "SIN ASIGNAR").toUpperCase(),
+            asigs: new Map()
+          });
         });
-        rowData.push(String(trab), String(desc), String(vac));
-        rows.push(rowData);
-      });
 
-      const ws = XLSX.utils.aoa_to_sheet(rows);
-      XLSX.utils.book_append_sheet(wb, ws, "Programacion");
-      
-      const fileName = `PROG_${puestoNombre.replace(/\s+/g,"_").toUpperCase()}_${MONTH_NAMES[mes].toUpperCase()}_${anio}.xlsx`;
-      XLSX.writeFile(wb, fileName);
-      
-      showTacticalToast({ title:"💚 Excel Generado", message:`Archivo Excel listo para contabilidad.`, type:"success" });
-    } catch (err: any) {
-      console.error("[EXCEL] Error:", err);
-      showTacticalToast({ title:"❌ Error de Excel", message:err.message||"No se pudo generar el archivo.", type:"error" });
-    } finally {
-      setIsGeneratingPDF(false);
-    }
-  }, [prog, puestoNombre, mes, anio, daysInMonth, vigilantes, logAction]);
+        // 2. Cargamos asignaciones (para incluir relevos o detectar códigos)
+        (prog.asignaciones || []).forEach((a: AsignacionDia) => {
+          if (!a.rol) return;
+          if (!rowsToExport.has(a.rol)) {
+            const v = vigilantes.find(vx => vx.id === a.vigilanteId || vx.dbId === a.vigilanteId);
+            rowsToExport.set(a.rol, {
+              rol: a.rol,
+              cedula: v?.cedula || "—",
+              nombre: (v?.nombre || "SIN ASIGNAR").toUpperCase(),
+              asigs: new Map()
+            });
+          }
+          rowsToExport.get(a.rol).asigs.set(a.dia, getTacticalCode(a));
+        });
+
+        const sortedRows = Array.from(rowsToExport.values()).sort((a,b) => {
+          const ROLES: Record<string, number> = { 'titular_a': 0, 'titular_b': 1, 'relevante': 2 };
+          return (ROLES[a.rol] ?? 99) - (ROLES[b.rol] ?? 99);
+        });
+
+        // --- CONSTRUCCIÓN EXCEL ---
+        
+        // --- ENCABEZADO CORPORATIVO ---
+        ws.mergeCells('A1', 'C1');
+        const headTitle = ws.getCell('A1');
+        headTitle.value = 'CORAZA SEGURIDAD PRIVADA CTA';
+        headTitle.font = { name: 'Arial Narrow', size: 14, bold: true, color: { argb: '4318FF' } };
+        
+        ws.mergeCells('A2', 'C2');
+        const headNit = ws.getCell('A2');
+        headNit.value = 'NIT: 901509121';
+        headNit.font = { name: 'Arial Narrow', size: 10, bold: true };
+
+        ws.mergeCells('A3', 'C3');
+        const headAddr = ws.getCell('A3');
+        headAddr.value = 'Carrera 81 #49-24 Medellín | Tel: 311 383 6939';
+        headAddr.font = { name: 'Arial Narrow', size: 9 };
+
+        ws.mergeCells('A4', 'C4');
+        const headPuesto = ws.getCell('A4');
+        headPuesto.value = `PUESTO: ${puestoNombre.toUpperCase()}`;
+        headPuesto.font = { name: 'Arial Narrow', size: 11, bold: true };
+        headPuesto.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' } };
+
+        // Fila 5: Barra Mes
+        ws.mergeCells(`A5:${String.fromCharCode(65 + 3 + daysInMonth + 4)}5`);
+        const monthCell = ws.getCell('A5');
+        monthCell.value = MONTH_NAMES[mes].toUpperCase();
+        monthCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CLR_VERDE_MES } };
+        monthCell.font = { name: 'Arial Narrow', size: 10, bold: true };
+        monthCell.alignment = { horizontal: 'center' };
+        ws.getRow(5).height = 18;
+
+        // Fila 6: Letras de Día (Dow)
+        const dowNames = ['D','L','M','W','J','V','S'];
+        const dayNameRow = ws.getRow(6);
+        daysArr.forEach((d, i) => {
+           const dt = new Date(anio, mes, d);
+           const cell = dayNameRow.getCell(4 + i);
+           cell.value = dowNames[dt.getDay()];
+           cell.font = { name: 'Arial Narrow', size: 8, bold: true };
+           cell.alignment = { horizontal: 'center' };
+           cell.border = borderThin;
+        });
+
+        // Fila 7: Números
+        const dayNumRow = ws.getRow(7);
+        daysArr.forEach((d, i) => {
+          const cell = dayNumRow.getCell(4 + i);
+          cell.value = d;
+          cell.font = { name: 'Arial Narrow', size: 8, bold: true };
+          cell.alignment = { horizontal: 'center' };
+          cell.border = borderThin;
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' } };
+        });
+
+        // Fila 8: Cabeceras
+        const hRow = ws.getRow(8);
+        hRow.height = 18;
+        const mainHeaders = ['ROL', 'CÉDULA', 'NOMBRE DE GUARDA'];
+        mainHeaders.forEach((v, i) => {
+          const cell = hRow.getCell(i+1);
+          cell.value = v;
+          cell.font = { name: 'Arial Narrow', size: 9, bold: true };
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          cell.border = borderThin;
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F8FAFC' } };
+        });
+
+        // Totales Headers
+        const lastColIdx = 4 + daysInMonth;
+        ['TRAB', 'DESC', 'NR', 'VAC'].forEach((v, i) => {
+            const cell = hRow.getCell(lastColIdx + i);
+            cell.value = v;
+            cell.font = { name: 'Arial Narrow', size: 8, bold: true };
+            cell.alignment = { horizontal: 'center' };
+            cell.border = borderThin;
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'E2E8F0' } };
+        });
+
+        const ROL_LABELS: Record<string, string> = {
+            'titular_a': 'TIT-A',
+            'titular_b': 'TIT-B',
+            'relevante': 'REL',
+        };
+
+        // Filas de Datos
+        sortedRows.forEach((row, ri) => {
+          const exRow = ws.getRow(9 + ri);
+          exRow.height = 16;
+
+          // ROL
+          const c0 = exRow.getCell(1);
+          c0.value = ROL_LABELS[row.rol] || row.rol.toUpperCase();
+          c0.font = { name: 'Arial Narrow', size: 7, bold: true };
+          c0.alignment = { horizontal: 'center' };
+          c0.border = borderThin;
+
+          // Cédula
+          const c2 = exRow.getCell(2);
+          c2.value = row.cedula;
+          c2.font = { name: 'Arial Narrow', size: 8 };
+          c2.alignment = { horizontal: 'center' };
+          c2.border = borderThin;
+
+          // Nombre
+          const c3 = exRow.getCell(3);
+          c3.value = row.nombre;
+          c3.font = { name: 'Arial Narrow', size: 8 };
+          c3.border = borderThin;
+
+          // Días & Totales
+          let tT = 0, tD = 0, tNR = 0, tV = 0;
+
+          daysArr.forEach((d, di) => {
+            const cell = exRow.getCell(4 + di);
+            const code = row.asigs.get(d) || "";
+            cell.value = code;
+            cell.font = { name: 'Arial Narrow', size: 7, bold: true };
+            cell.alignment = { horizontal: 'center' };
+            cell.border = borderThin;
+
+            const color = getCodeColor(code);
+            if (color) {
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+            }
+
+            if (['D12', 'N12', '24'].includes(code)) tT++;
+            else if (code === 'X') tD++;
+            else if (code === 'NR') tNR++;
+            else if (code === 'VAC') tV++;
+          });
+
+          // Summary cells
+          [tT, tD, tNR, tV].forEach((val, vi) => {
+              const cell = exRow.getCell(lastColIdx + vi);
+              cell.value = val || '';
+              cell.font = { name: 'Arial Narrow', size: 8, bold: true };
+              cell.alignment = { horizontal: 'center' };
+              cell.border = borderThin;
+          });
+        });
+
+        ws.getColumn(1).width = 10;
+        ws.getColumn(2).width = 14;
+        ws.getColumn(3).width = 40;
+        daysArr.forEach((_, i) => { ws.getColumn(4 + i).width = 3.5; });
+        [0,1,2,3].forEach((i) => ws.getColumn(lastColIdx + i).width = 6);
+
+        const buffer = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `CUADRO_TACTICO_${(puestoNombre||"P").replace(/\s+/g,"_")}_${MONTH_NAMES[mes]}.xlsx`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        showTacticalToast({ title:"💎 Excel Generado", message:`Fiel reflejo del tablero táctico.`, type:"success" });
+      } catch (err: any) {
+        console.error("EXCEL ERROR:", err);
+        showTacticalToast({ title:"❌ Error", message:"No se pudo procesar el archivo.", type:"error" });
+      } finally {
+        setIsGeneratingPDF(false);
+      }
+    }, [prog, puestoNombre, mes, anio, daysArr, vigilantes, logAction]);
 
   if (!prog || prog.isFetching) {
     return (
@@ -1122,11 +1305,29 @@ const PanelMensualPuesto = ({
             Publicar
           </button>
 
-          <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-2xl border border-slate-200 min-w-[120px] justify-center">
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl border min-w-[120px] justify-center ${
+            prog.syncStatus === 'error' ? 'bg-rose-50 border-rose-200' : 'bg-slate-100 border-slate-200'
+          }`}>
             {isSyncing ? (
               <>
                 <div className="size-2 bg-indigo-500 rounded-full animate-ping" />
                 <span className="text-[9px] font-black text-indigo-600 uppercase">Sincronizando...</span>
+              </>
+            ) : prog.syncStatus === 'error' ? (
+              <>
+                <span className="material-symbols-outlined text-rose-500 text-[16px]">cloud_off</span>
+                <span className="text-[9px] font-black text-rose-600 uppercase">Error de Sync</span>
+                <button 
+                  onClick={() => useProgramacionStore.getState().resumePendingSyncs()}
+                  className="ml-1 px-2 py-0.5 bg-rose-100 hover:bg-rose-200 rounded-lg text-[8px] font-black text-rose-700 uppercase transition-all"
+                >
+                  Reintentar
+                </button>
+              </>
+            ) : prog.syncStatus === 'pending' ? (
+              <>
+                <div className="size-2 bg-amber-500 rounded-full animate-pulse" />
+                <span className="text-[9px] font-black text-amber-600 uppercase">Pendiente...</span>
               </>
             ) : (
               <>
@@ -1176,6 +1377,32 @@ const PanelMensualPuesto = ({
         </div>
       )}
 
+      {/* ── PANEL DE ALERTAS DEL MES ── */}
+      {alertas.length > 0 && (
+        <div className="mb-6 px-5 py-4 bg-gradient-to-r from-rose-50 to-amber-50 border border-rose-200 rounded-3xl shadow-sm animate-in slide-in-from-top-2 duration-500">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="size-8 rounded-xl bg-rose-100 flex items-center justify-center">
+              <span className="material-symbols-outlined text-rose-500 text-[20px]">notification_important</span>
+            </div>
+            <span className="text-[10px] font-black text-rose-700 uppercase tracking-[0.2em]">Alertas del Mes ({alertas.length})</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+            {alertas.map((a: string, i: number) => (
+              <div key={i} className="flex items-center gap-2 px-3 py-2 bg-white/80 rounded-xl border border-rose-100">
+                <span className={`material-symbols-outlined text-[14px] ${
+                  a.includes('conflicto') ? 'text-rose-500' : 
+                  a.includes('descanso') ? 'text-amber-500' : 'text-slate-400'
+                }`}>
+                  {a.includes('conflicto') ? 'warning' : 
+                   a.includes('descanso') ? 'event_busy' : 'info'}
+                </span>
+                <span className="text-[10px] font-bold text-slate-700">{a}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {staffAsignado.length > 0 && (
         <div className="mb-6 flex flex-wrap gap-3">
           {(prog.personal || [])
@@ -1222,7 +1449,7 @@ const PanelMensualPuesto = ({
 
       <div className="flex flex-wrap items-center gap-3 p-4 bg-slate-900 rounded-[30px] border border-white/5 shadow-2xl mb-8 animate-in slide-in-from-top-4 duration-500">
         <div className="flex items-center gap-2 px-4 border-r border-white/10 shrink-0">
-          <span className="material-symbols-outlined text-indigo-400 text-[20px]">magic_button</span>
+          <span className="material-symbols-outlined text-primary-light text-[20px]">magic_button</span>
           <span className="text-[10px] font-black text-white uppercase tracking-widest">
             Personalizar Tablero
           </span>
@@ -1256,7 +1483,7 @@ const PanelMensualPuesto = ({
               <div className="space-y-2 mb-4 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
                 {turnosConfig.map((turno, ti) => (
                   <div key={turno.id} className="flex items-center gap-2 p-2.5 rounded-xl bg-white/5 border border-white/5">
-                    <span className="material-symbols-outlined text-[14px] text-indigo-400">schedule</span>
+                    <span className="material-symbols-outlined text-[14px] text-primary-light">schedule</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-[11px] font-black text-white truncate">{turno.nombre}</p>
                       <p className="text-[8px] font-bold text-slate-500">{turno.inicio} → {turno.fin}</p>
@@ -1544,6 +1771,14 @@ const PanelMensualPuesto = ({
                      const dow = new Date(anio, mes, d).getDay();
                      const isWeekend = dow === 0 || dow === 6;
 
+                     // Detectar conflicto: mismo vigilante asignado en otro puesto ese día
+                     const hasConflict = asig.vigilanteId && asig.jornada !== 'sin_asignar'
+                       ? conflictMap.has(`${asig.vigilanteId}-${d}`)
+                       : false;
+                     const conflictDetail = hasConflict 
+                       ? conflictMap.get(`${asig.vigilanteId}-${d}`) || ''
+                       : '';
+
                      return (
                        <td key={d} style={{ padding: 10, width: 130 }} className={`border-r border-white/5 transition-all outline-none ${isWeekend ? 'bg-white/[0.04]' : 'group-hover/row:bg-white/[0.08]'}`}>
                          <CeldaCalendario
@@ -1552,6 +1787,9 @@ const PanelMensualPuesto = ({
                            onEdit={() => setEditCell({ asig, progId: prog.id, preSelectVigilanteId: per.vigilanteId || undefined })}
                            turnosConfig={turnosConfig}
                            jornadasCustom={jornadasCustom}
+                           hasConflict={hasConflict}
+                           conflictDetail={conflictDetail}
+                           syncError={prog.syncStatus === 'error'}
                          />
                        </td>
                      );
@@ -1593,10 +1831,15 @@ const PanelMensualPuesto = ({
           asig={editCell.asig}
           vigilantes={vigilantes}
           titularesId={titularesId}
+          titulares={prog?.personal || []}
           ocupados={ocupadosMap}
           turnosConfig={turnosConfig}
           jornadasCustom={jornadasCustom}
           initialVigilanteId={editCell.preSelectVigilanteId}
+          diaLabel={(() => {
+            const d = new Date(anio, mes, editCell.asig.dia);
+            return d.toLocaleDateString('es', { weekday: 'long', day: 'numeric' });
+          })()}
           onClose={() => setEditCell(null)}
           onSave={(data) => {
             const user = useAuthStore.getState().username || "Operador";
@@ -1643,7 +1886,6 @@ const GestionPuestos = () => {
   const [isNewPuestoModalOpen, setIsNewPuestoModalOpen] = useState(false);
   const [puestoToEdit, setPuestoToEdit] = useState<any>(null);
   const [selectedPuesto, setSelectedPuesto] = useState<any>(null);
-  const [isPanelOpen, setIsPanelOpen] = useState(false);
 
   const { puestos, fetchPuestos, loaded: puestosLoaded } = usePuestoStore();
   const { programaciones, fetchProgramaciones, loaded: progLoaded } = useProgramacionStore();
@@ -1653,62 +1895,87 @@ const GestionPuestos = () => {
 
   useEffect(() => {
     const bootstrap = async () => {
-      console.log('[Coraza] 🛫 Iniciando secuencia de arranque táctico...');
       await fetchVigilantes();
       await fetchPuestos();
       await fetchProgramaciones();
-      console.log('[Coraza] 🛬 Tablero hidratado y listo para el despacho.');
     };
     bootstrap();
   }, [fetchPuestos, fetchProgramaciones, fetchVigilantes]);
 
+  const [filterTab, setFilterTab] = useState<'todos' | 'alerta' | 'sin_personal' | 'publicados'>('todos');
   const [visibleCount, setVisibleCount] = useState(60);
   
   const filteredPuestos = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    const base = (puestos || []).filter(p => (p as any).estado !== 'inactivo');
-    if (!q) return base;
-    return base.filter(p => 
-      p.nombre?.toLowerCase().includes(q) ||
-      p.id?.toLowerCase().includes(q)
-    );
-  }, [puestos, searchQuery]);
+    const store = useProgramacionStore.getState();
+    let base = (puestos || []).filter(p => (p as any).estado !== 'inactivo');
+    if (q) {
+      base = base.filter(p => 
+        p.nombre?.toLowerCase().includes(q) ||
+        p.id?.toLowerCase().includes(q) ||
+        (p as any).direccion?.toLowerCase().includes(q)
+      );
+    }
+    if (filterTab === 'alerta') {
+      base = base.filter(p => {
+        const prog = store.getProgramacionRapid?.(p.id || p.dbId, anio, mes);
+        if (!prog) return false;
+        return (store.getAlertas(prog.id) || []).length > 0;
+      });
+    } else if (filterTab === 'sin_personal') {
+      base = base.filter(p => {
+        const prog = store.getProgramacionRapid?.(p.id || p.dbId, anio, mes);
+        return !prog?.personal || prog.personal.filter((x: any) => x.vigilanteId).length === 0;
+      });
+    } else if (filterTab === 'publicados') {
+      base = base.filter(p => {
+        const prog = store.getProgramacionRapid?.(p.id || p.dbId, anio, mes);
+        return prog?.estado === 'publicado';
+      });
+    }
+    return base;
+  }, [puestos, searchQuery, filterTab, anio, mes]);
 
-  const pagedPuestos = filteredPuestos.slice(0, visibleCount);
+  const pagedPuestos = useMemo(() => filteredPuestos.slice(0, visibleCount), [filteredPuestos, visibleCount]);
 
   const renderMasterGrid = () => {
     const totalDias = new Date(anio, mes + 1, 0).getDate();
-    
     if (isInitialLoading) {
       return (
-        <div className="flex-1 flex flex-col items-center justify-center bg-white rounded-[40px] border border-slate-200 animate-pulse">
-           <span className="material-symbols-outlined text-[48px] text-primary mb-4 animate-spin">sync</span>
-           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Cargando Red de Puestos...</p>
+        <div className="flex-1 flex flex-col items-center justify-center bg-slate-950 rounded-[45px] border border-white/5 animate-pulse">
+           <div className="size-24 rounded-[32px] bg-indigo-500/10 flex items-center justify-center mb-6">
+              <span className="material-symbols-outlined text-[56px] text-primary animate-spin">sync</span>
+           </div>
+           <p className="text-[12px] font-black text-primary-light uppercase tracking-[0.5em]">Reconstruyendo Red TÃ¡ctica...</p>
         </div>
       );
     }
-    
     return (
-      <div className="flex-1 overflow-hidden flex flex-col bg-white rounded-[40px] border border-slate-200 shadow-2xl relative">
+      <div className="flex-1 overflow-hidden flex flex-col bg-slate-950/40 backdrop-blur-xl rounded-[45px] border border-white/10 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.8)] relative">
         <div className="overflow-auto custom-scrollbar flex-1">
           <table className="border-collapse border-none select-none" style={{ width: 'max-content', tableLayout: 'fixed' }}>
             <thead className="sticky top-0 z-50">
               <tr>
-                <th className="sticky left-0 z-50 bg-slate-900 border-r-2 border-primary/20 p-6 text-left shadow-[4px_0_20px_rgba(0,0,0,0.1)]" style={{ width: 280 }}>
-                  <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-primary text-[20px]">admin_panel_settings</span>
-                    <span className="text-[11px] font-black text-white uppercase tracking-[0.2em]">Red de Puestos</span>
+                <th className="sticky left-0 z-50 bg-slate-900 border-r-2 border-indigo-500/30 p-8 text-left shadow-[10px_0_40px_rgba(0,0,0,0.5)]" style={{ width: 320 }}>
+                  <div className="flex items-center gap-4">
+                    <div className="size-10 rounded-xl bg-indigo-500/20 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-primary-light text-[24px]">terminal</span>
+                    </div>
+                    <div>
+                      <span className="text-[13px] font-black text-white uppercase tracking-[0.3em] block leading-none">Red de Objetivos</span>
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mt-1.5 block">Nivel Ops: 1</span>
+                    </div>
                   </div>
                 </th>
                 {Array.from({ length: totalDias }, (_, i) => i + 1).map(d => {
                   const date = new Date(anio, mes, d);
                   const isWeekend = date.getDay() === 0 || date.getDay() === 6;
                   return (
-                    <th key={d} className={`px-2 py-4 border-r border-slate-100 text-center transition-colors ${isWeekend ? 'bg-slate-50' : 'bg-white'}`} style={{ width: 60 }}>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+                    <th key={d} className={px-2 py-6 border-r border-white/5 text-center transition-all } style={{ width: 70 }}>
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 opacity-60">
                         {date.toLocaleDateString('es', { weekday: 'short' }).substring(0, 1)}
                       </p>
-                      <p className={`text-sm font-black ${isWeekend ? 'text-primary' : 'text-slate-900'}`}>{d}</p>
+                      <p className={	ext-lg font-black italic }>{d}</p>
                     </th>
                   );
                 })}
@@ -1716,23 +1983,21 @@ const GestionPuestos = () => {
             </thead>
             <tbody>
               {filteredPuestos.map((p) => (
-                <tr key={p.id} className="group hover:bg-slate-50 transition-colors border-b border-slate-50">
-                  <td className="sticky left-0 z-40 bg-white group-hover:bg-slate-50 border-r-2 border-primary/10 px-6 py-4 shadow-[4px_0_20px_rgba(0,0,0,0.05)] transition-colors">
-                    <div className="flex flex-col gap-1">
+                <tr key={p.id} className="group hover:bg-white/[0.02] transition-colors border-b border-white/5">
+                  <td className="sticky left-0 z-40 bg-slate-950 group-hover:bg-[#111c31] border-r-2 border-white/5 px-8 py-6 shadow-[10px_0_40px_rgba(0,0,0,0.3)] transition-all">
+                    <div className="flex flex-col gap-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-primary uppercase tracking-widest">{p.id}</span>
-                        <div className="flex gap-1">
-                          <button 
-                            onClick={() => { setPuestoToEdit(p); setIsNewPuestoModalOpen(true); }}
-                            className="size-6 rounded-lg hover:bg-primary/10 text-slate-400 hover:text-primary transition-all flex items-center justify-center"
-                          >
-                            <span className="material-symbols-outlined text-[14px]">edit</span>
-                          </button>
-                        </div>
+                        <span className="text-[10px] font-black text-primary/70 uppercase tracking-[0.3em]">{p.id}</span>
+                        <button 
+                          onClick={() => { setPuestoToEdit(p); setIsNewPuestoModalOpen(true); }}
+                          className="size-8 rounded-xl bg-white/5 hover:bg-indigo-500 text-slate-500 hover:text-white transition-all flex items-center justify-center border border-white/5 shadow-xl"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">edit_note</span>
+                        </button>
                       </div>
                       <span 
                         onClick={() => setSelectedPuesto({ dbId: p.dbId || p.id, nombre: p.nombre })}
-                        className="text-[12px] font-black text-slate-900 tracking-tight truncate hover:text-primary cursor-pointer transition-colors"
+                        className="text-[15px] font-black text-slate-200 tracking-tight truncate hover:text-primary-light cursor-pointer transition-colors uppercase italic"
                       >
                         {p.nombre}
                       </span>
@@ -1744,17 +2009,11 @@ const GestionPuestos = () => {
                     return (
                       <td 
                         key={d} 
-                        className="p-1 border-r border-slate-50 cursor-pointer hover:bg-primary/5 transition-all"
-                        onClick={() => {
-                          const asigPlaceholder = asig || { dia: d, turno: 'AM', jornada: 'sin_asignar', rol: 'titular_a' };
-                          // Nota: En la grilla maestra abrimos un despacho rápido o podrías abrir el panel mensual
-                          setSelectedPuesto({ dbId: p.id, nombre: p.nombre });
-                        }}
+                        className="p-1 border-r border-white/5 cursor-pointer hover:bg-indigo-500/10 transition-all"
+                        onClick={() => setSelectedPuesto({ dbId: p.dbId || p.id, nombre: p.nombre })}
                       >
-                        <div className={`h-8 rounded-lg flex items-center justify-center text-[9px] font-black border transition-all ${
-                          asig ? 'bg-primary/10 border-primary/20 text-primary' : 'bg-slate-50 border-slate-100 text-slate-300'
-                        }`}>
-                          {asig ? asig.jornada.substring(0,1).toUpperCase() : '·'}
+                        <div className={h-12 w-full rounded-xl flex items-center justify-center text-[11px] font-black border transition-all }>
+                          {asig ? asig.jornada.substring(0,1).toUpperCase() : 'Â·'}
                         </div>
                       </td>
                     );
@@ -1781,162 +2040,168 @@ const GestionPuestos = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-slate-50">
-      <header className="bg-[#0f172a] text-white px-8 py-6 border-b border-white/5 shrink-0 flex items-center justify-between shadow-2xl z-30 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-primary/10 to-transparent pointer-events-none"></div>
+    <div className="h-screen flex flex-col bg-[#060d1a]">
+      <header className="bg-[#0b1221] text-white px-12 py-8 border-b border-white/5 shrink-0 flex items-center justify-between shadow-2xl z-30 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-indigo-500/10 to-transparent pointer-events-none"></div>
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.03] pointer-events-none"></div>
         
-        <div className="flex items-center gap-6 relative">
-          <div className="size-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center p-2 transform -rotate-3 hover:rotate-0 transition-all cursor-pointer group shadow-lg shadow-black/20" onClick={() => window.location.href = '/'}>
-            <img src="/logo.png" alt="CORAZA" className="w-full h-full object-contain brightness-125 group-hover:scale-110 transition-transform" />
-          </div>
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <span className="text-[10px] font-black text-primary uppercase tracking-[0.4em] animate-pulse">Operaciones Live</span>
-              <span className="h-1 w-1 rounded-full bg-white/20"></span>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">Master Control</span>
+        <div className="flex items-center gap-10 relative flex-1">
+          <div className="relative group cursor-pointer" onClick={() => window.location.href = '/'}>
+            <div className="absolute -inset-2 bg-indigo-500/20 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+            <div className="size-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center p-3 relative overflow-hidden shadow-2xl shadow-black/60 group-hover:border-indigo-500/50 transition-all transform group-hover:rotate-0 -rotate-3">
+              <img src="/logo.png" alt="CORAZA" className="w-full h-full object-contain brightness-125 group-hover:scale-110 transition-transform duration-500" />
             </div>
-            <h1 className="text-2xl font-black tracking-tighter uppercase italic leading-none">
-              Gestión de <span className="text-primary not-italic">Puestos</span>
+          </div>
+
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="size-2 bg-indigo-500 rounded-full animate-ping"></div>
+              <span className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.4em]">CENTRO DE CONTROL</span>
+            </div>
+            <h1 className="text-3xl font-black text-white uppercase tracking-tighter leading-none italic">
+              GESTIÃ“N <span className="text-primary not-italic">DE</span> <span className="bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent not-italic">PUESTOS</span>
             </h1>
           </div>
-          
-          <div className="ml-12 flex items-center bg-black/40 border border-white/10 rounded-2xl p-1 shadow-inner">
+
+          <div className="flex items-center bg-black/40 border border-white/5 rounded-[22px] p-1 ml-4 shadow-inner">
             <button 
               onClick={() => { const d = new Date(anio, mes - 1); setAnio(d.getFullYear()); setMes(d.getMonth()); }}
-              className="px-3 py-2 text-slate-500 hover:text-white transition-colors"
+              className="p-3 text-slate-500 hover:text-white transition-all transform active:scale-95 hover:bg-white/5 rounded-xl"
             >
-              <span className="material-symbols-outlined text-lg">chevron_left</span>
+              <span className="material-symbols-outlined text-2xl">chevron_left</span>
             </button>
-            <div className="px-6 py-2 text-center min-w-[140px]">
-              <p className="text-[9px] font-black text-primary uppercase tracking-widest">{anio}</p>
-              <p className="text-sm font-black text-white uppercase">{MONTH_NAMES[mes]}</p>
+            <div className="px-6 py-1 text-center min-w-[140px] border-x border-white/5">
+              <p className="text-[9px] font-black text-primary uppercase tracking-[0.4em] mb-0.5 opacity-60">{anio}</p>
+              <p className="text-[15px] font-black text-white uppercase tracking-[0.15em]">{MONTH_NAMES[mes]}</p>
             </div>
             <button 
               onClick={() => { const d = new Date(anio, mes + 1); setAnio(d.getFullYear()); setMes(d.getMonth()); }}
-              className="px-3 py-2 text-slate-500 hover:text-white transition-colors"
+              className="p-3 text-slate-500 hover:text-white transition-all transform active:scale-95 hover:bg-white/5 rounded-xl"
             >
-              <span className="material-symbols-outlined text-lg">chevron_right</span>
+              <span className="material-symbols-outlined text-2xl">chevron_right</span>
             </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-4 relative">
-          <div className="relative group hidden lg:block">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-lg group-focus-within:text-primary transition-colors">search</span>
-            <input 
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Filtro rápido..."
-              className="bg-black/40 border border-white/10 rounded-2xl py-3 pl-12 pr-6 text-sm font-bold focus:outline-none focus:border-primary/40 focus:ring-8 focus:ring-primary/5 transition-all w-64 placeholder:text-slate-600 shadow-inner"
-            />
-          </div>
-
-          <div className="h-8 w-px bg-white/10 mx-2 hidden sm:block"></div>
-
-          <div className="flex bg-black/40 border border-white/10 rounded-2xl p-1 shadow-inner">
+        <div className="flex items-center gap-6 relative">
+          <div className="flex bg-black/40 border border-white/5 rounded-[28px] p-1.5 shadow-xl backdrop-blur-md">
             <button 
               onClick={() => setViewMode('cards')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'cards' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-slate-500 hover:text-slate-300'}`}
-              title="Vista de Tarjetas"
+              className={lex items-center gap-3 px-6 py-3.5 rounded-[22px] text-[11px] font-black uppercase tracking-widest transition-all duration-500 }
             >
-              <span className="material-symbols-outlined text-[18px]">grid_view</span>
-              <span className="hidden xl:inline">Cards</span>
+              <span className="material-symbols-outlined text-[20px]">grid_view</span>
+              <span>TARJETAS</span>
             </button>
             <button 
               onClick={() => setViewMode('master_grid')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'master_grid' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-slate-500 hover:text-slate-300'}`}
-              title="Grilla Maestra Global"
+              className={lex items-center gap-3 px-6 py-3.5 rounded-[22px] text-[11px] font-black uppercase tracking-widest transition-all duration-500 }
             >
-              <span className="material-symbols-outlined text-[18px]">table_rows</span>
-              <span className="hidden xl:inline">Master</span>
+              <span className="material-symbols-outlined text-[20px]">table_rows</span>
+              <span>MAESTRO</span>
             </button>
           </div>
 
           <button 
             onClick={() => setIsNewPuestoModalOpen(true)}
-            className="flex items-center gap-3 bg-white text-[#0f172a] py-3.5 px-6 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-primary hover:text-white transition-all active:scale-95 shadow-xl shadow-black/40 border border-white/20"
+            className="flex items-center gap-4 bg-white text-[#0f172a] h-[64px] px-8 rounded-[28px] font-black text-[12px] uppercase tracking-[0.15em] hover:bg-indigo-500 hover:text-white transition-all transform hover:-translate-y-1 active:scale-95 shadow-xl border border-white/20 relative overflow-hidden group"
           >
-            <span className="material-symbols-outlined text-[18px]">add_location_alt</span>
-            <span className="hidden sm:inline">Nuevo Puesto</span>
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
+            <span className="material-symbols-outlined text-[24px]">add_location_alt</span>
+            <span>Nuevo Puesto</span>
           </button>
         </div>
       </header>
 
-      <main className="flex-1 overflow-hidden flex flex-col pt-6 px-8 pb-8">
+      <main className="flex-1 overflow-hidden flex flex-col" style={{ background: '#060d1a' }}>
         {viewMode === 'cards' ? (
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between mb-8 shrink-0 gap-4">
-              <div className="relative flex-1 max-w-lg group">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">filter_list</span>
-                <input 
+          <div className="flex-1 flex flex-col overflow-hidden px-12 pt-10 pb-10">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mb-12 shrink-0">
+              {[
+                { label: 'Total Activos', value: (puestos||[]).filter(p=>(p as any).estado!=='inactivo').length, icon: 'location_city', color: '#6366f1' },
+                { label: 'Cubiertos',     value: (puestos||[]).filter(p=>(p as any).estado==='cubierto').length, icon: 'verified_user', color: '#10b981' },
+                { label: 'Con Alertas',   value: programaciones.filter(pg => pg.anio===anio && pg.mes===mes && ((useProgramacionStore.getState() as any).getAlertas(pg.id)||[]).length>0).length, icon: 'warning', color: '#f43f5e' },
+                { label: 'Sin Personal',  value: programaciones.filter(pg => pg.anio===anio && pg.mes===mes && pg.personal.filter((x:any)=>x.vigilanteId).length===0).length, icon: 'person_off', color: '#f59e0b' },
+              ].map((s, i) => (
+                <div key={i} className="group rounded-[45px] p-8 flex items-center gap-8 border transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1"
+                  style={{ 
+                    background: 'rgba(15,23,42,0.6)', 
+                    borderColor: ${s.color}22, 
+                    boxShadow:   20px 50px -12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05),
+                    backdropFilter: 'blur(20px)'
+                  }}>
+                  <div className="size-20 rounded-[28px] flex items-center justify-center shrink-0 relative transition-transform duration-500 group-hover:rotate-6"
+                    style={{ background: ${s.color}15, border: 1px solid 35 }}>
+                    <div className="absolute inset-0 blur-lg opacity-40 rounded-full" style={{ background: s.color }}></div>
+                    <span className="material-symbols-outlined text-[42px] relative z-10" style={{ color: s.color }}>{s.icon}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[48px] font-black text-white leading-none mb-1.5 tracking-tighter italic">{s.value}</p>
+                    <p className="text-[13px] font-black uppercase tracking-[0.3em] opacity-80" style={{ color: s.color }}>{s.label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col xl:flex-row gap-8 mb-12 shrink-0">
+              <div className="relative flex-1 group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-[35px] blur opacity-0 group-focus-within:opacity-100 transition-opacity duration-700"></div>
+                <span className="material-symbols-outlined absolute left-8 top-1/2 -translate-y-1/2 text-slate-700 group-focus-within:text-primary-light transition-colors text-4xl">travel_explore</span>
+                <input
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Filtrar por nombre, código o ID..."
-                  className="w-full h-14 pl-12 pr-4 bg-white border-2 border-slate-100 rounded-3xl text-[13px] font-bold outline-none focus:border-primary/20 focus:ring-4 ring-primary/5 transition-all shadow-sm"
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Buscar puesto: nombre, direcciÃ³n, cÃ³digo..."
+                  className="w-full h-24 pl-24 pr-12 rounded-[35px] text-[20px] font-black text-white outline-none transition-all placeholder:text-slate-700 relative z-10"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(10px)' }}
                 />
               </div>
 
-              <div className="flex items-center gap-3">
-                <button 
-                  onClick={() => {
-                    console.log('[Coraza] 🔄 Sincronización manual activada...');
-                    useProgramacionStore.getState().forceSync();
-                  }}
-                  disabled={!progLoaded}
-                  className={`flex items-center gap-2 px-5 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-xl shadow-black/5 border border-slate-100 bg-white ${!progLoaded ? 'opacity-50 cursor-not-allowed text-slate-400' : 'text-slate-600 hover:border-primary/20 hover:text-primary active:scale-95'}`}
-                >
-                  <span className={`material-symbols-outlined text-[18px] ${!progLoaded ? 'animate-spin' : ''}`}>sync</span>
-                  <span>Refrescar</span>
-                </button>
+              <div className="flex rounded-[35px] p-2.5 gap-2.5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', backdropFilter: 'blur(10px)' }}>
+                {[
+                  { id: 'todos',        label: 'Todos',        icon: 'grid_view'   },
+                  { id: 'alerta',       label: 'Alertas',      icon: 'warning'     },
+                  { id: 'sin_personal', label: 'Sin Personal', icon: 'person_off'  },
+                  { id: 'publicados',   label: 'Publicados',   icon: 'cloud_done'  },
+                ].map(t => (
+                  <button key={t.id} onClick={() => setFilterTab(t.id as any)}
+                    className={lex items-center gap-4 px-10 py-5 rounded-[28px] text-[14px] font-black uppercase tracking-[0.25em] transition-all duration-500 whitespace-nowrap }>
+                    <span className="material-symbols-outlined text-[28px]">{t.icon}</span>
+                    <span className="hidden 2xl:inline">{t.label}</span>
+                  </button>
+                ))}
               </div>
+
+              <button onClick={() => useProgramacionStore.getState().forceSync()} disabled={!progLoaded}
+                className="h-24 px-10 flex items-center gap-4 rounded-[35px] text-[13px] font-black uppercase transition-all duration-500 disabled:opacity-40 group border relative overflow-hidden"
+                style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.07)', color: '#475569' }}>
+                <div className="absolute inset-0 bg-indigo-500/10 translate-y-full group-hover:translate-y-0 transition-transform"></div>
+                <span className={material-symbols-outlined text-[32px] relative z-10 transition-transform duration-700 group-hover:rotate-180 }>sync_lock</span>
+                <span className="hidden xl:inline relative z-10 tracking-[0.2em]">SINCRONIZAR</span>
+              </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
               {isInitialLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
-                  {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <div key={i} className="h-64 bg-white border border-slate-100 rounded-3xl p-6 relative overflow-hidden">
-                       <div className="flex justify-between items-start mb-4">
-                          <div className="space-y-2">
-                             <div className="h-2 w-16 bg-slate-100 rounded"></div>
-                             <div className="h-4 w-32 bg-slate-100 rounded"></div>
-                          </div>
-                          <div className="size-8 rounded-full bg-slate-100"></div>
-                       </div>
-                       <div className="mt-8 space-y-4">
-                          <div className="h-2 w-full bg-slate-50 rounded"></div>
-                          <div className="h-2 w-3/4 bg-slate-50 rounded"></div>
-                       </div>
-                       <div className="absolute bottom-0 left-0 w-full h-1 bg-slate-50"></div>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse">
+                  {[1,2,3,4,5,6,7,8].map(i => (
+                    <div key={i} className="h-64 rounded-[28px] overflow-hidden" style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid rgba(255,255,255,0.05)' }} />
                   ))}
                 </div>
               ) : pagedPuestos.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-24 bg-white rounded-[40px] border border-dashed border-slate-200">
-                  <span className="material-symbols-outlined text-[48px] text-slate-300 mb-4">inventory_2</span>
-                  <p className="text-sm font-black text-slate-400 uppercase tracking-widest">No hay resultados.</p>
+                <div className="flex flex-col items-center justify-center py-24 rounded-[32px] border border-white/5">
+                  <span className="material-symbols-outlined text-[56px] text-slate-800 mb-4">search_off</span>
+                  <p className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Sin puestos encontrados</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
-                  {pagedPuestos.map((p, idx) => (
-                    <PuestoCard
-                      key={p.dbId || p.id || `puesto-${idx}`}
-                      puesto={p}
-                      anio={anio}
-                      mes={mes}
-                      onClick={() => setSelectedPuesto({ dbId: p.dbId || p.id, nombre: p.nombre })}
-                    />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-20">
+                  {pagedPuestos.map(p => (
+                    <PuestoCard key={p.id} puesto={p} anio={anio} mes={mes} onClick={() => setSelectedPuesto({ dbId: p.dbId || p.id, nombre: p.nombre })} />
                   ))}
                 </div>
               )}
-
               {visibleCount < filteredPuestos.length && (
-                <div className="flex justify-center pt-8 pb-12">
-                  <button
-                    onClick={() => setVisibleCount((v) => v + 60)}
-                    className="px-12 py-4 bg-[#0f172a] text-white rounded-full font-black uppercase text-[10px] tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-black/20"
-                  >
-                    Expandir Cuadro (+60)
+                <div className="flex justify-center pt-6 pb-12">
+                  <button onClick={() => setVisibleCount(v => v + 60)} className="px-10 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all">
+                    Cargar mÃ¡s
                   </button>
                 </div>
               )}
@@ -1947,14 +2212,10 @@ const GestionPuestos = () => {
         )}
       </main>
 
-      <PuestoModal 
-        isOpen={isNewPuestoModalOpen}
-        puestoId={puestoToEdit?.id}
-        onClose={() => { setIsNewPuestoModalOpen(false); setPuestoToEdit(null); }}
-        onCreated={() => fetchPuestos()}
-      />
+      <PuestoModal isOpen={isNewPuestoModalOpen} puestoId={puestoToEdit?.id} onClose={() => { setIsNewPuestoModalOpen(false); setPuestoToEdit(null); }} onCreated={() => fetchPuestos()} />
     </div>
   );
 };
 
 export default GestionPuestos;
+

@@ -182,8 +182,10 @@ interface ProgramacionState {
     getAlertas: (progId: string) => string[];
     getBusyDays: (vigilanteId: string, anio: number, mes: number) => Set<number>;
     getAssignmentsForVigilante: (vigilanteId: string, anio: number, mes: number) => AsignacionDia[];
+    checkConflict: (progId: string, dia: number, vigilanteId: string, turno: string) => string | null;
     recuperarDatosHuerfanos: (puestoId: string, anio: number, mes: number) => Promise<boolean>;
     getProgramacionRapid: (puestoId: string, anio: number, mes: number) => ProgramacionMensual | undefined;
+    flushPendingSyncs: () => Promise<void>;
     _progMap?: Map<string, ProgramacionMensual>;
     _busyMap?: Map<string, Set<number>>; // key: vid-anio-mes
     _fetchDetails: (rows: any[], progIds: string[]) => Promise<void>;
@@ -198,7 +200,32 @@ interface ProgramacionState {
 const activeSyncPromises = new Map<string, Promise<SyncResult>>();
 const pendingSyncs = new Map<string, any>();
 
+/**
+ * COLA PERSISTENTE: Garantiza que los IDs pendientes sobrevivan a recargas.
+ * Se guarda en localStorage para que un cierre accidental no pierda datos.
+ */
+const PERSISTENT_QUEUE_KEY = 'coraza-pending-sync-queue';
+const savePersistentQueue = () => {
+    try {
+        const ids = Array.from(pendingSyncs.keys());
+        localStorage.setItem(PERSISTENT_QUEUE_KEY, JSON.stringify(ids));
+    } catch { /* silently fail */ }
+};
+const loadPersistentQueue = (): string[] => {
+    try {
+        const raw = localStorage.getItem(PERSISTENT_QUEUE_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+};
+const clearPersistentQueue = () => {
+    try { localStorage.removeItem(PERSISTENT_QUEUE_KEY); } catch { /* */ }
+};
+
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Contador de reintentos por progId para backoff exponencial */
+const retryCounters = new Map<string, number>();
+const MAX_RETRIES = 5;
 
 interface SyncResult {
     success: boolean;
@@ -357,41 +384,86 @@ const queueSync = (progId: string, set: any, get: any, immediate = false) => {
     
     const runSync = async () => {
         pendingSyncs.delete(progId);
+        savePersistentQueue();
         const prog = get().programaciones.find((p: any) => p.id === progId);
         if (!prog) return;
         
         if (activeSyncPromises.has(progId)) {
             pendingSyncs.set(progId, setTimeout(runSync, 300));
+            savePersistentQueue();
             return;
         }
         
         set({ isSyncing: true });
         try {
             const res = await syncProgramacionToDb(prog, set, get);
+            // ÉXITO: Resetear contador de reintentos
+            retryCounters.delete(progId);
             set((state: any) => ({
                 programaciones: state.programaciones.map((p: any) => 
                     p.id === progId ? { ...p, syncStatus: 'synced' as const, version: res.serverVersion } : p
                 ),
                 isSyncing: get().programaciones.some((p: any) => p.syncStatus === 'pending') || pendingSyncs.size > 0
             }));
+            // Limpiar de la cola persistente si se guardó bien
+            savePersistentQueue();
         } catch (err: any) {
-            console.error('[Coraza] ❌ ERROR CRÍTICO SINCRONIZACIÓN:', err);
-            set({ isSyncing: false, lastSyncError: err?.message || 'Error de escritura' });
-            showTacticalToast({ 
-                title: "❌ ERROR NÚCLEO", 
-                message: `La base de datos rechazó el despliegue: ${err?.message || 'Error desconocido'}`, 
-                type: "error",
-                duration: 8000
-            });
+            console.error('[Coraza] ❌ ERROR SINCRONIZACIÓN:', err);
+            
+            // RETRY EXPONENCIAL: Reintentar con backoff creciente
+            const currentRetry = (retryCounters.get(progId) || 0) + 1;
+            retryCounters.set(progId, currentRetry);
+            
+            if (currentRetry <= MAX_RETRIES) {
+                const delayMs = Math.min(1000 * Math.pow(2, currentRetry - 1), 30000); // 1s, 2s, 4s, 8s, 16s
+                console.log(`[Coraza] 🔄 Reintento ${currentRetry}/${MAX_RETRIES} en ${delayMs}ms para ${progId}`);
+                const retryTimeout = setTimeout(runSync, delayMs);
+                pendingSyncs.set(progId, retryTimeout);
+                savePersistentQueue();
+                
+                if (currentRetry === 1) {
+                    showTacticalToast({ 
+                        title: "⏳ Reintentando Guardado", 
+                        message: `Error temporal de red. Reintentando automáticamente...`, 
+                        type: "warning",
+                        duration: 4000
+                    });
+                }
+            } else {
+                // MAX RETRIES AGOTADOS: Marcar como error pero NO perder datos
+                retryCounters.delete(progId);
+                set((state: any) => ({
+                    programaciones: state.programaciones.map((p: any) =>
+                        p.id === progId ? { ...p, syncStatus: 'error' as const } : p
+                    ),
+                    isSyncing: false, 
+                    lastSyncError: err?.message || 'Error de escritura'
+                }));
+                savePersistentQueue();
+                showTacticalToast({ 
+                    title: "❌ ERROR PERSISTENTE", 
+                    message: `No se pudo guardar después de ${MAX_RETRIES} intentos. Los datos están seguros en local. Presiona 'Refrescar' para reintentar.`, 
+                    type: "error",
+                    duration: 12000
+                });
+            }
         }
     };
+
+    // Marcar como pendiente inmediatamente
+    set((state: any) => ({
+        programaciones: state.programaciones.map((p: any) =>
+            p.id === progId ? { ...p, syncStatus: 'pending' as const } : p
+        ),
+        isSyncing: true
+    }));
 
     if (immediate) {
         runSync();
     } else {
-        const timeout = setTimeout(runSync, 800);
+        const timeout = setTimeout(runSync, 600);
         pendingSyncs.set(progId, timeout);
-        set({ isSyncing: true });
+        savePersistentQueue();
     }
 };
 
@@ -1309,7 +1381,86 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 const alertas: string[] = [];
                 const vacios = (prog.asignaciones || []).filter(a => !a.vigilanteId).length;
                 if (vacios > 0) alertas.push(`${vacios} turnos vacíos`);
+                
+                // DETECCIÓN DE CONFLICTOS: Vigilante asignado en múltiples puestos el mismo día
+                const vidDiaMap = new Map<string, number>();
+                const allProgs = get().programaciones.filter(p => p.anio === prog.anio && p.mes === prog.mes);
+                allProgs.forEach(p => {
+                    (p.asignaciones || []).forEach(a => {
+                        if (a.vigilanteId && a.jornada !== 'sin_asignar') {
+                            const key = `${a.vigilanteId}-${a.dia}`;
+                            vidDiaMap.set(key, (vidDiaMap.get(key) || 0) + 1);
+                        }
+                    });
+                });
+                
+                let conflicts = 0;
+                vidDiaMap.forEach((count) => { if (count > 1) conflicts++; });
+                if (conflicts > 0) alertas.push(`${conflicts} conflictos de doble asignación`);
+                
+                // DESCANSO LEGAL: Más de 6 días consecutivos sin descanso
+                (prog.personal || []).forEach(per => {
+                    if (!per.vigilanteId) return;
+                    let consecutivos = 0;
+                    let maxConsecutivos = 0;
+                    const daysInMonth = new Date(prog.anio, prog.mes + 1, 0).getDate();
+                    for (let d = 1; d <= daysInMonth; d++) {
+                        const asig = (prog.asignaciones || []).find(a => a.dia === d && a.rol === per.rol);
+                        if (asig && asig.jornada === 'normal' && asig.vigilanteId) {
+                            consecutivos++;
+                            maxConsecutivos = Math.max(maxConsecutivos, consecutivos);
+                        } else {
+                            consecutivos = 0;
+                        }
+                    }
+                    if (maxConsecutivos > 6) {
+                        const vStore = useVigilanteStore.getState();
+                        const v = vStore.vigilantes.find(v => v.id === per.vigilanteId || v.dbId === per.vigilanteId);
+                        alertas.push(`${v?.nombre || 'Vigilante'}: ${maxConsecutivos} días seguidos sin descanso`);
+                    }
+                });
+                
                 return alertas;
+            },
+
+            // ── VERIFICACIÓN DE CONFLICTOS (Implementación que faltaba) ────
+            checkConflict: (progId: string, dia: number, vigilanteId: string, turno: string): string | null => {
+                if (!vigilanteId) return null;
+                const state = get();
+                const prog = state.programaciones.find(p => p.id === progId);
+                if (!prog) return null;
+
+                const normVid = translateToUuid(vigilanteId);
+                const conflictos: string[] = [];
+
+                // Buscar asignaciones del mismo vigilante en OTROS puestos el mismo día
+                state.programaciones.forEach(otherProg => {
+                    if (otherProg.id === progId) return;
+                    if (otherProg.anio !== prog.anio || otherProg.mes !== prog.mes) return;
+
+                    const match = (otherProg.asignaciones || []).find(a => {
+                        if (a.dia !== dia) return false;
+                        if (a.jornada === 'sin_asignar' || !a.vigilanteId) return false;
+                        const otherNorm = translateToUuid(a.vigilanteId);
+                        if (normVid !== otherNorm) return false;
+                        
+                        // Verificar si hay solapamiento real de turnos
+                        if (turno === '24H' || a.turno === '24H') return true;
+                        if (turno === a.turno) return true;
+                        return false;
+                    });
+
+                    if (match) {
+                        const pStore = usePuestoStore.getState();
+                        const otherPuesto = pStore.puestos.find(p => p.id === otherProg.puestoId || p.dbId === otherProg.puestoId);
+                        conflictos.push(otherPuesto?.nombre || 'Otro puesto');
+                    }
+                });
+
+                if (conflictos.length > 0) {
+                    return `Vigilante ya asignado en: ${conflictos.join(', ')}`;
+                }
+                return null;
             },
 
             fetchProgramacionById: async (progId: string) => {
@@ -1445,11 +1596,50 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
             resumePendingSyncs: () => {
                 const s = get();
-                const pending = s.programaciones.filter(p => p.syncStatus === 'pending');
+                // 1. Reanudar desde estado local (programaciones marcadas como pending)
+                const pending = s.programaciones.filter(p => p.syncStatus === 'pending' || p.syncStatus === 'error');
                 if (pending.length > 0) {
                     console.log(`[Coraza] 🔄 Reanudando ${pending.length} sincronizaciones pendientes...`);
                     pending.forEach(p => queueSync(p.id, set, get, true));
                 }
+                
+                // 2. Recuperar IDs de la cola persistente (en caso de cierre abrupto anterior)
+                const persistedIds = loadPersistentQueue();
+                if (persistedIds.length > 0) {
+                    console.log(`[Coraza] 💾 Recuperando ${persistedIds.length} IDs de la cola persistente...`);
+                    persistedIds.forEach(id => {
+                        const prog = s.programaciones.find(p => p.id === id);
+                        if (prog && prog.syncStatus !== 'synced') {
+                            queueSync(id, set, get, true);
+                        }
+                    });
+                    clearPersistentQueue();
+                }
+            },
+
+            /**
+             * FLUSH DE EMERGENCIA: Envía todos los cambios pendientes de inmediato.
+             * Usado antes de cerrar la app para garantizar que nada se pierda.
+             */
+            flushPendingSyncs: async () => {
+                const s = get();
+                const pending = s.programaciones.filter(p => p.syncStatus === 'pending' || p.syncStatus === 'error');
+                if (pending.length === 0) return;
+                
+                console.log(`[Coraza] 🚨 FLUSH DE EMERGENCIA: ${pending.length} programaciones...`);
+                
+                // Cancelar todos los timeouts pendientes y ejecutar inmediatamente
+                pendingSyncs.forEach((timeout) => clearTimeout(timeout));
+                pendingSyncs.clear();
+                
+                const promises = pending.map(prog => 
+                    syncProgramacionToDb(prog, set, get).catch(err => {
+                        console.error(`[Coraza] ❌ Flush falló para ${prog.id}:`, err);
+                    })
+                );
+                await Promise.allSettled(promises);
+                clearPersistentQueue();
+                console.log('[Coraza] ✅ Flush completado.');
             }
         }),
         {

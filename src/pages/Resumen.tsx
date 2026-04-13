@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { usePuestoStore } from '../store/puestoStore';
 import { useVigilanteStore } from '../store/vigilanteStore';
 import { useProgramacionStore } from '../store/programacionStore';
@@ -258,262 +258,216 @@ const Resumen = () => {
         }
     };
 
-    const generateScheduleExcel = async () => {
+    const generateScheduleExcel = useCallback(async () => {
         setIsGenerating(true);
-        logAction('RESUMEN', 'Generacion de Excel', `CUADRO OPERATIVO ${MONTH_NAMES[scheduleMonth]} ${scheduleYear} — ${exportData.length} puestos`, 'info');
-
-        // ── Paleta de colores (igual al PDF) ─────────────────────────────────
-        const COLOR_HEADER_BG  = '4318FF'; // Azul Coraza
-        const COLOR_HEADER_FG  = 'FFFFFF';
-        const COLOR_TITLE_BG   = '1E293B'; // Slate-800
-        const COLOR_PUESTO_BG  = '1E3A5F'; // Azul oscuro para fila puesto
-        const COLOR_PUESTO_FG  = 'FFFFFF';
-        const COLOR_ROL_A      = 'EDE9FE'; // lila suave TIT-A
-        const COLOR_ROL_B      = 'E0F2FE'; // celeste suave TIT-B
-        const COLOR_ROL_R      = 'FEF9C3'; // amarillo suave REL
-        const COLOR_D          = 'DBEAFE'; // Dia (AM)
-        const COLOR_N          = 'E0E7FF'; // Noche (PM)
-        const COLOR_24         = 'FDE68A'; // 24H
-        const COLOR_DR         = 'DCFCE7'; // Descanso Remunerado
-        const COLOR_DNR        = 'FEF3C7'; // Descanso No Remunerado
-        const COLOR_VAC        = 'F3E8FF'; // Vacacion
-        const COLOR_BORDER     = 'CBD5E1'; // slate-300
-        const COLOR_SUB_BG     = 'F8FAFC'; // rows pares
-
-        const ROL_ORDER: Record<string, number> = { 'titular_a': 0, 'titular_b': 1, 'relevante': 2 };
-        const ROL_LABELS: Record<string, string> = { 'titular_a': 'TIT-A', 'titular_b': 'TIT-B', 'relevante': 'REL' };
-        const ROL_BG: Record<string, string> = { 'TIT-A': COLOR_ROL_A, 'TIT-B': COLOR_ROL_B, 'REL': COLOR_ROL_R };
-        const JORNADA_COLOR: Record<string, string> = {
-            'D': COLOR_D, 'N': COLOR_N, '24': COLOR_24,
-            'DR': COLOR_DR, 'DNR': COLOR_DNR, 'VAC': COLOR_VAC,
-        };
-
-        // Estilo base de borde fino en todas las celdas
-        const borderThin = {
-            top:    { style: 'thin' as const, color: { argb: COLOR_BORDER } },
-            left:   { style: 'thin' as const, color: { argb: COLOR_BORDER } },
-            bottom: { style: 'thin' as const, color: { argb: COLOR_BORDER } },
-            right:  { style: 'thin' as const, color: { argb: COLOR_BORDER } },
-        };
-        const applyBorder = (cell: ExcelJS.Cell) => { cell.border = borderThin; };
-        const applyFill = (cell: ExcelJS.Cell, argb: string) => {
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb } };
-        };
-        const applyFont = (cell: ExcelJS.Cell, opts: Partial<ExcelJS.Font>) => {
-            cell.font = { name: 'Calibri', size: 10, ...opts };
-        };
+        logAction('RESUMEN', 'Generación Excel', `Reporte masivo ${MONTH_NAMES[scheduleMonth]} ${scheduleYear}`, 'info');
 
         try {
             const wb = new ExcelJS.Workbook();
-            wb.creator = 'Coraza CTA';
-            wb.created = new Date();
+            const CLR_VERDE_MES = '4ADE80'; 
+            const CLR_D12 = 'FFB547';     
+            const CLR_N12 = '3B82F6';     
+            const CLR_NR  = 'EF4444';     
+            const CLR_X   = 'FACC15';     
+            const CLR_VAC = 'F472B6';     
 
-            const fechaActual = now.toLocaleDateString('es-CO', { dateStyle: 'long' });
-            const mesLabel = `${MONTH_NAMES[scheduleMonth].toUpperCase()} ${scheduleYear}`;
+            const borderThin = {
+                top: { style: 'thin' as const, color: { argb: '000000' } },
+                left: { style: 'thin' as const, color: { argb: '000000' } },
+                bottom: { style: 'thin' as const, color: { argb: '000000' } },
+                right: { style: 'thin' as const, color: { argb: '000000' } }
+            };
 
-            // ── UNA HOJA POR PUESTO (usa exportData — TODOS los puestos programados) ─────
-            exportData.forEach((puesto, puestoIdx) => {
-                // Nombre de la pestaña (max 31 chars, Excel limit)
-                const sheetName = puesto.nombre.slice(0, 28).replace(/[[\]*/\\?:]/g, '').trim() || `Puesto ${puestoIdx + 1}`;
-                const ws = wb.addWorksheet(sheetName, {
-                    pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1 },
-                    views: [{ state: 'frozen', xSplit: 3, ySplit: 6 }],
+            const getTacticalCode = (asig: any): string => {
+                if (!asig || asig.jornada === 'sin_asignar' || !asig.jornada) return '-';
+                if (asig.codigo_personalizado) return asig.codigo_personalizado;
+                const j = asig.jornada || asig.turno || '';
+                if (j === 'descanso_remunerado' || j === 'X' || j === 'DR') return 'X';
+                if (j === 'descanso_no_remunerado' || j === 'NR' || j === 'DNR') return 'NR';
+                if (j === 'vacacion' || j === 'VAC') return 'VAC';
+                if (j === 'AM' || j === 'D' || (j === 'normal' && asig.turno !== 'PM')) return 'D12';
+                if (j === 'PM' || j === 'N' || (j === 'normal' && asig.turno === 'PM')) return 'N12';
+                if (j === '24H' || j === '24') return '24';
+                return j;
+            };
+
+            const getCodeColor = (code: string): string | null => {
+                if (code === '-') return 'EF4444'; // Rojo para desasignados
+                if (code === 'D12' || code === 'D') return CLR_D12;
+                if (code === 'N12' || code === 'N') return CLR_N12;
+                if (code === 'NR')  return CLR_NR;
+                if (code === 'X')   return CLR_X;
+                if (code === 'VAC') return CLR_VAC;
+                return null;
+            };
+
+            exportData.forEach((puesto, pIdx) => {
+                const sheetName = puesto.nombre.slice(0, 31).replace(/[[\]*/\\?:]/g, '').trim() || `Puesto ${pIdx + 1}`;
+                const ws = wb.addWorksheet(sheetName);
+
+                // --- ENCABEZADO CORPORATIVO (Elegante) ---
+                ws.mergeCells('A1', 'C1');
+                const headTitle = ws.getCell('A1');
+                headTitle.value = 'CORAZA SEGURIDAD PRIVADA CTA';
+                headTitle.font = { name: 'Arial Narrow', size: 14, bold: true, color: { argb: '4318FF' } };
+                
+                ws.mergeCells('A2', 'C2');
+                const headNit = ws.getCell('A2');
+                headNit.value = 'NIT: 901509121';
+                headNit.font = { name: 'Arial Narrow', size: 10, bold: true };
+
+                ws.mergeCells('A3', 'C3');
+                const headAddr = ws.getCell('A3');
+                headAddr.value = 'Carrera 81 #49-24 Medellín | Tel: 311 383 6939';
+                headAddr.font = { name: 'Arial Narrow', size: 9 };
+
+                ws.mergeCells('A4', 'C4');
+                const headPuesto = ws.getCell('A4');
+                headPuesto.value = `PUESTO: ${puesto.nombre.toUpperCase()}`;
+                headPuesto.font = { name: 'Arial Narrow', size: 11, bold: true };
+                headPuesto.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' } };
+
+                // Row 5: Green Month Bar
+                ws.mergeCells(`A5:${String.fromCharCode(65 + 3 + daysInMonth + 4)}5`);
+                const mc = ws.getCell('A5');
+                mc.value = MONTH_NAMES[scheduleMonth].toUpperCase();
+                mc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CLR_VERDE_MES } };
+                mc.font = { name: 'Arial Narrow', size: 10, bold: true };
+                mc.alignment = { horizontal: 'center' };
+                ws.getRow(5).height = 18;
+
+                // Row 6: Day Names
+                const dowNames = ['D','L','M','W','J','V','S'];
+                dayNumbers.forEach((d, i) => {
+                    const dt = new Date(scheduleYear, scheduleMonth, d);
+                    const cell = ws.getRow(6).getCell(4 + i);
+                    cell.value = dowNames[dt.getDay()];
+                    cell.font = { name: 'Arial Narrow', size: 8, bold: true };
+                    cell.alignment = { horizontal: 'center' };
+                    cell.border = borderThin;
                 });
 
-                // ── FILA 1: Título principal ─────────────────────────────────
-                ws.mergeCells('A1:E1');
-                const titleCell = ws.getCell('A1');
-                titleCell.value = 'CUADRO OPERATIVO DE PROGRAMACION';
-                applyFill(titleCell, COLOR_TITLE_BG);
-                titleCell.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFFFFF' } };
-                titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-                ws.getRow(1).height = 24;
+                // Row 7: Numbers
+                dayNumbers.forEach((d, i) => {
+                    const cell = ws.getRow(7).getCell(4 + i);
+                    cell.value = d;
+                    cell.font = { name: 'Arial Narrow', size: 8, bold: true };
+                    cell.alignment = { horizontal: 'center' };
+                    cell.border = borderThin;
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' } };
+                });
 
-                // ── FILA 2: Empresa ───────────────────────────────────────────
-                ws.mergeCells('A2:E2');
-                const empresaCell = ws.getCell('A2');
-                empresaCell.value = 'CORAZA SEGURIDAD PRIVADA CTA  |  NIT 901509121  |  Cra 81 #49-24 Medellín';
-                applyFill(empresaCell, COLOR_TITLE_BG);
-                empresaCell.font = { name: 'Calibri', size: 9, color: { argb: 'CBD5E1' } };
-                empresaCell.alignment = { horizontal: 'center', vertical: 'middle' };
-                ws.getRow(2).height = 16;
-
-                // ── FILA 3: Período ───────────────────────────────────────────
-                ws.mergeCells('A3:E3');
-                const periodoCell = ws.getCell('A3');
-                periodoCell.value = mesLabel;
-                applyFill(periodoCell, '4318FF');
-                periodoCell.font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FFFFFF' } };
-                periodoCell.alignment = { horizontal: 'center', vertical: 'middle' };
-                ws.getRow(3).height = 20;
-
-                // ── FILA 4: Nombre del Puesto ─────────────────────────────────
-                ws.mergeCells('A4:E4');
-                const puestoCell = ws.getCell('A4');
-                puestoCell.value = `PUESTO: ${puesto.nombre.toUpperCase()}`;
-                applyFill(puestoCell, COLOR_PUESTO_BG);
-                puestoCell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: COLOR_PUESTO_FG } };
-                puestoCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 2 };
-                ws.getRow(4).height = 20;
-
-                // ── FILA 5: Meta info (Dirección / Fecha revisión / Página) ────
-                ws.mergeCells('A5:C5');
-                const dirCell = ws.getCell('A5');
-                dirCell.value = puesto.direccion ? `Dir: ${puesto.direccion}` : 'Dirección no registrada';
-                applyFill(dirCell, 'F1F5F9');
-                dirCell.font = { name: 'Calibri', size: 8, italic: true, color: { argb: '64748B' } };
-                dirCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
-
-                ws.mergeCells('D5:E5');
-                const revCell = ws.getCell('D5');
-                revCell.value = `Revisión: ${fechaActual}  |  Pág.: ${puestoIdx + 1}/${exportData.length}`;
-                applyFill(revCell, 'F1F5F9');
-                revCell.font = { name: 'Calibri', size: 8, italic: true, color: { argb: '64748B' } };
-                revCell.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
-                ws.getRow(5).height = 14;
-
-                // ── FILA 6: Encabezados de columnas ───────────────────────────
-                const totalCols = 3 + daysInMonth + 3; // ROL + CEDULA + VIGILANTE + días + TRAB + DESC + VAC
-                const COL_TRAB = 3 + daysInMonth + 1;
-                const COL_DESC = 3 + daysInMonth + 2;
-                const COL_VAC  = 3 + daysInMonth + 3;
-
-                const headerRow = ws.getRow(6);
-                headerRow.height = 18;
-                const headerValues = ['ROL', 'CÉDULA', 'VIGILANTE', ...dayNumbers.map(d => String(d).padStart(2, '0')), 'TRAB', 'DESC', 'VAC'];
-                headerValues.forEach((val, colIdx) => {
-                    const cell = headerRow.getCell(colIdx + 1);
-                    cell.value = val;
-                    applyFill(cell, COLOR_HEADER_BG);
-                    cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: COLOR_HEADER_FG } };
+                // Row 8: Column Headers
+                const ROL_LABELS: Record<string, string> = { 'titular_a': 'TIT-A', 'titular_b': 'TIT-B', 'relevante': 'REL' };
+                ['ROL', 'CÉDULA', 'NOMBRE DE GUARDA'].forEach((v, i) => {
+                    const cell = ws.getRow(8).getCell(i + 1);
+                    cell.value = v;
+                    cell.font = { name: 'Arial Narrow', size: 9, bold: true };
                     cell.alignment = { horizontal: 'center', vertical: 'middle' };
-                    applyBorder(cell);
+                    cell.border = borderThin;
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F8FAFC' } };
                 });
 
-                // ── FILAS DE DATOS ────────────────────────────────────────────
-                const sortedRows = [...puesto.rows].sort((a, b) =>
-                    (ROL_ORDER[a.rol] ?? 99) - (ROL_ORDER[b.rol] ?? 99)
-                );
-
-                sortedRows.forEach((row, rowIdx) => {
-                    const excelRow = ws.getRow(7 + rowIdx);
-                    excelRow.height = 16;
-                    const isEven = rowIdx % 2 === 1;
-                    const rowBg = isEven ? COLOR_SUB_BG : 'FFFFFF';
-
-                    const rolLabel = ROL_LABELS[row.rol] || row.rol.toUpperCase();
-                    const rolBg = ROL_BG[rolLabel] || rowBg;
-
-                    // COL 1: ROL
-                    const rolCell = excelRow.getCell(1);
-                    rolCell.value = rolLabel;
-                    applyFill(rolCell, rolBg);
-                    rolCell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: '4318FF' } };
-                    rolCell.alignment = { horizontal: 'center', vertical: 'middle' };
-                    applyBorder(rolCell);
-
-                    // COL 2: CÉDULA
-                    const cedCell = excelRow.getCell(2);
-                    cedCell.value = row.cedula;
-                    applyFill(cedCell, rowBg);
-                    cedCell.font = { name: 'Calibri', size: 9, color: { argb: '334155' } };
-                    cedCell.alignment = { horizontal: 'center', vertical: 'middle' };
-                    applyBorder(cedCell);
-
-                    // COL 3: VIGILANTE
-                    const vigCell = excelRow.getCell(3);
-                    vigCell.value = row.nombre;
-                    applyFill(vigCell, rowBg);
-                    vigCell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: '0F172A' } };
-                    vigCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
-                    applyBorder(vigCell);
-
-                    // COLS 4..4+days: días del mes
-                    let trab = 0, desc = 0, vac = 0;
-                    dayNumbers.forEach((d, dIdx) => {
-                        const asig = row.asigs.find(a => a.dia === d);
-                        const label = (asig?.jornada && JORNADA_SHORT[asig.jornada]) || (asig?.turno && JORNADA_SHORT[asig.turno]) || '';
-                        const cleanLabel = label === 'sin_asignar' ? '' : label;
-
-                        const dCell = excelRow.getCell(4 + dIdx);
-                        dCell.value = cleanLabel || '';
-                        const cellBg = cleanLabel ? (JORNADA_COLOR[cleanLabel] || rowBg) : rowBg;
-                        applyFill(dCell, cellBg);
-                        dCell.font = { name: 'Calibri', size: 8, bold: !!cleanLabel, color: { argb: cleanLabel ? '1E293B' : 'CBD5E1' } };
-                        dCell.alignment = { horizontal: 'center', vertical: 'middle' };
-                        applyBorder(dCell);
-
-                        // Contadores resumen
-                        if (cleanLabel === 'D' || cleanLabel === 'N' || cleanLabel === '24') trab++;
-                        else if (cleanLabel === 'DR' || cleanLabel === 'DNR') desc++;
-                        else if (cleanLabel === 'VAC') vac++;
-                    });
-
-                    // COLS resumen: TRAB / DESC / VAC
-                    const trabCell = excelRow.getCell(COL_TRAB);
-                    trabCell.value = trab || '';
-                    applyFill(trabCell, trab > 0 ? 'DBEAFE' : rowBg);
-                    trabCell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: '1D4ED8' } };
-                    trabCell.alignment = { horizontal: 'center', vertical: 'middle' };
-                    applyBorder(trabCell);
-
-                    const descCell = excelRow.getCell(COL_DESC);
-                    descCell.value = desc || '';
-                    applyFill(descCell, desc > 0 ? 'DCFCE7' : rowBg);
-                    descCell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: '15803D' } };
-                    descCell.alignment = { horizontal: 'center', vertical: 'middle' };
-                    applyBorder(descCell);
-
-                    const vacCell = excelRow.getCell(COL_VAC);
-                    vacCell.value = vac || '';
-                    applyFill(vacCell, vac > 0 ? 'F3E8FF' : rowBg);
-                    vacCell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: '7E22CE' } };
-                    vacCell.alignment = { horizontal: 'center', vertical: 'middle' };
-                    applyBorder(vacCell);
+                // Summary Headers (al final de los días)
+                const lastColIdx = 4 + daysInMonth;
+                ['TRAB', 'DESC', 'NR', 'VAC'].forEach((v, i) => {
+                    const cell = ws.getRow(8).getCell(lastColIdx + i);
+                    cell.value = v;
+                    cell.font = { name: 'Arial Narrow', size: 8, bold: true };
+                    cell.alignment = { horizontal: 'center' };
+                    cell.border = borderThin;
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'E2E8F0' } };
                 });
 
-                // ── ANCHOS DE COLUMNA ──────────────────────────────────────────
-                ws.getColumn(1).width = 8;   // ROL
-                ws.getColumn(2).width = 13;  // CÉDULA
-                ws.getColumn(3).width = 28;  // VIGILANTE
-                dayNumbers.forEach((_, i) => { ws.getColumn(4 + i).width = 4; });
-                ws.getColumn(COL_TRAB).width = 6;
-                ws.getColumn(COL_DESC).width = 6;
-                ws.getColumn(COL_VAC).width = 6;
+                ws.getRow(8).height = 18;
 
-                // Borde negro grueso alrededor del área de datos completa (fila 1 a última de datos)
-                const lastDataRow = 6 + sortedRows.length;
-                for (let c = 1; c <= totalCols; c++) {
-                    ['1','2','3','4','5'].forEach(r => {
-                        const cell = ws.getCell(parseInt(r), c);
-                        if (!cell.border) cell.border = borderThin;
+                // Data Rows
+                puesto.rows.forEach((row, ri) => {
+                    const exRow = ws.getRow(9 + ri);
+                    exRow.height = 16;
+
+                    // Col 1: ROL
+                    const c0 = exRow.getCell(1);
+                    c0.value = ROL_LABELS[row.rol] || row.rol.toUpperCase();
+                    c0.font = { name: 'Arial Narrow', size: 7, bold: true };
+                    c0.alignment = { horizontal: 'center' };
+                    c0.border = borderThin;
+
+                    // Col 2: Cedula
+                    const c2 = exRow.getCell(2);
+                    c2.value = row.cedula;
+                    c2.font = { name: 'Arial Narrow', size: 8 };
+                    c2.alignment = { horizontal: 'center' };
+                    c2.border = borderThin;
+
+                    // Col 3: Nombre
+                    const c3 = exRow.getCell(3);
+                    c3.value = (row.nombre || "SIN ASIGNAR").toUpperCase();
+                    c3.font = { name: 'Arial Narrow', size: 8 };
+                    c3.border = borderThin;
+
+                    // Days & Totals
+                    let tTrab = 0, tDesc = 0, tNR = 0, tVac = 0;
+
+                    dayNumbers.forEach((d, di) => {
+                        const cell = exRow.getCell(4 + di);
+                        const asig = (row.asigs || []).find((a: any) => a.dia === d);
+                        const code = getTacticalCode(asig);
+                        
+                        cell.value = code;
+                        cell.font = { name: 'Arial Narrow', size: 7, bold: true };
+                        cell.alignment = { horizontal: 'center' };
+                        cell.border = borderThin;
+
+                        const color = getCodeColor(code);
+                        if (color) {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+                        }
+
+                        // Conteo para resumen
+                        if (['D12', 'N12', '24'].includes(code)) tTrab++;
+                        else if (code === 'X') tDesc++;
+                        else if (code === 'NR') tNR++;
+                        else if (code === 'VAC') tVac++;
                     });
-                }
-                // Fila vacía al final de cada hoja (separador visual)
-                const sepRow = ws.getRow(lastDataRow + 1);
-                sepRow.height = 10;
+
+                    // Totals
+                    [tTrab, tDesc, tNR, tVac].forEach((val, vi) => {
+                        const tCell = exRow.getCell(lastColIdx + vi);
+                        tCell.value = val || '';
+                        tCell.font = { name: 'Arial Narrow', size: 8, bold: true };
+                        tCell.alignment = { horizontal: 'center' };
+                        tCell.border = borderThin;
+                    });
+                });
+
+                // Widths
+                ws.getColumn(1).width = 10;
+                ws.getColumn(2).width = 14;
+                ws.getColumn(3).width = 40;
+                dayNumbers.forEach((_, i) => { ws.getColumn(4 + i).width = 3.5; });
+                [1,2,3,4].forEach((_, i) => { ws.getColumn(lastColIdx + i).width = 6; });
             });
 
-            // ── DESCARGA ──────────────────────────────────────────────────────
             const buffer = await wb.xlsx.writeBuffer();
-            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const blob = new Blob([buffer], { type: 'application/octet-stream' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `CUADRO_OPERATIVO_${MONTH_NAMES[scheduleMonth].toUpperCase()}_${scheduleYear}.xlsx`;
+            a.download = `RESUMEN_OPERATIVO_${MONTH_NAMES[scheduleMonth].toUpperCase()}_${scheduleYear}.xlsx`;
             a.click();
             URL.revokeObjectURL(url);
 
-            showTacticalToast({ title: 'Excel Profesional Generado', message: `${filteredData.length} hoja(s) exportadas correctamente.`, type: 'success' });
+            showTacticalToast({ title: '💎 Excel Premium Generado', message: 'Reporte fiel al cuadro táctico.', type: 'success' });
             setGenerated(true);
             setTimeout(() => setGenerated(false), 3000);
         } catch (error) {
-            console.error('CRITICAL EXCEL ERROR:', error);
-            showTacticalToast({ title: 'Error de Excel', message: 'Falla al procesar el archivo.', type: 'error' });
+            console.error('EXCEL ERROR:', error);
+            showTacticalToast({ title: 'Error de Excel', message: 'Falla al procesar el archivo masivo.', type: 'error' });
         } finally {
             setIsGenerating(false);
         }
-    };
+    }, [exportData, scheduleMonth, scheduleYear, dayNumbers, logAction]);
 
     return (
         <div className="page-container animate-in fade-in duration-500 pb-24">

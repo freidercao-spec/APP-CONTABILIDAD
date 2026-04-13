@@ -1,358 +1,342 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { type AsignacionDia, type TipoJornada, type TurnoHora } from '../../store/programacionStore';
 import { type TurnoConfig, type JornadaCustom } from '../../store/puestoStore';
+import { useVigilanteStore, type Vigilante } from '../../store/vigilanteStore';
 
 interface EditCeldaModalProps {
   asig: AsignacionDia;
-  vigilantes: any[];
+  vigilantes: Vigilante[];
   titularesId: string[];
-  ocupados: Map<string, any[]>;
-  turnosConfig: TurnoConfig[];
-  jornadasCustom: JornadaCustom[];
-  onSave: (data: Partial<AsignacionDia>) => void;
+  titulares: any[];
+  puestoNombre?: string;
+  diaLabel?: string;
+  turnosConfig?: TurnoConfig[];
+  jornadasCustom?: JornadaCustom[];
+  onSave: (asig: AsignacionDia) => void;
   onClose: () => void;
-  initialVigilanteId?: string;
 }
 
-const getRolLabel = (rol: string) => {
-  const base: Record<string, string> = { titular_a: "Titular A", titular_b: "Titular B", relevante: "Relevante" };
-  return base[rol] || rol.replace(/_/g, " ").toUpperCase();
-};
-
-const DEFAULT_TURNOS: TurnoConfig[] = [
-  { id: "AM", nombre: "Turno AM", inicio: "06:00", fin: "18:00" },
-  { id: "PM", nombre: "Turno PM", inicio: "18:00", fin: "06:00" },
-];
-
-const DEFAULT_JORNADAS: JornadaCustom[] = [
-  { id: "normal", nombre: "Turno Laboral", short: "D", color: "#4f46e5", textColor: "#fff" },
-  { id: "descanso_remunerado", nombre: "Descanso Pagado", short: "DR", color: "#10b981", textColor: "#fff" },
-  { id: "descanso_no_remunerado", nombre: "Descanso Libre", short: "DNR", color: "#f59e0b", textColor: "#fff" },
-  { id: "vacacion", nombre: "Vacaciones", short: "VAC", color: "#8b5cf6", textColor: "#fff" },
-];
-
-export const EditCeldaModal = ({
-  asig,
-  vigilantes,
-  titularesId,
-  ocupados,
-  turnosConfig,
-  jornadasCustom,
-  onSave,
-  onClose,
-  initialVigilanteId,
+export const EditCeldaModal = ({ 
+  asig, vigilantes, titularesId, titulares, puestoNombre, diaLabel, 
+  turnosConfig = [], jornadasCustom = [], onSave, onClose 
 }: EditCeldaModalProps) => {
-  const [vigilanteId, setVigilanteId] = useState(initialVigilanteId || asig.vigilanteId || "");
-  const [turno, setTurno] = useState<TurnoHora>(asig.turno as TurnoHora || "AM");
-  const [jornada, setJornada] = useState<TipoJornada>(
-    asig.jornada === 'sin_asignar' ? 'normal' : asig.jornada
-  );
-  const [vigSearch, setVigSearch] = useState("");
-
-  const tList = turnosConfig.length ? turnosConfig : DEFAULT_TURNOS;
-  const jList = jornadasCustom.length ? jornadasCustom : DEFAULT_JORNADAS;
-  const turnoConf = tList.find((t) => t.id === turno) || tList[0];
-
-  const [horaInicio, setHoraInicio] = useState(asig.inicio || turnoConf?.inicio || "06:00");
-  const [horaFin, setHoraFin] = useState(asig.fin || turnoConf?.fin || "18:00");
-  const [showCustomHours, setShowCustomHours] = useState(!!asig.inicio);
-
-  const getConflict = (vid: string, t: string): { puesto: string; slot: string } | null => {
-    if (!vid) return null;
-    const slots = ocupados.get(vid) || [];
-    return slots.find((s) => s.slot === `${asig.dia}-${t}`) || null;
-  };
-
-  const conflicto = getConflict(vigilanteId, turno);
+  const [activeTab, setActiveTab] = useState<'quick' | 'search'>(titularesId.length > 0 ? 'quick' : 'search');
+  const [search, setSearch] = useState('');
+  const [selectedVigilante, setSelectedVigilante] = useState<Vigilante | null>(() => {
+    return vigilantes.find(v => v.id === asig.vigilanteId || v.dbId === asig.vigilanteId) || null;
+  });
+  const [tempAsig, setTempAsig] = useState<AsignacionDia>({ 
+    ...asig,
+    inicio: asig.inicio || '',
+    fin: asig.fin || ''
+  });
 
   const filteredVigilantes = useMemo(() => {
-    const q = vigSearch.toLowerCase().trim();
-    
-    // Filtro base: Titulares siempre arriba si no hay búsqueda
-    let list = [...vigilantes];
-    
-    if (q) {
-      list = list.filter(v =>
-        v.nombre?.toLowerCase().includes(q) || 
-        v.cedula?.includes(q) || 
-        v.id?.toLowerCase().includes(q)
-      );
-    }
+    if (!search) return [];
+    return vigilantes.filter(v => 
+      v.nombre.toLowerCase().includes(search.toLowerCase()) ||
+      v.documento?.toString().includes(search)
+    ).slice(0, 5);
+  }, [search, vigilantes]);
 
-    // Ordenar: Titulares -> Disponibles -> Resto
-    return list.sort((a, b) => {
-      const isTitA = titularesId.includes(a.id) ? -1 : 1;
-      const isTitB = titularesId.includes(b.id) ? -1 : 1;
-      if (isTitA !== isTitB) return isTitA;
-      
-      const isDispA = a.estado === 'disponible' ? -1 : 1;
-      const isDispB = b.estado === 'disponible' ? -1 : 1;
-      return isDispA - isDispB;
-    }).slice(0, 50);
-  }, [vigSearch, vigilantes, titularesId]);
+  const titularesList = useMemo(() => {
+    return titularesId.map(id => vigilantes.find(v => v.id === id || v.dbId === id)).filter(Boolean) as Vigilante[];
+  }, [titularesId, vigilantes]);
 
-  const selectedVig = vigilantes.find(v => v.id === vigilanteId);
+  const handleSelectVigilante = (v: Vigilante) => {
+    setSelectedVigilante(v);
+    setTempAsig(prev => ({ ...prev, vigilanteId: v.dbId || v.id }));
+  };
 
-  const handleGuardar = () => {
-    if (!vigilanteId) {
-      onSave({ vigilanteId: null, turno, jornada: 'sin_asignar', rol: asig.rol });
-      return;
-    }
-    onSave({
-      vigilanteId,
-      turno,
-      jornada,
-      rol: asig.rol,
-      inicio: showCustomHours ? horaInicio : undefined,
-      fin: showCustomHours ? horaFin : undefined,
-    });
+  const setTurnoPreset = (turnoId: string) => {
+    const config = turnosConfig.find(t => t.id === turnoId);
+    setTempAsig(prev => ({
+      ...prev,
+      turno: turnoId as any,
+      inicio: config?.inicio || prev.inicio,
+      fin: config?.fin || prev.fin
+    }));
+  };
+
+  const handleSave = () => {
+    onSave(tempAsig);
+    onClose();
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-300"
-      onClick={onClose}
-    >
-      <div
-        className="bg-slate-900 border border-white/10 rounded-[40px] w-full max-w-2xl shadow-[0_0_100px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col max-h-[90vh]"
-        onClick={e => e.stopPropagation()}
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      {/* Background Overlay with Blur */}
+      <div 
+        className="absolute inset-0 bg-[#020617]/90 backdrop-blur-md transition-opacity duration-500"
+        onClick={onClose}
+      />
+
+      {/* Modal Container */}
+      <div 
+        className="relative w-full max-w-3xl bg-[#0f172a]/95 border border-white/10 rounded-[48px] shadow-[0_32px_128px_-12px_rgba(0,0,0,0.8)] overflow-hidden animate-in fade-in zoom-in duration-300"
+        style={{ backdropFilter: 'blur(32px)' }}
       >
-        {/* TOP BAR TÁCTICA */}
-        <div className="px-8 py-6 border-b border-white/5 bg-gradient-to-r from-slate-900 to-indigo-950/30 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="size-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-              <span className="material-symbols-outlined text-indigo-400 text-[28px]">edit_calendar</span>
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-white uppercase tracking-tighter leading-none">
-                Gestión de Despacho
-              </h2>
-              <div className="flex gap-2 mt-2">
-                <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 text-[9px] font-black rounded-lg uppercase tracking-widest border border-indigo-500/30">
-                  Día {asig.dia}
-                </span>
-                <span className="px-2 py-0.5 bg-white/5 text-slate-400 text-[9px] font-black rounded-lg uppercase tracking-widest border border-white/10">
-                  {getRolLabel(asig.rol)}
-                </span>
+        {/* Header Elite */}
+        <div className="relative px-12 py-10 bg-gradient-to-r from-indigo-500/10 via-transparent to-transparent border-b border-white/5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-6">
+              <div className="size-16 rounded-3xl bg-indigo-600 flex items-center justify-center shadow-[0_0_40px_rgba(79,70,229,0.5)] border border-indigo-400/30">
+                <span className="material-symbols-outlined text-white text-[36px]">event_available</span>
+              </div>
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="px-3 py-1 bg-indigo-500/20 text-indigo-400 rounded-lg text-[10px] font-black uppercase tracking-[0.3em]">Operaciones</span>
+                  <span className="text-white/20 text-[10px]">•</span>
+                  <span className="text-indigo-400 text-[12px] font-black uppercase tracking-[0.2em]">{diaLabel || `Día ${asig.dia}`}</span>
+                </div>
+                <h2 className="text-3xl font-black text-white tracking-tighter uppercase italic">
+                  PERSONALIZAR <span className="text-indigo-500 not-italic">JORNADA</span>
+                </h2>
               </div>
             </div>
+            <button onClick={onClose} className="size-12 rounded-2xl bg-white/5 hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 transition-all flex items-center justify-center border border-white/10">
+              <span className="material-symbols-outlined">close</span>
+            </button>
           </div>
-          <button onClick={onClose} className="size-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/15 transition-all group">
-            <span className="material-symbols-outlined text-white/50 group-hover:text-white text-[22px]">close</span>
-          </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8">
+        <div className="px-12 py-10 space-y-10 max-h-[70vh] overflow-y-auto custom-scrollbar">
           
-          {/* SECTOR 1: VIGILANTE SELECCIONADO / BUSCADOR */}
-          <div className="space-y-4">
-            <div className="flex justify-between items-end">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Seleccionar Personal</label>
-              {vigilanteId && (
-                <button onClick={() => setVigilanteId("")} className="text-[10px] font-black text-rose-400 hover:text-rose-300 uppercase underline decoration-rose-400/30">Liberar Turno</button>
-              )}
-            </div>
-            
-            <div className="relative group">
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors">person_search</span>
-              <input
-                type="text"
-                placeholder="Busca por nombre, cédula o ID..."
-                value={vigSearch}
-                onChange={e => setVigSearch(e.target.value)}
-                autoFocus
-                className="w-full pl-12 pr-4 py-4 bg-white/[0.03] border border-white/10 rounded-2xl text-sm font-bold text-white outline-none focus:border-indigo-500/50 focus:bg-white/[0.05] transition-all"
-              />
+          {/* SELECCIÓN DE PERSONAL */}
+          <div className="space-y-5">
+            <div className="flex items-center justify-between px-2">
+              <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.4em]">Efectivo de Seguridad</span>
+              <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/5">
+                <button 
+                  onClick={() => setActiveTab('quick')}
+                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'quick' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+                >Titulares</button>
+                <button 
+                  onClick={() => setActiveTab('search')}
+                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'search' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+                >Global</button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar p-1">
-              {filteredVigilantes.map(v => {
-                const isSelected = vigilanteId === v.id;
-                const isTitular = titularesId.includes(v.id);
-                const conflict = getConflict(v.id, turno);
-                
-                return (
-                  <button
-                    key={v.id}
-                    onClick={() => setVigilanteId(v.id)}
-                    className={`group relative text-left p-3 rounded-2xl border transition-all flex items-center gap-3 ${
-                      isSelected 
-                        ? 'bg-indigo-600 border-indigo-500 shadow-lg shadow-indigo-600/20' 
-                        : 'bg-white/[0.02] border-white/5 hover:border-white/10 hover:bg-white/[0.05]'
-                    }`}
-                  >
-                    <div className={`size-10 rounded-xl flex items-center justify-center font-black text-sm shrink-0 shadow-inner ${
-                      isSelected ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400 group-hover:bg-slate-700'
-                    }`}>
-                      {v.nombre?.[0]}
+            {selectedVigilante ? (
+              <div className="relative group p-8 rounded-[36px] bg-indigo-500/[0.03] border border-indigo-500/20 flex items-center justify-between shadow-2xl overflow-hidden transition-all hover:border-indigo-500/40">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 blur-[100px] pointer-events-none" />
+                <div className="flex items-center gap-6 relative">
+                  <div className="size-20 rounded-3xl bg-indigo-600/10 border-2 border-indigo-500/30 flex items-center justify-center text-3xl font-black text-indigo-400 shadow-inner">
+                    {selectedVigilante.nombre.substring(0,2).toUpperCase()}
+                  </div>
+                  <div>
+                    <h4 className="text-[22px] font-black text-white uppercase tracking-tight leading-none mb-2">{selectedVigilante.nombre}</h4>
+                    <div className="flex items-center gap-4">
+                       <p className="text-[13px] font-bold text-indigo-400/80 tracking-wide">{selectedVigilante.documento || 'Sin Cédula'}</p>
+                       <span className="size-1.5 rounded-full bg-indigo-500/30" />
+                       <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-1.5">
+                         <span className="size-2 bg-emerald-500 rounded-full animate-pulse" /> Disponible
+                       </span>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className={`text-[12px] font-black truncate ${isSelected ? 'text-white' : 'text-slate-200'}`}>{v.nombre}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        {isTitular && <span className="text-[8px] font-black text-amber-500 uppercase tracking-tighter">★ Titular</span>}
-                        {!isTitular && <span className="text-[8px] font-black text-slate-500 uppercase tracking-tighter">Externo</span>}
-                        {conflict && <span className="text-[8px] font-black text-rose-400 uppercase tracking-tighter">• Ocupado</span>}
-                        {!conflict && v.estado === 'disponible' && <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter">• Disponible</span>}
+                  </div>
+                </div>
+                <button 
+                  onClick={() => { setSelectedVigilante(null); setTempAsig(prev => ({ ...prev, vigilanteId: '' })); setActiveTab('search'); }}
+                  className="px-8 py-3.5 bg-white/5 hover:bg-rose-500/20 border border-white/10 hover:border-rose-500/30 text-[11px] font-black text-slate-400 hover:text-rose-400 rounded-2xl uppercase tracking-widest transition-all shadow-lg"
+                >Reasignar</button>
+              </div>
+            ) : (
+              <div className="animate-in fade-in slide-in-from-top-2 duration-400">
+                {activeTab === 'search' ? (
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-6 top-1/2 -translate-y-1/2 text-slate-600 text-[28px]">search</span>
+                    <input 
+                      autoFocus
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      placeholder="Identificación o nombres completos..."
+                      className="w-full h-20 pl-16 pr-8 bg-black/40 border border-white/10 rounded-[32px] text-[18px] font-bold text-white outline-none focus:border-indigo-500/40 transition-all placeholder:text-slate-700 shadow-inner"
+                    />
+                    {filteredVigilantes.length > 0 && (
+                      <div className="mt-4 p-3 bg-[#0c1425] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl divide-y divide-white/5">
+                        {filteredVigilantes.map(v => (
+                          <div 
+                            key={v.id} 
+                            onClick={() => handleSelectVigilante(v)}
+                            className="flex items-center justify-between p-5 hover:bg-indigo-600/10 cursor-pointer rounded-2xl transition-all group"
+                          >
+                            <div className="flex items-center gap-5">
+                              <div className="size-12 rounded-xl bg-white/5 flex items-center justify-center text-sm font-black text-slate-500 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                                {v.nombre[0]}
+                              </div>
+                              <div>
+                                 <p className="text-[15px] font-black text-white group-hover:text-indigo-400">{v.nombre}</p>
+                                 <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">{v.documento}</p>
+                              </div>
+                            </div>
+                            <span className="material-symbols-outlined text-slate-700 group-hover:text-indigo-500 transition-colors">add_circle</span>
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                    {conflict && (
-                      <div className="absolute top-2 right-2 size-2 bg-rose-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(244,63,94,0.5)]" />
                     )}
-                  </button>
-                );
-              })}
-            </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                    {titularesList.length > 0 ? titularesList.map(v => (
+                      <button 
+                        key={v.id}
+                        onClick={() => handleSelectVigilante(v)}
+                        className="flex items-center gap-5 p-5 bg-white/5 border border-white/5 hover:border-indigo-500/30 hover:bg-indigo-500/10 rounded-[28px] transition-all group text-left"
+                      >
+                         <div className="size-14 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-lg font-black group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-inner">
+                           {v.nombre.substring(0,2).toUpperCase()}
+                         </div>
+                         <div className="min-w-0">
+                            <p className="text-[13px] font-black text-white truncate">{v.nombre.split(' ')[0]}</p>
+                            <p className="text-[10px] font-black text-indigo-500/60 uppercase tracking-widest">Titular</p>
+                         </div>
+                      </button>
+                    )) : (
+                      <div className="col-span-full py-12 text-center bg-white/[0.02] rounded-[36px] border border-dashed border-white/10">
+                        <span className="material-symbols-outlined text-[40px] text-slate-800 mb-3">person_off</span>
+                        <p className="text-[11px] font-black text-slate-600 uppercase tracking-widest">Configura titulares en el puesto</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* SECTOR 2: CONFIGURACIÓN DE TURNO */}
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Configuración de Horario</label>
-                <div onClick={() => setShowCustomHours(!showCustomHours)} className="flex items-center gap-2 cursor-pointer group">
-                  <span className={`text-[9px] font-black uppercase transition-colors ${showCustomHours ? 'text-indigo-400' : 'text-slate-600 group-hover:text-slate-400'}`}>Personalizar</span>
-                  <div className={`w-6 h-3 rounded-full relative transition-colors ${showCustomHours ? 'bg-indigo-600' : 'bg-slate-700'}`}>
-                    <div className={`absolute top-0.5 size-2 rounded-full bg-white transition-all ${showCustomHours ? 'left-3.5' : 'left-0.5'}`} />
-                  </div>
-                </div>
+          {/* DOBLE COLUMNA: HORARIO Y JORNADA */}
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
+            {/* CONFIGURACIÓN DE HORARIO CUSTOM (EL CORAZÓN) */}
+            <div className="xl:col-span-7 space-y-6">
+              <div className="flex items-center justify-between px-2">
+                <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.4em]">Horario del Servicio</span>
+                <span className="px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-lg text-[9px] font-black uppercase tracking-widest">Personalizable</span>
               </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                {tList.map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => {
-                      setTurno(t.id as TurnoHora);
-                      if (!showCustomHours) {
-                        setHoraInicio(t.inicio);
-                        setHoraFin(t.fin);
-                      }
-                    }}
-                    className={`p-3 rounded-2xl text-[10px] font-black border transition-all text-center group ${
-                      turno === t.id
-                        ? 'bg-white/10 border-white/20 text-white'
-                        : 'bg-white/[0.02] border-white/5 text-slate-500 hover:border-white/10'
-                    }`}
-                  >
-                    <span className={`size-1.5 rounded-full inline-block mr-2 mb-0.5 transition-colors ${turno === t.id ? 'bg-indigo-400' : 'bg-slate-700 group-hover:bg-slate-500'}`} />
-                    {t.nombre}
-                    <p className="text-[8px] opacity-40 mt-1">{t.inicio} — {t.fin}</p>
-                  </button>
-                ))}
-              </div>
-
-              {showCustomHours && (
-                <div className="grid grid-cols-2 gap-3 p-4 bg-white/[0.03] border border-white/5 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-300">
-                  <div>
-                    <span className="text-[8px] font-black text-slate-500 uppercase block mb-1.5 ml-1">Inicio Custom</span>
-                    <input
-                      type="time"
-                      value={horaInicio}
-                      onChange={e => setHoraInicio(e.target.value)}
-                      className="w-full bg-slate-950 border border-white/5 rounded-xl px-3 py-2 text-xs font-black text-white outline-none focus:border-indigo-500/30 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-[8px] font-black text-slate-500 uppercase block mb-1.5 ml-1">Fin Custom</span>
-                    <input
-                      type="time"
-                      value={horaFin}
-                      onChange={e => setHoraFin(e.target.value)}
-                      className="w-full bg-slate-950 border border-white/5 rounded-xl px-3 py-2 text-xs font-black text-white outline-none focus:border-indigo-500/30 transition-all"
+              
+              <div className="grid grid-cols-2 gap-6 bg-black/40 p-8 rounded-[40px] border border-white/5 shadow-inner">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1">Hora de Entrada</label>
+                  <div className="relative group">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500/60 z-10">schedule</span>
+                    <input 
+                      list="horas-comunes"
+                      type="text"
+                      value={tempAsig.inicio}
+                      onChange={e => setTempAsig({ ...tempAsig, inicio: e.target.value })}
+                      placeholder="00:00"
+                      className="w-full h-16 bg-white/[0.03] border border-white/10 rounded-2xl pl-12 pr-4 text-[20px] font-black text-white focus:border-emerald-500/40 transition-all outline-none text-center tabular-nums cursor-pointer"
                     />
                   </div>
                 </div>
-              )}
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1">Hora de Salida</label>
+                  <div className="relative group">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-rose-500/60 z-10">history</span>
+                    <input 
+                      list="horas-comunes"
+                      type="text"
+                      value={tempAsig.fin}
+                      onChange={e => setTempAsig({ ...tempAsig, fin: e.target.value })}
+                      placeholder="00:00"
+                      className="w-full h-16 bg-white/[0.03] border border-white/10 rounded-2xl pl-12 pr-4 text-[20px] font-black text-white focus:border-rose-500/40 transition-all outline-none text-center tabular-nums cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                <datalist id="horas-comunes">
+                  <option value="06:00" />
+                  <option value="07:00" />
+                  <option value="08:00" />
+                  <option value="18:00" />
+                  <option value="19:00" />
+                  <option value="20:00" />
+                </datalist>
+
+                <div className="col-span-full pt-6 border-t border-white/5 mt-2">
+                  <div className="flex flex-wrap gap-2.5">
+                    {[
+                      { id: 'AM', label: 'Día (06-18)', icon: 'wb_sunny', color: 'text-amber-400' },
+                      { id: 'PM', label: 'Noche (18-06)', icon: 'brightness_2', color: 'text-indigo-400' },
+                      { id: '24H', label: '24h (06-06)', icon: 'cached', color: 'text-emerald-400' }
+                    ].map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => setTurnoPreset(p.id)}
+                        className={`flex items-center gap-2.5 px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all border ${
+                          tempAsig.turno === p.id 
+                            ? 'bg-indigo-600 border-indigo-400 text-white shadow-lg'
+                            : 'bg-white/5 border-white/5 text-slate-500 hover:text-white'
+                        }`}
+                      >
+                        <span className={`material-symbols-outlined text-[18px] ${tempAsig.turno === p.id ? 'text-white' : p.color}`}>{p.icon}</span>
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* SECTOR 3: TIPO DE JORNADA */}
-            <div className="space-y-4">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Estado de la Jornada</label>
-              <div className="grid grid-cols-1 gap-2">
-                {jList.map(j => (
-                  <button
+            {/* ESTADO DE JORNADA */}
+            <div className="xl:col-span-5 space-y-6">
+              <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.4em] px-2">Estado Laboral</span>
+              <div className="bg-black/20 rounded-[40px] p-2 border border-white/5 space-y-1 shadow-inner">
+                {[
+                  { id: 'normal',   label: 'NORMAL (OPERATIVO)', icon: 'verified_user', color: 'text-emerald-400' },
+                  { id: 'descanso_remunerado', label: 'DESCANSO REMUNERADO (DR)', icon: 'home_work', color: 'text-sky-400' },
+                  { id: 'descanso_no_remunerado', label: 'DESC. NO REMUNERADO (DNR)', icon: 'event_busy', color: 'text-amber-400' },
+                  { id: 'vacacion', label: 'VACACIONES / LICENCIA (VAC)', icon: 'beach_access', color: 'text-pink-400' },
+                  { id: 'incapacidad', label: 'INCAPACIDAD / MÉDICA', icon: 'medical_services', color: 'text-rose-400' }
+                ].map(j => (
+                  <button 
                     key={j.id}
-                    onClick={() => setJornada(j.id as TipoJornada)}
-                    className={`flex items-center gap-3 p-3 rounded-2xl border transition-all text-left group ${
-                      jornada === j.id
-                        ? 'bg-white/10 border-white/20 text-white'
-                        : 'bg-white/[0.02] border-white/5 text-slate-500 hover:border-white/10'
+                    onClick={() => setTempAsig({ ...tempAsig, jornada: j.id as any })}
+                    className={`w-full px-6 py-4.5 rounded-[24px] flex items-center justify-between transition-all ${
+                      tempAsig.jornada === j.id 
+                        ? 'bg-white/10 text-white border border-white/10' 
+                        : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
                     }`}
                   >
-                    <div 
-                      className="size-4 rounded-full border-2 border-slate-700 flex items-center justify-center shrink-0"
-                      style={jornada === j.id ? { borderColor: j.color } : {}}
-                    >
-                      {jornada === j.id && <div className="size-2 rounded-full" style={{ backgroundColor: j.color }} />}
+                    <div className="flex items-center gap-4">
+                       <span className={`material-symbols-outlined text-[20px] ${j.color}`}>{j.icon}</span>
+                       <span className={`text-[12px] font-black uppercase tracking-wider ${tempAsig.jornada === j.id ? 'text-white' : 'text-slate-500'}`}>{j.label}</span>
                     </div>
-                    <div>
-                      <p className={`text-[11px] font-black transition-colors ${jornada === j.id ? 'text-white' : 'text-slate-400 group-hover:text-slate-300'}`}>{j.nombre}</p>
-                      <p className="text-[8px] opacity-40 uppercase tracking-widest">{j.short}</p>
+                    <div className={`size-5 rounded-full border-2 flex items-center justify-center transition-all ${tempAsig.jornada === j.id ? 'border-indigo-500 bg-indigo-500/20' : 'border-slate-800'}`}>
+                      {tempAsig.jornada === j.id && <div className="size-2 bg-indigo-400 rounded-full shadow-[0_0_8px_rgba(129,140,248,0.8)]" />}
                     </div>
                   </button>
                 ))}
               </div>
             </div>
           </div>
-
-          {/* MENSAJE DE ADVERTENCIA DE CARGA DUPLICADA */}
-          {conflicto && (
-            <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-3xl flex items-center gap-4 animate-in pulse duration-500">
-               <div className="size-10 rounded-2xl bg-amber-500/20 flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-amber-500 text-[20px]">notification_important</span>
-               </div>
-               <div className="pr-4">
-                  <p className="text-[11px] font-black text-amber-200 uppercase tracking-wide">Aviso de Carga Duplicada</p>
-                  <p className="text-[10px] font-medium text-amber-400 mt-0.5">El vigilante ya tiene un turno en <b>{conflicto.puesto}</b>. ¿Deseas confirmar este despacho?</p>
-               </div>
-            </div>
-          )}
-
-          {!conflicto && selectedVig && (
-            <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-3xl flex items-center gap-4">
-               <div className="size-10 rounded-2xl bg-emerald-500/20 flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-emerald-500 text-[20px]">check_circle</span>
-               </div>
-               <div>
-                  <p className="text-[11px] font-black text-emerald-200 uppercase tracking-wide">Personal Verificado</p>
-                  <p className="text-[10px] font-medium text-emerald-400 mt-0.5">{selectedVig.nombre} está disponible para este despacho táctico.</p>
-               </div>
-            </div>
-          )}
-
         </div>
 
-        {/* ACCIONES FINALES */}
-        <div className="px-8 py-8 border-t border-white/5 bg-slate-950/50 flex flex-col sm:flex-row gap-4">
-          <button
-            onClick={onClose}
-            className="px-8 py-4 bg-white/5 hover:bg-white/10 text-slate-400 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all"
-          >
-            Cancelar
-          </button>
-          
-          <button
-            onClick={handleGuardar}
-            disabled={!vigilanteId && jornada !== 'sin_asignar'}
-            className={`flex-1 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-2xl relative overflow-hidden group ${
-              !vigilanteId 
-                ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
-                : 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-indigo-600/40'
-            }`}
-          >
-            {/* Efecto de brillo al pasar el mouse por el botón */}
-            <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-            
-            <span className="material-symbols-outlined text-[18px]">
-              {conflicto ? 'priority_high' : 'verified_user'}
-            </span>
-            {vigilanteId 
-              ? (conflicto ? `Confirmar Doble Turno` : `Asignar a ${selectedVig?.nombre?.split(' ')[0]}`) 
-              : 'Confirmar Registro de Vacante'
-            }
-          </button>
+        {/* Footer Elite */}
+        <div className="px-12 py-10 bg-slate-950 border-t border-white/5 flex flex-col md:flex-row gap-6 items-center justify-between">
+           <button 
+            onClick={() => { setTempAsig({ ...tempAsig, jornada: 'sin_asignar', vigilanteId: '' }); handleSave(); }}
+            className="flex items-center gap-2.5 text-[12px] font-black text-slate-600 hover:text-rose-500 uppercase tracking-[0.2em] transition-all group"
+           >
+             <div className="size-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500/40 group-hover:text-rose-500 transition-colors">
+                <span className="material-symbols-outlined text-[22px]">delete_sweep</span>
+             </div>
+             Remover Asignación
+           </button>
+
+           <div className="flex items-center gap-6 w-full md:w-auto">
+              <button 
+                onClick={onClose}
+                className="flex-1 md:flex-none px-10 py-5 rounded-2xl text-[12px] font-black text-slate-500 uppercase tracking-widest hover:text-white transition-all bg-white/5 border border-transparent hover:border-white/10"
+              >Cancelar</button>
+              
+              <button 
+                onClick={handleSave}
+                className="flex-[2] md:flex-none px-16 py-5 bg-indigo-600 text-white rounded-[26px] text-[12px] font-black uppercase tracking-[0.2em] shadow-[0_20px_40px_rgba(79,70,229,0.3)] hover:shadow-[0_25px_60px_rgba(79,70,229,0.5)] hover:-translate-y-1.5 active:translate-y-0 transition-all border border-indigo-400/30"
+              >Confirmar Despacho</button>
+           </div>
         </div>
       </div>
     </div>
   );
 };
+

@@ -8,6 +8,9 @@ interface CeldaCalendarioProps {
   onEdit: () => void;
   jornadasCustom?: JornadaCustom[];
   turnosConfig?: TurnoConfig[];
+  hasConflict?: boolean;       // Indicador de doble asignación
+  conflictDetail?: string;     // Detalle del conflicto
+  syncError?: boolean;         // Error de sincronización en esta celda
 }
 
 const DEFAULT_JORNADAS: JornadaCustom[] = [
@@ -60,6 +63,9 @@ export const CeldaCalendario = React.memo(({
   vigilanteNombre,
   onEdit,
   turnosConfig,
+  hasConflict,
+  conflictDetail,
+  syncError,
 }: CeldaCalendarioProps) => {
 
   const isSinAsignar = asig.jornada === 'sin_asignar' || !asig.vigilanteId;
@@ -71,7 +77,7 @@ export const CeldaCalendario = React.memo(({
         onClick={onEdit}
         title={`Día ${asig.dia} · Clic para asignar`}
         style={{ minHeight: 74 }}
-        className="w-full h-full flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-white/5 bg-white/[0.03] backdrop-blur-sm hover:bg-white/[0.08] hover:border-white/10 transition-all duration-300 group shadow-inner"
+        className="w-full h-full flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-white/5 bg-white/[0.03] backdrop-blur-sm hover:bg-white/[0.08] hover:border-indigo-500/30 transition-all duration-300 group shadow-inner relative"
       >
         <div className="size-8 rounded-xl bg-slate-900/50 border border-white/10 flex items-center justify-center text-slate-500 group-hover:text-indigo-400 group-hover:border-indigo-500/30 group-hover:scale-110 transition-all duration-300 shadow-lg">
           <span className="material-symbols-outlined text-[18px]">add</span>
@@ -90,29 +96,57 @@ export const CeldaCalendario = React.memo(({
 
   const nameParts = (vigilanteNombre || '').trim().split(' ');
 
+  // Determinar borde según estado
+  const borderColor = hasConflict 
+    ? '#f43f5e' // Rojo para conflicto
+    : syncError 
+      ? '#f59e0b' // Amarillo para error de sync
+      : `${style.badge}77`;
+
   return (
     <button
       onClick={onEdit}
-      title={`${vigilanteNombre} · ${style.label}`}
+      title={hasConflict ? `⚠️ DOBLE ASIGNACIÓN: ${conflictDetail}` : `${vigilanteNombre} · ${style.label}`}
       style={{
         minHeight: 85,
-        background: `linear-gradient(165deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 1) 100%)`,
-        borderColor: `${style.badge}77`, // Borde neón más fuerte
-        boxShadow: `0 8px 25px -5px rgba(0, 0, 0, 0.6), inset 0 0 15px ${style.badge}22`
+        background: hasConflict 
+          ? `linear-gradient(165deg, rgba(68, 10, 20, 0.95) 0%, rgba(15, 23, 42, 1) 100%)`
+          : `linear-gradient(165deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 1) 100%)`,
+        borderColor,
+        boxShadow: hasConflict
+          ? `0 8px 25px -5px rgba(244, 63, 94, 0.4), inset 0 0 20px rgba(244, 63, 94, 0.15)`
+          : `0 8px 25px -5px rgba(0, 0, 0, 0.6), inset 0 0 15px ${style.badge}22`
       }}
-      className="w-full h-full flex flex-col items-center justify-center gap-1 rounded-2xl border backdrop-blur-md hover:border-white/40 hover:scale-[1.05] hover:z-50 transition-all duration-400 group overflow-hidden px-2 py-3 relative"
+      className={`w-full h-full flex flex-col items-center justify-center gap-1 rounded-2xl border backdrop-blur-md hover:border-white/40 hover:scale-[1.05] hover:z-50 transition-all duration-400 group overflow-hidden px-2 py-3 relative ${hasConflict ? 'border-2' : ''}`}
     >
+      {/* INDICADOR DE CONFLICTO (Pulso rojo en la esquina) */}
+      {hasConflict && (
+        <>
+          <div className="absolute -top-1 -right-1 size-4 bg-rose-500 rounded-full animate-ping opacity-75 z-10" />
+          <div className="absolute -top-0.5 -right-0.5 size-3 bg-rose-500 rounded-full z-20 flex items-center justify-center shadow-[0_0_12px_rgba(244,63,94,0.8)]">
+            <span className="text-white text-[7px] font-black">!</span>
+          </div>
+        </>
+      )}
+
+      {/* INDICADOR DE ERROR DE SYNC */}
+      {syncError && !hasConflict && (
+        <div className="absolute -top-0.5 -right-0.5 size-3 bg-amber-500 rounded-full z-20 flex items-center justify-center shadow-[0_0_8px_rgba(245,158,11,0.6)]">
+          <span className="text-white text-[7px] font-black">↻</span>
+        </div>
+      )}
+
       {/* Luz ambiental del turno (Glow Effect mejorado) */}
       <div 
         className="absolute -top-4 -left-4 size-16 rounded-full blur-2xl opacity-30 pointer-events-none animate-pulse"
-        style={{ background: style.badge }}
+        style={{ background: hasConflict ? '#f43f5e' : style.badge }}
       />
 
       {/* Indicador de Turno (Glass-Badge Luxury) */}
       <div className="absolute top-2 left-2 flex items-center gap-1">
         <div className="flex items-center justify-center size-5 rounded-lg bg-white/10 border border-white/20 shadow-md">
-          <span className="material-symbols-outlined text-[13px] font-black" style={{ color: style.badge }}>
-            {isNight ? 'dark_mode' : 'light_mode'}
+          <span className="material-symbols-outlined text-[13px] font-black" style={{ color: hasConflict ? '#f43f5e' : style.badge }}>
+            {hasConflict ? 'priority_high' : isNight ? 'dark_mode' : 'light_mode'}
           </span>
         </div>
       </div>
@@ -120,14 +154,17 @@ export const CeldaCalendario = React.memo(({
       {/* Badge de Jornada Táctica High-Visibility */}
       <div 
         className="absolute top-2 right-2 text-[9px] font-black px-2 py-0.5 rounded-lg border border-white/20 uppercase tracking-widest shadow-lg"
-        style={{ background: `${style.badge}44`, color: '#fff' }}
+        style={{ 
+          background: hasConflict ? 'rgba(244, 63, 94, 0.4)' : `${style.badge}44`, 
+          color: '#fff' 
+        }}
       >
         {style.label}
       </div>
 
       {/* Identidad del Vigilante (FUENTES MÁS GRANDES) */}
       <div className="flex flex-col items-center justify-center w-full mt-3 space-y-0.5">
-        <span className="text-[12px] font-black leading-tight text-white text-center w-full truncate px-1 uppercase tracking-normal group-hover:text-amber-400 transition-colors">
+        <span className={`text-[12px] font-black leading-tight text-center w-full truncate px-1 uppercase tracking-normal transition-colors ${hasConflict ? 'text-rose-300 group-hover:text-rose-200' : 'text-white group-hover:text-amber-400'}`}>
           {nameParts[0]}
         </span>
         {nameParts[1] && (
@@ -138,7 +175,7 @@ export const CeldaCalendario = React.memo(({
       </div>
 
       {/* Detalle Operativo (Etiqueta de Misión) */}
-      <div className="mt-auto flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm">
+      <div className={`mt-auto flex items-center gap-1.5 px-2.5 py-1 rounded-xl border backdrop-blur-sm ${hasConflict ? 'bg-rose-500/10 border-rose-500/20' : 'bg-white/5 border-white/10'}`}>
          <span className="text-[8px] font-black uppercase tracking-[0.1em] text-white/70">
             {turnoConf?.nombre || (isNight ? 'NOCHE' : 'DÍA')}
          </span>
@@ -153,7 +190,7 @@ export const CeldaCalendario = React.memo(({
       {/* Línea de estatus en la base */}
       <div 
         className="absolute bottom-0 left-0 h-0.5 w-full bg-gradient-to-r from-transparent via-current to-transparent opacity-40"
-        style={{ color: style.badge }}
+        style={{ color: hasConflict ? '#f43f5e' : style.badge }}
       />
     </button>
   );

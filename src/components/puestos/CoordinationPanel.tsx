@@ -208,56 +208,67 @@ export const CoordinationPanel = ({
   }, [uniqueVids, originStaffVids, hideBusyGuards, freshCProg, localBusyVids, displayCount]);
 
   return (
-    <div className="mt-8 bg-slate-900 rounded-[40px] border border-white/10 overflow-hidden shadow-2xl">
-      {/* ── HEADER ──────────────────────────────────────────────────────────── */}
-      <div className="px-8 py-6 border-b border-white/5 bg-white/[0.02] flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h3 className="text-xl font-black text-white uppercase tracking-tighter">
-            Panel de <span className="text-indigo-400">Coordinación Táctica</span>
-          </h3>
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
-            {freshCProg
-              ? `Comparando con: ${allPuestos.find(p => p.dbId === freshCProg.puestoId || p.id === freshCProg.puestoId)?.nombre || 'Puesto Destino'}`
-              : 'Selecciona un Tablero Destino para comparar'
-            }
-          </p>
+    <div className="mt-10 bg-[#0f172a]/80 backdrop-blur-xl rounded-[48px] border border-white/10 overflow-hidden shadow-[0_32px_128px_rgba(0,0,0,0.6)] relative">
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent"></div>
+      
+      {/* ── HEADER TÁCTICO PREMIUM ────────────────────────────────────────── */}
+      <div className="px-10 py-8 border-b border-white/5 bg-white/[0.01] flex flex-wrap items-center justify-between gap-6">
+        <div className="flex items-center gap-6">
+          <div className="size-16 rounded-[24px] bg-indigo-600/10 border border-indigo-500/30 flex items-center justify-center">
+            <span className="material-symbols-outlined text-indigo-400 text-[32px]">hub</span>
+          </div>
+          <div>
+            <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">
+              CENTRO <span className="text-indigo-500 not-italic">DE COORDINACIÓN</span>
+            </h3>
+            <div className="flex items-center gap-3 mt-1.5">
+               <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded text-[9px] font-black text-emerald-400 uppercase tracking-widest">
+                 <span className="size-1 bg-emerald-400 rounded-full animate-pulse"></span> Sistema Live
+               </span>
+               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                {freshCProg
+                  ? `MODO COMPARATIVA: ${allPuestos.find(p => p.dbId === freshCProg.puestoId || p.id === freshCProg.puestoId)?.nombre || 'Puesto B'}`
+                  : 'MODO DISPONIBILIDAD GLOBAL'
+                }
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          {/* SELECTOR TABLERO B */}
+        <div className="flex flex-wrap items-center gap-4">
+          {/* SELECTOR TABLERO B XXL */}
           <div className="relative">
             <button
               onClick={() => setShowDestSelector(!showDestSelector)}
-              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${
+              className={`h-14 px-8 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-4 ${
                 freshCProg
-                  ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/20'
-                  : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                  ? 'bg-cyan-600 text-white shadow-[0_0_30px_rgba(8,145,178,0.4)]'
+                  : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/10'
               }`}
             >
-              <span className="material-symbols-outlined text-[16px]">compare_arrows</span>
+              <span className="material-symbols-outlined text-[24px]">compare_arrows</span>
               {freshCProg
                 ? (allPuestos.find(p => p.dbId === freshCProg.puestoId || p.id === freshCProg.puestoId)?.nombre?.substring(0, 20) || 'Tablero B')
-                : 'Tablero B'
+                : 'Comparar con Tablero B'
               }
             </button>
 
             {showDestSelector && (
-              <div className="absolute top-full right-0 mt-3 w-72 bg-slate-800 border border-white/10 rounded-2xl shadow-2xl z-[100] p-3 animate-in zoom-in-95 duration-200">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3 px-2">
-                  Seleccionar Puesto Destino
-                </p>
+              <div className="absolute top-full right-0 mt-4 w-80 bg-[#0f172a] border border-white/10 rounded-[32px] shadow-[0_24px_64px_rgba(0,0,0,0.8)] z-[200] p-4 animate-in zoom-in-95 duration-200">
+                <div className="flex items-center gap-2 mb-4 px-2">
+                   <span className="material-symbols-outlined text-indigo-400 text-[18px]">list_alt</span>
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Seleccionar Puesto</p>
+                </div>
                 {freshCProg && (
                   <button
                     onClick={() => { setCompareProgId?.(null); setShowDestSelector(false); }}
-                    className="w-full text-left p-2.5 mb-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-[10px] font-black text-red-400 uppercase flex items-center gap-2"
+                    className="w-full text-left p-3.5 mb-3 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-[10px] font-black text-rose-400 uppercase flex items-center justify-center gap-2 transition-all"
                   >
-                    <span className="material-symbols-outlined text-[14px]">close</span> Quitar comparación
+                    <span className="material-symbols-outlined text-[16px]">close</span> Quitar comparación
                   </button>
                 )}
-                <div className="space-y-1 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
-                  {availableDestPuestos.length === 0 ? (
-                    <p className="text-[10px] text-slate-500 italic text-center py-4">No hay puestos disponibles</p>
-                  ) : availableDestPuestos.map(p => {
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
+                  {availableDestPuestos.map(p => {
                     const pid = p.dbId || p.id;
                     const destProg = allProgramaciones.find(
                       pr => (pr.puestoId === pid || pr.puestoId === p.id) &&
@@ -268,29 +279,20 @@ export const CoordinationPanel = ({
                       <button
                         key={p.id}
                         onClick={() => {
-                          if (destProg) {
-                            setCompareProgId?.(destProg.id);
-                          } else {
-                            showTacticalToast({ title: 'Sin Programación', message: `${p.nombre} no tiene programación este mes.`, type: 'info' });
-                          }
+                          if (destProg) setCompareProgId?.(destProg.id);
+                          else showTacticalToast({ title: 'Sin Programación', message: `${p.nombre} no tiene programación este mes.`, type: 'info' });
                           setShowDestSelector(false);
                         }}
-                        className={`w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group ${
+                        className={`w-full text-left p-4 rounded-2xl transition-all border ${
                           freshCProg?.puestoId === pid
-                            ? 'bg-cyan-500/20 border border-cyan-500/30'
-                            : 'bg-white/5 hover:bg-indigo-500/20 border border-transparent hover:border-indigo-500/30'
+                            ? 'bg-cyan-500/20 border-cyan-500/40'
+                            : 'bg-white/5 hover:bg-white/10 border-transparent hover:border-white/10'
                         }`}
                       >
-                        <div>
-                          <p className="text-[11px] font-black text-white uppercase leading-tight">{p.nombre}</p>
-                          <p className="text-[8px] font-bold text-slate-500 uppercase mt-0.5">
-                            {destProg
-                              ? `${(destProg.asignaciones || []).filter(a => a.vigilanteId).length} asignaciones`
-                              : 'Sin programación este mes'
-                            }
-                          </p>
-                        </div>
-                        <span className="material-symbols-outlined text-[14px] text-white/30 group-hover:text-indigo-400 transition-colors">arrow_forward</span>
+                        <p className="text-[12px] font-black text-white uppercase tracking-tight">{p.nombre}</p>
+                        <p className="text-[9px] font-bold text-slate-600 mt-1">
+                          {destProg ? `${(destProg.asignaciones || []).filter(a => a.vigilanteId).length} Asignaciones` : 'No configurado'}
+                        </p>
                       </button>
                     );
                   })}
@@ -299,103 +301,71 @@ export const CoordinationPanel = ({
             )}
           </div>
 
-          {/* Buscador */}
-          <div className="relative">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-[18px]">search</span>
-            <input
-              type="text"
-              placeholder="Filtrar vigilante..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="h-10 pl-10 pr-4 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-white outline-none focus:border-indigo-500/50 transition-all w-48"
-            />
-          </div>
+          <div className="h-10 w-px bg-white/10 mx-2 hidden xl:block"></div>
 
-          {/* Ver todo el personal */}
-          <button
-            onClick={() => setShowEntireStaff(!showEntireStaff)}
-            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${
-              showEntireStaff ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-white/5 text-slate-400 hover:bg-white/10'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[16px]">
-              {showEntireStaff ? 'visibility' : 'visibility_off'}
-            </span>
-            {showEntireStaff ? 'Staff Extendido ON' : 'Ver Todo el Personal'}
-          </button>
-
-          {/* No Repetir */}
-          <div className="relative group">
-            <button
-              onClick={() => setHideBusyGuards?.(!hideBusyGuards)}
-              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${
-                hideBusyGuards
-                  ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
-                  : 'bg-white/5 text-slate-400 hover:bg-white/10'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">
-                {hideBusyGuards ? 'lock' : 'lock_open'}
-              </span>
-              {hideBusyGuards
-                ? `No Repetir ON${blockedCount > 0 ? ` · ${blockedCount} filtrados` : ''}`
-                : 'Permitir Repeticiones'
-              }
-            </button>
-            <div className="absolute bottom-full right-0 mb-2 w-60 p-3 bg-slate-800 border border-amber-500/30 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-[100] pointer-events-none">
-              <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest mb-1">Control No-Repetición</p>
-              <p className="text-[8px] font-bold text-slate-300 leading-relaxed">
-                {hideBusyGuards
-                  ? 'Oculta vigilantes ya programados en otros puestos este mes.'
-                  : 'Activa para evitar asignar el mismo vigilante en dos puestos distintos.'}
-              </p>
-            </div>
+          {/* Filtros Premium */}
+          <div className="flex bg-black/40 border border-white/10 rounded-2xl p-1.5">
+             <button
+                onClick={() => setShowEntireStaff(!showEntireStaff)}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                  showEntireStaff ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[18px]">{showEntireStaff ? 'groups' : 'group'}</span>
+                <span>{showEntireStaff ? 'Staff Total' : 'Staff Puesto'}</span>
+              </button>
+              <button
+                onClick={() => setHideBusyGuards?.(!hideBusyGuards)}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                  hideBusyGuards ? 'bg-amber-500 text-white shadow-lg' : 'text-slate-500 hover:text-white'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[18px]">{hideBusyGuards ? 'security' : 'security_update_warning'}</span>
+                <span>No Repetir</span>
+              </button>
           </div>
         </div>
       </div>
 
-      {/* ── LEYENDA ─────────────────────────────────────────────────────────── */}
-      <div className="px-8 pt-4">
-        <div className="flex items-center gap-5 px-5 py-3 bg-white/[0.03] rounded-2xl border border-white/5 flex-wrap">
-          <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-red-500"/><span className="text-[9px] font-black text-red-400/90 uppercase">Ocupado Tablero A (Este Puesto)</span></div>
-          {freshCProg && <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-yellow-400"/><span className="text-[9px] font-black text-yellow-400/90 uppercase">Ocupado Tablero B (Destino)</span></div>}
-          <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-emerald-500"/><span className="text-[9px] font-black text-emerald-400/90 uppercase">Libre Ambos ✓</span></div>
-          <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-blue-400"/><span className="text-[9px] font-black text-blue-400/90 uppercase">Solo AM</span></div>
-          <div className="flex items-center gap-2"><div className="size-3 rounded-full bg-purple-500"/><span className="text-[9px] font-black text-purple-400/90 uppercase">Solo PM</span></div>
-          {!freshCProg && (
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[14px] text-cyan-400 animate-pulse">compare_arrows</span>
-              <span className="text-[9px] font-black text-cyan-400/80 uppercase">Haz clic en un nombre para ver sus días</span>
+      {/* ── GRILLA TÁCTICA ─────────────────────────────────────────────────── */}
+      <div className="p-10">
+        <div className="overflow-x-auto custom-scrollbar-h pb-4">
+          <div className="min-w-max space-y-3">
+            
+            {/* ── RENDER DÍAS CABECERA XXL ─────────────────────────────────── */}
+            <div className="flex gap-2 mb-6 ml-[240px]">
+               {daysArr.map(d => (
+                 <div key={d} className="size-12 rounded-xl bg-white/[0.03] border border-white/5 flex flex-col items-center justify-center shrink-0">
+                    <span className="text-[8px] font-black text-slate-600 uppercase">Día</span>
+                    <span className="text-[18px] font-black text-white leading-none">{d}</span>
+                 </div>
+               ))}
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* ── GRILLA ──────────────────────────────────────────────────────────── */}
-      <div className="overflow-x-auto p-6 scrollbar-hide">
-        <div className="min-w-max">
-          <div className="space-y-1.5 overflow-y-auto max-h-[600px] pr-2 custom-scrollbar">
-            {/* ── SECCIÓN: HUECOS EN TABLERO B (Solicitud Usuario: Iluminar todo lo no programado en B) ── */}
+            {/* ── VACANTES EN B (NEÓN PULSE) ─────────────────────────────── */}
             {freshCProg && (
-              <div className="mb-6 space-y-1.5 pt-2 border-t border-white/5">
-                <div className="flex items-center gap-2 px-3 mb-2">
-                  <span className="material-symbols-outlined text-cyan-400 text-[16px] animate-pulse">emergency</span>
-                  <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Vacantes en Tablero Destino (Puestos por Cubrir)</span>
+              <div className="mb-10 space-y-2 pt-6 border-t border-white/5 bg-cyan-400/[0.02] p-4 rounded-[32px]">
+                <div className="flex items-center gap-4 px-2 mb-4">
+                  <span className="flex size-10 rounded-full bg-cyan-500/20 items-center justify-center">
+                    <span className="material-symbols-outlined text-cyan-400 text-[24px] animate-pulse">new_releases</span>
+                  </span>
+                  <div>
+                    <span className="text-[12px] font-black text-cyan-400 uppercase tracking-[0.3em]">Puestos por Cubrir (Tablero B)</span>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase">Asigna personal directamente a los huecos vacíos</p>
+                  </div>
                 </div>
                 
                 {(freshCProg.personal || []).map((per, idx) => {
                   const rolLabel = getRolPdfLabel(per.rol);
-                  const isFilledByModel = !!per.vigilanteId;
-
                   return (
-                    <div key={`vacante-${per.rol}-${idx}`} className="flex gap-1 items-center bg-white/[0.02] rounded-xl py-1 border border-white/5">
-                      <div className="sticky left-0 z-20 w-44 text-left px-3 py-2 rounded-xl bg-slate-800/80 border border-white/5 flex items-center gap-2 shrink-0">
-                        <div className="size-6 rounded bg-slate-700 flex items-center justify-center text-[8px] font-black text-white shrink-0">
+                    <div key={`vacante-${per.rol}-${idx}`} className="flex gap-2 items-center">
+                      <div className="sticky left-0 z-20 w-[240px] text-left px-5 py-4 rounded-2xl bg-[#0f172a] border border-white/10 flex items-center gap-4 shrink-0 shadow-xl">
+                        <div className="size-10 rounded-xl bg-cyan-600/20 border border-cyan-500/40 flex items-center justify-center text-[11px] font-black text-cyan-400">
                           {rolLabel[0]}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[9px] font-black text-white truncate uppercase">{rolLabel}</p>
-                          <p className="text-[7px] font-bold text-slate-500 uppercase">Espacio de Rol</p>
+                          <p className="text-[11px] font-black text-white truncate uppercase tracking-tight">{rolLabel}</p>
+                          <p className="text-[8px] font-black text-cyan-500/60 uppercase">Vacante Destino</p>
                         </div>
                       </div>
 
@@ -406,13 +376,13 @@ export const CoordinationPanel = ({
                         return (
                           <div
                             key={d}
-                            className={`size-10 rounded-lg flex items-center justify-center transition-all ${
+                            className={`size-12 rounded-xl flex items-center justify-center transition-all ${
                               isVacant 
-                                ? 'bg-cyan-500/20 border-2 border-cyan-400/50 shadow-[0_0_10px_rgba(34,211,238,0.2)] animate-pulse' 
-                                : 'bg-slate-800/40 border border-white/5 opacity-30'
+                                ? 'bg-cyan-500/10 border-2 border-cyan-400/30 shadow-[0_0_20px_rgba(34,211,238,0.2)] animate-pulse' 
+                                : 'bg-slate-800/20 border border-white/5 opacity-20'
                             }`}
                           >
-                            {isVacant && <span className="material-symbols-outlined text-cyan-400 text-[14px]">add_task</span>}
+                            {isVacant && <span className="material-symbols-outlined text-cyan-400 text-[18px]">add_task</span>}
                           </div>
                         );
                       })}
@@ -422,207 +392,111 @@ export const CoordinationPanel = ({
               </div>
             )}
 
-            <div className="flex items-center gap-2 px-3 mb-2">
-              <span className="material-symbols-outlined text-slate-500 text-[16px]">group</span>
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Disponibilidad de Personal</span>
-            </div>
-
-            {sortedVids.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
-                <span className="material-symbols-outlined text-[40px] text-slate-600">group_off</span>
-                <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">
-                  {hideBusyGuards
-                    ? 'Todos los vigilantes disponibles están asignados este mes'
-                    : 'No hay personal configurado en este tablero'}
-                </p>
-                <p className="text-[9px] text-slate-600 max-w-xs">
-                  {hideBusyGuards
-                    ? 'El filtro "No Repetir" oculta vigilantes ya empleados en otro puesto. Desactívalo para ver todos.'
-                    : 'Configura el personal del puesto o activa "Ver Todo el Personal".'}
-                </p>
-                {hideBusyGuards && (
-                  <button
-                    onClick={() => setHideBusyGuards?.(false)}
-                    className="mt-1 px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-xl text-[9px] font-black uppercase transition-all border border-amber-500/30 flex items-center gap-2"
-                  >
-                    <span className="material-symbols-outlined text-[14px]">lock_open</span>
-                    Desactivar filtro "No Repetir"
-                  </button>
-                )}
+            {/* ── GRILLA DE VIGILANTES XXL ────────────────────────────────── */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 px-2 mb-4">
+                 <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.4em]">Personal Disponible</span>
+                 <div className="h-px flex-1 bg-white/5"></div>
               </div>
-            )}
 
-            {sortedVids.map(vid => {
-              if (!vid) return null;
-              const vig = vMap.get(vid);
-              const isSelected = compareVigilanteId === vid;
-              const isDimmed = !!compareVigilanteId && !isSelected;
-              const asigsVigA = originAsigsMap.get(vid);
-              const asigsVigB = destAsigsMap.get(vid);
-              const isOriginStaff = originStaffVids.some(id => translateToUuid(id) === vid || id === vid);
-              const hasAnyOccupancyA = !!asigsVigA && asigsVigA.size > 0;
-              const hasAnyOccupancyB = !!asigsVigB && asigsVigB.size > 0;
+              {sortedVids.map(vid => {
+                const vig = vMap.get(vid);
+                const isSelected = compareVigilanteId === vid;
+                const asigsVigA = originAsigsMap.get(vid);
+                const asigsVigB = destAsigsMap.get(vid);
+                const hasAnyOccupancyA = !!asigsVigA && asigsVigA.size > 0;
+                const hasAnyOccupancyB = !!asigsVigB && asigsVigB.size > 0;
 
-              return (
-                <div
-                  key={vid}
-                  className={`flex gap-1 items-center transition-all rounded-xl py-1 relative ${
-                    isSelected
-                      ? 'bg-indigo-500/10 ring-1 ring-indigo-500/30'
-                      : isDimmed
-                      ? 'opacity-20'
-                      : 'hover:bg-white/[0.04]'
-                  }`}
-                >
-                  {/* Nombre / Botón selector */}
-                  <button
-                    onClick={() => setCompareVigilanteId(isSelected ? null : vid)}
-                    className={`sticky left-0 z-20 w-44 text-left px-3 py-2 rounded-xl border flex items-center gap-2 shrink-0 transition-all ${
-                      isSelected
-                        ? 'bg-indigo-500 border-indigo-400'
-                        : 'bg-slate-800 border-white/5 hover:border-white/20'
-                    }`}
-                  >
-                    <div className={`size-6 rounded flex items-center justify-center text-[10px] font-black text-white shrink-0 ${
-                      hasAnyOccupancyA ? 'bg-red-600' : hasAnyOccupancyB ? 'bg-yellow-600' : 'bg-emerald-700'
-                    }`}>
-                      {vig?.nombre?.[0] || '?'}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-black text-white truncate">{vig?.nombre || vid}</p>
-                      <p className="text-[7px] font-bold text-white/50 uppercase">
-                        {isOriginStaff ? 'Staff Origen' : 'Externo'}
-                        {hasAnyOccupancyA && !isSelected && <span className="text-red-400 ml-1">· Asignado A</span>}
-                        {hasAnyOccupancyB && !isSelected && <span className="text-yellow-400 ml-1">· En B</span>}
-                      </p>
-                    </div>
-                  </button>
+                return (
+                  <div key={vid} className={`flex gap-2 items-center transition-all group ${isSelected ? 'scale-[1.01]' : ''}`}>
+                    <button
+                      onClick={() => setCompareVigilanteId(isSelected ? null : vid)}
+                      className={`sticky left-0 z-20 w-[240px] text-left px-5 py-4 rounded-2xl border flex items-center gap-4 shrink-0 transition-all shadow-xl ${
+                        isSelected
+                          ? 'bg-indigo-600 border-indigo-400 shadow-indigo-600/30'
+                          : 'bg-slate-800/80 border-white/5 hover:border-white/20'
+                      }`}
+                    >
+                      <div className={`size-10 rounded-xl flex items-center justify-center text-[12px] font-black text-white shrink-0 shadow-inner ${
+                        hasAnyOccupancyA ? 'bg-rose-600' : hasAnyOccupancyB ? 'bg-amber-600' : 'bg-emerald-600'
+                      }`}>
+                        {vig?.nombre?.[0] || '?'}
+                      </div>
+                      <div className="min-w-0">
+                        <p className={`text-[12px] font-black truncate uppercase tracking-tight ${isSelected ? 'text-white' : 'text-slate-200'}`}>{vig?.nombre || vid}</p>
+                        <p className={`text-[8px] font-black uppercase tracking-widest ${isSelected ? 'text-indigo-200' : 'text-slate-500'}`}>
+                          {hasAnyOccupancyA ? 'En Origen' : hasAnyOccupancyB ? 'En Destino' : 'Disponible'}
+                        </p>
+                      </div>
+                    </button>
 
-                  {/* ── Celdas de días ─────────────────────────────────────── */}
-                  {daysArr.map(d => {
-                    const asigsVigA = originAsigsMap.get(vid);
-                    const asigsVigB = destAsigsMap.get(vid);
+                    {daysArr.map(d => {
+                      const asigsVigA = originAsigsMap.get(vid);
+                      const asigsVigB = destAsigsMap.get(vid);
+                      const hasAM_A = asigsVigA?.has(`${d}-AM`);
+                      const hasPM_A = asigsVigA?.has(`${d}-PM`);
+                      const has24_A = asigsVigA?.has(`${d}-24H`);
+                      const hasDay_A = asigsVigA?.has(`${d}`);
+                      const ocupadoA = hasAM_A || hasPM_A || has24_A || hasDay_A;
+                      const ocupadoB = asigsVigB?.has(`${d}-AM`) || asigsVigB?.has(`${d}-PM`) || asigsVigB?.has(`${d}-24H`) || asigsVigB?.has(`${d}`);
 
-                    const hasAM_A = asigsVigA?.has(`${d}-AM`);
-                    const hasPM_A = asigsVigA?.has(`${d}-PM`);
-                    const has24_A = asigsVigA?.has(`${d}-24H`);
-                    const hasDay_A = asigsVigA?.has(`${d}`);
-                    const ocupadoA = hasAM_A || hasPM_A || has24_A || hasDay_A;
+                      let bg = 'rgba(255,255,255,0.02)';
+                      let border = 'rgba(255,255,255,0.05)';
+                      let icon = null;
 
-                    const hasAM_B = asigsVigB?.has(`${d}-AM`);
-                    const hasPM_B = asigsVigB?.has(`${d}-PM`);
-                    const has24_B = asigsVigB?.has(`${d}-24H`);
-                    const hasDay_B = asigsVigB?.has(`${d}`);
-                    const ocupadoB = hasAM_B || hasPM_B || has24_B || hasDay_B;
-
-                    // Ocupado en OTRO puesto (fuera de A y B)
-                    const busyKey = `${vid}-${currentProg?.anio}-${currentProg?.mes}`;
-                    const globalBusySet = _busyMap?.get(busyKey);
-                    const isGlobalBusy = globalBusySet && Array.from(globalBusySet).some(k => {
-                      const dayKey = String(k).split('-')[0];
-                      return dayKey === String(d) && !asigsVigA?.has(String(k)) && !asigsVigB?.has(String(k));
-                    });
-
-                    // ── Colores de celda ──────────────────────────────────
-                    let bg = 'rgba(255,255,255,0.03)';
-                    let ring = 'rgba(255,255,255,0.06)';
-
-                    if (isSelected) {
-                      // Vista detallada al seleccionar un vigilante
-                      if (has24_A || (hasAM_A && hasPM_A) || (hasDay_A && !hasAM_A && !hasPM_A && !has24_A)) {
-                        // Ocupado todo el día en A
-                        bg = 'rgba(239,68,68,0.45)'; ring = 'rgba(239,68,68,0.9)';
-                      } else if (hasAM_A && !hasPM_A) {
-                        // Solo AM en A
-                        bg = 'linear-gradient(135deg, rgba(59,130,246,0.55) 50%, rgba(34,197,94,0.4) 50%)';
-                        ring = 'rgba(59,130,246,0.9)';
-                      } else if (hasPM_A && !hasAM_A) {
-                        // Solo PM en A
-                        bg = 'linear-gradient(135deg, rgba(34,197,94,0.4) 50%, rgba(168,85,247,0.55) 50%)';
-                        ring = 'rgba(168,85,247,0.9)';
-                      } else if (ocupadoB) {
-                        // Libre en A, ocupado en B
-                        bg = 'rgba(234,179,8,0.35)'; ring = 'rgba(234,179,8,0.7)';
-                      } else if (isGlobalBusy) {
-                        // Ocupado en otro puesto C, D...
-                        bg = 'rgba(100,116,139,0.4)'; ring = 'rgba(100,116,139,0.8)';
+                      if (isSelected) {
+                        if (has24_A || (hasAM_A && hasPM_A) || (hasDay_A && ocupadoA)) {
+                          bg = 'rgba(244,63,94,0.3)'; border = 'rgba(244,63,94,0.5)';
+                        } else if (hasAM_A || hasPM_A) {
+                          bg = 'rgba(79,70,229,0.2)'; border = 'rgba(79,70,229,0.5)';
+                        } else if (ocupadoB) {
+                          bg = 'rgba(245,158,11,0.2)'; border = 'rgba(245,158,11,0.5)';
+                        } else {
+                          bg = 'rgba(16,185,129,0.2)'; border = 'rgba(16,185,129,0.5)';
+                          icon = 'add_circle';
+                        }
                       } else {
-                        // Libre en todo el ecosistema
-                        bg = 'rgba(34,197,94,0.45)'; ring = 'rgba(34,197,94,0.9)';
+                        if (ocupadoA) { bg = 'rgba(244,63,94,0.1)'; border = 'rgba(244,63,94,0.15)'; }
+                        else if (ocupadoB) { bg = 'rgba(245,158,11,0.08)'; border = 'rgba(245,158,11,0.15)'; }
                       }
-                    } else {
-                      // Vista compacta (sin seleccionar): muestra ocupación sutil
-                      if (ocupadoA) {
-                        bg = 'rgba(239,68,68,0.14)'; ring = 'rgba(239,68,68,0.25)';
-                      } else if (ocupadoB) {
-                        bg = 'rgba(234,179,8,0.12)'; ring = 'rgba(234,179,8,0.2)';
-                      } else if (isGlobalBusy) {
-                        bg = 'rgba(148,163,184,0.1)'; ring = 'rgba(148,163,184,0.15)';
-                      }
-                    }
 
-                    return (
-                      <button
-                        key={d}
-                        onClick={() => {
-                          if (!isSelected || !vid) return;
-                          if (has24_A || (hasAM_A && hasPM_A) || (hasDay_A && ocupadoA)) {
-                            showTacticalToast({ title: 'Sin Disponibilidad', message: 'Vigilante ocupado en este día.', type: 'warning' });
-                            return;
-                          }
-                          if (!freshCProg) {
-                            showTacticalToast({ title: 'Sin Tablero Destino', message: 'Selecciona un Puesto Destino (Tablero B) primero.', type: 'info' });
-                            return;
-                          }
-                          // Buscar ranura vacante en Tablero B para este día
-                          let targetAsig = freshCProg?.asignaciones.find(a => a.dia === d && (!a.vigilanteId || a.jornada === 'sin_asignar'));
-                          
-                          // Si no hay vacante, buscar la primera asignación del día (para editar)
-                          if (!targetAsig) {
-                            targetAsig = freshCProg?.asignaciones.find(a => a.dia === d);
-                          }
-
-                          if (targetAsig) {
-                            onOpenEdit({ asig: targetAsig, progId: freshCProg!.id, preSelectVigilanteId: vid });
-                          } else {
-                            showTacticalToast({ title: '⚠️ Sin Ranuras', message: 'No hay turnos configurados en Tablero B para este día.', type: 'error' });
-                          }
-                        }}
-                        className="size-8 rounded-lg flex items-center justify-center transition-all border shrink-0 overflow-hidden"
-                        style={{ background: bg, borderColor: ring }}
-                        title={`Día ${d}${ocupadoA ? ' — OCUPADO en Origen' : ''}${ocupadoB ? ' — OCUPADO en Destino' : ''}${isGlobalBusy ? ' — OCUPADO en OTRO PUESTO' : ''}`}
-                      >
-                        {isSelected && !ocupadoA && !ocupadoB && (
-                          <span className="material-symbols-outlined text-[12px] text-emerald-400">add_circle</span>
-                        )}
-                        {isSelected && ocupadoA && !has24_A && !(hasAM_A && hasPM_A) && !hasDay_A && (
-                          <span className="text-[7px] font-black text-white/80">{hasAM_A ? 'AM' : 'PM'}</span>
-                        )}
-                        {isSelected && (has24_A || (hasAM_A && hasPM_A) || (hasDay_A && ocupadoA)) && (
-                          <span className="text-[7px] font-black text-white/60">LLENO</span>
-                        )}
-                        {isSelected && !ocupadoA && ocupadoB && (
-                          <div className="size-full flex flex-col items-center justify-center bg-yellow-500/20">
-                             <span className="text-[7px] font-black text-yellow-400">IN B</span>
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              );
-            })}
-
-            {uniqueVids.length > displayCount && (
-              <button
-                onClick={() => setDisplayCount(c => c + 100)}
-                className="w-full py-4 text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:bg-white/5 rounded-2xl border border-dashed border-white/10"
-              >
-                Cargar más personal ({uniqueVids.length - displayCount} restantes)
-              </button>
-            )}
+                      return (
+                        <button
+                          key={d}
+                          onClick={() => {
+                            if (!isSelected || !vid || ocupadoA || !freshCProg) return;
+                            const target = freshCProg.asignaciones.find(a => a.dia === d && (!a.vigilanteId || a.jornada === 'sin_asignar')) || freshCProg.asignaciones.find(a => a.dia === d);
+                            if (target) onOpenEdit({ asig: target, progId: freshCProg.id, preSelectVigilanteId: vid });
+                          }}
+                          className="size-12 rounded-xl flex items-center justify-center transition-all border shrink-0 overflow-hidden"
+                          style={{ background: bg, borderColor: border }}
+                        >
+                          {icon && <span className="material-symbols-outlined text-[20px] text-emerald-400 group-hover:scale-125 transition-transform">{icon}</span>}
+                          {isSelected && ocupadoA && <span className="text-[9px] font-black text-rose-400">FULL</span>}
+                          {!isSelected && ocupadoA && <div className="size-2 rounded-full bg-rose-500/40"></div>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
+
+        {uniqueVids.length > displayCount && (
+          <div className="mt-8 px-2">
+            <button
+              onClick={() => setDisplayCount(c => c + 100)}
+              className="w-full py-6 text-[11px] font-black text-indigo-400 uppercase tracking-[0.3em] hover:bg-white/5 rounded-[32px] border border-dashed border-white/10 transition-all hover:border-indigo-500/30 group bg-black/20"
+            >
+              <span className="flex items-center justify-center gap-3">
+                 <span className="material-symbols-outlined text-[20px] group-hover:rotate-180 transition-transform duration-500">sync</span>
+                 Cargar más personal Táctico ({uniqueVids.length - displayCount} restantes)
+              </span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

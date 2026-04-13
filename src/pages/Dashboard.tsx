@@ -188,7 +188,7 @@ const Dashboard = () => {
                 <KpiCard label="Cobertura" value={`${S.cobPromedioMes}%`} sub="Mes actual" icon="donut_large" color="violet" trend={S.cobPromedioMes >= 80 ? 'up' : 'down'} />
             </div>
 
-            {/* ────── HEALTH & PUESTOS STATUS ────── */}
+            {/* ────── HEALTH & PUESTOS ESTADO ────── */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
                 {/* Health Orbs */}
                 <div className="xl:col-span-2 horizon-card p-7">
