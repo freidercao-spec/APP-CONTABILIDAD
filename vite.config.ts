@@ -11,9 +11,15 @@ export default defineConfig({
   resolve: {
     alias: {
       // Shims for certain libraries that might still look for node types/modules
-      'path': 'node-empty',
-      'fs': 'node-empty',
-      'url': 'node-empty',
+      'path': './src/shims/node-empty.js',
+      'fs': './src/shims/node-empty.js',
+      'url': './src/shims/node-empty.js',
+      'child_process': './src/shims/node-empty.js',
+      'http': './src/shims/node-empty.js',
+      'https': './src/shims/node-empty.js',
+      'util': './src/shims/node-empty.js',
+      'zlib': './src/shims/node-empty.js',
+      'stream': './src/shims/node-empty.js',
     }
   },
   build: {
