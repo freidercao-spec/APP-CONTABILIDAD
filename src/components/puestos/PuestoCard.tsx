@@ -152,7 +152,7 @@ export const PuestoCard = React.memo(({ puesto, anio, mes, onClick }: PuestoCard
             <CoberturaRing value={cobertura} color={cobColor} />
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="text-[22px] font-black italic tracking-tighter" style={{ color: cobColor }}>{cobertura}%</span>
-              <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-0.5">COBERTURA</span>
+              <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-0.5">COBERTURA %</span>
             </div>
           </div>
 
