@@ -116,7 +116,7 @@ export const CeldaCalendario = React.memo(({
   turnosConfig,
   hasConflict,
   conflictDetail,
-  syncStatus,
+  syncStatus = 'synced',
 }: CeldaCalendarioProps) => {
 
   const isSinAsignar = asig.jornada === 'sin_asignar' || !asig.vigilanteId;
