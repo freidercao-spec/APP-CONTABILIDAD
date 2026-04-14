@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { usePuestoStore } from "../store/puestoStore";
 import type { TurnoConfig } from "../store/puestoStore";
 import { useVigilanteStore } from "../store/vigilanteStore";
@@ -26,6 +26,8 @@ import { EditCeldaModal } from "../components/puestos/EditCeldaModal";
 import { PuestoCard } from '../components/puestos/PuestoCard';
 import PuestoModal from '../components/puestos/PuestoModal';
 import { CoordinationPanel } from "../components/puestos/CoordinationPanel";
+import { MasterGrid } from "../components/puestos/MasterGrid";
+import { KpiCard } from "../components/dashboard/KpiCard";
 
 // Constants
 import {
@@ -1290,30 +1292,32 @@ const PanelMensualPuesto = ({
           </div>
 
           <button
-            onClick={() => guardarBorrador(prog.id, currentUser)}
-            className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl text-[10px] font-black uppercase hover:bg-slate-50 transition-all flex items-center gap-2"
+            onClick={() => prog?.id && guardarBorrador(prog.id, currentUser)}
+            disabled={!prog?.id}
+            className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl text-[10px] font-black uppercase hover:bg-slate-50 transition-all flex items-center gap-2 disabled:opacity-50"
           >
             <span className="material-symbols-outlined text-[18px]">save</span>{" "}
             Borrador
           </button>
 
           <button
-            onClick={() => publicarProgramacion(prog.id, currentUser)}
-            className="px-6 py-2.5 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2"
+            onClick={() => prog?.id && publicarProgramacion(prog.id, currentUser)}
+            disabled={!prog?.id}
+            className="px-6 py-2.5 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2 disabled:opacity-50"
           >
             <span className="material-symbols-outlined text-[18px]">cloud_upload</span>{" "}
             Publicar
           </button>
 
           <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl border min-w-[120px] justify-center ${
-            prog.syncStatus === 'error' ? 'bg-rose-50 border-rose-200' : 'bg-slate-100 border-slate-200'
+            (prog?.syncStatus || 'synced') === 'error' ? 'bg-rose-50 border-rose-200' : 'bg-slate-100 border-slate-200'
           }`}>
             {isSyncing ? (
               <>
                 <div className="size-2 bg-indigo-500 rounded-full animate-ping" />
                 <span className="text-[9px] font-black text-indigo-600 uppercase">Sincronizando...</span>
               </>
-            ) : prog.syncStatus === 'error' ? (
+            ) : (prog?.syncStatus || 'synced') === 'error' ? (
               <>
                 <span className="material-symbols-outlined text-rose-500 text-[16px]">cloud_off</span>
                 <span className="text-[9px] font-black text-rose-600 uppercase">Error de Sync</span>
@@ -1324,7 +1328,7 @@ const PanelMensualPuesto = ({
                   Reintentar
                 </button>
               </>
-            ) : prog.syncStatus === 'pending' ? (
+            ) : (prog?.syncStatus || 'synced') === 'pending' ? (
               <>
                 <div className="size-2 bg-amber-500 rounded-full animate-pulse" />
                 <span className="text-[9px] font-black text-amber-600 uppercase">Pendiente...</span>
@@ -1405,7 +1409,7 @@ const PanelMensualPuesto = ({
 
       {staffAsignado.length > 0 && (
         <div className="mb-6 flex flex-wrap gap-3">
-          {(prog.personal || [])
+          {(prog?.personal || [])
             .filter((p: PersonalPuesto) => p.vigilanteId)
             .map((per: PersonalPuesto) => {
               const v = vigilantes.find(
@@ -1530,8 +1534,9 @@ const PanelMensualPuesto = ({
           <button
             onClick={() => {
               const nombre = prompt("Nombre de la plantilla:");
-              if (nombre)
-                guardarComoPlantilla(prog.id, nombre, nombrePuesto, currentUser);
+              {nombre && prog?.id && (
+                guardarComoPlantilla(prog.id, nombre, nombrePuesto, currentUser)
+              )}
             }}
             className="px-4 py-2 bg-white/5 hover:bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-2 border border-white/5"
           >
@@ -1603,7 +1608,7 @@ const PanelMensualPuesto = ({
         </div>
 
         <div className="ml-auto hidden lg:flex items-center gap-3 pr-4">
-          {prog.syncStatus === "synced" && (
+          {(prog?.syncStatus || 'synced') === "synced" && (
             <div className="flex items-center gap-2">
               <div className="size-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">
@@ -1611,7 +1616,7 @@ const PanelMensualPuesto = ({
               </span>
             </div>
           )}
-          {prog.syncStatus === "pending" && (
+          {(prog?.syncStatus || 'synced') === "pending" && (
             <div className="flex items-center gap-2">
               <div className="size-2 rounded-full bg-amber-500 animate-pulse" />
               <span className="text-[10px] font-black text-amber-400/60 uppercase tracking-widest">
@@ -1672,7 +1677,7 @@ const PanelMensualPuesto = ({
             </thead>
             <tbody>
               {(() => {
-                const personalDefinido = prog.personal || [];
+                const personalDefinido = (prog?.personal || []);
                 const rolesBase = ['titular_a', 'titular_b', 'relevante'];
                 const rolesDefinidos = personalDefinido.map(p => p.rol);
                 const allRoles = Array.from(new Set([...rolesBase, ...rolesDefinidos]));
@@ -1764,7 +1769,7 @@ const PanelMensualPuesto = ({
                    </td>
 
                    {daysArr.map((d) => {
-                     const asig = (prog.asignaciones || []).find(
+                     const asig = (prog?.asignaciones || []).find(
                        (a: AsignacionDia) => a.dia === d && a.rol === per.rol
                      ) || { dia: d, turno: per.turnoId || 'AM', jornada: "sin_asignar", rol: per.rol };
 
@@ -1784,12 +1789,12 @@ const PanelMensualPuesto = ({
                          <CeldaCalendario
                            asig={asig}
                            vigilanteNombre={asig.vigilanteId ? (vigilanteMap.get(asig.vigilanteId) || "Asignado") : undefined}
-                           onEdit={() => setEditCell({ asig, progId: prog.id, preSelectVigilanteId: per.vigilanteId || undefined })}
+                           onEdit={() => setEditCell({ asig, progId: prog?.id || '', preSelectVigilanteId: per.vigilanteId || undefined })}
                            turnosConfig={turnosConfig}
                            jornadasCustom={jornadasCustom}
                            hasConflict={hasConflict}
                            conflictDetail={conflictDetail}
-                           syncError={prog.syncStatus === 'error'}
+                           syncStatus={prog?.syncStatus || 'synced'}
                          />
                        </td>
                      );
@@ -1803,8 +1808,8 @@ const PanelMensualPuesto = ({
       </div>
 
       <CoordinationPanel
-        currentProg={prog}
-        freshCProg={freshCProg || null}
+        currentProg={freshCProg || null}
+        freshCProg={prog}
         compareVigilanteId={compareVigilanteId}
         setCompareVigilanteId={setCompareVigilanteId}
         showEntireStaff={showEntireStaff}
@@ -1919,7 +1924,7 @@ const GestionPuestos = () => {
     if (filterTab === 'alerta') {
       base = base.filter(p => {
         const prog = store.getProgramacionRapid?.(p.id || p.dbId, anio, mes);
-        if (!prog) return false;
+        if (!prog?.id) return false;
         return (store.getAlertas(prog.id) || []).length > 0;
       });
     } else if (filterTab === 'sin_personal') {
@@ -1937,95 +1942,6 @@ const GestionPuestos = () => {
   }, [puestos, searchQuery, filterTab, anio, mes]);
 
   const pagedPuestos = useMemo(() => filteredPuestos.slice(0, visibleCount), [filteredPuestos, visibleCount]);
-
-  const renderMasterGrid = () => {
-    const totalDias = new Date(anio, mes + 1, 0).getDate();
-    if (isInitialLoading) {
-      return (
-        <div className="flex-1 flex flex-col items-center justify-center bg-slate-950 rounded-[45px] border border-white/5 animate-pulse">
-           <div className="size-24 rounded-[32px] bg-indigo-500/10 flex items-center justify-center mb-6">
-              <span className="material-symbols-outlined text-[56px] text-primary animate-spin">sync</span>
-           </div>
-           <p className="text-[12px] font-black text-primary-light uppercase tracking-[0.5em]">Reconstruyendo Red TÃ¡ctica...</p>
-        </div>
-      );
-    }
-    return (
-      <div className="flex-1 overflow-hidden flex flex-col bg-slate-950/40 backdrop-blur-xl rounded-[45px] border border-white/10 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.8)] relative">
-        <div className="overflow-auto custom-scrollbar flex-1">
-          <table className="border-collapse border-none select-none" style={{ width: 'max-content', tableLayout: 'fixed' }}>
-            <thead className="sticky top-0 z-50">
-              <tr>
-                <th className="sticky left-0 z-50 bg-slate-900 border-r-2 border-indigo-500/30 p-8 text-left shadow-[10px_0_40px_rgba(0,0,0,0.5)]" style={{ width: 320 }}>
-                  <div className="flex items-center gap-4">
-                    <div className="size-10 rounded-xl bg-indigo-500/20 flex items-center justify-center">
-                      <span className="material-symbols-outlined text-primary-light text-[24px]">terminal</span>
-                    </div>
-                    <div>
-                      <span className="text-[13px] font-black text-white uppercase tracking-[0.3em] block leading-none">Matriz de Objetivos</span>
-                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mt-1.5 block">Nivel Ops: 1</span>
-                    </div>
-                  </div>
-                </th>
-                {Array.from({ length: totalDias }, (_, i) => i + 1).map(d => {
-                  const date = new Date(anio, mes, d);
-                  const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                  return (
-                    <th key={d} className={`px-2 py-6 border-r border-white/5 text-center transition-all`} style={{ width: 70 }}>
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 opacity-60">
-                        {date.toLocaleDateString('es', { weekday: 'short' }).substring(0, 1)}
-                      </p>
-                      <p className={`ext-lg font-black italic`}>{d}</p>
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {filteredPuestos.map((p) => (
-                <tr key={p.id} className="group hover:bg-white/[0.02] transition-colors border-b border-white/5">
-                  <td className="sticky left-0 z-40 bg-slate-950 group-hover:bg-[#111c31] border-r-2 border-white/5 px-8 py-6 shadow-[10px_0_40px_rgba(0,0,0,0.3)] transition-all">
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-primary/70 uppercase tracking-[0.3em]">{p.id}</span>
-                        <button 
-                          onClick={() => { setPuestoToEdit(p); setIsNewPuestoModalOpen(true); }}
-                          className="size-8 rounded-xl bg-white/5 hover:bg-indigo-500 text-slate-500 hover:text-white transition-all flex items-center justify-center border border-white/5 shadow-xl"
-                        >
-                          <span className="material-symbols-outlined text-[16px]">edit_note</span>
-                        </button>
-                      </div>
-                      <span 
-                        onClick={() => setSelectedPuesto({ dbId: p.dbId || p.id, nombre: p.nombre })}
-                        className="text-[15px] font-black text-slate-200 tracking-tight truncate hover:text-primary-light cursor-pointer transition-colors uppercase italic"
-                      >
-                        {p.nombre}
-                      </span>
-                    </div>
-                  </td>
-                  {Array.from({ length: totalDias }, (_, i) => i + 1).map(d => {
-                    const prog = programaciones.find(pg => pg.puestoId === (p.dbId || p.id) && pg.anio === anio && pg.mes === mes);
-                    const asig = prog?.asignaciones?.find(a => a.dia === d);
-                    return (
-                      <td 
-                        key={d} 
-                        className="p-1 border-r border-white/5 cursor-pointer hover:bg-indigo-500/10 transition-all"
-                        onClick={() => setSelectedPuesto({ dbId: p.dbId || p.id, nombre: p.nombre })}
-                      >
-                        <div className={`h-12 w-full rounded-xl flex items-center justify-center text-[11px] font-black border transition-all`}>
-                          {asig ? asig.jornada.substring(0,1).toUpperCase() : 'Â·'}
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    );
-  };
 
   if (selectedPuesto) {
     return (
@@ -2048,10 +1964,10 @@ const GestionPuestos = () => {
           <div className="flex flex-col">
             <div className="flex items-center gap-2 mb-0.5">
               <div className="size-2 bg-primary rounded-full animate-pulse shadow-[0_0_8px_#4318ff]"></div>
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">SISTEMA DE CONTROL TÃCTICO</span>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">SISTEMA DE CONTROL TÁCTICO</span>
             </div>
             <h1 className="text-3xl font-black text-white uppercase tracking-tighter leading-none italic flex items-baseline gap-3">
-              GESTIÃ“N <span className="text-primary text-[28px] not-italic">DE</span> <span className="bg-gradient-to-r from-white to-slate-500 bg-clip-text text-transparent not-italic">PUESTOS</span>
+              GESTIÓN <span className="text-primary text-[28px] not-italic">DE</span> <span className="bg-gradient-to-r from-white to-slate-500 bg-clip-text text-transparent not-italic">PUESTOS</span>
             </h1>
           </div>
 
@@ -2079,14 +1995,14 @@ const GestionPuestos = () => {
           <div className="flex bg-black/40 border border-white/5 rounded-3xl p-1.5 shadow-xl">
             <button 
               onClick={() => setViewMode('cards')}
-              className={`lex items-center gap-3 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all`}
+              className={`flex items-center gap-3 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'cards' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-500 hover:text-white'}`}
             >
               <span className="material-symbols-outlined text-[18px]">grid_view</span>
               <span>CARPETAS</span>
             </button>
             <button 
               onClick={() => setViewMode('master_grid')}
-              className={`lex items-center gap-3 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all`}
+              className={`flex items-center gap-3 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'master_grid' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-500 hover:text-white'}`}
             >
               <span className="material-symbols-outlined text-[18px]">table_chart</span>
               <span>MAESTRO</span>
@@ -2106,58 +2022,184 @@ const GestionPuestos = () => {
       <main className="flex-1 overflow-hidden flex flex-col" style={{ background: '#050b16' }}>
         {viewMode === 'cards' ? (
           <div className="flex-1 flex flex-col overflow-hidden px-10 pt-8 pb-8">
+            {/* ═══ STAT CARDS ═══ */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-10 shrink-0">
-              {[
-                { label: 'Total Puestos', value: (puestos||[]).filter(p=>(p as any).estado!=='inactivo').length, icon: 'shield', color: '#6366f1' },
-                { label: 'Cubiertos',     value: (puestos||[]).filter(p=>(p as any).estado==='cubierto').length, icon: 'verified', color: '#10b981' },
-                { label: 'Con Alertas',   value: programaciones.filter(pg => pg.anio===anio && pg.mes===mes && ((useProgramacionStore.getState() as any).getAlertas(pg.id)||[]).length>0).length, icon: 'priority_high', color: '#f43f5e' },
-                { label: 'Sin Asignar',   value: programaciones.filter(pg => pg.anio===anio && pg.mes===mes && pg.personal.filter((x:any)=>x.vigilanteId).length===0).length, icon: 'person_search', color: '#f59e0b' },
-              ].map((s, i) => (
-                <div key={i} className="group rounded-[35px] p-6 flex items-center gap-6 border border-white/5 transition-all duration-500 hover:bg-white/[0.02] shadow-xl"
-                  style={{ background: 'rgba(255,255,255,0.02)', backdropFilter: 'blur(10px)' }}>
-                  <div className="size-16 rounded-2xl flex items-center justify-center shrink-0 relative"
-                    style={{ background: `${s.color}10`, border: `1px solid ${s.color}35` }}>
-                    <span className="material-symbols-outlined text-[32px]" style={{ color: s.color }}>{s.icon}</span>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[36px] font-black text-white leading-none mb-1 tracking-tighter italic">{s.value}</p>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40" style={{ color: s.color }}>{s.label}</p>
-                  </div>
-                </div>
-              ))}
+               <KpiCard
+                  label="Total Puestos"
+                  value={(puestos||[]).filter(p=>(p as any).estado!=='inactivo').length}
+                  icon="shield"
+                  color="indigo"
+                  sub="Red Operativa Activa"
+                  trend="neutral"
+                  trendValue="0"
+                  detail="Capacidad total instalada"
+               />
+               <KpiCard
+                  label="Cubiertos"
+                  value={(puestos||[]).filter(p=>(p as any).estado==='cubierto').length}
+                  icon="verified_user"
+                  color="emerald"
+                  sub="Personal en Servicio"
+                  trend="up"
+                  trendValue="+2"
+                  detail="Personal con puesto asignado"
+               />
+               <KpiCard
+                  label="Con Alertas"
+                  value={programaciones.filter(pg => pg.anio===anio && pg.mes===mes && ((useProgramacionStore.getState() as any).getAlertas(pg.id)||[]).length>0).length}
+                  icon="priority_high"
+                  color="red"
+                  sub="Atención Crítica"
+                  trend="down"
+                  trendValue="-5"
+                  detail="Conflictos o vacantes críticas"
+               />
+               <KpiCard
+                  label="Sin Asignar"
+                  value={programaciones.filter(pg => pg.anio===anio && pg.mes===mes && pg.personal.filter((x:any)=>x.vigilanteId).length===0).length}
+                  icon="person_search"
+                  color="amber"
+                  sub="Pendiente Despacho"
+                  trend="neutral"
+                  trendValue="--"
+                  detail="Objetivos sin nómina asignada"
+               />
             </div>
 
-            <div className="flex flex-col xl:flex-row gap-6 mb-8 shrink-0">
-              <div className="relative flex-1 group">
-                <span className="material-symbols-outlined absolute left-6 top-1/2 -translate-y-1/2 text-slate-700 group-focus-within:text-primary transition-colors text-2xl">search</span>
-                <input
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="Localizar puesto o cÃ³digo tÃ¡ctico..."
-                  className="w-full h-16 pl-16 pr-8 rounded-2xl text-[16px] font-black text-white outline-none transition-all placeholder:text-slate-700 border border-white/5 bg-white/5 focus:border-primary/50"
-                  style={{ backdropFilter: 'blur(10px)' }}
+            {/* ═══ SEARCH + FILTERS TOOLBAR ═══ */}
+            <div className="flex flex-col xl:flex-row gap-4 mb-8 shrink-0">
+
+              {/* Ultra Elite Tactical Search Bar */}
+              <div className="relative flex-1 group z-10 w-full max-w-3xl">
+                {/* Neon Back-Glow Effect */}
+                <div
+                  className="absolute -inset-1 rounded-[20px] bg-gradient-to-r from-indigo-500/0 via-indigo-500/20 to-primary/0 opacity-0 group-focus-within:opacity-100 blur-xl transition-all duration-700 pointer-events-none"
                 />
+                
+                {/* Tech Frame Base */}
+                <div className="relative flex items-center h-[60px] rounded-[18px] bg-black/40 backdrop-blur-2xl border border-white/5 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_8px_32px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-500 group-focus-within:border-indigo-500/50 group-focus-within:bg-indigo-950/20 group-hover:border-white/10 group-focus-within:shadow-[0_0_30px_rgba(99,102,241,0.2),inset_0_0_20px_rgba(99,102,241,0.1)]">
+                  
+                  {/* Left Icon Area - Tactical HUD style */}
+                  <div className="relative flex items-center justify-center w-16 h-full border-r border-white/5 bg-white/[0.02] group-focus-within:bg-indigo-500/10 group-focus-within:border-indigo-500/30 transition-all duration-500 shrink-0">
+                    <span className="material-symbols-outlined text-[24px] text-slate-500 group-focus-within:text-indigo-400 group-focus-within:drop-shadow-[0_0_8px_rgba(129,140,248,0.8)] transition-all duration-500">
+                      radar
+                    </span>
+                    {/* Animated scanning line on focus */}
+                    <div className="absolute top-0 bottom-0 left-0 w-[2px] bg-indigo-500 opacity-0 group-focus-within:opacity-100 group-focus-within:shadow-[0_0_10px_#6366f1] transition-opacity duration-300" />
+                  </div>
+
+                  {/* Input Field */}
+                  <input
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="LOCALIZAR PUESTO O CÓDIGO TÁCTICO..."
+                    className="w-full h-full bg-transparent border-none outline-none px-5 font-black text-white text-[13px] tracking-[0.15em] uppercase placeholder:text-slate-600 placeholder:font-bold placeholder:tracking-widest transition-all duration-300"
+                  />
+                  
+                  {/* Status Indicator (Right side inside) */}
+                  {!searchQuery && (
+                    <div className="hidden sm:flex items-center gap-2 pr-5 pointer-events-none opacity-50 group-focus-within:opacity-100 transition-opacity">
+                      <div className="flex gap-1">
+                        <div className="w-1.5 h-1.5 rounded-sm bg-slate-600 group-focus-within:bg-indigo-500 group-focus-within:animate-pulse" />
+                        <div className="w-1.5 h-1.5 rounded-sm bg-slate-700 group-focus-within:bg-indigo-500/60 group-focus-within:animate-pulse delay-75" />
+                        <div className="w-1.5 h-1.5 rounded-sm bg-slate-800 group-focus-within:bg-indigo-500/30 group-focus-within:animate-pulse delay-150" />
+                      </div>
+                      <span className="text-[9px] font-black tracking-[0.3em] text-slate-500 group-focus-within:text-indigo-400 uppercase">Input</span>
+                    </div>
+                  )}
+
+                  {/* Clear Button */}
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 size-9 flex items-center justify-center rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all duration-300 hover:shadow-[0_0_15px_rgba(244,63,94,0.5)] border border-rose-500/20 animate-in fade-in zoom-in"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">close</span>
+                    </button>
+                  )}
+                  
+                  {/* Bottom animated border line representing connection */}
+                  <div className="absolute bottom-0 left-0 h-[2px] bg-gradient-to-r from-transparent via-indigo-500 to-transparent w-full opacity-0 group-focus-within:opacity-100 scale-x-0 group-focus-within:scale-x-100 transition-all duration-700 ease-out origin-left" />
+                </div>
               </div>
 
-              <div className="flex bg-white/5 border border-white/5 rounded-2xl p-1.5 backdrop-blur-md gap-1">
+              {/* Filter Pills with Result Counter */}
+              <div
+                className="flex flex-col sm:flex-row gap-2 p-1.5"
+                style={{
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: '20px',
+                  backdropFilter: 'blur(30px)',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)'
+                }}
+              >
                 {[
-                  { id: 'todos',        label: 'TODOS',      icon: 'list_alt'    },
-                  { id: 'alerta',       label: 'ALERTAS',    icon: 'warning'     },
-                  { id: 'sin_personal', label: 'VACÃOS',     icon: 'person_off'  },
-                  { id: 'publicados',   label: 'OK',         icon: 'task_alt'    },
-                ].map(t => (
-                  <button key={t.id} onClick={() => setFilterTab(t.id as any)}
-                    className={`lex items-center gap-3 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300`}>
-                    <span className="material-symbols-outlined text-[18px]">{t.icon}</span>
-                    <span className="hidden lg:inline">{t.label}</span>
-                  </button>
-                ))}
+                  { id: 'todos',        label: 'TODOS',      icon: 'apps',       accent: '#5B6EE8' },
+                  { id: 'alerta',       label: 'ALERTAS',    icon: 'bolt',       accent: '#FF4C4C' },
+                  { id: 'sin_personal', label: 'VACÍOS',     icon: 'person_off', accent: '#F5A623' },
+                  { id: 'publicados',   label: 'OPERATIVOS', icon: 'verified',   accent: '#00C97B' },
+                ].map(t => {
+                   const count = (t.id === 'todos') ? (puestos||[]).filter(p=>(p as any).estado!=='inactivo').length : 
+                                 (t.id === 'alerta') ? filteredPuestos.filter(p => {
+                                   const store = useProgramacionStore.getState();
+                                   const prog = store.getProgramacionRapid?.(p.id || p.dbId, anio, mes);
+                                   return prog?.id && (store.getAlertas(prog.id) || []).length > 0;
+                                 }).length :
+                                 (t.id === 'sin_personal') ? filteredPuestos.filter(p => {
+                                   const store = useProgramacionStore.getState();
+                                   const prog = store.getProgramacionRapid?.(p.id || p.dbId, anio, mes);
+                                   return !prog?.personal || prog.personal.filter((x: any) => x.vigilanteId).length === 0;
+                                 }).length : 
+                                 filteredPuestos.filter(p => {
+                                   const store = useProgramacionStore.getState();
+                                   const prog = store.getProgramacionRapid?.(p.id || p.dbId, anio, mes);
+                                   return prog?.estado === 'publicado';
+                                 }).length;
+
+                   return (
+                      <button
+                        key={t.id}
+                        onClick={() => setFilterTab(t.id as any)}
+                        className="relative flex items-center justify-between gap-3 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all duration-300"
+                        style={filterTab === t.id ? {
+                          background: `${t.accent}15`,
+                          border: `1px solid ${t.accent}40`,
+                          color: t.accent,
+                          boxShadow: `0 4px 16px ${t.accent}10`
+                        } : {
+                          color: '#64748b'
+                        }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-[16px]">{t.icon}</span>
+                          <span className="hidden lg:inline">{t.label}</span>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-md text-[8px] font-black ${filterTab === t.id ? 'bg-white text-black' : 'bg-white/5 text-slate-500'}`}>
+                          {count}
+                        </span>
+                      </button>
+                   );
+                })}
               </div>
 
-              <button onClick={() => useProgramacionStore.getState().forceSync()} disabled={!progLoaded}
-                className="h-16 px-8 flex items-center gap-3 rounded-2xl text-[11px] font-black uppercase transition-all bg-white/5 border border-white/5 text-slate-500 hover:text-primary hover:border-primary/30">
-                <span className={`material-symbols-outlined text-[24px]`}>sync_alt</span>
-                <span className="hidden xl:inline tracking-widest">ACTUALIZAR RED</span>
+              {/* Refresh Button */}
+              <button
+                onClick={() => useProgramacionStore.getState().forceSync()}
+                disabled={!progLoaded}
+                className="group relative flex items-center gap-3 px-6 py-2.5 text-[11px] font-black uppercase tracking-widest overflow-hidden transition-all duration-500 disabled:opacity-30"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.04), rgba(0,0,0,0.2))',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '16px',
+                  backdropFilter: 'blur(20px)',
+                  color: '#475569'
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#818cf8'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(99,102,241,0.35)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#475569'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)'; }}
+              >
+                <span className="material-symbols-outlined text-[20px] transition-transform duration-700 group-hover:rotate-180">sync</span>
+                <span className="hidden xl:inline">ACTUALIZAR</span>
               </button>
             </div>
 
@@ -2169,14 +2211,43 @@ const GestionPuestos = () => {
                   ))}
                 </div>
               ) : pagedPuestos.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-24 border border-white/5 rounded-[35px] bg-black/20">
-                  <span className="material-symbols-outlined text-[48px] text-slate-800 mb-4 font-light">find_in_page</span>
-                  <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">SeÃ±al perdida - No hay objetivos que coincidan</p>
+                <div className="flex flex-col items-center justify-center py-24 border border-white/5 rounded-[35px] bg-black/20 animate-in fade-in duration-1000">
+                  <div className="relative mb-8">
+                     <div className="absolute -inset-4 bg-indigo-500/10 blur-2xl rounded-full animate-pulse" />
+                     <span className="material-symbols-outlined text-[64px] text-slate-800 relative z-10 font-thin">scanning</span>
+                  </div>
+                  <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-2 italic">Señal Perdida</h3>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-center max-w-[300px] leading-relaxed mb-8">
+                    El Centro de Mando no identifica objetivos activos con el filtro actual.
+                  </p>
+                  <button 
+                    onClick={() => {
+                        showTacticalToast({ title: '🔄 Re-Escaneando Matrix', message: 'Intentando recuperar enlace con la base de datos...', type: 'info' });
+                        useProgramacionStore.getState().forceSync();
+                    }}
+                    className="flex items-center gap-3 px-8 py-4 bg-white/05 hover:bg-white/10 border border-white/10 rounded-2xl text-[10px] font-black text-white uppercase tracking-widest transition-all group"
+                  >
+                    <span className="material-symbols-outlined text-[18px] group-hover:rotate-180 transition-transform duration-500">terminal</span>
+                    RECONECTAR SISTEMA
+                  </button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20">
                   {pagedPuestos.map(p => (
-                    <PuestoCard key={p.id} puesto={p} anio={anio} mes={mes} onClick={() => setSelectedPuesto({ dbId: p.dbId || p.id, nombre: p.nombre })} />
+                    <PuestoCard 
+                      key={p.id} 
+                      puesto={p} 
+                      anio={anio} 
+                      mes={mes} 
+                      onClick={() => {
+                        try {
+                          setSelectedPuesto({ dbId: p.dbId || p.id, nombre: p.nombre });
+                        } catch (err) {
+                          console.error('Click Error:', err);
+                          showTacticalToast({ title: 'Error de Enlace', message: 'No se pudo abrir el panel del puesto.', type: 'error' });
+                        }
+                      }} 
+                    />
                   ))}
                 </div>
               )}
@@ -2190,7 +2261,15 @@ const GestionPuestos = () => {
             </div>
           </div>
         ) : (
-          renderMasterGrid()
+          <MasterGrid
+            anio={anio}
+            mes={mes}
+            filteredPuestos={filteredPuestos}
+            programaciones={programaciones}
+            isInitialLoading={isInitialLoading}
+            onSelectPuesto={setSelectedPuesto}
+            onEditPuesto={(p) => { setPuestoToEdit(p); setIsNewPuestoModalOpen(true); }}
+          />
         )}
       </main>
 

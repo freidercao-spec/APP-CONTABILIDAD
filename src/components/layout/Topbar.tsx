@@ -155,6 +155,12 @@ const Topbar = () => {
                                 {puestos.length} Puestos
                             </span>
                         </div>
+                        <div className="w-[1px] h-3 bg-white/10" />
+                        <div className="flex items-center gap-1.5">
+                            <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 rounded-md text-[8px] font-black uppercase tracking-widest border border-indigo-500/30">
+                                v1.5.6-LIVE
+                            </span>
+                        </div>
                     </div>
 
                     {/* Clock */}

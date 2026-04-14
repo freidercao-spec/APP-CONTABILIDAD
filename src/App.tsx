@@ -87,6 +87,8 @@ const AppRouter = () => {
             <Route path="/disponibles" element={<Vigilantes defaultTab="reserva" />} />
             <Route path="/puestos" element={<Puestos />} />
             <Route path="/gestion-puestos" element={<GestionPuestos />} />
+            <Route path="/gestion" element={<Navigate to="/gestion-puestos" replace />} />
+            <Route path="/puestos-activos" element={<Navigate to="/gestion-puestos" replace />} />
             <Route path="/resumen" element={<Resumen />} />
             
             {/* Inteligencia */}

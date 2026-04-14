@@ -122,6 +122,10 @@ export function useSupabaseInit() {
                 usePuestoStore.getState().setupRealtime();
                 useProgramacionStore.getState().setupRealtime();
 
+                // REANUDAR MOTOR DE GUARDADO (Crítico para persistencia post-refresh)
+                addLog('📡 Reanudando sincronizaciones pendientes...');
+                useProgramacionStore.getState().resumePendingSyncs();
+
                 addLog('🚀 Sistema Listo.');
             } catch (err: any) {
                 addLog('⚠️ Error crítico de inicialización: ' + (err.message || 'Desconocido'));

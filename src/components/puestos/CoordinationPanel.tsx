@@ -64,6 +64,13 @@ export const CoordinationPanel = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [displayCount, setDisplayCount] = useState(40);
   const [showDestSelector, setShowDestSelector] = useState(false);
+  const fetchDetails = useProgramacionStore(s => s.fetchProgramacionDetalles);
+
+  // EFECTO TÁCTICO: Asegurar hidratación de datos para ambos tableros
+  React.useEffect(() => {
+    if (freshCProg?.id && !freshCProg.isDetailLoaded) fetchDetails(freshCProg.id);
+    if (currentProg?.id && !currentProg.isDetailLoaded) fetchDetails(currentProg.id);
+  }, [freshCProg?.id, currentProg?.id, fetchDetails]);
 
   // IDs del personal asignado en el tablero ORIGEN
   const originStaffVids = useMemo(
@@ -75,7 +82,7 @@ export const CoordinationPanel = ({
   // FIX CR?TICO: ahora indexa TODOS los tipos de jornada (normal, AM, PM, 24H, descanso, etc.)
   const originAsigsMap = useMemo(() => {
     const m = new Map<string, Set<string>>();
-    currentProg?.asignaciones.forEach(a => {
+    (currentProg?.asignaciones || []).forEach(a => {
       if (!a.vigilanteId || a.jornada === 'sin_asignar') return;
       const vid = translateToUuid(a.vigilanteId) || a.vigilanteId;
       if (!vid) return;
@@ -219,15 +226,15 @@ export const CoordinationPanel = ({
           </div>
           <div>
             <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">
-              CENTRO <span className="text-indigo-500 not-italic">DE COORDINACI?N</span>
+              CENTRO <span className="text-indigo-500 not-italic">DE COORDINACIÓN</span>
             </h3>
             <div className="flex items-center gap-3 mt-1.5">
                <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded text-[9px] font-black text-emerald-400 uppercase tracking-widest">
                  <span className="size-1 bg-emerald-400 rounded-full animate-pulse"></span> Sistema Live
                </span>
                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                {freshCProg
-                  ? `MODO COMPARATIVA: ${allPuestos.find(p => p.dbId === freshCProg.puestoId || p.id === freshCProg.puestoId)?.nombre || 'Puesto B'}`
+                {currentProg
+                  ? `COMPARANDO CON: ${allPuestos.find(p => p.dbId === currentProg.puestoId || p.id === currentProg.puestoId)?.nombre || 'Puesto A'}`
                   : 'MODO DISPONIBILIDAD GLOBAL'
                 }
               </p>
@@ -264,7 +271,7 @@ export const CoordinationPanel = ({
                     onClick={() => { setCompareProgId?.(null); setShowDestSelector(false); }}
                     className="w-full text-left p-3.5 mb-3 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-[10px] font-black text-rose-400 uppercase flex items-center justify-center gap-2 transition-all"
                   >
-                    <span className="material-symbols-outlined text-[16px]">close</span> Quitar comparaci?n
+                    <span className="material-symbols-outlined text-[16px]">close</span> Quitar comparación
                   </button>
                 )}
                 <div className="space-y-2 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
@@ -280,7 +287,7 @@ export const CoordinationPanel = ({
                         key={p.id}
                         onClick={() => {
                           if (destProg) setCompareProgId?.(destProg.id);
-                          else showTacticalToast({ title: 'Sin Programaci?n', message: `${p.nombre} no tiene programaci?n este mes.`, type: 'info' });
+                          else showTacticalToast({ title: 'Sin Programación', message: `${p.nombre} no tiene programaci?n este mes.`, type: 'info' });
                           setShowDestSelector(false);
                         }}
                         className={`w-full text-left p-4 rounded-2xl transition-all border ${
@@ -324,8 +331,47 @@ export const CoordinationPanel = ({
                 <span>No Repetir</span>
               </button>
           </div>
+          </div>
         </div>
-      </div>
+
+        {/* SUMMARY OF CONFLICTS (Step 4) */}
+        {freshCProg && (
+          <div className="flex bg-[#0f172a]/60 backdrop-blur-md border border-indigo-500/20 rounded-2xl px-6 py-3 ml-10">
+             <div className="flex items-center gap-8">
+                <div className="flex items-center gap-2">
+                   <span className="size-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                   <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
+                      {(() => {
+                        let disp = 0;
+                        daysArr.forEach(d => {
+                          const needs = currentProg?.asignaciones.some(a => a.dia === d && (a.rol === 'titular_a' || a.rol === 'titular_b') && (!a.vigilanteId || a.jornada === 'sin_asignar'));
+                          if (!needs) return;
+                          const occupiesB = compareVigilanteId ? destAsigsMap.get(compareVigilanteId)?.has(`${d}`) : false;
+                          if (!occupiesB) disp++;
+                        });
+                        return `${disp} días disponibles`;
+                      })()}
+                   </span>
+                </div>
+                <div className="w-px h-4 bg-white/10" />
+                <div className="flex items-center gap-2">
+                   <span className="size-2 rounded-full bg-rose-500"></span>
+                   <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
+                      {(() => {
+                        let conf = 0;
+                        daysArr.forEach(d => {
+                          const needs = currentProg?.asignaciones.some(a => a.dia === d && (a.rol === 'titular_a' || a.rol === 'titular_b') && (!a.vigilanteId || a.jornada === 'sin_asignar'));
+                          if (!needs) return;
+                          const occupiesB = compareVigilanteId ? (destAsigsMap.get(compareVigilanteId)?.has(`${d}`) || destAsigsMap.get(compareVigilanteId)?.has(`${d}-AM`) || destAsigsMap.get(compareVigilanteId)?.has(`${d}-PM`)) : false;
+                          if (occupiesB) conf++;
+                        });
+                        return `${conf} conflictos encontrados`;
+                      })()}
+                   </span>
+                </div>
+             </div>
+          </div>
+        )}
 
       {/* ?? GRILLA T?CTICA ??????????????????????????????????????????????????? */}
       <div className="p-10">
@@ -336,7 +382,7 @@ export const CoordinationPanel = ({
             <div className="flex gap-2 mb-6 ml-[240px]">
                {daysArr.map(d => (
                  <div key={d} className="size-12 rounded-xl bg-white/[0.03] border border-white/5 flex flex-col items-center justify-center shrink-0">
-                    <span className="text-[8px] font-black text-slate-600 uppercase">D?a</span>
+                    <span className="text-[8px] font-black text-slate-600 uppercase">Día</span>
                     <span className="text-[18px] font-black text-white leading-none">{d}</span>
                  </div>
                ))}
@@ -372,18 +418,32 @@ export const CoordinationPanel = ({
                       {daysArr.map(d => {
                         const asigB = freshCProg.asignaciones.find(a => a.dia === d && a.rol === per.rol);
                         const isVacant = !asigB || !asigB.vigilanteId || asigB.jornada === 'sin_asignar';
+                        const assignedVig = !isVacant && asigB.vigilanteId ? vMap.get(asigB.vigilanteId) : null;
 
                         return (
-                          <div
+                          <button
                             key={d}
+                            onClick={() => {
+                              if (!freshCProg) return;
+                              // Pasamos el vigilante seleccionado en la lista inferior para "autocompletar" la asignación
+                              onOpenEdit({ 
+                                asig: asigB || { dia: d, rol: per.rol, turno: per.turnoId || 'AM', jornada: 'sin_asignar' }, 
+                                progId: freshCProg.id, 
+                                preSelectVigilanteId: compareVigilanteId || '' 
+                              });
+                            }}
                             className={`size-12 rounded-xl flex items-center justify-center transition-all ${
                               isVacant 
-                                ? 'bg-cyan-500/10 border-2 border-cyan-400/30 shadow-[0_0_20px_rgba(34,211,238,0.2)] animate-pulse' 
-                                : 'bg-slate-800/20 border border-white/5 opacity-20'
+                                ? 'bg-cyan-500/10 border-2 border-cyan-400/30 shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:scale-110 hover:bg-cyan-500/20 cursor-pointer animate-pulse' 
+                                : 'bg-slate-800/40 border border-white/20 hover:border-indigo-400/50 cursor-pointer'
                             }`}
                           >
-                            {isVacant && <span className="material-symbols-outlined text-cyan-400 text-[18px]">add_task</span>}
-                          </div>
+                            {isVacant ? (
+                               <span className="material-symbols-outlined text-cyan-400 text-[18px]">add_task</span>
+                            ) : (
+                               <span className="text-[11px] font-black text-white/50">{assignedVig?.nombre?.[0] || '✓'}</span>
+                            )}
+                          </button>
                         );
                       })}
                     </div>
@@ -431,49 +491,102 @@ export const CoordinationPanel = ({
                     </button>
 
                     {daysArr.map(d => {
-                      const asigsVigA = originAsigsMap.get(vid);
                       const asigsVigB = destAsigsMap.get(vid);
-                      const hasAM_A = asigsVigA?.has(`${d}-AM`);
-                      const hasPM_A = asigsVigA?.has(`${d}-PM`);
-                      const has24_A = asigsVigA?.has(`${d}-24H`);
-                      const hasDay_A = asigsVigA?.has(`${d}`);
-                      const ocupadoA = hasAM_A || hasPM_A || has24_A || hasDay_A;
-                      const ocupadoB = asigsVigB?.has(`${d}-AM`) || asigsVigB?.has(`${d}-PM`) || asigsVigB?.has(`${d}-24H`) || asigsVigB?.has(`${d}`);
+                      
+                      // LÓGICA REQUERIDA POR EL USUARIO:
+                      // Tablero A = currentProg (el puesto que estamos editando)
+                      // Tablero B = freshCProg (el puesto de origen/comparación)
+
+                      // Paso 1: ¿Se necesita un relevante en el Tablero A para este día?
+                      // Se necesita si hay una VACANTE (mismo día, a.vigilanteId === null) 
+                      // en roles Titular A o Titular B.
+                      const needsRelevanteInA = currentProg?.asignaciones.some(a => 
+                        a.dia === d && 
+                        (a.rol === 'titular_a' || a.rol === 'titular_b') && 
+                        (!a.vigilanteId || a.jornada === 'sin_asignar')
+                      );
+
+                      // Paso 2: ¿El vigilante actual está ocupado en el Tablero B este día?
+                      const isOccupiedInB = asigsVigB?.has(`${d}-AM`) || asigsVigB?.has(`${d}-PM`) || asigsVigB?.has(`${d}-24H`) || asigsVigB?.has(`${d}`);
+
+                      // Paso 3: Determinar estado
+                      // - NO_APLICA (Gris): No se necesita relevante ese día en el Tablero A
+                      // - CONFLICTO (Rojo): Se necesita relevante en A, pero el vigilante está ocupado en B
+                      // - DISPONIBLE (Verde): Se necesita relevante en A y el vigilante está libre en B
+
+                      let state: 'NO_APLICA' | 'CONFLICTO' | 'DISPONIBLE' = 'NO_APLICA';
+                      if (needsRelevanteInA) {
+                        state = isOccupiedInB ? 'CONFLICTO' : 'DISPONIBLE';
+                      }
 
                       let bg = 'rgba(255,255,255,0.02)';
-                      let border = 'rgba(255,255,255,0.05)';
-                      let icon = null;
+                      let border = 'rgba(255,255,255,0.06)';
+                      let cellIcon: string | null = null;
+                      let cellText: string | null = null;
+                      let cellTextColor = '#fff';
+                      let tooltip = '';
 
+                      if (state === 'NO_APLICA') {
+                        bg = 'rgba(15,23,42,0.4)';
+                        border = 'rgba(255,255,255,0.05)';
+                        cellText = '·';
+                        cellTextColor = 'rgba(255,255,255,0.1)';
+                        tooltip = 'No se requiere apoyo este día';
+                      } else if (state === 'CONFLICTO') {
+                        bg = 'linear-gradient(135deg, rgba(159,18,57,0.4), rgba(76,5,25,0.6))';
+                        border = 'rgba(225,29,72,0.5)';
+                        cellText = '✕';
+                        cellTextColor = '#fda4af';
+                        tooltip = `Conflicto: Asignado en ${allPuestos.find(p => p.dbId === freshCProg?.puestoId || p.id === freshCProg?.puestoId)?.nombre || 'Tablero B'}`;
+                      } else if (state === 'DISPONIBLE') {
+                        bg = 'linear-gradient(135deg, rgba(4,120,87,0.4), rgba(6,78,59,0.6))';
+                        border = 'rgba(16,185,129,0.5)';
+                        cellIcon = 'check_circle';
+                        cellTextColor = '#6ee7b7';
+                        tooltip = 'Disponible para cubrir vacante';
+                      }
+
+                      // MODO SELECCIONADO: Resaltar más fuerte
                       if (isSelected) {
-                        if (has24_A || (hasAM_A && hasPM_A) || (hasDay_A && ocupadoA)) {
-                          bg = 'rgba(244,63,94,0.3)'; border = 'rgba(244,63,94,0.5)';
-                        } else if (hasAM_A || hasPM_A) {
-                          bg = 'rgba(79,70,229,0.2)'; border = 'rgba(79,70,229,0.5)';
-                        } else if (ocupadoB) {
-                          bg = 'rgba(245,158,11,0.2)'; border = 'rgba(245,158,11,0.5)';
-                        } else {
-                          bg = 'rgba(16,185,129,0.2)'; border = 'rgba(16,185,129,0.5)';
-                          icon = 'add_circle';
+                        if (state === 'CONFLICTO') {
+                          bg = 'rgba(225,29,72,0.6)';
+                          border = 'rgba(225,29,72,0.9)';
+                        } else if (state === 'DISPONIBLE') {
+                          bg = 'rgba(16,185,129,0.6)';
+                          border = 'rgba(16,185,129,0.9)';
                         }
-                      } else {
-                        if (ocupadoA) { bg = 'rgba(244,63,94,0.1)'; border = 'rgba(244,63,94,0.15)'; }
-                        else if (ocupadoB) { bg = 'rgba(245,158,11,0.08)'; border = 'rgba(245,158,11,0.15)'; }
                       }
 
                       return (
                         <button
                           key={d}
                           onClick={() => {
-                            if (!isSelected || !vid || ocupadoA || !freshCProg) return;
-                            const target = freshCProg.asignaciones.find(a => a.dia === d && (!a.vigilanteId || a.jornada === 'sin_asignar')) || freshCProg.asignaciones.find(a => a.dia === d);
-                            if (target) onOpenEdit({ asig: target, progId: freshCProg.id, preSelectVigilanteId: vid });
+                            if (state !== 'DISPONIBLE' || !isSelected || !vid || !currentProg) return;
+                            // Buscar la vacante en el Tablero A para este día
+                            const target = currentProg.asignaciones.find(a => 
+                              a.dia === d && 
+                              (a.rol === 'titular_a' || a.rol === 'titular_b') && 
+                              (!a.vigilanteId || a.jornada === 'sin_asignar')
+                            );
+                            if (target) onOpenEdit({ asig: target, progId: currentProg.id, preSelectVigilanteId: vid });
                           }}
-                          className="size-12 rounded-xl flex items-center justify-center transition-all border shrink-0 overflow-hidden"
-                          style={{ background: bg, borderColor: border }}
+                          disabled={state === 'NO_APLICA' || (state === 'CONFLICTO' && !isSelected)}
+                          title={tooltip}
+                          className={`size-12 rounded-xl flex items-center justify-center transition-all duration-200 border shrink-0 overflow-hidden ${
+                            state === 'DISPONIBLE' && isSelected ? 'hover:scale-110 hover:shadow-lg cursor-pointer' : 
+                            state === 'CONFLICTO' ? 'cursor-help' : 'cursor-default'
+                          }`}
+                          style={{ background: bg, borderColor: border, boxShadow: isSelected && state === 'DISPONIBLE' ? '0 0 15px rgba(16,185,129,0.4)' : 'none' }}
                         >
-                          {icon && <span className="material-symbols-outlined text-[20px] text-emerald-400 group-hover:scale-125 transition-transform">{icon}</span>}
-                          {isSelected && ocupadoA && <span className="text-[9px] font-black text-rose-400">FULL</span>}
-                          {!isSelected && ocupadoA && <div className="size-2 rounded-full bg-rose-500/40"></div>}
+                          {cellIcon ? (
+                            <span className="material-symbols-outlined text-[20px]" style={{ color: cellTextColor }}>
+                              {cellIcon}
+                            </span>
+                          ) : (
+                            <span className="text-[14px] font-black select-none" style={{ color: cellTextColor }}>
+                              {cellText}
+                            </span>
+                          )}
                         </button>
                       );
                     })}
@@ -511,14 +624,22 @@ interface PanelMensualPuestoProps {
   anio: number;
   mes: number;
   onClose: () => void;
+  conflictDetail?: string;
+  syncStatus?: 'synced' | 'pending' | 'error';
 }
 
-export const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose }: PanelMensualPuestoProps) => {
+export const PuestoMensualOverlay = ({ puestoId, puestoNombre, anio, mes, onClose, syncStatus = 'synced' }: PanelMensualPuestoProps) => {
   const vMap = useVigilanteStore(s => s.vigilanteMap);
   const allProgramaciones = useProgramacionStore(s => s.programaciones);
   const allPuestos = usePuestoStore(s => s.puestos);
+  const fetchDetails = useProgramacionStore(s => s.fetchProgramacionDetalles);
 
   const prog = allProgramaciones.find(p => p.puestoId === puestoId && p.anio === anio && p.mes === mes);
+
+  // EFECTO TÁCTICO: Cargar detalles si no están presentes
+  React.useEffect(() => {
+    if (prog?.id && !prog.isDetailLoaded) fetchDetails(prog.id);
+  }, [prog?.id, fetchDetails]);
   const puesto = allPuestos.find(p => p.dbId === puestoId || p.id === puestoId);
 
   const daysInMonth = new Date(anio, mes + 1, 0).getDate();
@@ -527,112 +648,157 @@ export const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose 
   const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="w-full max-w-[98vw] h-[95vh] bg-[#020617] rounded-[40px] border border-white/10 shadow-[0_32px_128px_rgba(0,0,0,0.9)] overflow-hidden flex flex-col animate-in zoom-in-95 duration-400">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-2xl animate-in fade-in duration-300">
+      <div className="w-full max-w-[98vw] h-[95vh] bg-[#020617]/90 rounded-[48px] border border-white/10 shadow-[0_32px_128px_rgba(0,0,0,1)] overflow-hidden flex flex-col animate-in zoom-in-95 duration-400 relative">
+        
+        {/* Decorative background glow */}
+        <div className="absolute -top-24 -left-24 size-[500px] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute -bottom-24 -right-24 size-[500px] bg-cyan-600/10 rounded-full blur-[120px] pointer-events-none" />
 
-        {/* ── HEADER ── */}
-        <div className="px-10 py-7 border-b border-white/5 flex items-center justify-between shrink-0 bg-white/[0.01]">
-          <div className="flex items-center gap-6">
-            <div className="size-14 rounded-[20px] bg-indigo-600/10 border border-indigo-500/30 flex items-center justify-center">
-              <span className="material-symbols-outlined text-indigo-400 text-[28px]">location_on</span>
+        {/* ── HEADER OPERATIVO ── */}
+        <div className="relative px-12 py-8 border-b border-white/5 flex items-center justify-between shrink-0 bg-white/[0.02] backdrop-blur-md">
+         {/* Sync state badge */}
+      {syncStatus === 'pending' && (
+        <div className="absolute top-1 right-1 z-[60] flex items-center justify-center pointer-events-none">
+           <div className="size-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin shadow-[0_0_8px_rgba(129,140,248,0.5)]" />
+        </div>
+      )}
+
+      {syncStatus === 'error' && (
+        <div className="absolute top-1 right-1 size-3 bg-rose-600 rounded-full z-20 flex items-center justify-center shadow-[0_0_8px_rgba(225,29,72,0.7)] animate-pulse">
+          <span className="text-white text-[7px] font-black">!</span>
+        </div>
+      )}
+          <div className="flex items-center gap-8">
+            <div className="size-16 rounded-[28px] bg-indigo-600 flex items-center justify-center shadow-[0_0_40px_rgba(79,70,229,0.4)]">
+              <span className="material-symbols-outlined text-white text-[32px]">location_on</span>
             </div>
             <div>
-              <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mb-1">Cobertura Individual · {MESES[mes]} {anio}</p>
-              <h2 className="text-[26px] font-black text-white uppercase italic tracking-tighter leading-none">{puestoNombre}</h2>
-              <p className="text-[10px] font-bold text-primary/50 uppercase tracking-widest mt-1">{puestoId}</p>
+              <div className="flex items-center gap-3 mb-1.5">
+                <span className="px-3 py-1 bg-indigo-500/20 text-indigo-400 rounded-lg text-[10px] font-black uppercase tracking-[0.3em]">COBERTURA MENSUAL</span>
+                <span className="px-3 py-1 bg-white/5 text-slate-500 rounded-lg text-[10px] font-black uppercase tracking-[0.3em] font-mono">{anio} · {MESES[mes].toUpperCase()}</span>
+              </div>
+              <h2 className="text-[32px] font-black text-white uppercase italic tracking-tighter leading-none">{puestoNombre}</h2>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="size-14 rounded-2xl bg-white/5 hover:bg-rose-500/10 border border-white/5 hover:border-rose-500/30 flex items-center justify-center text-slate-400 hover:text-rose-400 transition-all active:scale-90"
+            className="size-16 rounded-[24px] bg-white/5 hover:bg-rose-500/20 border border-white/10 hover:border-rose-500/30 flex items-center justify-center text-slate-500 hover:text-rose-400 transition-all active:scale-95 group"
           >
-            <span className="material-symbols-outlined text-[28px]">close</span>
+            <span className="material-symbols-outlined text-[32px] group-hover:rotate-90 transition-transform duration-300">close</span>
           </button>
         </div>
 
-        {/* ── STATS ROW ── */}
+        {/* ── VIGILANTES ASIGNADOS (Quick access info) ── */}
         {prog && (
-          <div className="px-10 py-4 border-b border-white/5 flex items-center gap-8 shrink-0">
+          <div className="px-12 py-5 border-b border-white/5 flex items-center gap-6 shrink-0 bg-black/20">
+            <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest mr-2">Estructura Ops:</span>
             {(prog.personal || []).map((per: any, i: number) => {
               const vid = per.vigilanteId;
               const v = vid ? vMap.get(vid) : null;
               const rolLabels: Record<string, string> = { titular_a: 'TIT. A', titular_b: 'TIT. B', relevante: 'REL.' };
               const label = rolLabels[per.rol] || per.rol?.toUpperCase();
               return (
-                <div key={i} className="flex items-center gap-3 px-4 py-2 bg-white/[0.03] rounded-2xl border border-white/5">
-                  <div className={`size-8 rounded-xl flex items-center justify-center text-[11px] font-black text-white ${vid ? 'bg-emerald-600' : 'bg-rose-600/50'}`}>
+                <div key={i} className="flex items-center gap-3 px-5 py-2.5 bg-white/[0.03] rounded-2xl border border-white/5 shadow-inner">
+                  <div className={`size-9 rounded-xl flex items-center justify-center text-[12px] font-black text-white shadow-lg ${vid ? 'bg-indigo-600' : 'bg-rose-600/40'}`}>
                     {v?.nombre?.[0] || '?'}
                   </div>
                   <div>
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{label}</p>
-                    <p className="text-[11px] font-black text-white uppercase truncate max-w-[120px]">{v?.nombre || 'VACANTE'}</p>
+                    <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-1">{label}</p>
+                    <p className="text-[12px] font-black text-white uppercase truncate max-w-[150px] tracking-tight">{v?.nombre || 'VACANTE'}</p>
                   </div>
                 </div>
               );
             })}
-            {!prog.personal?.length && (
-              <p className="text-[11px] font-black text-slate-600 uppercase tracking-widest">Sin personal configurado este mes</p>
-            )}
           </div>
         )}
 
-        {/* ── GRID DE DÍAS ── */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-10">
+        {/* ── CUADRÍCULA DE DÍAS (TACTICAL GRID) ── */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-12 bg-black/40 relative">
           {!prog ? (
-            <div className="flex flex-col items-center justify-center h-full opacity-30">
-              <span className="material-symbols-outlined text-[64px] mb-4">event_busy</span>
-              <p className="text-[14px] font-black uppercase tracking-widest">Sin programación para {MESES[mes]} {anio}</p>
+            <div className="flex flex-col items-center justify-center h-full opacity-20">
+              <span className="material-symbols-outlined text-[80px] mb-6 animate-pulse">event_busy</span>
+              <p className="text-[18px] font-black uppercase tracking-[0.5em]">Sin programación detectada</p>
             </div>
           ) : (
-            <div className="grid grid-cols-7 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-6">
               {days.map(d => {
                 const asigs = (prog.asignaciones || []).filter((a: any) => a.dia === d);
                 const date = new Date(anio, mes, d);
                 const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                const dayName = date.toLocaleDateString('es', { weekday: 'short' }).toUpperCase();
-                const hasCoverage = asigs.some((a: any) => a.vigilanteId && a.jornada !== 'sin_asignar');
+                const dayName = date.toLocaleDateString('es', { weekday: 'long' }).toUpperCase();
+                
+                // Determinar el color predominante del día
+                const activeAsig = asigs.find((a: any) => a.vigilanteId && a.jornada !== 'sin_asignar');
+                const dayColor = activeAsig 
+                  ? (activeAsig.jornada === 'PM' ? 'rgba(139, 92, 246, 0.5)' : activeAsig.jornada === '24H' ? 'rgba(16, 185, 129, 0.5)' : 'rgba(59, 130, 246, 0.5)')
+                  : 'rgba(244, 63, 94, 0.3)';
 
                 return (
                   <div
                     key={d}
-                    className={`p-4 rounded-[24px] border transition-all ${
+                    className={`group/day p-5 rounded-[32px] border transition-all duration-300 relative overflow-hidden flex flex-col min-h-[160px] ${
                       isWeekend
-                        ? 'bg-indigo-950/20 border-indigo-500/15'
-                        : 'bg-slate-900/30 border-white/5'
+                        ? 'bg-indigo-950/20 border-indigo-500/20 shadow-[0_8px_32px_rgba(79,70,229,0.1)]'
+                        : 'bg-[#0f172a]/80 border-white/5 hover:border-white/20'
                     }`}
                   >
-                    <div className="flex justify-between items-start mb-3">
-                      <span className={`text-[22px] font-black italic leading-none ${isWeekend ? 'text-indigo-400' : 'text-white'}`}>{d}</span>
-                      <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">{dayName}</span>
+                    {/* Indicador lateral de estado */}
+                    <div className="absolute top-0 left-0 w-1 h-full transition-all group-hover/day:w-2" style={{ backgroundColor: dayColor }}></div>
+                    
+                    <div className="flex justify-between items-start mb-5 h-10">
+                      <div>
+                        <span className={`text-[32px] font-black italic leading-none block ${isWeekend ? 'text-indigo-400' : 'text-white'}`}>{d}</span>
+                        <span className={`text-[8px] font-black uppercase tracking-[0.2em] block mt-1 ${isWeekend ? 'text-indigo-500/80' : 'text-slate-600'}`}>
+                           {dayName.substring(0, 3)}
+                        </span>
+                      </div>
+                      {isWeekend && (
+                        <span className="size-8 rounded-full bg-indigo-500/10 flex items-center justify-center">
+                           <span className="material-symbols-outlined text-indigo-400 text-[18px]">event</span>
+                        </span>
+                      )}
                     </div>
 
-                    <div className="space-y-1.5">
+                    <div className="space-y-2.5 flex-1 mt-2">
                       {asigs.length > 0 ? asigs.map((a: any, i: number) => {
                         const v = a.vigilanteId ? vMap.get(a.vigilanteId) : null;
                         const isVacant = !a.vigilanteId || a.jornada === 'sin_asignar';
-                        const rolLabels: Record<string, string> = { titular_a: 'A', titular_b: 'B', relevante: 'R' };
+                        const isNight = a.jornada === 'PM';
+                        
                         return (
-                          <div key={i} className={`flex items-center gap-2 px-2 py-1.5 rounded-xl border ${isVacant ? 'bg-rose-500/10 border-rose-500/20' : 'bg-black/40 border-white/5'}`}>
-                            <span className={`size-4 rounded-md flex items-center justify-center text-[8px] font-black shrink-0 ${isVacant ? 'bg-rose-500/30 text-rose-300' : 'bg-primary/30 text-primary-light'}`}>
-                              {rolLabels[a.rol] || '?'}
-                            </span>
-                            <p className={`text-[9px] font-black truncate uppercase ${isVacant ? 'text-rose-400' : 'text-slate-300'}`}>
-                              {v?.nombre?.split(' ')[0] || (isVacant ? 'VACANTE' : 'N/A')}
+                          <div 
+                            key={i} 
+                            className={`flex items-center gap-3 px-3 py-2 rounded-2xl border transition-all ${
+                              isVacant 
+                                ? 'bg-rose-500/5 border-rose-500/20 grayscale opacity-40 hover:opacity-100 hover:grayscale-0' 
+                                : 'bg-black/40 border-white/5 group-hover/day:border-white/10 shadow-inner'
+                            }`}
+                          >
+                            <div className={`size-5 rounded-lg flex items-center justify-center text-[8px] font-black shrink-0 ${isVacant ? 'bg-rose-500/20 text-rose-400' : isNight ? 'bg-violet-500/20 text-violet-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                              {a.rol === 'titular_a' ? 'A' : a.rol === 'titular_b' ? 'B' : 'R'}
+                            </div>
+                            <p className={`text-[11px] font-black truncate uppercase tracking-tight ${isVacant ? 'text-rose-500/50 italic' : 'text-slate-200'}`}>
+                              {v?.nombre?.split(' ')[0] || (isVacant ? 'VACANTE' : '---')}
                             </p>
                           </div>
                         );
                       }) : (
-                        <div className="flex items-center justify-center py-3 opacity-20">
-                          <span className="material-symbols-outlined text-[16px]">block</span>
+                        <div className="flex-1 flex items-center justify-center py-4 border-2 border-dashed border-white/5 rounded-2xl opacity-10">
+                          <span className="material-symbols-outlined text-[20px]">block</span>
                         </div>
                       )}
                     </div>
 
-                    {/* Barra de cobertura */}
-                    <div className="mt-2 h-0.5 bg-white/5 rounded-full overflow-hidden">
+                    {/* Progress indicator bottom */}
+                    <div className="mt-4 h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
                       <div
-                        className={`h-full rounded-full transition-all ${hasCoverage ? 'bg-emerald-500' : 'bg-rose-500/50'}`}
-                        style={{ width: hasCoverage ? '100%' : '20%' }}
+                        className={`h-full rounded-full transition-all duration-700 ease-out`}
+                        style={{ 
+                          width: activeAsig ? '100%' : '15%',
+                          backgroundColor: dayColor,
+                          boxShadow: activeAsig ? `0 0 10px ${dayColor}` : 'none'
+                        }}
                       />
                     </div>
                   </div>
@@ -642,14 +808,30 @@ export const PanelMensualPuesto = ({ puestoId, puestoNombre, anio, mes, onClose 
           )}
         </div>
 
-        {/* ── FOOTER ── */}
-        <div className="px-10 py-5 border-t border-white/5 bg-white/[0.01] flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-6 text-[9px] font-black uppercase tracking-widest text-slate-600">
-            <div className="flex items-center gap-2"><div className="size-2 rounded-full bg-emerald-500"/>Cobertura OK</div>
-            <div className="flex items-center gap-2"><div className="size-2 rounded-full bg-rose-500"/>Vacante</div>
-            <div className="flex items-center gap-2"><div className="size-2 rounded-full bg-indigo-400"/>Fin de Semana</div>
+        {/* ── FOOTER ESTADÍSTICO ── */}
+        <div className="px-12 py-7 border-t border-white/5 bg-black/40 backdrop-blur-md flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-10">
+            <div className="flex items-center gap-3 group">
+              <div className="size-3 rounded-full bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.6)] group-hover:scale-125 transition-transform"/>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Jornada Día</span>
+            </div>
+            <div className="flex items-center gap-3 group">
+              <div className="size-3 rounded-full bg-violet-500 shadow-[0_0_12px_rgba(139,92,246,0.6)] group-hover:scale-125 transition-transform"/>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Jornada Noche</span>
+            </div>
+            <div className="flex items-center gap-3 group">
+              <div className="size-3 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.6)] group-hover:scale-125 transition-transform"/>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Jornada 24H</span>
+            </div>
+            <div className="flex items-center gap-3 group">
+              <div className="size-3 rounded-full bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.6)] opacity-50"/>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">Vacante / Alerta</span>
+            </div>
           </div>
-          <p className="text-[9px] font-black text-slate-700 uppercase tracking-[0.2em]">Coraza CTA · Command Console</p>
+          <div className="flex items-center gap-4">
+             <div className="w-px h-8 bg-white/5 mx-2" />
+             <p className="text-[11px] font-black text-slate-700 uppercase tracking-[0.4em] italic">CORAZA TACTICAL COMMAND</p>
+          </div>
         </div>
 
       </div>

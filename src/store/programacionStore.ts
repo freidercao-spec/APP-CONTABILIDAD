@@ -50,14 +50,21 @@ export const idsMatch = (id1: string | null | undefined, id2: string | null | un
     return false;
 };
 
+const isUuid = (id: string | null): boolean => {
+    if (!id) return false;
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+};
+
 /**
  * Traduce un ID Readable / UUID a UUID puro para la DB.
  */
 export const translatePuestoToUuid = (id: string | null): string | null => {
     if (!id) return null;
+    if (isUuid(id)) return id;
     const pStore = usePuestoStore.getState();
     const found = pStore.puestos?.find(p => p.id === id || p.dbId === id);
-    return found?.dbId || id;
+    if (found?.dbId) return found.dbId;
+    return isUuid(id) ? id : null; // Solo retornar si es UUID, sino null para evitar errores en DB
 };
 
 /**
@@ -65,9 +72,11 @@ export const translatePuestoToUuid = (id: string | null): string | null => {
  */
 export const translateToUuid = (id: string | null): string | null => {
     if (!id) return null;
+    if (isUuid(id)) return id;
     const vStore = useVigilanteStore.getState();
     const found = vStore.vigilantes?.find(v => v.id === id || v.dbId === id);
-    return found?.dbId || id;
+    if (found?.dbId) return found.dbId;
+    return isUuid(id) ? id : null;
 };
 
 // ALIAS DE SEGURIDAD: Evita el Error de Núcleo si hay llamadas residuales en caché
@@ -254,7 +263,13 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
 
             const currentEmpresaId = String(useAuthStore.getState().empresaId || EMPRESA_ID).trim();
             
-            console.log(`[Coraza] 🚀 Iniciando despliegue a DB: Puesto ${dbPuestoId} | Mes ${prog.mes + 1}`);
+            console.log(`[Coraza] 🚀 Iniciando despliegue a DB: Puesto ${dbPuestoId} (Original: ${prog.puestoId}) | Mes ${prog.mes + 1}`);
+
+            // TELEMETRÍA DE SEGURIDAD
+            if (!currentEmpresaId || currentEmpresaId === 'undefined' || currentEmpresaId === 'null') {
+                console.error('[Coraza] ❌ Empresa ID inválido:', currentEmpresaId);
+                throw new Error("Identidad de empresa no detectada. Por favor re-inicie sesión.");
+            }
 
             const { data: realHeader, error: headerErr } = await supabase
                 .from('programacion_mensual')
@@ -415,7 +430,7 @@ const queueSync = (progId: string, set: any, get: any, immediate = false) => {
             retryCounters.set(progId, currentRetry);
             
             if (currentRetry <= MAX_RETRIES) {
-                const delayMs = Math.min(1000 * Math.pow(2, currentRetry - 1), 30000); // 1s, 2s, 4s, 8s, 16s
+                const delayMs = Math.min(1000 * Math.pow(2, currentRetry - 1), 30000); 
                 console.log(`[Coraza] 🔄 Reintento ${currentRetry}/${MAX_RETRIES} en ${delayMs}ms para ${progId}`);
                 const retryTimeout = setTimeout(runSync, delayMs);
                 pendingSyncs.set(progId, retryTimeout);
@@ -424,13 +439,12 @@ const queueSync = (progId: string, set: any, get: any, immediate = false) => {
                 if (currentRetry === 1) {
                     showTacticalToast({ 
                         title: "⏳ Reintentando Guardado", 
-                        message: `Error temporal de red. Reintentando automáticamente...`, 
+                        message: `Error temporal de red. Intentando asegurar persistencia...`, 
                         type: "warning",
-                        duration: 4000
+                        duration: 3000
                     });
                 }
             } else {
-                // MAX RETRIES AGOTADOS: Marcar como error pero NO perder datos
                 retryCounters.delete(progId);
                 set((state: any) => ({
                     programaciones: state.programaciones.map((p: any) =>
@@ -441,16 +455,15 @@ const queueSync = (progId: string, set: any, get: any, immediate = false) => {
                 }));
                 savePersistentQueue();
                 showTacticalToast({ 
-                    title: "❌ ERROR PERSISTENTE", 
-                    message: `No se pudo guardar después de ${MAX_RETRIES} intentos. Los datos están seguros en local. Presiona 'Refrescar' para reintentar.`, 
+                    title: "❌ ERROR DE CONEXIÓN CRÍTICO", 
+                    message: `No se pudo guardar tras varios intentos. Los datos NO se han perdido, pero solo existen en este equipo. Por favor, revisa tu conexión.`, 
                     type: "error",
-                    duration: 12000
+                    duration: 15000
                 });
             }
         }
     };
 
-    // Marcar como pendiente inmediatamente
     set((state: any) => ({
         programaciones: state.programaciones.map((p: any) =>
             p.id === progId ? { ...p, syncStatus: 'pending' as const } : p
@@ -458,13 +471,10 @@ const queueSync = (progId: string, set: any, get: any, immediate = false) => {
         isSyncing: true
     }));
 
-    if (immediate) {
-        runSync();
-    } else {
-        const timeout = setTimeout(runSync, 600);
-        pendingSyncs.set(progId, timeout);
-        savePersistentQueue();
-    }
+    const delay = immediate ? 0 : 800;
+    const timeout = setTimeout(runSync, delay);
+    pendingSyncs.set(progId, timeout);
+    savePersistentQueue();
 };
 
 // ── Store Logic ──────────────────────────────────────────────────────────────
@@ -502,17 +512,15 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         { anio: mesActual === 11 ? anio + 1 : anio, mes: mesActual === 11 ? 0 : mesActual + 1 },
                     ];
                     await Promise.all(meses.map(m => get().fetchProgramacionesByMonth(m.anio, m.mes)));
-                    set({ loaded: true }); // <--- EL FUSIBLE QUE FALTABA
+                    set({ loaded: true });
                 } catch (error) {
                     console.error('[Coraza] ❌ fetchProgramaciones Error:', error);
-                    set({ loaded: true });
+                    set({ loaded: true }); // Failsafe
                 }
             },
 
             fetchProgramacionesByMonth: async (anio: number, mes: number) => {
                 try {
-                    set({ loaded: false });
-                    
                     let allRows: any[] = [];
                     let from = 0;
                     const BATCH = 1000;
@@ -539,10 +547,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         if (allRows.length >= 7000) break;
                     }
 
-                    const rows = allRows;
-
-                    if (rows && rows.length > 0) {
-                         const headers = rows.map(row => ({
+                    if (allRows.length > 0) {
+                         const headers = allRows.map(row => ({
                             id: row.id,
                             puestoId: row.puesto_id as string,
                             anio: row.anio,
@@ -572,11 +578,10 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                                 if (idx >= 0) {
                                     const existing = merged[idx];
-                                    
-                                    if (existing.syncStatus === 'pending') {
-                                        // ESCUDO TÁCTICO: Proteger cambios locales de sobrescritura
+                                    if (existing.syncStatus === 'pending' || existing.syncStatus === 'error') {
                                         merged[idx] = { 
                                             ...existing,
+                                            id: h.id, 
                                             estado: h.estado, 
                                             actualizadoEn: h.actualizadoEn,
                                             version: h.version
@@ -584,31 +589,20 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                     } else {
                                         merged[idx] = { 
                                             ...h, 
-                                            asignaciones: (existing.asignaciones?.length > 0) ? existing.asignaciones : [],
-                                            personal: (existing.personal?.length > 0) ? existing.personal : [],
-                                            isDetailLoaded: existing.isDetailLoaded || false,
-                                            historialCambios: existing.historialCambios || []
+                                            asignaciones: existing.asignaciones || [],
+                                            personal: existing.personal || [],
+                                            isDetailLoaded: existing.isDetailLoaded || false
                                         };
                                     }
                                 } else {
                                     merged.push(h);
                                 }
                             });
-
-                            const newMap = new Map<string, ProgramacionMensual>();
-                            merged.forEach(p => {
-                                newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
-                                const uuid = translatePuestoToUuid(p.puestoId);
-                                if (uuid && uuid !== p.puestoId) newMap.set(`${uuid}-${p.anio}-${p.mes}`, p);
-                                newMap.set(p.id, p);
-                            });
-
-                            if (rows.length < 1000) {
-                                setTimeout(() => get()._fetchDetails(rows, rows.map(r => r.id)), 100);
-                            }
-
-                            return { programaciones: merged, loaded: true, _progMap: newMap };
+                            return { programaciones: merged, loaded: true };
                         });
+                        
+                        get()._updateMap();
+                        get()._fetchDetails(allRows, allRows.map(r => r.id));
                     } else {
                         set({ loaded: true });
                     }
@@ -625,8 +619,10 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     
                     if (!prog || prog.isFetching) return;
 
-                    const hasLocalData = prog.asignaciones && prog.asignaciones.length > 0;
-                    if (prog.isDetailLoaded || hasLocalData) {
+                    // CORRECCIÓN CRÍTICA: Solo saltar si ya fue cargado EN ESTA SESIÓN
+                    // (isDetailLoaded se resetea al rehidratar, por lo que localStorage
+                    // nunca puede bloquear la carga de datos reales de Supabase)
+                    if (prog.isDetailLoaded) {
                         return; 
                     }
 
@@ -702,7 +698,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             const localHasData = p.asignaciones && p.asignaciones.some((a: AsignacionDia) => a.vigilanteId !== null);
                             const remoteHasData = asignaciones && asignaciones.some(a => a.vigilanteId !== null);
                             
-                            if (localIsPending) {
+                            if (localIsPending || p.syncStatus === 'error') {
                                 return { ...p, isDetailLoaded: true, isFetching: false };
                             }
                             if (localHasData && !remoteHasData) {
@@ -898,6 +894,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 const s = get();
                 const map = (s as any)._progMap;
                 
+                // Primero intentar búsqueda en mapa de alto rendimiento
                 if (map) {
                     const key1 = `${puestoId}-${anio}-${mes}`;
                     if (map.has(key1)) return map.get(key1);
@@ -907,10 +904,20 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         const key2 = `${dbUuid}-${anio}-${mes}`;
                         if (map.has(key2)) return map.get(key2);
                     }
+                    
+                    const rid = translateToReadableId(puestoId);
+                    if (rid && rid !== puestoId) {
+                        const key3 = `${rid}-${anio}-${mes}`;
+                        if (map.has(key3)) return map.get(key3);
+                    }
                 }
 
-                return (s as any).programaciones.find((p: any) => 
-                    (p.puestoId === puestoId || translatePuestoToUuid(p.puestoId) === translatePuestoToUuid(puestoId)) && 
+                // Fallback a escaneo lineal si el mapa falló o no existe
+                const targetUuid = translatePuestoToUuid(puestoId);
+                const targetRid = translateToReadableId(puestoId);
+
+                return s.programaciones.find((p: any) => 
+                    (p.puestoId === puestoId || p.puestoId === targetUuid || p.puestoId === targetRid || p.id === puestoId) && 
                     p.anio === anio && 
                     p.mes === mes
                 );
@@ -1060,7 +1067,22 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 };
 
                 set((s: any) => {
-                    const newProgs = s.programaciones.map((p: any) => p.id === progId ? { 
+                    // RESILIENCIA TÁCTICA: Si el progId no se encuentra (posible cambio de ID en sync),
+                    // intentamos localizarlo por Puesto + Tiempo
+                    let targetProg = s.programaciones.find((p: any) => p.id === progId);
+                    
+                    if (!targetProg && prog.puestoId) {
+                        console.warn(`[Coraza] ⚠️ ID ${progId} no hallado en store. Buscando por coordenadas operativas...`);
+                        targetProg = s.getProgramacionRapid(prog.puestoId, prog.anio, prog.mes);
+                    }
+
+                    if (!targetProg) {
+                        console.error('[Coraza] ❌ Fallo Crítico: No se pudo localizar la programación objetivo.');
+                        return s;
+                    }
+
+                    const realId = targetProg.id;
+                    const newProgs = s.programaciones.map((p: any) => p.id === realId ? { 
                         ...p, 
                         asignaciones: newAsignaciones, 
                         actualizadoEn: new Date().toISOString(), 
@@ -1068,74 +1090,66 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         historialCambios: [...(p.historialCambios || []), nuevoCambio]
                     } : p);
                     
-                    const updatedProg = newProgs.find((p: any) => p.id === progId);
+                    const updatedProg = newProgs.find((p: any) => p.id === realId);
                     
                     // PROYECTAR NOVEDAD EN FICHA DEL VIGILANTE
                     if (data.vigilanteId) {
                         const vStore = useVigilanteStore.getState();
                         const pStore = usePuestoStore.getState();
-                        const puestoNombre = pStore.puestos.find(px => px.id === (updatedProg?.puestoId || prog.puestoId))?.nombre || 'Puesto';
+                        const targetPid = updatedProg?.puestoId || prog.puestoId;
+                        const puestoNombre = pStore.puestos.find(px => px.id === targetPid || px.dbId === targetPid)?.nombre || 'Puesto';
                         vStore.addActivity(
                             data.vigilanteId, 
                             'Asignación Diaria', 
-                            `Asignado a ${puestoNombre} para el día ${dia} (Rol: ${data.rol || 'General'})`
+                            `Asignado a ${puestoNombre} p/ día ${dia} (Rol: ${data.rol || 'General'})`
                         );
                     }
                     
                     // INCREMENTAL BUSY MAP UPDATE (Shift-Aware)
                     if (s._busyMap) {
-                        const anio = prog.anio;
-                        const mes = prog.mes;
+                        const anio = targetProg.anio;
+                        const mes = targetProg.mes;
 
-                        // 1. LIMPIAR OCUPACIÓN ANTIGUA (si existía)
                         if (oldAsig && oldAsig.vigilanteId && oldAsig.jornada !== 'sin_asignar') {
                             const oldVid = translateToUuid(oldAsig.vigilanteId);
-                            const oldKey = `${oldVid}-${anio}-${mes}`;
-                            const oldBusySet = s._busyMap.get(oldKey);
-                            
-                            if (oldBusySet) {
-                                const nextSet = new Set(oldBusySet);
-                                const oldJ = (oldAsig.jornada || (oldAsig as any).turno || 'normal') as string;
-                                if (oldJ === '24H' || oldJ === 'normal' || oldJ === 'vacacion' || oldJ.startsWith('descanso')) {
-                                    nextSet.delete(`${dia}-AM`);
-                                    nextSet.delete(`${dia}-PM`);
-                                    nextSet.delete(`${dia}-24H`);
-                                    nextSet.delete(`${dia}-normal`);
-                                } else {
-                                    nextSet.delete(`${dia}-${oldJ}`);
+                            if (oldVid) {
+                                const oldKey = `${oldVid}-${anio}-${mes}`;
+                                const oldBusySet = s._busyMap.get(oldKey);
+                                if (oldBusySet) {
+                                    const nextSet = new Set(oldBusySet);
+                                    const oldJ = (oldAsig.jornada || (oldAsig as any).turno || 'normal') as string;
+                                    if (oldJ === '24H' || oldJ === 'normal' || oldJ === 'vacacion' || oldJ.startsWith('descanso')) {
+                                        nextSet.delete(`${dia}-AM`); nextSet.delete(`${dia}-PM`); 
+                                        nextSet.delete(`${dia}-24H`); nextSet.delete(`${dia}-normal`);
+                                    } else { nextSet.delete(`${dia}-${oldJ}`); }
+                                    const hasMore = Array.from(nextSet).some((k: any) => String(k).startsWith(`${dia}-`));
+                                    if (!hasMore) nextSet.delete(dia);
+                                    if (nextSet.size === 0) s._busyMap.delete(oldKey);
+                                    else s._busyMap.set(oldKey, nextSet);
                                 }
-                                const hasMore = Array.from(nextSet).some((k: any) => String(k).startsWith(`${dia}-`));
-                                if (!hasMore) nextSet.delete(dia);
-                                if (nextSet.size === 0) s._busyMap.delete(oldKey);
-                                else s._busyMap.set(oldKey, nextSet);
                             }
                         }
 
-                        // 2. REGISTRAR NUEVA OCUPACIÓN (si aplica)
                         if (data.vigilanteId && data.jornada && data.jornada !== 'sin_asignar') {
                             const newVid = translateToUuid(data.vigilanteId);
-                            const newKey = `${newVid}-${anio}-${mes}`;
-                            const currentSet = s._busyMap.get(newKey) || new Set();
-                            const nextSet = new Set(currentSet);
-                            const j = (data.jornada || (data as any).turno || 'normal') as string;
-                            nextSet.add(dia);
-                            if (j === '24H' || j === 'normal' || j.startsWith('descanso') || j === 'vacacion') {
-                                nextSet.add(`${dia}-AM`);
-                                nextSet.add(`${dia}-PM`);
-                                nextSet.add(`${dia}-24H`);
-                                nextSet.add(`${dia}-normal`);
-                            } else if (j === 'AM') {
-                                nextSet.add(`${dia}-AM`);
-                            } else if (j === 'PM') {
-                                nextSet.add(`${dia}-PM`);
-                            } else {
-                                nextSet.add(`${dia}-${j}`);
+                            if (newVid) {
+                                const newKey = `${newVid}-${anio}-${mes}`;
+                                const currentSet = s._busyMap.get(newKey) || new Set();
+                                const nextSet = new Set(currentSet);
+                                const j = (data.jornada || (data as any).turno || 'normal') as string;
+                                nextSet.add(dia);
+                                if (j === '24H' || j === 'normal' || j.startsWith('descanso') || j === 'vacacion') {
+                                    nextSet.add(`${dia}-AM`); nextSet.add(`${dia}-PM`);
+                                    nextSet.add(`${dia}-24H`); nextSet.add(`${dia}-normal`);
+                                } else if (j === 'AM') { nextSet.add(`${dia}-AM`); }
+                                  else if (j === 'PM') { nextSet.add(`${dia}-PM`); }
+                                  else { nextSet.add(`${dia}-${j}`); }
+                                s._busyMap.set(newKey, nextSet);
                             }
-                            s._busyMap.set(newKey, nextSet);
                         }
                         s._busyMap = new Map(s._busyMap);
                     }
-                    // 5. ACTUALIZAR MAPA DE PROGRAMACIÓN (FIN DE LA ACTUALIZACIÓN)
+
                     if (updatedProg && s._progMap) {
                         const key1 = `${updatedProg.puestoId}-${updatedProg.anio}-${updatedProg.mes}`;
                         const dbUuid = translatePuestoToUuid(updatedProg.puestoId);
@@ -1150,7 +1164,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     return { programaciones: newProgs, _busyMap: s._busyMap, _progMap: s._progMap };
                 });
                 
-                queueSync(progId, set, get, false);
+                // GUARDADO INMEDIATO para asegurar persistencia ante cierres rápidos
+                queueSync(progId, set, get, true);
 
                 const conflictMsg = get().checkConflict(progId, dia, data.vigilanteId || '', data.turno || 'AM');
                 return { 
@@ -1489,16 +1504,26 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 const newBusyMap = new Map<string, Set<any>>();
 
                 progs.forEach(p => {
-                    // Indexar por puestoId y UUID para búsquedas rápidas
-                    newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
-                    newMap.set(`${p.id}`, p);
+                    // INDEXACIÓN MULTIDIMENSIONAL (Crítico para evitar 'Señal Perdida')
+                    const keyBase = `${p.anio}-${p.mes}`;
+                    
+                    // 1. Por ID directo (UUID)
+                    newMap.set(p.id, p);
+                    
+                    // 2. Por Puesto (UUID o Readable)
+                    newMap.set(`${p.puestoId}-${keyBase}`, p);
                     
                     const dbUuid = translatePuestoToUuid(p.puestoId);
                     if (dbUuid && dbUuid !== p.puestoId) {
-                        newMap.set(`${dbUuid}-${p.anio}-${p.mes}`, p);
+                        newMap.set(`${dbUuid}-${keyBase}`, p);
                     }
 
-                    // Track busy days & shifts (Normalizar a UUID)
+                    const rid = translateToReadableId(p.puestoId);
+                    if (rid && rid !== p.puestoId) {
+                        newMap.set(`${rid}-${keyBase}`, p);
+                    }
+
+                    // Track busy days & shifts
                     if (p.asignaciones) {
                         p.asignaciones.forEach(asig => {
                             if (asig.vigilanteId && asig.jornada !== 'sin_asignar') {
@@ -1509,11 +1534,9 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                 if (!newBusyMap.has(key)) newBusyMap.set(key, new Set());
                                 
                                 const busySet = newBusyMap.get(key)!;
-                                // Marcar el día completo (legacy)
                                 busySet.add(asig.dia);
-                                busySet.add(`${asig.dia}`); // compatibilidad string
+                                busySet.add(`${asig.dia}`); 
                                 
-                                // NORMALIZACIÓN DE LLAVES DE OCUPACIÓN (Sincronizado con CoordinationPanel)
                                 if (jornada === '24H' || jornada === 'normal' || 
                                     jornada === 'descanso_remunerado' || 
                                     jornada === 'descanso_no_remunerado' || 
@@ -1643,12 +1666,19 @@ export const useProgramacionStore = create<ProgramacionState>()(
             }
         }),
         {
-            name: 'coraza-programacion-v10', // Versión del esquema
+            name: 'coraza-programacion-v11', // Versión incrementada para forzar limpieza de caché
             storage: createJSONStorage(() => localStorage),
             partialize: (state) => ({
-                programaciones: state.programaciones,
+                // CORRECCIÓN CRÍTICA: Guardar programaciones pero con isDetailLoaded=false
+                // para que siempre se valide contra Supabase al cargar la sesión
+                programaciones: state.programaciones.map(p => ({
+                    ...p,
+                    isDetailLoaded: false, // ← SIEMPRE forzar recarga desde DB al iniciar
+                    isFetching: false,     // ← Limpiar estado de fetching
+                    syncStatus: p.syncStatus === 'pending' ? 'pending' : 'synced' // Preservar pendientes
+                })),
                 templates: state.templates,
-                loaded: true
+                loaded: false // ← Forzar recarga al iniciar sesión
             }),
             onRehydrateStorage: () => (state) => {
                 if (state) {
@@ -1657,14 +1687,13 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     state.programaciones.forEach(p => {
                         newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
                         newMap.set(p.id, p);
-                        // También por DB ID si está disponible
                         const uuid = translatePuestoToUuid(p.puestoId);
                         if (uuid && uuid !== p.puestoId) newMap.set(`${uuid}-${p.anio}-${p.mes}`, p);
                     });
                     (state as any)._progMap = newMap;
-                    (state as any)._updateMap(); // Gatillar la reconstrucción de busyMap
-                    (state as any).resumePendingSyncs(); // REANUDAR MOTOR DE GUARDADO
-                    console.log('[Coraza] 💾 Datos rehidratados del disco local. Tablero Listo.');
+                    (state as any)._updateMap();
+                    (state as any).resumePendingSyncs(); // REANUDAR MOTOR DE GUARDADO pendiente
+                    console.log('[Coraza] 💾 Rehidratación OK. Iniciando sincronización con Supabase...');
                 }
             }
         }
