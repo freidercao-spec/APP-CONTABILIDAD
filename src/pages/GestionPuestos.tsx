@@ -1219,6 +1219,7 @@ const PanelMensualPuesto = ({
   const jornadasCustom = puesto?.jornadasCustom?.length
     ? puesto.jornadasCustom
     : DEFAULT_JORNADAS;
+  const syncStatus = prog?.syncStatus ?? 'synced';
 
   const staffAsignado = (prog.personal || []).filter((p: any) => p.vigilanteId);
 
@@ -1310,14 +1311,14 @@ const PanelMensualPuesto = ({
           </button>
 
           <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl border min-w-[120px] justify-center ${
-            (prog?.syncStatus || 'synced') === 'error' ? 'bg-rose-50 border-rose-200' : 'bg-slate-100 border-slate-200'
+            syncStatus === 'error' ? 'bg-rose-50 border-rose-200' : 'bg-slate-100 border-slate-200'
           }`}>
             {isSyncing ? (
               <>
                 <div className="size-2 bg-indigo-500 rounded-full animate-ping" />
                 <span className="text-[9px] font-black text-indigo-600 uppercase">Sincronizando...</span>
               </>
-            ) : (prog?.syncStatus || 'synced') === 'error' ? (
+            ) : syncStatus === 'error' ? (
               <>
                 <span className="material-symbols-outlined text-rose-500 text-[16px]">cloud_off</span>
                 <span className="text-[9px] font-black text-rose-600 uppercase">Error de Sync</span>
@@ -1328,7 +1329,7 @@ const PanelMensualPuesto = ({
                   Reintentar
                 </button>
               </>
-            ) : (prog?.syncStatus || 'synced') === 'pending' ? (
+            ) : syncStatus === 'pending' ? (
               <>
                 <div className="size-2 bg-amber-500 rounded-full animate-pulse" />
                 <span className="text-[9px] font-black text-amber-600 uppercase">Pendiente...</span>
@@ -1608,7 +1609,7 @@ const PanelMensualPuesto = ({
         </div>
 
         <div className="ml-auto hidden lg:flex items-center gap-3 pr-4">
-          {(prog?.syncStatus || 'synced') === "synced" && (
+          {syncStatus === "synced" && (
             <div className="flex items-center gap-2">
               <div className="size-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">
@@ -1616,7 +1617,7 @@ const PanelMensualPuesto = ({
               </span>
             </div>
           )}
-          {(prog?.syncStatus || 'synced') === "pending" && (
+          {syncStatus === "pending" && (
             <div className="flex items-center gap-2">
               <div className="size-2 rounded-full bg-amber-500 animate-pulse" />
               <span className="text-[10px] font-black text-amber-400/60 uppercase tracking-widest">
@@ -1794,7 +1795,7 @@ const PanelMensualPuesto = ({
                            jornadasCustom={jornadasCustom}
                            hasConflict={hasConflict}
                            conflictDetail={conflictDetail}
-                           syncStatus={prog?.syncStatus || 'synced'}
+                           syncStatus={syncStatus}
                          />
                        </td>
                      );
