@@ -56,6 +56,28 @@ export const EditCeldaModal = ({
     return titularesId.map(id => vigilantes.find(v => v.id === id || v.dbId === id)).filter(Boolean) as Vigilante[];
   }, [titularesId, vigilantes]);
 
+  const formatTime = (time: string) => {
+    if (!time) return '';
+    const parts = time.split(':');
+    if (parts.length === 1) return `${parts[0].padStart(2, '0')}:00`;
+    return `${parts[0].padStart(2, '0')}:${parts[1].padEnd(2, '0')}`;
+  };
+
+  useEffect(() => {
+    if (tempAsig.inicio && tempAsig.inicio.length === 4 && tempAsig.inicio.includes(':')) {
+       const [h, m] = tempAsig.inicio.split(':');
+       if (h.length === 2 && m.length === 1) {
+          setTempAsig(prev => ({ ...prev, inicio: `${h}:0${m}` }));
+       }
+    }
+    if (tempAsig.fin && tempAsig.fin.length === 4 && tempAsig.fin.includes(':')) {
+       const [h, m] = tempAsig.fin.split(':');
+       if (h.length === 2 && m.length === 1) {
+          setTempAsig(prev => ({ ...prev, fin: `${h}:0${m}` }));
+       }
+    }
+  }, [tempAsig.inicio, tempAsig.fin]);
+
   const handleSelectVigilante = (v: Vigilante) => {
     setSelectedVigilante(v);
     setTempAsig(prev => ({ ...prev, vigilanteId: v.dbId || v.id }));
@@ -267,11 +289,7 @@ export const EditCeldaModal = ({
 
                 <div className="col-span-full pt-6 border-t border-white/5 mt-2">
                   <div className="flex flex-wrap gap-2.5">
-                    {[
-                      { id: 'AM', label: 'Día (06-18)', icon: 'wb_sunny', color: 'text-amber-400' },
-                      { id: 'PM', label: 'Noche (18-06)', icon: 'brightness_2', color: 'text-indigo-400' },
-                      { id: '24H', label: '24h (06-06)', icon: 'cached', color: 'text-emerald-400' }
-                    ].map(p => (
+                    {effectiveTurnos.map(p => (
                       <button
                         key={p.id}
                         onClick={() => setTurnoPreset(p.id)}
@@ -281,8 +299,10 @@ export const EditCeldaModal = ({
                             : 'bg-white/5 border-white/5 text-slate-500 hover:text-white'
                         }`}
                       >
-                        <span className={`material-symbols-outlined text-[18px] ${tempAsig.turno === p.id ? 'text-white' : p.color}`}>{p.icon}</span>
-                        {p.label}
+                        <span className={`material-symbols-outlined text-[18px] ${tempAsig.turno === p.id ? 'text-white' : 'text-indigo-400'}`}>
+                          {p.id === 'AM' ? 'wb_sunny' : p.id === 'PM' ? 'brightness_2' : 'cached'}
+                        </span>
+                        {p.nombre} ({p.inicio}-{p.fin})
                       </button>
                     ))}
                   </div>
