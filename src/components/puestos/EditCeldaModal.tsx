@@ -260,7 +260,12 @@ export const EditCeldaModal = ({
                       list="horas-comunes"
                       type="text"
                       value={tempAsig.inicio}
-                      onChange={e => setTempAsig({ ...tempAsig, inicio: e.target.value })}
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val.length === 4 && val.includes(':') && !val.endsWith(':')) setTempAsig({ ...tempAsig, inicio: formatTime(val) });
+                        else setTempAsig({ ...tempAsig, inicio: val });
+                      }}
+                      onBlur={() => setTempAsig({ ...tempAsig, inicio: formatTime(tempAsig.inicio || '') })}
                       placeholder="00:00"
                       className="w-full h-16 bg-white/[0.03] border border-white/10 rounded-2xl pl-12 pr-4 text-[20px] font-black text-white focus:border-emerald-500/40 transition-all outline-none text-center tabular-nums cursor-pointer"
                     />
@@ -274,7 +279,12 @@ export const EditCeldaModal = ({
                       list="horas-comunes"
                       type="text"
                       value={tempAsig.fin}
-                      onChange={e => setTempAsig({ ...tempAsig, fin: e.target.value })}
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val.length === 4 && val.includes(':') && !val.endsWith(':')) setTempAsig({ ...tempAsig, fin: formatTime(val) });
+                        else setTempAsig({ ...tempAsig, fin: val });
+                      }}
+                      onBlur={() => setTempAsig({ ...tempAsig, fin: formatTime(tempAsig.fin || '') })}
                       placeholder="00:00"
                       className="w-full h-16 bg-white/[0.03] border border-white/10 rounded-2xl pl-12 pr-4 text-[20px] font-black text-white focus:border-rose-500/40 transition-all outline-none text-center tabular-nums cursor-pointer"
                     />

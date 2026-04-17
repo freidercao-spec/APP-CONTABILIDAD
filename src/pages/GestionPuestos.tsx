@@ -1311,12 +1311,14 @@ const PanelMensualPuesto = ({
 
   const nombrePuesto = puestoNombre || getPuestoNombre(prog, allPuestos);
   const titularesId = useMemo(() => {
-    // Escaneo agresivo de todo el personal vinculado al puesto en cualquier nivel
+    // Escaneo agresivo con normalización de IDs (UUID vs Readable)
     const fromProg = (prog?.personal || []).map((p: any) => p.vigilanteId);
     const fromPuesto = (puesto?.personal || []).map((p: any) => p.vigilanteId);
     const fromAsigs = (prog?.asignaciones || []).map((a: any) => a.vigilanteId);
     
-    return Array.from(new Set([...fromProg, ...fromPuesto, ...fromAsigs])).filter(Boolean) as string[];
+    const combined = Array.from(new Set([...fromProg, ...fromPuesto, ...fromAsigs])).filter(Boolean);
+    // Normalizar a UUID para asegurar match en el modal
+    return combined.map(id => (useProgramacionStore.getState() as any).translateToUuid?.(id) || id) as string[];
   }, [prog?.personal, prog?.asignaciones, puesto?.personal]);
 
   const turnosConfig = puesto?.turnosConfig?.length
