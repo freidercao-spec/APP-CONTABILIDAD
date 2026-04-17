@@ -1308,9 +1308,11 @@ const PanelMensualPuesto = ({
   }
 
   const nombrePuesto = puestoNombre || getPuestoNombre(prog, allPuestos);
-  const titularesId = (prog.personal || [])
-    .map((p: any) => p.vigilanteId)
-    .filter(Boolean) as string[];
+  const titularesId = useMemo(() => {
+    const fromProg = (prog.personal || []).map((p: any) => p.vigilanteId);
+    const fromPuesto = (puesto?.personal || []).map((p: any) => p.vigilanteId);
+    return Array.from(new Set([...fromProg, ...fromPuesto])).filter(Boolean) as string[];
+  }, [prog.personal, puesto?.personal]);
   const turnosConfig = puesto?.turnosConfig?.length
     ? puesto.turnosConfig
     : DEFAULT_TURNOS;
