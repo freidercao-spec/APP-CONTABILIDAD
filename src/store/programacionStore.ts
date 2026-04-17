@@ -938,23 +938,45 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 
                 const daysInMonth = new Date(anio, mes + 1, 0).getDate();
                 const asignaciones: AsignacionDia[] = [];
-                const roles: RolPuesto[] = ['titular_a', 'titular_b', 'relevante'];
-                for (let dia = 1; dia <= daysInMonth; dia++) {
-                    roles.forEach(rol => asignaciones.push({ dia, vigilanteId: null, turno: 'AM', jornada: 'sin_asignar', rol }));
-                }
+                
+                // MEJORA TÁCTICA: Heredar el personal configurado en el Puesto para que el tablero coincida
+                const pStore = usePuestoStore.getState();
+                const targetPuesto = pStore.puestos?.find(px => px.id === puestoId || px.dbId === puestoId);
+                
+                const rolesBase: PersonalPuesto[] = [
+                    { rol: 'titular_a', vigilanteId: null, turnoId: 'AM' }, 
+                    { rol: 'titular_b', vigilanteId: null, turnoId: 'PM' }, 
+                    { rol: 'relevante', vigilanteId: null, turnoId: 'AM' }
+                ];
+                
+                // Si el puesto tiene personal ya definido, lo usamos como base superior
+                const personalFinal = (targetPuesto?.personal && targetPuesto.personal.length > 0)
+                    ? targetPuesto.personal.map(p => ({ ...p }))
+                    : rolesBase;
+
+                // Inicializar asignaciones basadas en el personal final para que tengan nombres desde el día 1
+                personalFinal.forEach(p => {
+                    for (let dia = 1; dia <= daysInMonth; dia++) {
+                        asignaciones.push({ 
+                            dia, 
+                            vigilanteId: p.vigilanteId || null, 
+                            turno: p.turnoId || (p.rol.includes('b') ? 'PM' : 'AM'), 
+                            jornada: 'sin_asignar', 
+                            rol: p.rol 
+                        });
+                    }
+                });
  
                 const newProg: ProgramacionMensual = {
                     id: newId,
                     puestoId: dbPuestoId, anio, mes,
-                    personal: [
-                        { rol: 'titular_a', vigilanteId: null, turnoId: 'AM' }, 
-                        { rol: 'titular_b', vigilanteId: null, turnoId: 'PM' }, 
-                        { rol: 'relevante', vigilanteId: null, turnoId: 'AM' }
-                    ],
+                    personal: personalFinal,
                     asignaciones, estado: 'borrador', creadoEn: new Date().toISOString(), actualizadoEn: new Date().toISOString(),
                     version: 1, historialCambios: [], syncStatus: 'pending',
                     isDetailLoaded: true
                 };
+
+                console.log(`[Coraza] 🛡️ Generando Tablero para ${puestoId}. Personal heredado: ${personalFinal.length} roles.`);
 
                 // NO GUARDAR INMEDIATAMENTE SI NO HAY INTERACCION (Debounce de seguridad de 2s)
                 set(s => ({ programaciones: [...s.programaciones, newProg] }));
