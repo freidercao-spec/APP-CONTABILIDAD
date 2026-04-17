@@ -1193,8 +1193,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     };
                 });
                 
-                // GUARDADO INMEDIATO para asegurar persistencia ante cierres rápidos
-                queueSync(progId, set, get, true);
+                // GUARDADO INMEDIATO usando el ID Real (UUID) para evitar desincronización
+                queueSync(realId, set, get, true);
 
                 const conflictMsg = get().checkConflict(progId, dia, data.vigilanteId || '', data.turno || 'AM');
                 return { 
