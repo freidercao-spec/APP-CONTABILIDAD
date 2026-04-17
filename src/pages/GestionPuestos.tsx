@@ -1961,6 +1961,7 @@ const PanelMensualPuesto = ({
       )}
       {editCell && (
         <EditCeldaModal
+          key={`${editCell.progId}-${editCell.asig.dia}-${editCell.asig.rol || 'any'}`}
           asig={editCell.asig}
           vigilantes={vigilantes}
           titularesId={titularesId}
@@ -1974,33 +1975,26 @@ const PanelMensualPuesto = ({
             return d.toLocaleDateString('es', { weekday: 'long', day: 'numeric' });
           })()}
           onClose={() => setEditCell(null)}
-          onSave={(data) => {
+          onSave={async (data) => {
             const user = useAuthStore.getState().username || "Operador";
-            const result = (useProgramacionStore.getState() as any).actualizarAsignacion(
+            const result = await (useProgramacionStore.getState() as any).actualizarAsignacion(
               editCell.progId,
               editCell.asig.dia,
               data,
               user
             );
-            setEditCell(null);
+            
             if (result?.tipo === "bloqueo") {
               showTacticalToast({
-                title: "⚠️ Conflicto",
+                title: "⚠️ Bloqueo de Operativa",
                 message: result.mensaje,
-                type: "warning",
-                duration: 5000,
-              });
-            } else if (result?.tipo === "advertencia") {
-               showTacticalToast({
-                title: "✓ Doble Turno Registrado",
-                message: "Asignación confirmada con aviso de ocupación previa.",
-                type: "success",
-                duration: 4000,
+                type: "error",
               });
             } else {
+              setEditCell(null);
               showTacticalToast({
-                title: "✓ Despacho Exitoso",
-                message: "Asignación reflejada en el tablero táctico.",
+                title: result?.tipo === "confirmacion" ? "✓ Doble Turno Confirmado" : "✓ Despacho Exitoso",
+                message: result.mensaje || "El cambio ha sido reflejado en el tablero táctico.",
                 type: "success",
               });
             }
