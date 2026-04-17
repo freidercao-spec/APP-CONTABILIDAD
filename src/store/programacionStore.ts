@@ -317,13 +317,16 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                 .filter(p => p.rol)
                 .map(p => {
                     const mappedVid = p.vigilanteId ? translateToUuid(p.vigilanteId) : null;
-                    return { programacion_id: dbProgId, rol: p.rol, vigilante_id: mappedVid, turno_id: p.turnoId || null };
+                    return { programacion_id: dbProgId, rol: p.rol, vigilante_id: mappedVid };
                 });
             if (personalPayload.length > 0) {
                 const { error: persErr } = await supabase
                     .from('personal_puesto')
                     .upsert(personalPayload, { onConflict: 'programacion_id,rol' });
-                if (persErr) console.warn('[Coraza] Personal warning:', persErr.message);
+                if (persErr) {
+                    console.error('[Coraza] ❌ Personal sync error:', persErr.message);
+                    // No lanzar error para no bloquear las asignaciones
+                }
             }
 
             // 3. Asignaciones en lotes de 100
@@ -1259,6 +1262,11 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     programaciones: s.programaciones.map(p => p.id !== progId ? p : { ...p, estado: 'publicado', syncStatus: 'pending' })
                 }));
                 queueSync(progId, set, get, false);
+                
+                const prog = get().programaciones.find(p => p.id === progId);
+                const pStore = usePuestoStore.getState();
+                const puesto = pStore.puestos.find(px => px.id === prog?.puestoId || px.dbId === prog?.puestoId);
+                useAuditStore.getState().logAction('PROGRAMACION', 'Publicación', `Tablero táctico del puesto ${puesto?.nombre || prog?.puestoId} publicado para el mes ${prog?.mes ? (prog.mes + 1) : '?'} / ${prog?.anio}.`, 'success');
             },
 
             guardarBorrador: (progId, usuario) => {
@@ -1266,6 +1274,11 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     programaciones: s.programaciones.map(p => p.id !== progId ? p : { ...p, estado: 'borrador', syncStatus: 'pending' })
                 }));
                 queueSync(progId, set, get, false);
+
+                const prog = get().programaciones.find(p => p.id === progId);
+                const pStore = usePuestoStore.getState();
+                const puesto = pStore.puestos.find(px => px.id === prog?.puestoId || px.dbId === prog?.puestoId);
+                useAuditStore.getState().logAction('PROGRAMACION', 'Borrador Guardado', `Avance del tablero táctico ${puesto?.nombre || prog?.puestoId} guardado localmente y sincronizado.`, 'info');
             },
 
             guardarComoPlantilla: async (progId, nombre, puestoNombre, usuario) => {

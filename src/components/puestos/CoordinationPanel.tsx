@@ -658,13 +658,13 @@ export const PuestoMensualOverlay = ({ puestoId, puestoNombre, anio, mes, onClos
         {/* ── HEADER OPERATIVO ── */}
         <div className="relative px-12 py-8 border-b border-white/5 flex items-center justify-between shrink-0 bg-white/[0.02] backdrop-blur-md">
          {/* Sync state badge */}
-      {syncStatus === 'pending' && (
+      {(syncStatus === 'pending' || prog?.syncStatus === 'pending') && (
         <div className="absolute top-1 right-1 z-[60] flex items-center justify-center pointer-events-none">
            <div className="size-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin shadow-[0_0_8px_rgba(129,140,248,0.5)]" />
         </div>
       )}
 
-      {syncStatus === 'error' && (
+      {(syncStatus === 'error' || prog?.syncStatus === 'error') && (
         <div className="absolute top-1 right-1 size-3 bg-rose-600 rounded-full z-20 flex items-center justify-center shadow-[0_0_8px_rgba(225,29,72,0.7)] animate-pulse">
           <span className="text-white text-[7px] font-black">!</span>
         </div>

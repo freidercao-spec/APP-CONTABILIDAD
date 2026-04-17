@@ -7,6 +7,9 @@ interface PuestoCardProps {
   anio: number;
   mes: number;
   onClick: () => void;
+  onAsignar?: () => void;
+  onHistorial?: () => void;
+  onIncidencia?: () => void;
 }
 
 const getTipoMeta = (tipo: string) => {
@@ -65,7 +68,7 @@ const CoberturaArc = ({ value, color }: { value: number; color: string }) => {
   );
 };
 
-export const PuestoCard = React.memo(({ puesto, anio, mes, onClick }: PuestoCardProps) => {
+export const PuestoCard = React.memo(({ puesto, anio, mes, onClick, onAsignar, onHistorial, onIncidencia }: PuestoCardProps) => {
   const [showMenu, setShowMenu] = useState(false);
   
   const prog = useProgramacionStore(s => {
@@ -106,153 +109,198 @@ export const PuestoCard = React.memo(({ puesto, anio, mes, onClick }: PuestoCard
 
   return (
     <div
-      className="relative group cursor-pointer transition-all duration-500 hover:-translate-y-2"
+      className="relative group cursor-pointer transition-all duration-500 hover:-translate-y-3"
       style={{
-        borderRadius: '32px',
-        background: 'linear-gradient(165deg, #111827 0%, #0B1120 100%)',
-        border: `1px solid rgba(255,255,255,0.05)`,
-        backdropFilter: 'blur(40px)',
-        boxShadow: '0 12px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.03)'
+        borderRadius: '35px',
+        background: 'linear-gradient(165deg, rgba(17, 24, 39, 0.8) 0%, rgba(11, 17, 32, 0.95) 100%)',
+        border: `1px solid rgba(255,255,255,0.08)`,
+        backdropFilter: 'blur(30px)',
+        boxShadow: '0 20px 50px -12px rgba(0,0,0,0.8), inset 0 1px 1px rgba(255,255,255,0.05)'
       }}
     >
-      {/* Blue Gloaw on Hover */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-[32px] shadow-[0_0_40px_rgba(91,110,232,0.15)] bg-gradient-to-tr from-[#5B6EE805] to-transparent" />
+      {/* Dynamic Edge Glow */}
+      <div className="absolute -inset-[1px] rounded-[35px] bg-gradient-to-br from-indigo-500/20 via-transparent to-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
+
+      {/* Internal Glow Effect */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-[35px] bg-gradient-to-tr from-[#5B6EE808] to-transparent shadow-[inset_0_0_30px_rgba(91,110,232,0.1)]" />
 
       {/* Alert Overlay Badge */}
       {alertas.length > 0 && (
         <div 
-          className="absolute -top-2 -right-2 px-3 py-1 rounded-full bg-[#FF4C4C] text-white text-[9px] font-black z-30 shadow-[0_0_15px_rgba(255,76,76,0.5)] animate-bounce"
+          className="absolute -top-3 -right-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-rose-600 to-rose-500 text-white text-[10px] font-black z-30 shadow-[0_10px_20px_rgba(244,63,94,0.4)] animate-bounce border border-white/20 uppercase tracking-tighter"
         >
-          {alertas.length} ALERTAS
+          {alertas.length} ALERTAS CRÍTICAS
         </div>
       )}
 
       {/* Dots Menu Button */}
       <button 
         onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
-        className="absolute top-4 right-4 size-10 rounded-2xl flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/10 transition-all z-20"
+        className="absolute top-6 right-6 size-11 rounded-2xl flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/10 transition-all z-20 border border-transparent hover:border-white/10 active:scale-90"
       >
-        <span className="material-symbols-outlined text-[20px]">more_vert</span>
+        <span className="material-symbols-outlined text-[22px]">more_vert</span>
       </button>
 
       {/* Floating Menu */}
       {showMenu && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-          <div className="absolute top-12 right-4 w-48 bg-[#1F2937] border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in duration-200">
-            <button className="w-full px-4 py-2.5 flex items-center gap-3 text-white text-[10px] font-black hover:bg-white/5 transition-colors uppercase tracking-widest">
-              <span className="material-symbols-outlined text-[18px] text-blue-400">person_search</span>
-              Asignar Vigilante
+          <div className="absolute top-16 right-6 w-56 bg-[#0F172A] border border-white/10 rounded-[24px] shadow-2xl py-3 z-50 animate-in fade-in zoom-in slide-in-from-top-2 duration-300 backdrop-blur-xl">
+            <div className="px-4 pb-2 mb-2 border-b border-white/5">
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">COMANDOS RÁPIDOS</p>
+            </div>
+            <button
+              className="w-full px-5 py-3 flex items-center gap-3 text-white text-[11px] font-black hover:bg-indigo-500/10 transition-colors uppercase tracking-widest group/btn"
+              onClick={(e) => { e.stopPropagation(); setShowMenu(false); if (onAsignar) onAsignar(); else onClick(); }}
+            >
+              <div className="size-8 rounded-xl bg-indigo-500/10 flex items-center justify-center group-hover/btn:bg-indigo-500 group-hover/btn:text-white transition-all">
+                <span className="material-symbols-outlined text-[18px]">person_search</span>
+              </div>
+              Asignar Personal
             </button>
-            <button className="w-full px-4 py-2.5 flex items-center gap-3 text-white text-[10px] font-black hover:bg-white/5 transition-colors uppercase tracking-widest">
-              <span className="material-symbols-outlined text-[18px] text-emerald-400">history</span>
-              Ver Historial
+            <button
+              className="w-full px-5 py-3 flex items-center gap-3 text-white text-[11px] font-black hover:bg-emerald-500/10 transition-colors uppercase tracking-widest group/btn"
+              onClick={(e) => { e.stopPropagation(); setShowMenu(false); if (onHistorial) onHistorial(); else onClick(); }}
+            >
+              <div className="size-8 rounded-xl bg-emerald-500/10 flex items-center justify-center group-hover/btn:bg-emerald-500 group-hover/btn:text-white transition-all">
+                <span className="material-symbols-outlined text-[18px]">history</span>
+              </div>
+              Bitácora Mensual
             </button>
             <div className="h-[1px] bg-white/5 my-1" />
-            <button className="w-full px-4 py-2.5 flex items-center gap-3 text-rose-400 text-[10px] font-black hover:bg-rose-500/10 transition-colors uppercase tracking-widest">
-              <span className="material-symbols-outlined text-[18px]">emergency_home</span>
-              Reportar Incidencia
+            <button
+              className="w-full px-5 py-3 flex items-center gap-3 text-rose-400 text-[11px] font-black hover:bg-rose-500/10 transition-colors uppercase tracking-widest group/btn"
+              onClick={(e) => { e.stopPropagation(); setShowMenu(false); if (onIncidencia) onIncidencia(); }}
+            >
+              <div className="size-8 rounded-xl bg-rose-500/10 flex items-center justify-center group-hover/btn:bg-rose-500 group-hover/btn:text-white transition-all">
+                <span className="material-symbols-outlined text-[18px]">warning</span>
+              </div>
+              Reportar Alerta
             </button>
           </div>
         </>
       )}
 
-      <div className="p-8" onClick={onClick}>
-        {/* Header: ID + Name */}
-        <div className="flex items-center gap-5 mb-8">
+      <div className="p-10 relative z-10" onClick={onClick}>
+        {/* Header: ICON + ID + Name */}
+        <div className="flex items-start gap-6 mb-10">
           <div
-            className="size-[56px] rounded-[20px] flex items-center justify-center shrink-0 transition-transform duration-500 group-hover:scale-110 shadow-lg"
+            className="size-[68px] rounded-[24px] flex items-center justify-center shrink-0 transition-all duration-700 group-hover:scale-110 group-hover:rotate-6 shadow-2xl relative"
             style={{
-              background: `${tipo.color}15`,
-              border: `1px solid ${tipo.color}30`,
-              boxShadow: `0 0 25px ${tipo.color}10`
+              background: `linear-gradient(135deg, ${tipo.color}20 0%, ${tipo.color}05 100%)`,
+              border: `1px solid ${tipo.color}40`,
             }}
           >
-            <span className="material-symbols-outlined text-[28px]" style={{ color: tipo.color }}>{tipo.icon}</span>
+            <div className="absolute inset-0 rounded-[24px] blur-xl opacity-20 group-hover:opacity-40 transition-opacity" style={{ backgroundColor: tipo.color }} />
+            <span className="material-symbols-outlined text-[32px] relative z-10" style={{ color: tipo.color }}>{tipo.icon}</span>
           </div>
-          <div className="flex flex-col min-w-0">
-            <span className="font-mono text-[10px] font-black tracking-widest text-[#5B6EE8] uppercase mb-1 drop-shadow-[0_0_8px_rgba(91,110,232,0.4)]">
-              {puesto.id || 'CTA-XXXX'}
-            </span>
-            <h3 className="text-[20px] font-black text-white uppercase leading-none truncate tracking-tight">
+          <div className="flex flex-col min-w-0 pt-1">
+            <div className="flex items-center gap-3 mb-2">
+                <span className="px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-[#7C8BFF] font-mono text-[10px] font-black tracking-widest uppercase">
+                {puesto.id || 'CTA-XXXX'}
+                </span>
+                <div className={`size-2 rounded-full animate-pulse shadow-[0_0_8px_currentColor]`} style={{ color: currentEstado.color }} />
+            </div>
+            <h3 className="text-[24px] font-black text-white uppercase leading-[1.1] tracking-tighter drop-shadow-lg">
               {puesto.nombre}
             </h3>
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-4 mb-8">
-          {/* Cobertura Arc */}
-          <div className="bg-black/30 border border-white/5 rounded-3xl p-4 flex items-center gap-4 transition-all group-hover:bg-black/40">
-            <div className="relative size-[60px] flex items-center justify-center">
+        {/* Stats Grid: Tactical Layout */}
+        <div className="grid grid-cols-2 gap-5 mb-10">
+          {/* Cobertura Panel */}
+          <div className="bg-black/40 border border-white/5 rounded-[28px] p-5 flex items-center gap-5 transition-all group-hover:bg-black/60 group-hover:border-white/10 group-hover:shadow-2xl">
+            <div className="relative size-[64px] flex items-center justify-center shrink-0">
               <CoberturaArc value={cobertura} color={cobColor} />
-              <div className="absolute inset-0 flex flex-col items-center justify-center mt-1">
-                <span className="text-[12px] font-black text-white leading-none">{cobertura}%</span>
+              <div className="absolute inset-0 flex flex-col items-center justify-center mt-0.5">
+                <span className="text-[14px] font-black text-white leading-none tracking-tighter">{cobertura}%</span>
               </div>
             </div>
-            <div className="flex flex-col">
-              <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1 leading-none">Status</span>
-              <span className="text-[11px] font-black whitespace-nowrap" style={{ color: cobColor }}>{cobLabel}</span>
+            <div className="flex flex-col min-w-0">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 leading-none">Status</span>
+              <span className="text-[12px] font-black truncate drop-shadow-sm" style={{ color: cobColor }}>{cobLabel}</span>
             </div>
           </div>
 
-          {/* Personnel Count */}
-          <div className="bg-black/30 border border-white/5 rounded-3xl p-4 flex flex-col justify-center transition-all group-hover:bg-black/40">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1.5 leading-none">Operativos</span>
+          {/* Personnel Panel */}
+          <div className="bg-black/40 border border-white/5 rounded-[28px] p-5 flex flex-col justify-center transition-all group-hover:bg-black/60 group-hover:border-white/10 group-hover:shadow-2xl">
+            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 leading-none">Dotación</span>
             <div className="flex items-baseline gap-2">
-              <span className="text-[28px] font-black text-white leading-none tracking-tighter italic">{stats.count}</span>
-              <span className="text-[9px] font-black text-slate-600 uppercase">Pax</span>
+              <span className="text-[34px] font-black text-white leading-none tracking-tighter italic drop-shadow-lg">{stats.count}</span>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-slate-600 uppercase leading-none">Personal</span>
+                <span className="text-[8px] font-bold text-slate-400 uppercase leading-none mt-1">Activo</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Guard List (with Avatars) */}
-        <div className="flex -space-x-3 mb-8 items-center min-h-[44px]">
-          {stats.guards.length > 0 ? (
-            <>
-              {stats.guards.slice(0, 4).map((g: any, i) => (
-                <div 
-                  key={i} 
-                  className="size-11 rounded-2xl border-2 border-[#111827] overflow-hidden relative group/avatar transition-transform hover:scale-110 hover:z-20"
-                  style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}
-                  title={g.nombre}
-                >
-                  <img 
-                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(g.nombre)}&background=1e293b&color=fff&bold=true`}
-                    alt={g.nombre}
-                    className="w-full h-full object-cover"
-                  />
+        {/* Guard List: Premium Avatar Stack */}
+        <div className="flex items-center justify-between mb-10">
+            <div className="flex -space-x-3.5 items-center">
+            {stats.guards.length > 0 ? (
+                <>
+                {stats.guards.slice(0, 5).map((g: any, i) => (
+                    <div 
+                    key={i} 
+                    className="size-12 rounded-[18px] border-[3px] border-[#0B1120] overflow-hidden relative group/avatar transition-all duration-300 hover:scale-125 hover:z-20 hover:-rotate-3"
+                    style={{ boxShadow: '0 8px 20px rgba(0,0,0,0.6)' }}
+                    title={g.nombre}
+                    >
+                    <img 
+                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(g.nombre)}&background=1e293b&color=fff&bold=true&size=100`}
+                        alt={g.nombre}
+                        className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover/avatar:opacity-100 transition-opacity" />
+                    </div>
+                ))}
+                {stats.guards.length > 5 && (
+                    <div className="size-12 rounded-[18px] border-[3px] border-[#0B1120] bg-gradient-to-br from-indigo-600 to-indigo-800 flex items-center justify-center text-[11px] font-black text-white z-10 transition-all hover:scale-110 shadow-lg">
+                    +{stats.guards.length - 5}
+                    </div>
+                )}
+                </>
+            ) : (
+                <div className="flex items-center gap-3 w-full bg-rose-500/5 border border-rose-500/20 rounded-[22px] px-6 py-3.5 backdrop-blur-sm shadow-inner group-hover:border-rose-500/40 transition-all">
+                <div className="size-2.5 bg-rose-500 rounded-full animate-ping shadow-[0_0_12px_#f43f94]" />
+                <span className="text-[10px] font-black text-rose-400 uppercase tracking-[0.25em] italic">Objetivo Crítico: Sin Personal</span>
                 </div>
-              ))}
-              {stats.guards.length > 4 && (
-                <div className="size-11 rounded-2xl border-2 border-[#111827] bg-[#1e293b] flex items-center justify-center text-[10px] font-black text-white z-10 transition-transform hover:scale-110">
-                  +{stats.guards.length - 4}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="flex items-center gap-3 w-full bg-[#FF4C4C0a] border border-[#FF4C4C20] rounded-2xl px-4 py-2.5">
-              <div className="size-2 bg-[#FF4C4C] rounded-full animate-pulse shadow-[0_0_8px_#FF4C4C]" />
-              <span className="text-[9px] font-black text-[#FF4C4C] uppercase tracking-[0.2em]">Puesto en Riesgo: Sin Personal</span>
+            )}
             </div>
-          )}
+            
+            {stats.guards.length > 0 && (
+                <div className="flex flex-col items-end">
+                    <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-1">Equipo</span>
+                    <span className="text-[10px] font-black text-indigo-400 uppercase">Completo</span>
+                </div>
+            )}
         </div>
 
-        {/* Footer: State Badge + Dashboard Button */}
-        <div className="flex items-center justify-between pt-6 border-t border-white/5">
+        {/* Footer: Multi-Action Premium Bar */}
+        <div className="flex items-center justify-between pt-8 border-t border-white/5">
           <div 
-            className="flex items-center gap-2.5 px-4 py-2 rounded-full cursor-pointer hover:brightness-125 transition-all"
-            style={{ background: currentEstado.bg, border: `1px solid ${currentEstado.border}` }}
+            className="flex items-center gap-3 px-5 py-2.5 rounded-2xl cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-lg"
+            style={{ 
+                background: `linear-gradient(to right, ${currentEstado.bg}, transparent)`, 
+                border: `1px solid ${currentEstado.border}` 
+            }}
           >
-            <div className="size-1.5 rounded-full" style={{ backgroundColor: currentEstado.color, boxShadow: `0 0 8px ${currentEstado.color}` }} />
-            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: currentEstado.color }}>{currentEstado.label}</span>
+            <div className="size-2 rounded-full relative">
+                <div className="absolute inset-0 rounded-full animate-ping opacity-60" style={{ backgroundColor: currentEstado.color }} />
+                <div className="relative size-full rounded-full" style={{ backgroundColor: currentEstado.color, boxShadow: `0 0 10px ${currentEstado.color}` }} />
+            </div>
+            <span className="text-[11px] font-black uppercase tracking-[2px]" style={{ color: currentEstado.color }}>{currentEstado.label}</span>
           </div>
 
           <button
-            className="flex items-center gap-2.5 px-5 py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all duration-300 transform active:scale-95 group-hover:bg-[#5B6EE8] group-hover:text-white border border-white/10 group-hover:border-[#5B6EE8] group-hover:shadow-[0_8px_25px_rgba(91,110,232,0.4)] text-slate-400"
+            onClick={(e) => { e.stopPropagation(); onClick(); }}
+            className="group/panel overflow-hidden relative flex items-center gap-3 px-8 py-4 rounded-[22px] font-black text-[12px] uppercase tracking-[3px] transition-all duration-500 shadow-2xl bg-white/05 hover:bg-white/10 border border-white/10 hover:border-indigo-500/50 text-slate-400 hover:text-white"
           >
-            <span className="material-symbols-outlined text-[18px]">explore</span>
-            <span>Panel</span>
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-indigo-500 opacity-0 group-hover/panel:opacity-100 transition-all duration-500" />
+            <span className="material-symbols-outlined text-[20px] relative z-10 transition-transform duration-500 group-hover/panel:rotate-[360deg] group-hover/panel:scale-110">explore</span>
+            <span className="relative z-10">Consola</span>
           </button>
         </div>
       </div>

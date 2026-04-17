@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuditStore, type AuditModule, type AuditSeverity } from '../store/auditStore';
 import toast from 'react-hot-toast';
 import { showTacticalToast } from '../utils/tacticalToast';
@@ -25,8 +26,9 @@ const SEVERITY_CONFIG: Record<AuditSeverity, { label: string; cls: string; dotCl
 
 const AuditoriaInterna = () => {
     const { entries, clearAll } = useAuditStore();
+    const [searchParams] = useSearchParams();
 
-    const [search, setSearch] = useState('');
+    const [search, setSearch] = useState(searchParams.get('q') || '');
     const [filterModule, setFilterModule] = useState<AuditModule | 'todos'>('todos');
     const [filterSeverity, setFilterSeverity] = useState<AuditSeverity | 'todos'>('todos');
     const [filterDateFrom, setFilterDateFrom] = useState('');
@@ -35,6 +37,11 @@ const AuditoriaInterna = () => {
     const [filterHourTo, setFilterHourTo]   = useState('');
     const [page, setPage] = useState(1);
     const PAGE_SIZE = 30;
+
+    useEffect(() => {
+        const q = searchParams.get('q');
+        if (q) setSearch(q);
+    }, [searchParams]);
 
     const filtered = useMemo(() => {
         return entries.filter(e => {

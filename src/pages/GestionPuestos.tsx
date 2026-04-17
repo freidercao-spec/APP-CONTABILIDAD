@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { usePuestoStore } from "../store/puestoStore";
 import type { TurnoConfig } from "../store/puestoStore";
 import { useVigilanteStore } from "../store/vigilanteStore";
@@ -25,6 +26,7 @@ import { CeldaCalendario } from "../components/puestos/CeldaCalendario";
 import { EditCeldaModal } from "../components/puestos/EditCeldaModal";
 import { PuestoCard } from '../components/puestos/PuestoCard';
 import PuestoModal from '../components/puestos/PuestoModal';
+import PuestoDetailModal from '../components/puestos/PuestoDetailModal';
 import { CoordinationPanel } from "../components/puestos/CoordinationPanel";
 import { MasterGrid } from "../components/puestos/MasterGrid";
 import { KpiCard } from "../components/dashboard/KpiCard";
@@ -195,9 +197,12 @@ const GestionPersonalModal = ({
 
   const getNombreAsignado = (rol: string) => {
     const p = personal.find((p) => p.rol === rol);
-    if (!p?.vigilanteId) return null;
-    const v = vigilantes.find((v) => v.id === p.vigilanteId || v.dbId === p.vigilanteId);
-    return v?.nombre || p.vigilanteId;
+    const v = vigilantes.find((v) => v.id === p?.vigilanteId || v.dbId === p?.vigilanteId);
+    return v?.nombre || p?.vigilanteId;
+  };
+
+  const handleSave = () => {
+    onSave(personal);
   };
 
   return (
@@ -209,13 +214,13 @@ const GestionPersonalModal = ({
         className="bg-slate-900 rounded-[40px] w-full max-w-2xl shadow-2xl overflow-hidden border border-white/10"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-8 py-6 border-b border-white/10 flex items-center justify-between">
+        <div className="px-8 py-6 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-indigo-500/10 to-transparent">
           <div>
             <h2 className="text-xl font-black text-white uppercase tracking-tighter">
               Personal del Puesto
             </h2>
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
-              {puestoNombre} — Configura el equipo de trabajo (100% Personalizable)
+              {puestoNombre} — Define el equipo base para este objetivo
             </p>
           </div>
           <button
@@ -234,35 +239,35 @@ const GestionPersonalModal = ({
             const isCustom = !["titular_a", "titular_b", "relevante"].includes(rol);
 
             return (
-              <div key={rol} className="bg-white/[0.04] rounded-3xl p-5 border border-white/5">
+              <div key={rol} className="bg-white/[0.04] rounded-3xl p-5 border border-white/5 transition-all hover:bg-white/[0.06]">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className={`size-9 rounded-xl ${color} flex items-center justify-center shadow-lg`}>
+                  <div className={`size-9 rounded-xl ${color} flex items-center justify-center shadow-lg shadow-indigo-500/10`}>
                     <span className="material-symbols-outlined text-white text-[18px]">{icon}</span>
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <p className="text-[12px] font-black text-white uppercase">{label}</p>
-                      <div className="flex items-center gap-2 bg-white/5 px-2 py-0.5 rounded-lg border border-white/10">
-                        <span className="material-symbols-outlined text-[14px] text-slate-400">
+                      <div className="flex items-center gap-2 bg-black/40 px-2 py-0.5 rounded-lg border border-white/10">
+                        <span className="material-symbols-outlined text-[14px] text-indigo-400">
                           {(personal.find(p => p.rol === rol)?.turnoId?.includes('PM') || personal.find(p => p.rol === rol)?.rol.toLowerCase().includes('b')) ? 'dark_mode' : 'light_mode'}
                         </span>
                         <select 
                           value={personal.find(p => p.rol === rol)?.turnoId || "AM"}
                           onChange={(e) => setPersonalTurno(rol, e.target.value)}
-                          className="bg-transparent text-[9px] font-bold text-slate-300 border-none outline-none cursor-pointer hover:text-white transition-all"
+                          className="bg-transparent text-[9px] font-black text-slate-300 border-none outline-none cursor-pointer hover:text-white transition-all appearance-none"
                         >
                           {turnosConfig.map((t: any) => (
-                            <option key={t.id} value={t.id} className="bg-slate-800 text-white">
-                              {t.nombre} ({t.inicio}-{t.fin})
+                            <option key={t.id} value={t.id} className="bg-slate-800 text-white font-bold">
+                              {t.nombre}
                             </option>
                           ))}
                         </select>
                       </div>
                     </div>
                     {nombreAsignado ? (
-                      <p className="text-[10px] text-emerald-400 font-bold mt-0.5">✓ {nombreAsignado}</p>
+                      <p className="text-[10px] text-emerald-400 font-bold mt-1">✓ {nombreAsignado}</p>
                     ) : (
-                      <p className="text-[10px] text-slate-500 font-bold uppercase mt-0.5">Sin asignar</p>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Vacante — Pendiente Asignar</p>
                     )}
                   </div>
                   <div className="flex gap-2">
@@ -292,96 +297,171 @@ const GestionPersonalModal = ({
                   </span>
                   <input
                     type="text"
-                    placeholder="Buscar vigilante..."
+                    placeholder="Localizar personal por nombre o cédula..."
                     value={q}
                     onChange={(e) =>
                       setSearchTerms((prev) => ({ ...prev, [rol]: e.target.value }))
                     }
-                    className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[11px] font-bold text-white outline-none focus:border-primary/50 transition-colors"
+                    className="w-full bg-black/40 border border-white/5 rounded-2xl py-2.5 pl-10 pr-4 text-[11px] font-bold text-white placeholder:text-slate-600 focus:border-indigo-500/50 outline-none transition-all"
                   />
-                </div>
-
-                <div className="max-h-32 overflow-y-auto space-y-1 custom-scrollbar">
-                  {filtered.map((v) => (
-                    <button
-                      key={v.id}
-                      onClick={() => setPersonalVigilante(rol, v.id)}
-                      className="w-full text-left px-3 py-2 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors"
-                    >
-                      <div className="size-6 rounded bg-black/30 flex items-center justify-center text-[10px] font-black text-white shrink-0">
-                        {v.nombre?.[0]}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-black text-white truncate">{v.nombre}</p>
-                        <p className="text-[8px] font-bold text-slate-500 uppercase">{v.cedula}</p>
-                      </div>
-                    </button>
-                  ))}
-                  {filtered.length === 0 && q && (
-                    <p className="text-center text-[9px] text-slate-600 py-2 uppercase font-black">No encontrado</p>
+                  {q && filtered.length > 0 && (
+                    <div className="absolute top-full left-0 w-full mt-2 bg-slate-800 border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                      {filtered.map((v) => (
+                        <button
+                          key={v.id}
+                          onClick={() => setPersonalVigilante(rol, v.id)}
+                          className="w-full px-4 py-3 text-left hover:bg-indigo-600 flex items-center justify-between border-b border-white/5 last:border-0 group"
+                        >
+                          <div>
+                            <p className="text-[11px] font-black text-white uppercase">{v.nombre}</p>
+                            <p className="text-[9px] text-indigo-400 font-bold">CC: {v.cedula} • {v.rango}</p>
+                          </div>
+                          <span className="material-symbols-outlined text-white/20 group-hover:text-white text-[18px]">add_circle</span>
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
             );
           })}
 
-          {showAddRol ? (
-            <div className="bg-violet-500/10 border border-violet-500/30 rounded-3xl p-5 animate-in fade-in zoom-in duration-200">
-              <p className="text-[10px] font-black text-violet-300 uppercase mb-3 tracking-widest">Nuevo Turno / Rol Adicional</p>
+          {!showAddRol ? (
+            <button
+              onClick={() => setShowAddRol(true)}
+              className="w-full py-4 border border-dashed border-white/10 rounded-3xl text-[10px] font-black text-slate-500 uppercase tracking-widest hover:border-indigo-500/50 hover:text-indigo-400 transition-all"
+            >
+              + Añadir Nuevo Rol/Turno al Puesto
+            </button>
+          ) : (
+            <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-3xl p-5 animate-in slide-in-from-top-2">
+              <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-3">Definir Nuevo Rol</p>
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="Ej: Nocturno Extra, Refuerzo..."
+                  placeholder="Ej: TITULAR C, APOYO, etc."
                   value={newRolName}
-                  onChange={e => setNewRolName(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addCustomRol()}
-                  className="flex-1 px-4 py-2.5 bg-white/5 border border-violet-500/30 rounded-xl text-[11px] font-bold text-white outline-none focus:border-violet-400 transition-colors"
+                  onChange={(e) => setNewRolName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addCustomRol()}
+                  className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-[11px] font-bold text-white outline-none focus:border-indigo-500"
                   autoFocus
                 />
                 <button
                   onClick={addCustomRol}
-                  disabled={!newRolName.trim()}
-                  className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-[10px] font-black uppercase transition-colors disabled:opacity-50"
+                  className="px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase transition-all"
                 >
-                  Confirmar
-                </button>
-                <button
-                  onClick={() => { setShowAddRol(false); setNewRolName(""); }}
-                  className="px-3 py-2.5 bg-white/5 text-slate-400 rounded-xl text-[10px] font-black uppercase transition-colors hover:bg-white/10"
-                >
-                  <span className="material-symbols-outlined text-[18px]">close</span>
+                  Añadir
                 </button>
               </div>
             </div>
-          ) : (
-            <button
-              onClick={() => setShowAddRol(true)}
-              className="w-full py-4 border-2 border-dashed border-white/10 hover:border-violet-500/40 hover:bg-violet-500/5 text-slate-500 hover:text-violet-400 rounded-3xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-3 group"
-            >
-              <span className="material-symbols-outlined text-[20px] group-hover:scale-110 transition-transform">add_circle</span>
-              Agregar Turno Personalizado al Puesto
-            </button>
           )}
         </div>
 
-        <div className="px-8 py-5 border-t border-white/10 bg-black/20 flex gap-3">
-          <button
-            onClick={onClose}
-            className="px-6 py-3 bg-white/5 hover:bg-white/10 text-slate-400 rounded-2xl text-[10px] font-black uppercase transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={() => onSave(personal)}
-            className="flex-1 py-3 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase shadow-lg shadow-emerald-900/40 hover:bg-emerald-500 transition-all hover:-translate-y-0.5 active:translate-y-0"
-          >
-            <span className="material-symbols-outlined text-[16px] mr-2 align-middle">lock</span>
-            Guardar Configuración de Personal
-          </button>
+        <div className="p-8 bg-black/20 border-t border-white/10 flex items-center justify-between">
+          <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em]">
+            Configuración segura y persistente en Supabase
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-2xl text-[11px] font-black uppercase transition-all"
+            >
+              Cerrar
+            </button>
+            <button
+              onClick={handleSave}
+              className="px-10 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-[11px] font-black uppercase transition-all shadow-lg shadow-emerald-900/40"
+            >
+              Confirmar y Guardar
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
+};
+
+const HistorialProgramacionModal = ({
+    prog,
+    puestoNombre,
+    onClose
+}: {
+    prog: ProgramacionMensual;
+    puestoNombre: string;
+    onClose: () => void;
+}) => {
+    return (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/90 backdrop-blur-md p-4" onClick={onClose}>
+            <div className="bg-[#0a0f1d] border border-white/10 rounded-[40px] w-full max-w-2xl shadow-2xl flex flex-col h-[80vh] animate-in zoom-in-95 duration-300 overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="px-10 py-8 border-b border-white/5 flex items-center justify-between bg-gradient-to-r from-indigo-500/10 to-transparent">
+                    <div>
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="size-2 bg-primary rounded-full animate-pulse"></span>
+                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">REGISTRO DE OPERACIONES</span>
+                        </div>
+                        <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">
+                            HISTORIAL <span className="text-primary not-italic">DEL</span> TABLERO
+                        </h2>
+                        <p className="text-[10px] font-bold text-slate-400 mt-0.5">{puestoNombre} — {MONTH_NAMES[prog.mes]} {prog.anio}</p>
+                    </div>
+                    <button onClick={onClose} className="size-12 rounded-2xl bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-all">
+                        <span className="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-10 space-y-4 custom-scrollbar">
+                    {(!prog.historialCambios || prog.historialCambios.length === 0) ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-slate-700">
+                            <span className="material-symbols-outlined text-[64px] mb-4">history</span>
+                            <p className="text-[11px] font-black uppercase tracking-widest">No hay registros para este periodo</p>
+                        </div>
+                    ) : (
+                        [...prog.historialCambios].reverse().map((cambio, i) => (
+                            <div key={cambio.id || i} className="group relative pl-8 pb-8 last:pb-0">
+                                {/* Timeline line */}
+                                <div className="absolute left-[11px] top-2 bottom-0 w-px bg-white/5 group-last:bg-transparent"></div>
+                                {/* Dot */}
+                                <div className={`absolute left-0 top-1.5 size-6 rounded-full border-4 border-[#0a0f1d] z-10 flex items-center justify-center transition-transform group-hover:scale-110 ${
+                                    cambio.tipo === 'publicacion' ? 'bg-emerald-500' : 
+                                    cambio.tipo === 'asignacion' ? 'bg-indigo-500' :
+                                    cambio.tipo === 'personal' ? 'bg-amber-500' : 'bg-slate-600'
+                                } shadow-[0_0_15px_rgba(0,0,0,0.5)]`}>
+                                    <span className="material-symbols-outlined text-[10px] text-white">
+                                        {cambio.tipo === 'publicacion' ? 'verified' : 
+                                         cambio.tipo === 'asignacion' ? 'person_add' :
+                                         cambio.tipo === 'personal' ? 'badge' : 'info'}
+                                    </span>
+                                </div>
+
+                                <div className="bg-white/5 border border-white/5 rounded-3xl p-6 transition-all hover:bg-white/[0.08] hover:border-white/10">
+                                    <div className="flex items-center justify-between gap-4 mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest ${
+                                                cambio.tipo === 'publicacion' ? 'bg-emerald-500/20 text-emerald-400' : 
+                                                cambio.tipo === 'asignacion' ? 'bg-indigo-500/20 text-indigo-400' :
+                                                cambio.tipo === 'personal' ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-500/20 text-slate-400'
+                                            }`}>
+                                                {cambio.tipo}
+                                            </span>
+                                            <span className="text-[10px] font-black text-white italic truncate max-w-[200px]">{cambio.usuario}</span>
+                                        </div>
+                                        <span className="text-[9px] font-bold text-slate-500 font-mono">
+                                            {new Date(cambio.timestamp).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}
+                                        </span>
+                                    </div>
+                                    <p className="text-[12px] font-medium text-slate-300 leading-relaxed">{cambio.descripcion}</p>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                <div className="p-8 border-t border-white/5 bg-black/20 flex items-center justify-center">
+                    <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.4em]">Audit Logging System v2.0</p>
+                </div>
+            </div>
+        </div>
+    );
 };
 
 const AddTurnoForm = ({
@@ -475,12 +555,14 @@ const PanelMensualPuesto = ({
   anio,
   mes,
   onClose,
+  initialAutoOpenPersonal = false,
 }: {
   puestoId: string;
   puestoNombre: string;
   anio: number;
   mes: number;
   onClose: () => void;
+  initialAutoOpenPersonal?: boolean;
 }) => {
   const username = useAuthStore(s => s.username);
   const vigilantes = useVigilanteStore(s => s.vigilantes);
@@ -513,6 +595,8 @@ const PanelMensualPuesto = ({
   const [compareVigilanteId, setCompareVigilanteId] = useState<string | null>(null);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showPersonalModal, setShowPersonalModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [autoOpenPersonal, setAutoOpenPersonal] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [showTurnosConfig, setShowTurnosConfig] = useState(false);
 
@@ -626,6 +710,20 @@ const PanelMensualPuesto = ({
     if (!prog) return [];
     return (useProgramacionStore.getState() as any).getAlertas(prog.id) || [];
   }, [prog, allProgramaciones]);
+
+  useEffect(() => {
+    if (autoOpenPersonal && prog) {
+      setShowPersonalModal(true);
+      setAutoOpenPersonal(false);
+    }
+  }, [autoOpenPersonal, prog]);
+
+  // Auto-open personal modal when triggered from card menu
+  useEffect(() => {
+    if (initialAutoOpenPersonal && prog) {
+      setShowPersonalModal(true);
+    }
+  }, [initialAutoOpenPersonal, prog]);
 
   const handleSavePersonal = useCallback(
     (personal: PersonalPuesto[]) => {
@@ -1263,6 +1361,15 @@ const PanelMensualPuesto = ({
               </span>
             )}
           </button>
+          
+          <button
+            onClick={() => setShowHistoryModal(true)}
+            disabled={!prog}
+            className="px-5 py-2.5 bg-slate-800 text-indigo-400 border border-white/10 rounded-2xl text-[10px] font-black uppercase hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-2"
+          >
+            <span className="material-symbols-outlined text-[18px]">history</span>
+            Registro Táctico
+          </button>
 
           <div className="flex gap-2">
             <button
@@ -1885,6 +1992,8 @@ const PanelMensualPuesto = ({
 };
 
 const GestionPuestos = () => {
+  const navigate = useNavigate();
+  const { anioGlobal, mesGlobal } = useAuthStore();
   const [anio, setAnio] = useState(new Date().getFullYear());
   const [mes, setMes] = useState(new Date().getMonth());
   const [searchQuery, setSearchQuery] = useState("");
@@ -1892,6 +2001,8 @@ const GestionPuestos = () => {
   const [isNewPuestoModalOpen, setIsNewPuestoModalOpen] = useState(false);
   const [puestoToEdit, setPuestoToEdit] = useState<any>(null);
   const [selectedPuesto, setSelectedPuesto] = useState<any>(null);
+  const [detailPuesto, setDetailPuesto] = useState<any>(null);
+  const [autoOpenPersonalFlag, setAutoOpenPersonalFlag] = useState(false);
 
   const { puestos, fetchPuestos, loaded: puestosLoaded } = usePuestoStore();
   const { programaciones, fetchProgramaciones, loaded: progLoaded } = useProgramacionStore();
@@ -1951,7 +2062,8 @@ const GestionPuestos = () => {
         puestoNombre={selectedPuesto.nombre}
         anio={anio}
         mes={mes}
-        onClose={() => setSelectedPuesto(null)}
+        onClose={() => { setSelectedPuesto(null); setAutoOpenPersonalFlag(false); }}
+        initialAutoOpenPersonal={autoOpenPersonalFlag}
       />
     );
   }
@@ -2034,6 +2146,7 @@ const GestionPuestos = () => {
                   trend="neutral"
                   trendValue="0"
                   detail="Capacidad total instalada"
+                  onClick={() => setFilterTab('todos')}
                />
                <KpiCard
                   label="Cubiertos"
@@ -2044,6 +2157,7 @@ const GestionPuestos = () => {
                   trend="up"
                   trendValue="+2"
                   detail="Personal con puesto asignado"
+                  onClick={() => setFilterTab('publicados')}
                />
                <KpiCard
                   label="Con Alertas"
@@ -2054,6 +2168,7 @@ const GestionPuestos = () => {
                   trend="down"
                   trendValue="-5"
                   detail="Conflictos o vacantes críticas"
+                  onClick={() => setFilterTab('alerta')}
                />
                <KpiCard
                   label="Sin Asignar"
@@ -2064,6 +2179,7 @@ const GestionPuestos = () => {
                   trend="neutral"
                   trendValue="--"
                   detail="Objetivos sin nómina asignada"
+                  onClick={() => setFilterTab('sin_personal')}
                />
             </div>
 
@@ -2247,7 +2363,23 @@ const GestionPuestos = () => {
                           console.error('Click Error:', err);
                           showTacticalToast({ title: 'Error de Enlace', message: 'No se pudo abrir el panel del puesto.', type: 'error' });
                         }
-                      }} 
+                      }}
+                      onAsignar={() => {
+                        setAutoOpenPersonalFlag(true);
+                        setSelectedPuesto({ dbId: p.dbId || p.id, nombre: p.nombre });
+                        showTacticalToast({ title: 'Modo Asignacion', message: `Abriendo panel de personal para ${p.nombre}`, type: 'info' });
+                      }}
+                      onHistorial={() => {
+                        setDetailPuesto(p);
+                        showTacticalToast({ title: 'Cargando Historial', message: `Abriendo registro táctico de ${p.nombre}`, type: 'info' });
+                      }}
+                      onIncidencia={() => {
+                        showTacticalToast({ 
+                          title: '🛠️ Reporte Táctico', 
+                          message: 'El módulo de incidencias se está desplegando en la próxima versión.', 
+                          type: 'warning' 
+                        });
+                      }}
                     />
                   ))}
                 </div>
@@ -2275,6 +2407,9 @@ const GestionPuestos = () => {
       </main>
 
       <PuestoModal isOpen={isNewPuestoModalOpen} puestoId={puestoToEdit?.id} onClose={() => { setIsNewPuestoModalOpen(false); setPuestoToEdit(null); }} onCreated={() => fetchPuestos()} />
+      {detailPuesto && (
+        <PuestoDetailModal puesto={detailPuesto} onClose={() => setDetailPuesto(null)} />
+      )}
     </div>
   );
 };

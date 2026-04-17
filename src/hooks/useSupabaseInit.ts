@@ -117,6 +117,14 @@ export function useSupabaseInit() {
                     retry(() => fetchAudit()),
                 ]);
 
+                // PRE-CARGA DE DETALLES (Crítico para que el dashboard no se vea vacío post-refresh)
+                // Cargamos los detalles del mes actual para que los indicadores de cobertura y alertas funcionen.
+                const currentProgs = useProgramacionStore.getState().programaciones.filter(p => p.anio === anio && p.mes === mesActual);
+                if (currentProgs.length > 0) {
+                    addLog(`📥 Cargando detalles estratégicos (${currentProgs.length} puestos)...`);
+                    await useProgramacionStore.getState()._fetchDetails(currentProgs, currentProgs.map(p => p.id));
+                }
+
                 // Activar Sincronizacion Realtime Global
                 useVigilanteStore.getState().setupRealtime();
                 usePuestoStore.getState().setupRealtime();

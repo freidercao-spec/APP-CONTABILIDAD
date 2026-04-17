@@ -114,7 +114,7 @@ const SyncStatusBar = () => {
     const isSyncing = useProgramacionStore(s => s.isSyncing);
     const lastSyncError = useProgramacionStore(s => s.lastSyncError);
     const pendingCount = useProgramacionStore(s => 
-        s.programaciones.filter(p => p.syncStatus === 'pending' || p.syncStatus === 'error').length
+        (s.programaciones || []).filter(p => p && (p.syncStatus === 'pending' || p.syncStatus === 'error')).length
     );
 
     if (!isSyncing && !lastSyncError && pendingCount === 0) return null;
@@ -159,7 +159,7 @@ function App() {
       const hasPending = store.hasPendingChanges();
       if (isSyncing || hasPending) {
         // FLUSH DE EMERGENCIA: Intentar guardar todo antes de cerrar
-        store.flushPendingSyncs();
+        store.flushPendingSyncs?.();
         e.preventDefault();
         e.returnValue = '¡AVISO DE CORAZA! Hay cambios tácticos aún en proceso de guardado. Si cierra ahora, podría perder los últimos movimientos del tablero. ¿Seguro que desea salir?';
         return e.returnValue;

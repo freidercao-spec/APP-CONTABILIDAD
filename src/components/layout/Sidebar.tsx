@@ -30,10 +30,10 @@ const NavSection = ({
     <div className={collapsed ? 'px-1' : 'px-4'}>
         {!collapsed && (
             <div className="flex items-center gap-3 px-4 mb-3">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] select-none">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] select-none truncate">
                     {title}
                 </span>
-                <div className="flex-1 h-[1px] bg-white/5" />
+                <div className="flex-1 h-[1px] bg-white/5 min-w-[20px]" />
             </div>
         )}
         {collapsed && <div className="mx-2 my-4 h-[1px] bg-white/10" />}
@@ -225,7 +225,7 @@ const Sidebar = () => {
                     </NavSection>
 
                     <NavSection title="SISTEMA" collapsed={c}>
-                        <NavItem to="/configuracion" icon="settings_gear" label="Configuración"      collapsed={c} onClick={closeSidebar} />
+                        <NavItem to="/configuracion" icon="settings"      label="Configuración"      collapsed={c} onClick={closeSidebar} />
                         <NavItem to="/auditoria"     icon="security"      label="Auditoría"          collapsed={c} onClick={closeSidebar} />
                     </NavSection>
                 </nav>
@@ -245,9 +245,9 @@ const Sidebar = () => {
                         </div>
                         
                         {!c && (
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[12px] font-black text-white truncate uppercase">{username || 'Operador'}</p>
-                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{role || 'Elite'}</p>
+                            <div className="flex-1 min-w-0 pr-2">
+                                <p className="text-[12px] font-black text-white truncate uppercase leading-tight">{username || 'Operador'}</p>
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest truncate">{role || 'Elite'}</p>
                             </div>
                         )}
 
