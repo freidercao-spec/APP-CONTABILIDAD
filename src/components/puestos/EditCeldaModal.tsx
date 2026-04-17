@@ -12,23 +12,32 @@ interface EditCeldaModalProps {
   diaLabel?: string;
   turnosConfig?: TurnoConfig[];
   jornadasCustom?: JornadaCustom[];
+  initialVigilanteId?: string;
   onSave: (asig: AsignacionDia) => void;
   onClose: () => void;
 }
 
 export const EditCeldaModal = ({ 
   asig, vigilantes, titularesId, titulares, puestoNombre, diaLabel, 
-  turnosConfig = [], jornadasCustom = [], onSave, onClose 
+  turnosConfig = [], jornadasCustom = [], initialVigilanteId, onSave, onClose 
 }: EditCeldaModalProps) => {
   const [activeTab, setActiveTab] = useState<'quick' | 'search'>(titularesId.length > 0 ? 'quick' : 'search');
   const [search, setSearch] = useState('');
   const [selectedVigilante, setSelectedVigilante] = useState<Vigilante | null>(() => {
-    return vigilantes.find(v => v.id === asig.vigilanteId || v.dbId === asig.vigilanteId) || null;
+    const vid = asig.vigilanteId || initialVigilanteId;
+    return vigilantes.find(v => v.id === vid || v.dbId === vid) || null;
   });
-  const [tempAsig, setTempAsig] = useState<AsignacionDia>({ 
-    ...asig,
-    inicio: asig.inicio || '',
-    fin: asig.fin || ''
+
+  const [tempAsig, setTempAsig] = useState<AsignacionDia>(() => {
+    // Buscar configuración de turno predeterminada para este rol/turno
+    const config = turnosConfig.find(t => t.id === asig.turno);
+    return { 
+      ...asig,
+      vigilanteId: asig.vigilanteId || initialVigilanteId || '',
+      jornada: asig.jornada && asig.jornada !== 'sin_asignar' ? asig.jornada : 'normal',
+      inicio: asig.inicio || config?.inicio || '',
+      fin: asig.fin || config?.fin || ''
+    };
   });
 
   const filteredVigilantes = useMemo(() => {

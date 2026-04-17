@@ -1877,9 +1877,18 @@ const PanelMensualPuesto = ({
                    </td>
 
                    {daysArr.map((d) => {
-                     const asig = (prog?.asignaciones || []).find(
+                     const asigFound = (prog?.asignaciones || []).find(
                        (a: AsignacionDia) => a.dia === d && a.rol === per.rol
-                     ) || { dia: d, turno: per.turnoId || 'AM', jornada: "sin_asignar", rol: per.rol };
+                     );
+                     
+                     const asig = asigFound || { 
+                       dia: d, 
+                       turno: per.turnoId || 'AM', 
+                       jornada: "sin_asignar", 
+                       rol: per.rol,
+                       inicio: turno.inicio || '',
+                       fin: turno.fin || ''
+                     };
 
                      const dow = new Date(anio, mes, d).getDay();
                      const isWeekend = dow === 0 || dow === 6;
