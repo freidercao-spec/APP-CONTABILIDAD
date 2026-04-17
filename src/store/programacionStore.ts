@@ -1084,6 +1084,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         return s;
                     }
 
+                    const realId = targetProg.id;
                     const newProgs = s.programaciones.map((p: any) => p.id === realId ? { 
                         ...p,
                         id: targetProg.id,
@@ -1155,7 +1156,6 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                     // REFRESCAR MAPAS PARA REACTIVIDAD INMEDIATA
                     const nextProgMap = new Map<string, ProgramacionMensual>(s._progMap || []);
-                    const updatedProg = newProgs.find((p: any) => p.id === realId);
                     if (updatedProg) {
                         nextProgMap.set(realId, updatedProg);
                         nextProgMap.set(`${updatedProg.puestoId}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
