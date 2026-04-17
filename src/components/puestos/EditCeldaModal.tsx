@@ -64,17 +64,20 @@ export const EditCeldaModal = ({
   };
 
   useEffect(() => {
-    if (tempAsig.inicio && tempAsig.inicio.length === 4 && tempAsig.inicio.includes(':')) {
-       const [h, m] = tempAsig.inicio.split(':');
-       if (h.length === 2 && m.length === 1) {
-          setTempAsig(prev => ({ ...prev, inicio: `${h}:0${m}` }));
-       }
-    }
-    if (tempAsig.fin && tempAsig.fin.length === 4 && tempAsig.fin.includes(':')) {
-       const [h, m] = tempAsig.fin.split(':');
-       if (h.length === 2 && m.length === 1) {
-          setTempAsig(prev => ({ ...prev, fin: `${h}:0${m}` }));
-       }
+    // CORRECCIÓN ATÓMICA: Asegurar que las horas siempre tengan formato HH:mm para el input del navegador
+    const fixTime = (t: string) => {
+      if (!t || !t.includes(':')) return t;
+      const [h, m] = t.split(':');
+      if (h && m && m.length === 1) return `${h.padStart(2, '0')}:0${m}`;
+      if (h && m === '') return `${h.padStart(2, '0')}:00`;
+      return t;
+    };
+
+    const newInicio = fixTime(tempAsig.inicio || '');
+    const newFin = fixTime(tempAsig.fin || '');
+    
+    if (newInicio !== tempAsig.inicio || newFin !== tempAsig.fin) {
+      setTempAsig(prev => ({ ...prev, inicio: newInicio, fin: newFin }));
     }
   }, [tempAsig.inicio, tempAsig.fin]);
 
@@ -88,8 +91,8 @@ export const EditCeldaModal = ({
     setTempAsig(prev => ({
       ...prev,
       turno: turnoId as any,
-      inicio: config?.inicio || prev.inicio || '06:00',
-      fin: config?.fin || prev.fin || '18:00'
+      inicio: formatTime(config?.inicio || prev.inicio || '06:00'),
+      fin: formatTime(config?.fin || prev.fin || '18:00')
     }));
   };
 

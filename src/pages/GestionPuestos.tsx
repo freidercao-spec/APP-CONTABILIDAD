@@ -1297,24 +1297,27 @@ const PanelMensualPuesto = ({
       }
     }, [prog, puestoNombre, mes, anio, daysArr, vigilantes, logAction]);
 
-  const nombrePuesto = puestoNombre || getPuestoNombre(prog, allPuestos);
-  const titularesId = useMemo(() => {
-    if (!prog) return [];
-    const fromProg = (prog.personal || []).map((p: any) => p.vigilanteId);
-    const fromPuesto = (puesto?.personal || []).map((p: any) => p.vigilanteId);
-    return Array.from(new Set([...fromProg, ...fromPuesto])).filter(Boolean) as string[];
-  }, [prog?.personal, puesto?.personal]);
-
-  if (!prog || prog.isFetching) {
+  // RELAXED LOADING: Dejar pasar si ya hay prog, aunque esté "fetching" para evitar pantallas en blanco infinitas
+  if (!prog) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
         <div className="size-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
         <p className="text-sm font-black text-slate-500 uppercase tracking-widest">
-          Sincronizando Tablero Táctico...
+           Sincronizando Tablero Táctico...
         </p>
       </div>
     );
   }
+
+  const nombrePuesto = puestoNombre || getPuestoNombre(prog, allPuestos);
+  const titularesId = useMemo(() => {
+    // Escaneo agresivo de todo el personal vinculado al puesto en cualquier nivel
+    const fromProg = (prog?.personal || []).map((p: any) => p.vigilanteId);
+    const fromPuesto = (puesto?.personal || []).map((p: any) => p.vigilanteId);
+    const fromAsigs = (prog?.asignaciones || []).map((a: any) => a.vigilanteId);
+    
+    return Array.from(new Set([...fromProg, ...fromPuesto, ...fromAsigs])).filter(Boolean) as string[];
+  }, [prog?.personal, prog?.asignaciones, puesto?.personal]);
 
   const turnosConfig = puesto?.turnosConfig?.length
     ? puesto.turnosConfig
