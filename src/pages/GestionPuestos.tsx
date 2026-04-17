@@ -1296,6 +1296,14 @@ const PanelMensualPuesto = ({
       }
     }, [prog, puestoNombre, mes, anio, daysArr, vigilantes, logAction]);
 
+  const nombrePuesto = puestoNombre || getPuestoNombre(prog, allPuestos);
+  const titularesId = useMemo(() => {
+    if (!prog) return [];
+    const fromProg = (prog.personal || []).map((p: any) => p.vigilanteId);
+    const fromPuesto = (puesto?.personal || []).map((p: any) => p.vigilanteId);
+    return Array.from(new Set([...fromProg, ...fromPuesto])).filter(Boolean) as string[];
+  }, [prog?.personal, puesto?.personal]);
+
   if (!prog || prog.isFetching) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
@@ -1307,12 +1315,6 @@ const PanelMensualPuesto = ({
     );
   }
 
-  const nombrePuesto = puestoNombre || getPuestoNombre(prog, allPuestos);
-  const titularesId = useMemo(() => {
-    const fromProg = (prog.personal || []).map((p: any) => p.vigilanteId);
-    const fromPuesto = (puesto?.personal || []).map((p: any) => p.vigilanteId);
-    return Array.from(new Set([...fromProg, ...fromPuesto])).filter(Boolean) as string[];
-  }, [prog.personal, puesto?.personal]);
   const turnosConfig = puesto?.turnosConfig?.length
     ? puesto.turnosConfig
     : DEFAULT_TURNOS;
