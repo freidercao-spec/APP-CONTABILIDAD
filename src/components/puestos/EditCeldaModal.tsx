@@ -53,7 +53,19 @@ export const EditCeldaModal = ({
   }, [search, vigilantes]);
 
   const titularesList = useMemo(() => {
-    return titularesId.map(id => vigilantes.find(v => v.id === id || v.dbId === id)).filter(Boolean) as Vigilante[];
+    return titularesId.map(id => {
+      const found = vigilantes.find(v => v.id === id || v.dbId === id);
+      if (found) return found;
+      // RECUPERACIÓN SINTÉTICA: Si no está en el store global pero sí en el tablero, crear perfil temporal
+      return { 
+        id, 
+        dbId: id, 
+        nombre: `Vigilante (${id})`, 
+        documento: 'Cargando...',
+        empresaId: '',
+        activo: true
+      } as Vigilante;
+    }).filter(Boolean) as Vigilante[];
   }, [titularesId, vigilantes]);
 
   const formatTime = (time: string) => {
