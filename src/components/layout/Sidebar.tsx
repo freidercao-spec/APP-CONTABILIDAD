@@ -29,11 +29,11 @@ const NavSection = ({
 }) => (
     <div className={collapsed ? 'px-1' : 'px-4'}>
         {!collapsed && (
-            <div className="flex items-center gap-3 px-4 mb-3">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] select-none truncate">
+            <div className="flex items-center gap-2 px-4 mb-3">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] select-none truncate">
                     {title}
                 </span>
-                <div className="flex-1 h-[1px] bg-white/5 min-w-[20px]" />
+                <div className="flex-1 h-[1px] bg-white/5 min-w-[10px]" />
             </div>
         )}
         {collapsed && <div className="mx-2 my-4 h-[1px] bg-white/10" />}
@@ -87,7 +87,7 @@ const NavItem = ({ to, icon, label, badge, collapsed, onClick }: NavItemProps) =
                 {/* Label */}
                 {!collapsed && (
                     <span
-                        className={`text-[12px] font-black tracking-[0.05em] uppercase flex-1 relative z-10 transition-colors duration-300 truncate ${
+                        className={`text-[11px] font-black tracking-normal uppercase flex-1 relative z-10 transition-colors duration-300 truncate ${
                             isActive ? 'text-white' : 'group-hover:text-white'
                         }`}
                     >

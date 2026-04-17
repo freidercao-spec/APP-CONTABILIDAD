@@ -32,11 +32,31 @@ export const MasterGrid = ({ anio, mes, filteredPuestos, programaciones, isIniti
   // --- Helper: Determinar Color Táctico según turno ---
   const getTacticalColor = (jornada: string) => {
     const j = (jornada || '').toUpperCase();
-    if (j === 'PM' || j === 'N' || j === 'NOCHE') return { color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.2)', border: 'rgba(139, 92, 246, 0.4)', label: 'N' };
-    if (j === 'AM' || j === 'D' || j === 'DIA' || j === 'DÍA') return { color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.2)', border: 'rgba(59, 130, 246, 0.4)', label: 'D' };
-    if (j === '24H') return { color: '#10b981', bg: 'rgba(16, 185, 129, 0.2)', border: 'rgba(16, 185, 129, 0.4)', label: 'X' };
-    if (j.includes('DESCANSO') || j === 'DR' || j === 'DNR') return { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.2)', border: 'rgba(245, 158, 11, 0.4)', label: '-' };
-    return { color: '#6366f1', bg: 'rgba(99, 102, 241, 0.2)', border: 'rgba(99, 102, 241, 0.4)', label: '?' };
+    
+    // NOVEDADES (Prioridad Alta)
+    if (j === 'VACACION' || j === 'VAC' || j === 'VACACIONES') 
+        return { color: '#ec4899', bg: 'rgba(236, 72, 153, 0.15)', border: 'rgba(236, 72, 153, 0.5)', lg: 'from-pink-500/20 to-transparent', label: 'VAC' };
+    
+    if (j === 'DESCANSO_REMUNERADO' || j === 'DR') 
+        return { color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(16, 185, 129, 0.5)', lg: 'from-emerald-500/20 to-transparent', label: 'DR' };
+    
+    if (j === 'DESCANSO_NO_REMUNERADO' || j === 'DNR') 
+        return { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)', border: 'rgba(245, 158, 11, 0.5)', lg: 'from-amber-500/20 to-transparent', label: 'DNR' };
+
+    if (j.includes('DESCANSO')) 
+        return { color: '#64748b', bg: 'rgba(100, 116, 139, 0.15)', border: 'rgba(100, 116, 139, 0.5)', lg: 'from-slate-500/20 to-transparent', label: 'DES' };
+
+    // TURNOS OPERATIVOS
+    if (j === '24H') 
+        return { color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(16, 185, 129, 0.5)', lg: 'from-emerald-500/20 to-transparent', label: '24H' };
+
+    if (j === 'PM' || j === 'N' || j === 'NOCHE') 
+        return { color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.15)', border: 'rgba(139, 92, 246, 0.5)', lg: 'from-violet-500/20 to-transparent', label: 'NOCHE' };
+    
+    if (j === 'AM' || j === 'D' || j === 'DIA' || j === 'DÍA') 
+        return { color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.5)', lg: 'from-blue-500/20 to-transparent', label: 'DÍA' };
+    
+    return { color: '#6366f1', bg: 'rgba(99, 102, 241, 0.1)', border: 'rgba(99, 102, 241, 0.4)', lg: 'from-indigo-500/20 to-transparent', label: 'ACT' };
   };
 
   return (
@@ -91,12 +111,20 @@ export const MasterGrid = ({ anio, mes, filteredPuestos, programaciones, isIniti
                            )}
                         </div>
                      </div>
-                    <span 
-                      onClick={() => onSelectPuesto({ dbId: p.dbId || p.id, nombre: p.nombre })}
-                      className="text-[16px] font-black text-slate-100 tracking-tight truncate hover:text-indigo-400 cursor-pointer transition-all uppercase italic group-hover:translate-x-1"
-                    >
-                      {p.nombre}
-                    </span>
+                    <div className="flex items-center gap-3">
+                        <span 
+                          onClick={() => onSelectPuesto({ dbId: p.dbId || p.id, nombre: p.nombre })}
+                          className="text-[15px] font-black text-slate-100 tracking-tight truncate hover:text-indigo-400 cursor-pointer transition-all uppercase italic group-hover:translate-x-1"
+                        >
+                          {p.nombre}
+                        </span>
+                        {(() => {
+                            const prog = programaciones.find(pg => pg.puestoId === (p.dbId || p.id) && pg.anio === anio && pg.mes === mes);
+                            if (prog?.syncStatus === 'pending') return <span className="size-2 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_#f59e0b]" title="Sincronización pendiente" />;
+                            if (prog?.syncStatus === 'error') return <span className="size-2 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e]" title="Error de sincronización" />;
+                            return null;
+                        })()}
+                    </div>
                   </div>
                 </td>
                 {Array.from({ length: totalDias }, (_, i) => i + 1).map(d => {
@@ -116,12 +144,12 @@ export const MasterGrid = ({ anio, mes, filteredPuestos, programaciones, isIniti
                             return (
                               <div 
                                 key={idx}
-                                className="w-full flex-1 rounded-lg flex items-center justify-center text-[11px] font-black border transition-all hover:scale-105 shadow-lg"
+                                className={`w-full flex-1 rounded-lg flex items-center justify-center text-[10px] font-black border transition-all hover:scale-105 shadow-xl bg-gradient-to-br ${tactical.lg}`}
                                 style={{ 
                                   backgroundColor: tactical.bg, 
                                   borderColor: tactical.border, 
                                   color: tactical.color,
-                                  boxShadow: `inset 0 0 10px ${tactical.border}33`
+                                  boxShadow: `inset 0 0 12px ${tactical.border}33, 0 4px 12px rgba(0,0,0,0.5)`
                                 }}
                               >
                                 {tactical.label}

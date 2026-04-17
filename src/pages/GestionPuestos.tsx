@@ -2120,6 +2120,13 @@ const GestionPuestos = () => {
               <span className="material-symbols-outlined text-[18px]">table_chart</span>
               <span>MAESTRO</span>
             </button>
+            <button 
+              onClick={() => navigate('/auditoria?q=PROGRAMACION')}
+              className="flex items-center gap-3 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-emerald-400 transition-all group/hist"
+            >
+              <span className="material-symbols-outlined text-[18px] group-hover/hist:rotate-180 transition-transform duration-500">history</span>
+              <span>HISTORIAL TÁCTICO</span>
+            </button>
           </div>
 
           <button 

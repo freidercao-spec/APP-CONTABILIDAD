@@ -419,7 +419,7 @@ const queueSync = (progId: string, set: any, get: any, immediate = false) => {
             retryCounters.delete(progId);
             set((state: any) => ({
                 programaciones: state.programaciones.map((p: any) => 
-                    p.id === progId ? { ...p, syncStatus: 'synced' as const, version: res.serverVersion } : p
+                    p.id === progId ? { ...p, syncStatus: 'synced' as const, isDirty: false, version: res.serverVersion } : p
                 ),
                 isSyncing: get().programaciones.some((p: any) => p.syncStatus === 'pending') || pendingSyncs.size > 0
             }));
@@ -1084,13 +1084,14 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         return s;
                     }
 
-                    const realId = targetProg.id;
                     const newProgs = s.programaciones.map((p: any) => p.id === realId ? { 
-                        ...p, 
+                        ...p,
+                        id: targetProg.id,
                         asignaciones: newAsignaciones, 
                         actualizadoEn: new Date().toISOString(), 
                         syncStatus: 'pending' as const,
-                        historialCambios: [...(p.historialCambios || []), nuevoCambio]
+                        isDirty: true,
+                        historialCambios: [...(targetProg.historialCambios || []), nuevoCambio]
                     } : p);
                     
                     const updatedProg = newProgs.find((p: any) => p.id === realId);
@@ -1150,21 +1151,25 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                 s._busyMap.set(newKey, nextSet);
                             }
                         }
-                        s._busyMap = new Map(s._busyMap);
                     }
 
-                    if (updatedProg && s._progMap) {
-                        const key1 = `${updatedProg.puestoId}-${updatedProg.anio}-${updatedProg.mes}`;
+                    // REFRESCAR MAPAS PARA REACTIVIDAD INMEDIATA
+                    const nextProgMap = new Map<string, ProgramacionMensual>(s._progMap || []);
+                    const updatedProg = newProgs.find((p: any) => p.id === realId);
+                    if (updatedProg) {
+                        nextProgMap.set(realId, updatedProg);
+                        nextProgMap.set(`${updatedProg.puestoId}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
                         const dbUuid = translatePuestoToUuid(updatedProg.puestoId);
-                        s._progMap.set(updatedProg.id, updatedProg);
-                        s._progMap.set(key1, updatedProg);
                         if (dbUuid && dbUuid !== updatedProg.puestoId) {
-                            s._progMap.set(`${dbUuid}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
+                            nextProgMap.set(`${dbUuid}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
                         }
-                        s._progMap = new Map(s._progMap);
                     }
 
-                    return { programaciones: newProgs, _busyMap: s._busyMap, _progMap: s._progMap };
+                    return { 
+                        programaciones: newProgs, 
+                        _busyMap: new Map(s._busyMap || []), 
+                        _progMap: nextProgMap 
+                    };
                 });
                 
                 // GUARDADO INMEDIATO para asegurar persistencia ante cierres rápidos
@@ -1186,44 +1191,46 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 const daysInMonth = new Date(prog.anio, prog.mes + 1, 0).getDate();
                 const daysArr = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
-                // LÓGICA OPTIMIZADA: Sobrescribimos el mes con el nuevo personal detectado
-                // Esto permite que el cambio se refleje DE INMEDIATO en todo el tablero.
+                // LÓGICA DE ALTO IMPACTO: 
+                // Si el titular de un rol cambia, debemos propagar ese cambio a las celdas
+                // que estaban asignadas al titular anterior de ESE MISMO ROL.
                 const newAsignaciones = [...prog.asignaciones];
+                const oldPersonal = prog.personal || [];
 
                 personal.forEach(per => {
+                    const oldPer = oldPersonal.find(op => op.rol === per.rol);
+                    const oldVid = oldPer?.vigilanteId;
+                    const newVid = per.vigilanteId;
+
                     daysArr.forEach(dia => {
                         const idx = newAsignaciones.findIndex(a => a.dia === dia && a.rol === per.rol);
                         
                         if (idx === -1) {
-                            newAsignaciones.push({
-                                dia,
-                                rol: per.rol,
-                                vigilanteId: per.vigilanteId,
-                                turno: per.turnoId || 'AM',
-                                jornada: per.vigilanteId ? 'normal' : 'sin_asignar'
-                            });
+                            if (newVid) {
+                                newAsignaciones.push({
+                                    dia,
+                                    rol: per.rol,
+                                    vigilanteId: newVid,
+                                    turno: per.turnoId || 'AM',
+                                    jornada: 'normal'
+                                });
+                            }
                         } else {
                             const exists = newAsignaciones[idx];
                             
-                            // LÓGICA INTELIGENTE:
-                            // 1. Si la celda está VACÍA (sin vigilante), se le asigna el nuevo titular.
-                            // 2. Si es una de las opciones por defecto (AM o PM) sin modificaciones manuales, se actualiza.
-                            // 3. PERO si ya había alguien asignado manualmente con un turno específico o novedad, SE RESPETA.
-                            
+                            // CASO A: La celda estaba vacía o con "sin_asignar"
                             const isCellUnassigned = !exists.vigilanteId || exists.jornada === 'sin_asignar';
                             
-                            if (isCellUnassigned) {
+                            // CASO B: El vigilante era el titular anterior y ahora ha cambiado
+                            const isChangingTitular = oldVid && exists.vigilanteId === oldVid && oldVid !== newVid;
+
+                            if (isCellUnassigned || isChangingTitular) {
                                 newAsignaciones[idx] = {
                                     ...exists,
-                                    vigilanteId: per.vigilanteId,
+                                    vigilanteId: newVid,
                                     turno: per.turnoId || exists.turno || 'AM',
-                                    jornada: per.vigilanteId ? 'normal' : 'sin_asignar'
+                                    jornada: newVid ? 'normal' : 'sin_asignar'
                                 };
-                            } else if (!per.vigilanteId) {
-                                // Si el usuario está "quitando" al titular del puesto, NO le quitamos
-                                // sus turnos de las celdas, porque quizás el operario quiera dejarlo solo unos días.
-                                // Si él quiere quitarlo del todo, lo quita del tablero manualmente.
-                                // Si quisiéramos borrar todo al desasignar, sería agresivo. Mantengamos la data.
                             }
                         }
                     });
@@ -1232,26 +1239,32 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 set((s: any) => {
                     const updatedProgs = s.programaciones.map((p: any) =>
                         p.id === progId
-                            ? { ...p, personal, asignaciones: newAsignaciones, actualizadoEn: new Date().toISOString(), syncStatus: 'pending' as const }
+                            ? { 
+                                ...p, 
+                                personal, 
+                                asignaciones: newAsignaciones, 
+                                actualizadoEn: new Date().toISOString(), 
+                                syncStatus: 'pending' as const,
+                                isDirty: true 
+                              }
                             : p
                     );
-                    
-                    const target = updatedProgs.find((p: any) => p.id === progId);
-                    if (target && s._progMap) {
-                        const key1 = `${target.puestoId}-${target.anio}-${target.mes}`;
-                        const dbUuid = translatePuestoToUuid(target.puestoId);
-                        
-                        s._progMap.set(target.id, target);
-                        s._progMap.set(key1, target);
-                        if (dbUuid && dbUuid !== target.puestoId) {
-                            s._progMap.set(`${dbUuid}-${target.anio}-${target.mes}`, target);
+                    // REFRESCAR MAPAS PARA REACTIVIDAD INMEDIATA
+                    const nextProgMap = new Map<string, ProgramacionMensual>(s._progMap || []);
+                    const updatedProg = updatedProgs.find((p: any) => p.id === progId);
+                    if (updatedProg) {
+                        nextProgMap.set(progId, updatedProg);
+                        nextProgMap.set(`${updatedProg.puestoId}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
+                        const dbUuid = translatePuestoToUuid(updatedProg.puestoId);
+                        if (dbUuid && dbUuid !== updatedProg.puestoId) {
+                            nextProgMap.set(`${dbUuid}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
                         }
-                        s._progMap = new Map(s._progMap);
                     }
 
                     return { 
-                        programaciones: updatedProgs,
-                        _progMap: s._progMap
+                        programaciones: updatedProgs, 
+                        _progMap: nextProgMap,
+                        _busyMap: new Map(s._busyMap || []) 
                     };
                 });
                 queueSync(progId, set, get, false);

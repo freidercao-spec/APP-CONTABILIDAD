@@ -81,8 +81,8 @@ export const PuestoCard = React.memo(({ puesto, anio, mes, onClick, onAsignar, o
   const vigilantes = useVigilanteStore(s => s.vigilantes);
 
   const progId = prog?.id || null;
-  const cobertura = useMemo(() => progId ? getCoberturaPorcentaje(progId) : 0, [progId, getCoberturaPorcentaje]);
-  const alertas = useMemo(() => progId ? getAlertas(progId) : [], [progId, getAlertas]);
+  const cobertura = useMemo(() => progId ? getCoberturaPorcentaje(progId) : 0, [progId, getCoberturaPorcentaje, prog?.asignaciones]);
+  const alertas = useMemo(() => progId ? getAlertas(progId) : [], [progId, getAlertas, prog?.asignaciones]);
 
   const stats = useMemo(() => {
     if (!prog?.personal) return { count: 0, guards: [] };
