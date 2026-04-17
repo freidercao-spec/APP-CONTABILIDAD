@@ -1093,9 +1093,17 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     }
 
                     const realId = targetProg.id;
+                    // AUTO-ASIGNACIÓN DE ROL: Si asignamos un guardia a un día de una fila vacía,
+                    // lo promovemos automáticamente a titular de esa fila para que el tablero coincida.
+                    const currentPersonal = [...(targetProg.personal || [])];
+                    const pIdx = currentPersonal.findIndex(px => px.rol === data.rol);
+                    if (pIdx >= 0 && !currentPersonal[pIdx].vigilanteId && data.vigilanteId) {
+                         currentPersonal[pIdx] = { ...currentPersonal[pIdx], vigilanteId: data.vigilanteId };
+                    }
+
                     const newProgs = s.programaciones.map((p: any) => p.id === realId ? { 
                         ...p,
-                        id: targetProg.id,
+                        personal: currentPersonal,
                         asignaciones: newAsignaciones, 
                         actualizadoEn: new Date().toISOString(), 
                         syncStatus: 'pending' as const,
@@ -1197,10 +1205,13 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 queueSync(realId, set, get, true);
 
                 const conflictMsg = get().checkConflict(progId, dia, data.vigilanteId || '', data.turno || 'AM');
+                const latestProg = get().getProgramacion(prog.puestoId, prog.anio, prog.mes);
+                
                 return { 
                     permitido: true, 
-                    tipo: conflictMsg ? 'advertencia' : 'ok', 
-                    mensaje: conflictMsg || 'Asignación guardada' 
+                    tipo: conflictMsg ? 'confirmacion' : 'exito', 
+                    mensaje: conflictMsg || 'Cambio registrado con éxito',
+                    prog: latestProg
                 };
             },
 
