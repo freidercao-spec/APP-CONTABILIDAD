@@ -23,6 +23,10 @@ export const EditCeldaModal = ({
 }: EditCeldaModalProps) => {
   const [activeTab, setActiveTab] = useState<'quick' | 'search'>(titularesId.length > 0 ? 'quick' : 'search');
   const [search, setSearch] = useState('');
+  const effectiveTurnos = useMemo(() => {
+    return turnosConfig.length > 0 ? turnosConfig : DEFAULT_TURNOS;
+  }, [turnosConfig]);
+
   const [selectedVigilante, setSelectedVigilante] = useState<Vigilante | null>(() => {
     const vid = asig.vigilanteId || initialVigilanteId;
     return vigilantes.find(v => v.id === vid || v.dbId === vid) || null;
@@ -30,13 +34,13 @@ export const EditCeldaModal = ({
 
   const [tempAsig, setTempAsig] = useState<AsignacionDia>(() => {
     // Buscar configuración de turno predeterminada para este rol/turno
-    const config = turnosConfig.find(t => t.id === asig.turno);
+    const config = effectiveTurnos.find(t => t.id === asig.turno) || effectiveTurnos[0];
     return { 
       ...asig,
       vigilanteId: asig.vigilanteId || initialVigilanteId || '',
       jornada: asig.jornada && asig.jornada !== 'sin_asignar' ? asig.jornada : 'normal',
-      inicio: asig.inicio || config?.inicio || '',
-      fin: asig.fin || config?.fin || ''
+      inicio: asig.inicio || config?.inicio || '06:00',
+      fin: asig.fin || config?.fin || '18:00'
     };
   });
 
@@ -58,12 +62,12 @@ export const EditCeldaModal = ({
   };
 
   const setTurnoPreset = (turnoId: string) => {
-    const config = turnosConfig.find(t => t.id === turnoId);
+    const config = effectiveTurnos.find(t => t.id === turnoId) || DEFAULT_TURNOS.find(t => t.id === turnoId);
     setTempAsig(prev => ({
       ...prev,
       turno: turnoId as any,
-      inicio: config?.inicio || prev.inicio,
-      fin: config?.fin || prev.fin
+      inicio: config?.inicio || prev.inicio || '06:00',
+      fin: config?.fin || prev.fin || '18:00'
     }));
   };
 

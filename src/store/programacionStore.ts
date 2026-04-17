@@ -1154,16 +1154,28 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         }
                     }
 
-                    // REFRESCAR MAPAS PARA REACTIVIDAD INMEDIATA
-                    const nextProgMap = new Map<string, ProgramacionMensual>(s._progMap || []);
-                    if (updatedProg) {
-                        nextProgMap.set(realId, updatedProg);
-                        nextProgMap.set(`${updatedProg.puestoId}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
-                        const dbUuid = translatePuestoToUuid(updatedProg.puestoId);
-                        if (dbUuid && dbUuid !== updatedProg.puestoId) {
-                            nextProgMap.set(`${dbUuid}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
-                        }
-                    }
+                     // REFRESCAR MAPAS PARA REACTIVIDAD INMEDIATA (All Keys)
+                     const nextProgMap = new Map<string, ProgramacionMensual>(s._progMap || []);
+                     if (updatedProg) {
+                         // 1. Por ID propio (UUID o Deterministico)
+                         nextProgMap.set(realId, updatedProg);
+                         
+                         // 2. Por coordenadas operativas
+                         const coordinates = `${updatedProg.puestoId}-${updatedProg.anio}-${updatedProg.mes}`;
+                         nextProgMap.set(coordinates, updatedProg);
+
+                         // 3. Por UUID de Base de Datos si es distinto
+                         const dbUuid = translatePuestoToUuid(updatedProg.puestoId);
+                         if (dbUuid && dbUuid !== updatedProg.puestoId) {
+                             nextProgMap.set(`${dbUuid}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
+                         }
+
+                         // 4. Por ID legible (M-1, P-3, etc)
+                         const rid = translateToReadableId(updatedProg.puestoId);
+                         if (rid && rid !== updatedProg.puestoId) {
+                             nextProgMap.set(`${rid}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
+                         }
+                     }
 
                     return { 
                         programaciones: newProgs, 
