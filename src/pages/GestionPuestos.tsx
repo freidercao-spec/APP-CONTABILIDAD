@@ -603,9 +603,10 @@ const PanelMensualPuesto = ({
   const currentUser =
     username || useAuthStore.getState().username || "Operador";
 
+  const version = useProgramacionStore(s => (s as any).version || 0);
   const prog = useMemo(
     () => getProgramacion(puestoId, anio, mes),
-    [allProgramaciones, getProgramacion, puestoId, anio, mes]
+    [allProgramaciones, getProgramacion, puestoId, anio, mes, version]
   );
   const puesto = useMemo(
     () =>

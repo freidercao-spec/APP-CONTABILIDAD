@@ -1022,8 +1022,16 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
             actualizarAsignacion: (progId, dia, data, usuario) => {
                 const state = get();
-                const prog = state.programaciones.find(p => p.id === progId);
-                if (!prog) return { permitido: false, tipo: 'bloqueo', mensaje: 'Programación no encontrada' };
+                let prog = state.programaciones.find(p => p.id === progId);
+                
+                // RESCATE TÁCTICO: Si falla por ID, buscamos por mapa (Coordenadas)
+                if (!prog && (state as any)._progMap) {
+                    prog = (state as any)._progMap.get(progId);
+                }
+
+                if (!prog) {
+                    return { permitido: false, tipo: 'bloqueo', mensaje: 'Programación no encontrada' };
+                }
 
                 // ── VALIDACIÓN TÁCTICA FLEXIBLE (Shift-Aware) ───────────────────
                 if (data.vigilanteId && data.jornada !== 'sin_asignar') {
@@ -1180,7 +1188,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     return { 
                         programaciones: newProgs, 
                         _busyMap: new Map(s._busyMap || []), 
-                        _progMap: nextProgMap 
+                        _progMap: nextProgMap,
+                        version: (s.version || 0) + 1
                     };
                 });
                 
