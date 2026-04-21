@@ -552,10 +552,11 @@ const AddTurnoForm = ({
 const PanelMensualPuesto = ({
   puestoId,
   puestoNombre,
-  anio,
-  mes,
+  anio: anioInicial,
+  mes: mesInicial,
   onClose,
   initialAutoOpenPersonal = false,
+  onMesChange,
 }: {
   puestoId: string;
   puestoNombre: string;
@@ -563,7 +564,22 @@ const PanelMensualPuesto = ({
   mes: number;
   onClose: () => void;
   initialAutoOpenPersonal?: boolean;
+  onMesChange?: (anio: number, mes: number) => void;
 }) => {
+  // ── Navegación local de mes/año dentro del panel ──────────────────────
+  const [anio, setAnioLocal] = React.useState(anioInicial);
+  const [mes, setMesLocal] = React.useState(mesInicial);
+
+  const navegarMes = React.useCallback((delta: number) => {
+    const d = new Date(anio, mes + delta);
+    const newAnio = d.getFullYear();
+    const newMes  = d.getMonth();
+    setAnioLocal(newAnio);
+    setMesLocal(newMes);
+    onMesChange?.(newAnio, newMes);
+    // Forzar fetch del mes destino si no está cargado
+    useProgramacionStore.getState().fetchProgramacionesByMonth(newAnio, newMes);
+  }, [anio, mes, onMesChange]);
   const username = useAuthStore(s => s.username);
   const vigilantes = useVigilanteStore(s => s.vigilantes);
   const allPuestos = usePuestoStore(s => s.puestos);
@@ -617,21 +633,28 @@ const PanelMensualPuesto = ({
   const isInitialLoading = !useProgramacionStore(s => (s as any).loaded);
   const isPuestosLoaded = usePuestoStore(s => s.loaded);
 
+  // ── Fetch automático al cambiar de mes ────────────────────────────────
   useEffect(() => {
-    // PROTECCIÓN TÁCTICA: Evitar que el sistema entre en pánico si los puestos aún no se han traducido desde la DB
-    if (isInitialLoading || !isPuestosLoaded) return;
+    // Siempre fetchear el mes activo para garantizar datos frescos
+    useProgramacionStore.getState().fetchProgramacionesByMonth(anio, mes);
+  }, [anio, mes]);
+
+  useEffect(() => {
+    if (!isPuestosLoaded) return;
 
     if (!prog) {
-      (useProgramacionStore.getState() as any).fetchProgramacionesByMonth(anio, mes).then(() => {
+      // Esperar a que el fetch del mes termine antes de crear
+      const timer = setTimeout(() => {
         const recheck = getProgramacion(puestoId, anio, mes);
         if (!recheck) {
           crearOObtenerProgramacion(puestoId, anio, mes, currentUser);
         }
-      });
+      }, 800);
+      return () => clearTimeout(timer);
     } else if (!prog.isDetailLoaded && !prog.isFetching) {
       fetchProgramacionDetalles(prog.id);
     }
-  }, [prog?.id, puestoId, anio, mes, isInitialLoading, isPuestosLoaded]);
+  }, [prog?.id, puestoId, anio, mes, isPuestosLoaded]);
 
   const daysInMonth = new Date(anio, mes + 1, 0).getDate();
   const daysArr = useMemo(
@@ -1303,8 +1326,15 @@ const PanelMensualPuesto = ({
       <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
         <div className="size-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
         <p className="text-sm font-black text-slate-500 uppercase tracking-widest">
-           Sincronizando Tablero Táctico...
+           Cargando {MONTH_NAMES[mes]} {anio}...
         </p>
+        <p className="text-[10px] text-slate-400 mt-2">Si tarda mucho, el mes puede estar vacío en la base de datos.</p>
+        <button
+          onClick={() => crearOObtenerProgramacion(puestoId, anio, mes, currentUser)}
+          className="mt-6 px-8 py-3 bg-primary hover:bg-indigo-500 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all"
+        >
+          Crear Tablero para este Mes
+        </button>
       </div>
     );
   }
@@ -1344,8 +1374,27 @@ const PanelMensualPuesto = ({
             <span>Tablero {nombrePuesto}</span>
           </div>
           <h1 className="text-3xl font-black text-slate-900 uppercase">{nombrePuesto}</h1>
+          {/* ── Navegación de mes dentro del panel ── */}
+          <div className="flex items-center gap-3 mt-2">
+            <button
+              onClick={() => navegarMes(-1)}
+              className="size-8 rounded-full bg-slate-100 hover:bg-primary hover:text-white flex items-center justify-center transition-all text-slate-500"
+              title="Mes anterior"
+            >
+              <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+            </button>
+            <p className="text-sm font-black text-slate-700 uppercase tracking-wider min-w-[140px] text-center">
+              {MONTH_NAMES[mes]} {anio}
+            </p>
+            <button
+              onClick={() => navegarMes(1)}
+              className="size-8 rounded-full bg-slate-100 hover:bg-primary hover:text-white flex items-center justify-center transition-all text-slate-500"
+              title="Mes siguiente"
+            >
+              <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+            </button>
+          </div>
           <p className="text-xs font-bold text-slate-500 mt-1">
-            {MONTH_NAMES[mes]} {anio} ·{" "}
             <span
               className={`${
                 staffAsignado.length > 0 ? "text-emerald-600" : "text-amber-500"
@@ -2033,6 +2082,12 @@ const GestionPuestos = () => {
     bootstrap();
   }, [fetchPuestos, fetchProgramaciones, fetchVigilantes]);
 
+  // ── Cargar datos cuando el usuario navega a un mes diferente ──────────
+  useEffect(() => {
+    const store = useProgramacionStore.getState() as any;
+    store.fetchProgramacionesByMonth(anio, mes);
+  }, [anio, mes]);
+
   const [filterTab, setFilterTab] = useState<'todos' | 'alerta' | 'sin_personal' | 'publicados'>('todos');
   const [visibleCount, setVisibleCount] = useState(60);
   
@@ -2078,6 +2133,7 @@ const GestionPuestos = () => {
         mes={mes}
         onClose={() => { setSelectedPuesto(null); setAutoOpenPersonalFlag(false); }}
         initialAutoOpenPersonal={autoOpenPersonalFlag}
+        onMesChange={(newAnio, newMes) => { setAnio(newAnio); setMes(newMes); }}
       />
     );
   }
