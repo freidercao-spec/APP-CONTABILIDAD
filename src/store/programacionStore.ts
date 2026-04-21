@@ -5,6 +5,17 @@ import { useVigilanteStore } from './vigilanteStore';
 import { usePuestoStore } from './puestoStore';
 import { useAuthStore } from './authStore';
 import { showTacticalToast } from '../utils/tacticalToast';
+import {
+    aplicarMotorTurnos,
+    generarTableroCompletoPuesto,
+    tablerosToAsignaciones,
+    extraerEstadosFinMes,
+    calcularPosicionNuevoMes,
+    validarTableroMes,
+    generarResumenFinMes,
+    type EstadoFinMes,
+    type AlertaMotor,
+} from './motorTurnos';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -202,6 +213,31 @@ interface ProgramacionState {
     hasPendingChanges: () => boolean;
     resumePendingSyncs: () => void;
     setupRealtime: () => void;
+
+    // ── MOTOR DE TURNOS ────────────────────────────────────────────────────
+    /**
+     * Genera el tablero de un mes usando el motor de ciclos D/N/R/NR.
+     * Hereda la posición del ciclo del mes anterior automáticamente.
+     * Llama a crearOObtenerProgramacion internamente y aplica el motor.
+     */
+    generarMesConMotor: (
+        puestoId: string,
+        anio: number,
+        mes: number,
+        usuario: string
+    ) => ProgramacionMensual | null;
+
+    /**
+     * Obtiene las alertas del motor de ciclos para una programación.
+     * Detecta violaciones de ciclo, doble descanso y puestos críticos.
+     */
+    getAlertasMotor: (progId: string) => AlertaMotor[];
+
+    /**
+     * Genera el JSON de resumen fin de mes para usar como plantilla.
+     * Compatible con el estándar EstadoFinMes del motor de turnos.
+     */
+    getResumenFinMes: (progId: string) => object | null;
 }
 
 // ── Private Helpers ──────────────────────────────────────────────────────────
@@ -937,7 +973,6 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 const newId = crypto.randomUUID();
                 
                 const daysInMonth = new Date(anio, mes + 1, 0).getDate();
-                const asignaciones: AsignacionDia[] = [];
                 
                 // MEJORA TÁCTICA: Heredar el personal configurado en el Puesto para que el tablero coincida
                 const pStore = usePuestoStore.getState();
@@ -954,18 +989,50 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     ? targetPuesto.personal.map(p => ({ ...p }))
                     : rolesBase;
 
-                // Inicializar asignaciones basadas en el personal final para que tengan nombres desde el día 1
-                personalFinal.forEach(p => {
-                    for (let dia = 1; dia <= daysInMonth; dia++) {
-                        asignaciones.push({ 
-                            dia, 
-                            vigilanteId: p.vigilanteId || null, 
-                            turno: p.turnoId || (p.rol.includes('b') ? 'PM' : 'AM'), 
-                            jornada: 'sin_asignar', 
-                            rol: p.rol 
+                // ── MOTOR DE TURNOS: Intentar calcular ciclo desde mes anterior ──
+                let asignaciones: AsignacionDia[] = [];
+                const mesAnterior = mes === 0 ? 11 : mes - 1;
+                const anioAnterior = mes === 0 ? anio - 1 : anio;
+                const progAnterior = s.getProgramacion(puestoId, anioAnterior, mesAnterior);
+
+                if (progAnterior && progAnterior.asignaciones && progAnterior.asignaciones.length > 0) {
+                    // Mes anterior disponible: aplicar motor de ciclos continuo
+                    console.log(`[MotorTurnos] 🔄 Propagando ciclo desde ${anioAnterior}/${mesAnterior + 1} → ${anio}/${mes + 1}`);
+                    const asigMotor = aplicarMotorTurnos(
+                        dbPuestoId, anio, mes,
+                        personalFinal,
+                        progAnterior.asignaciones,
+                        anioAnterior, mesAnterior
+                    );
+                    if (asigMotor && asigMotor.length > 0) {
+                        asignaciones = asigMotor;
+                        // También incluir filas vacías para roles sin vigilante asignado
+                        personalFinal.forEach(p => {
+                            if (!p.vigilanteId) {
+                                for (let dia = 1; dia <= daysInMonth; dia++) {
+                                    asignaciones.push({ dia, vigilanteId: null, turno: p.turnoId || 'AM', jornada: 'sin_asignar', rol: p.rol });
+                                }
+                            }
                         });
+                        console.log(`[MotorTurnos] ✅ Motor aplicado: ${asignaciones.length} asignaciones generadas.`);
                     }
-                });
+                }
+
+                // Fallback: inicializar sin ciclo si no hay mes anterior
+                if (asignaciones.length === 0) {
+                    console.log(`[MotorTurnos] ℹ️ Sin mes anterior: inicializando tablero vacío para ${puestoId}.`);
+                    personalFinal.forEach(p => {
+                        for (let dia = 1; dia <= daysInMonth; dia++) {
+                            asignaciones.push({ 
+                                dia, 
+                                vigilanteId: p.vigilanteId || null, 
+                                turno: p.turnoId || (p.rol.includes('b') ? 'PM' : 'AM'), 
+                                jornada: 'sin_asignar', 
+                                rol: p.rol 
+                            });
+                        }
+                    });
+                }
  
                 const newProg: ProgramacionMensual = {
                     id: newId,
@@ -978,7 +1045,6 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                 console.log(`[Coraza] 🛡️ Generando Tablero para ${puestoId}. Personal heredado: ${personalFinal.length} roles.`);
 
-                // NO GUARDAR INMEDIATAMENTE SI NO HAY INTERACCION (Debounce de seguridad de 2s)
                 set(s => ({ programaciones: [...s.programaciones, newProg] }));
                 get()._updateMap();
                 
@@ -991,6 +1057,153 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 }, 5000);
 
                 return newProg;
+            },
+
+            // ── MOTOR DE TURNOS: Generación explícita de mes con ciclo ──────────
+            generarMesConMotor: (puestoId: string, anio: number, mes: number, usuario: string): ProgramacionMensual | null => {
+                const s = get();
+                if (!s.loaded && !s.programaciones.length) return null;
+
+                // Buscar o crear la programación base
+                let prog = s.getProgramacion(puestoId, anio, mes);
+                const dbPuestoId = translatePuestoToUuid(puestoId) || puestoId;
+                const daysInMonth = new Date(anio, mes + 1, 0).getDate();
+
+                // Determinar personal del puesto
+                const pStore = usePuestoStore.getState();
+                const targetPuesto = pStore.puestos?.find(px => px.id === puestoId || px.dbId === puestoId);
+                const personalBase: PersonalPuesto[] = prog?.personal?.length
+                    ? prog.personal
+                    : targetPuesto?.personal?.length
+                        ? targetPuesto.personal.map(p => ({ ...p }))
+                        : [
+                            { rol: 'titular_a', vigilanteId: null, turnoId: 'AM' },
+                            { rol: 'titular_b', vigilanteId: null, turnoId: 'PM' },
+                            { rol: 'relevante', vigilanteId: null, turnoId: 'AM' }
+                          ];
+
+                // Obtener asignaciones del mes anterior
+                const mesAnterior = mes === 0 ? 11 : mes - 1;
+                const anioAnterior = mes === 0 ? anio - 1 : anio;
+                const progAnterior = s.getProgramacion(puestoId, anioAnterior, mesAnterior);
+                const asigAnterior = progAnterior?.asignaciones ?? [];
+
+                // Aplicar motor de turnos
+                let nuevasAsignaciones = aplicarMotorTurnos(
+                    dbPuestoId, anio, mes,
+                    personalBase,
+                    asigAnterior,
+                    anioAnterior, mesAnterior
+                ) ?? [];
+
+                // Agregar filas vacías para roles sin vigilante
+                personalBase.forEach(p => {
+                    if (!p.vigilanteId) {
+                        for (let dia = 1; dia <= daysInMonth; dia++) {
+                            nuevasAsignaciones.push({ dia, vigilanteId: null, turno: p.turnoId || 'AM', jornada: 'sin_asignar', rol: p.rol });
+                        }
+                    }
+                });
+
+                const newId = prog?.id ?? crypto.randomUUID();
+                const nuevoProg: ProgramacionMensual = {
+                    id: newId,
+                    puestoId: dbPuestoId,
+                    anio, mes,
+                    personal: personalBase,
+                    asignaciones: nuevasAsignaciones,
+                    estado: 'borrador',
+                    creadoEn: prog?.creadoEn ?? new Date().toISOString(),
+                    actualizadoEn: new Date().toISOString(),
+                    version: (prog?.version ?? 0) + 1,
+                    historialCambios: [
+                        ...(prog?.historialCambios ?? []),
+                        {
+                            id: crypto.randomUUID(),
+                            timestamp: new Date().toISOString(),
+                            usuario,
+                            descripcion: `Motor de turnos aplicado. ${nuevasAsignaciones.filter(a => a.vigilanteId).length} asignaciones generadas desde ciclo ${asigAnterior.length > 0 ? 'del mes anterior' : 'inicial'}.`,
+                            tipo: 'sistema' as const
+                        }
+                    ],
+                    syncStatus: 'pending',
+                    isDetailLoaded: true,
+                };
+
+                set((st: any) => {
+                    const idx = st.programaciones.findIndex((p: any) => p.id === newId || (p.puestoId === dbPuestoId && p.anio === anio && p.mes === mes));
+                    let newProgs;
+                    if (idx >= 0) {
+                        newProgs = st.programaciones.map((p: any, i: number) => i === idx ? nuevoProg : p);
+                    } else {
+                        newProgs = [...st.programaciones, nuevoProg];
+                    }
+                    return { programaciones: newProgs };
+                });
+                get()._updateMap();
+                queueSync(newId, set, get, true);
+
+                showTacticalToast({
+                    title: '⚙️ Motor de Turnos Ejecutado',
+                    message: `Tablero ${new Date(anio, mes).toLocaleString('es-CO', { month: 'long' })} ${anio} generado con ciclo continuo D/N/R/NR.`,
+                    type: 'success',
+                });
+
+                return nuevoProg;
+            },
+
+            getAlertasMotor: (progId: string): AlertaMotor[] => {
+                const prog = get()._progMap?.get(progId);
+                if (!prog || !prog.asignaciones) return [];
+
+                // Agrupar asignaciones por rol para construir tableros virtuales
+                const rolesMap = new Map<string, typeof prog.asignaciones>();
+                prog.asignaciones.forEach(a => {
+                    if (!rolesMap.has(a.rol)) rolesMap.set(a.rol, []);
+                    rolesMap.get(a.rol)!.push(a);
+                });
+
+                const diasMes = new Date(prog.anio, prog.mes + 1, 0).getDate();
+                const personalConSig = prog.personal?.filter(p => p.vigilanteId) ?? [];
+
+                // Reconstruir estados de fin del mes anterior para el motor
+                const mesAnterior = prog.mes === 0 ? 11 : prog.mes - 1;
+                const anioAnterior = prog.mes === 0 ? prog.anio - 1 : prog.anio;
+                const progAnterior = get().getProgramacion(prog.puestoId, anioAnterior, mesAnterior);
+                const estadosPrevios = progAnterior?.asignaciones
+                    ? extraerEstadosFinMes(progAnterior.asignaciones, anioAnterior, mesAnterior, prog.puestoId)
+                    : [];
+
+                const personalConfig = personalConSig.map(p => ({
+                    rol: p.rol,
+                    vigilanteId: p.vigilanteId,
+                    posicionDia1: calcularPosicionNuevoMes(estadosPrevios, p.vigilanteId!, p.rol, anioAnterior, mesAnterior)
+                }));
+
+                const tableros = generarTableroCompletoPuesto(prog.puestoId, prog.anio, prog.mes, personalConfig);
+                return validarTableroMes(tableros, prog.puestoId);
+            },
+
+            getResumenFinMes: (progId: string): object | null => {
+                const prog = get()._progMap?.get(progId);
+                if (!prog || !prog.asignaciones) return null;
+
+                const personalConSig = prog.personal?.filter(p => p.vigilanteId) ?? [];
+                const mesAnterior = prog.mes === 0 ? 11 : prog.mes - 1;
+                const anioAnterior = prog.mes === 0 ? prog.anio - 1 : prog.anio;
+                const progAnterior = get().getProgramacion(prog.puestoId, anioAnterior, mesAnterior);
+                const estadosPrevios = progAnterior?.asignaciones
+                    ? extraerEstadosFinMes(progAnterior.asignaciones, anioAnterior, mesAnterior, prog.puestoId)
+                    : [];
+
+                const personalConfig = personalConSig.map(p => ({
+                    rol: p.rol,
+                    vigilanteId: p.vigilanteId,
+                    posicionDia1: calcularPosicionNuevoMes(estadosPrevios, p.vigilanteId!, p.rol, anioAnterior, mesAnterior)
+                }));
+
+                const tableros = generarTableroCompletoPuesto(prog.puestoId, prog.anio, prog.mes, personalConfig);
+                return generarResumenFinMes(tableros, prog.puestoId, prog.anio, prog.mes);
             },
 
             recuperarDatosHuerfanos: async (puestoId: string, anio: number, mes: number) => {
