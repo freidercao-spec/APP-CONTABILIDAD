@@ -2435,7 +2435,7 @@ const GestionPuestos = () => {
               add_location
             </span>
             <span className="text-[11px] font-black uppercase tracking-[0.2em] text-black group-hover:text-white transition-colors duration-500 relative z-10 italic">
-              Nuevo Objetivo
+              Nuevo Puesto
             </span>
 
             {/* Decoración de Esquina Táctica */}

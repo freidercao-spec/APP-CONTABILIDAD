@@ -423,7 +423,7 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                             <span className="material-symbols-outlined text-2xl notranslate" translate="no">{isEditing ? 'edit_location' : 'location_on'}</span>
                         </div>
                         <div>
-                            <h4 className="text-lg font-bold text-white uppercase tracking-tight">{isEditing ? 'Ajustes' : 'Recrear'} <span className="text-primary">Objetivo</span></h4>
+                            <h4 className="text-lg font-bold text-white uppercase tracking-tight">{isEditing ? 'Ajustes' : 'Nuevo'} <span className="text-primary">Puesto</span></h4>
                             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">{isEditing ? 'Modificar parámetros de red' : 'Escala Real + Elevacion'}</p>
                         </div>
                     </div>
