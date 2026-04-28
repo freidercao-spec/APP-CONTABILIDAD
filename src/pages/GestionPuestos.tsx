@@ -1699,7 +1699,10 @@ const PanelMensualPuesto = ({
                 "bg-rose-500/10 text-rose-600 border-rose-300/30",
                 "bg-amber-500/10 text-amber-600 border-amber-300/30"
               ];
-              const colorClass = COLORS_ARRAY[Object.keys(progPersonal).indexOf(per.rol) % COLORS_ARRAY.length] || COLORS_ARRAY[0];
+              const rolIdx = progPersonal.findIndex((p: any) => p.rol === per.rol);
+              const colorClass = COLORS_ARRAY[rolIdx % COLORS_ARRAY.length] || COLORS_ARRAY[0];
+              const v = per.vigilanteId ? vigilanteMap.get(per.vigilanteId) : null;
+              const vNombre = typeof v === 'string' ? v : (v as any)?.nombre || per.vigilanteId;
               
               return (
                 <div
@@ -1711,10 +1714,10 @@ const PanelMensualPuesto = ({
                   </span>
                   <div>
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter block mb-1">
-                      {getRolLabel(per.rol)}
+                      {getRolLabel(per.rol, per.displayName)}
                     </span>
                     <p className="text-[11px] font-black leading-tight">
-                      {v?.nombre || per.vigilanteId}
+                      {vNombre}
                     </p>
                   </div>
                 </div>
