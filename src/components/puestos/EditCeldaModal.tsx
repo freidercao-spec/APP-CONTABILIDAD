@@ -46,15 +46,21 @@ export const EditCeldaModal = ({
 
   const [tempAsig, setTempAsig] = useState<AsignacionDia>(() => {
     // Buscar configuración de turno predeterminada para este rol/turno
-    const config = effectiveTurnos.find(t => t.id === asig.turno) || effectiveTurnos[0];
+    const turnoId = asig.turno || 'AM';
+    const config = effectiveTurnos.find(t => t.id === turnoId) || effectiveTurnos[0];
+    // Determinar jornada inicial: si ya tiene jornada real la preservamos,
+    // si estaba sin_asignar la marcamos como 'normal' para que el modal empiece activo
+    const jornadaInicial = (asig.jornada && asig.jornada !== 'sin_asignar') ? asig.jornada : 'normal';
     return { 
       ...asig,
+      turno: turnoId as any,
       vigilanteId: asig.vigilanteId || initialVigilanteId || '',
-      jornada: asig.jornada && asig.jornada !== 'sin_asignar' ? asig.jornada : 'normal',
+      jornada: jornadaInicial,
       inicio: asig.inicio || config?.inicio || '06:00',
       fin: asig.fin || config?.fin || '18:00'
     };
   });
+
 
   const filteredVigilantes = useMemo(() => {
     if (!search) return [];
@@ -112,17 +118,39 @@ export const EditCeldaModal = ({
 
   const setTurnoPreset = (turnoId: string) => {
     const config = effectiveTurnos.find(t => t.id === turnoId) || DEFAULT_TURNOS.find(t => t.id === turnoId);
+    // FIX: al seleccionar un turno operativo, también forzar jornada = 'normal'
+    // para que la celda del tablero muestre el color correcto (azul/violeta/verde)
     setTempAsig(prev => ({
       ...prev,
       turno: turnoId as any,
+      jornada: 'normal' as any,          // ← CRÍTICO: fuerza estado laboral a "Día trabajado"
+      codigo_personalizado: undefined,    // ← Limpiar código especial si lo había
       inicio: formatTime(config?.inicio || prev.inicio || '06:00'),
       fin: formatTime(config?.fin || prev.fin || '18:00')
     }));
   };
 
+  // FIX: al seleccionar un estado laboral (DR, NR, VAC, LC, etc.),
+  // sincronizar el turno para que el tablero sepa a qué color pintar la celda
+  const setEstadoLaboral = (jornada: string, codigo: string) => {
+    // Los estados de descanso y novedad no tienen turno operativo propio;
+    // mantener el turno anterior o usar 'AM' por defecto para que la celda no quede sin turno.
+    setTempAsig(prev => ({
+      ...prev,
+      jornada: jornada as any,
+      codigo_personalizado: codigo,
+    }));
+  };
+
   const handleSave = async () => {
+    // FIX: Garantizar coherencia turno ↔ jornada antes de persistir
+    // Si jornada es 'normal', el turno (AM/PM/24H) ya debe estar correcto.
+    // Si jornada es un estado especial (DR, NR, VAC…), mantener el turno
+    // tal como está (o usar 'AM' como fallback) para que el campo no quede vacío.
+    const finalTurno = tempAsig.turno || 'AM';
     const updated: AsignacionDia = {
       ...tempAsig,
+      turno: finalTurno as any,
       vigilanteId: selectedVigilante?.dbId || selectedVigilante?.id || tempAsig.vigilanteId || null,
       confirmado_por: (window as any).__usuario_actual || 'Operador',
       timestamp_confirmacion: new Date().toISOString(),
@@ -357,57 +385,61 @@ export const EditCeldaModal = ({
             <div className="xl:col-span-5 space-y-6">
               <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.4em] px-2">Estado Laboral</span>
               <div className="bg-black/20 rounded-[40px] p-2 border border-white/5 space-y-1 shadow-inner">
-                {ESTADOS_LABORALES.map(j => (
-                  <button 
-                    key={j.jornada + j.codigo}
-                    onClick={() => setTempAsig({ ...tempAsig, jornada: j.jornada as any, codigo_personalizado: j.codigo })}
-                    className={`w-full px-6 py-4 rounded-[24px] flex items-center justify-between transition-all ${
-                      tempAsig.jornada === j.jornada 
-                        ? 'bg-white/10 text-white border border-white/10' 
-                        : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
-                    }`}
-                    style={tempAsig.jornada === j.jornada ? {
-                      background: `${j.colorHex}18`,
-                      borderColor: `${j.colorHex}44`,
-                    } : {}}
-                  >
-                    <div className="flex items-center gap-4">
-                       <span
-                         className={`material-symbols-outlined text-[20px]`}
-                         style={{ color: tempAsig.jornada === j.jornada ? j.colorHex : '#64748b' }}
-                       >{j.icono}</span>
-                       <div className="text-left">
+                {ESTADOS_LABORALES.map(j => {
+                  const isActive = tempAsig.jornada === j.jornada;
+                  return (
+                    <button 
+                      key={j.jornada + j.codigo}
+                      onClick={() => setEstadoLaboral(j.jornada, j.codigo)}
+                      className={`w-full px-6 py-4 rounded-[24px] flex items-center justify-between transition-all ${
+                        isActive 
+                          ? 'bg-white/10 text-white border border-white/10' 
+                          : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                      }`}
+                      style={isActive ? {
+                        background: `${j.colorHex}18`,
+                        borderColor: `${j.colorHex}44`,
+                      } : {}}
+                    >
+                      <div className="flex items-center gap-4">
                          <span
-                           className={`text-[11px] font-black uppercase tracking-wider block`}
-                           style={{ color: tempAsig.jornada === j.jornada ? '#fff' : '#64748b' }}
-                         >{j.nombre}</span>
-                         {j.esNovedad && (
-                           <span className="text-[8px] text-rose-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                             <span className="size-1.5 rounded-full bg-rose-500 inline-block animate-pulse" />
-                             Genera alerta
-                           </span>
-                         )}
-                       </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span
-                        className="text-[9px] font-black px-2 py-0.5 rounded-md"
-                        style={tempAsig.jornada === j.jornada
-                          ? { background: j.colorHex, color: '#fff' }
-                          : { background: 'rgba(255,255,255,0.05)', color: '#64748b' }
-                        }
-                      >{j.codigo}</span>
-                      <div className={`size-5 rounded-full border-2 flex items-center justify-center transition-all`}
-                        style={tempAsig.jornada === j.jornada
-                          ? { borderColor: j.colorHex, background: `${j.colorHex}20` }
-                          : { borderColor: '#1e293b' }
-                        }
-                      >
-                        {tempAsig.jornada === j.jornada && <div className="size-2 rounded-full shadow-lg" style={{ background: j.colorHex }} />}
+                           className={`material-symbols-outlined text-[20px]`}
+                           style={{ color: isActive ? j.colorHex : '#64748b' }}
+                         >{j.icono}</span>
+                         <div className="text-left">
+                           <span
+                             className={`text-[11px] font-black uppercase tracking-wider block`}
+                             style={{ color: isActive ? '#fff' : '#64748b' }}
+                           >{j.nombre}</span>
+                           {j.esNovedad && (
+                             <span className="text-[8px] text-rose-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                               <span className="size-1.5 rounded-full bg-rose-500 inline-block animate-pulse" />
+                               Genera alerta
+                             </span>
+                           )}
+                         </div>
                       </div>
-                    </div>
-                  </button>
-                ))}
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="text-[9px] font-black px-2 py-0.5 rounded-md"
+                          style={isActive
+                            ? { background: j.colorHex, color: '#fff' }
+                            : { background: 'rgba(255,255,255,0.05)', color: '#64748b' }
+                          }
+                        >{j.codigo}</span>
+                        <div
+                          className="size-5 rounded-full border-2 flex items-center justify-center transition-all"
+                          style={isActive
+                            ? { borderColor: j.colorHex, background: `${j.colorHex}20` }
+                            : { borderColor: '#1e293b' }
+                          }
+                        >
+                          {isActive && <div className="size-2 rounded-full shadow-lg" style={{ background: j.colorHex }} />}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
