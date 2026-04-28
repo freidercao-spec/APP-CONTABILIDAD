@@ -879,11 +879,26 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             });
                             Array.from(allRolesForDay).forEach((rol: any) => {
                                 const match = asigMap.get(`${d}-${rol}`);
-                                if (match) asignaciones.push({
-                                    dia: match.dia, vigilanteId: match.vigilante_id ? (vigLookup.get(match.vigilante_id) || match.vigilante_id) : null,
-                                    turno: match.turno, jornada: (match.jornada || 'sin_asignar') as TipoJornada, rol: (match.rol || rol) as RolPuesto,
-                                    inicio: match.inicio || undefined, fin: match.fin || undefined
-                                }); else asignaciones.push({ dia: d, vigilanteId: null, turno: 'AM', jornada: 'sin_asignar', rol });
+                                if (match) {
+                                    // ── Decodificar ESTADO:<código>|<hora> igual que fetchProgramacionDetalles ──
+                                    const rawInicio = match.inicio || '';
+                                    const estadoPrefixMatch = rawInicio.match(/^ESTADO:([^|]+)\|(.*)$/);
+                                    const codigoPers = estadoPrefixMatch ? estadoPrefixMatch[1] : null;
+                                    const realInicio = estadoPrefixMatch ? estadoPrefixMatch[2] : rawInicio || undefined;
+                                    const CODE_TO_JORNADA: Record<string, string> = {
+                                        LC: 'licencia', SP: 'suspension', IN: 'incapacidad', AC: 'accidente'
+                                    };
+                                    const jornadaDecoded = codigoPers
+                                        ? (CODE_TO_JORNADA[codigoPers] || match.jornada || 'sin_asignar')
+                                        : (match.jornada || 'sin_asignar');
+                                    asignaciones.push({
+                                        dia: match.dia, vigilanteId: match.vigilante_id ? (vigLookup.get(match.vigilante_id) || match.vigilante_id) : null,
+                                        turno: match.turno, jornada: jornadaDecoded as any, rol: (match.rol || rol) as any,
+                                        codigo_personalizado: (codigoPers || match.codigo_personalizado || null) as any,
+                                        inicio: realInicio, fin: match.fin || undefined
+                                    });
+                                } else asignaciones.push({ dia: d, vigilanteId: null, turno: 'AM', jornada: 'sin_asignar', rol });
+
                             });
                         }
                         return {
