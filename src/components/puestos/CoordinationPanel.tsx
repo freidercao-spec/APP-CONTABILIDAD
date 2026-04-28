@@ -411,38 +411,79 @@ export const CoordinationPanel = ({
                         </div>
                         <div className="min-w-0">
                           <p className="text-[11px] font-black text-white truncate uppercase tracking-tight">{rolLabel}</p>
-                          <p className="text-[8px] font-black text-cyan-500/60 uppercase">Vacante Destino</p>
+                          <p className="text-[8px] font-black text-cyan-500/60 uppercase">
+                            {per.turnoId === 'PM' ? 'Nocturno' : per.turnoId === '24H' ? '24 Horas' : 'Diurno'}
+                          </p>
                         </div>
                       </div>
 
                       {daysArr.map(d => {
                         const asigB = freshCProg.asignaciones.find(a => a.dia === d && a.rol === per.rol);
                         const isVacant = !asigB || !asigB.vigilanteId || asigB.jornada === 'sin_asignar';
-                        const assignedVig = !isVacant && asigB.vigilanteId ? vMap.get(asigB.vigilanteId) : null;
+                        
+                        // Resolución robusta del vigilante: primero por UUID en vMap, luego por ID legible
+                        const rawVid = asigB?.vigilanteId;
+                        const assignedVig = rawVid
+                          ? (vMap.get(rawVid) || vMap.get(translateToUuid(rawVid) || '') || vigilantes.find(v => v.id === rawVid || v.dbId === rawVid))
+                          : null;
+
+                        // Detectar conflicto: ¿el vigilante seleccionado (compareVigilanteId) ya está ocupado este día en OTRO puesto?
+                        const selectedBusy = compareVigilanteId
+                          ? (destAsigsMap.get(compareVigilanteId)?.has(`${d}`) ||
+                             destAsigsMap.get(compareVigilanteId)?.has(`${d}-AM`) ||
+                             destAsigsMap.get(compareVigilanteId)?.has(`${d}-PM`) ||
+                             originAsigsMap.get(compareVigilanteId)?.has(`${d}`) ||
+                             localBusyVids.has(compareVigilanteId))
+                          : false;
+
+                        // Color de celda
+                        let cellClass = '';
+                        let cellContent: React.ReactNode;
+
+                        if (isVacant) {
+                          if (compareVigilanteId && selectedBusy) {
+                            // Seleccionado pero conflicto
+                            cellClass = 'bg-rose-900/40 border-2 border-rose-500/60 shadow-[0_0_16px_rgba(239,68,68,0.3)] cursor-not-allowed';
+                            cellContent = <span className="material-symbols-outlined text-rose-400 text-[18px]">block</span>;
+                          } else if (compareVigilanteId && !selectedBusy) {
+                            // Seleccionado y disponible — pulso verde
+                            cellClass = 'bg-emerald-500/20 border-2 border-emerald-400/60 shadow-[0_0_20px_rgba(16,185,129,0.35)] hover:scale-110 cursor-pointer animate-pulse';
+                            cellContent = <span className="material-symbols-outlined text-emerald-400 text-[18px]">add_task</span>;
+                          } else {
+                            // Vacante normal sin selección
+                            cellClass = 'bg-cyan-500/10 border-2 border-cyan-400/30 shadow-[0_0_20px_rgba(34,211,238,0.15)] hover:scale-110 hover:bg-cyan-500/20 cursor-pointer';
+                            cellContent = <span className="material-symbols-outlined text-cyan-400 text-[18px]">add_task</span>;
+                          }
+                        } else {
+                          // Celda ocupada — mostrar inicial del nombre real
+                          const initial = assignedVig?.nombre?.[0]?.toUpperCase() || '✓';
+                          const turnoColor = asigB?.turno === 'PM' ? '#a78bfa' : asigB?.turno === '24H' ? '#34d399' : '#60a5fa';
+                          cellClass = 'bg-slate-800/40 border border-white/20 hover:border-indigo-400/50 cursor-pointer';
+                          cellContent = (
+                            <span className="text-[12px] font-black" style={{ color: turnoColor }}
+                              title={assignedVig?.nombre || rawVid || '?'}>
+                              {initial}
+                            </span>
+                          );
+                        }
 
                         return (
                           <button
                             key={d}
                             onClick={() => {
                               if (!freshCProg) return;
-                              // Pasamos el vigilante seleccionado en la lista inferior para "autocompletar" la asignación
-                              onOpenEdit({ 
-                                asig: asigB || { dia: d, rol: per.rol, turno: per.turnoId || 'AM', jornada: 'sin_asignar' }, 
-                                progId: freshCProg.id, 
-                                preSelectVigilanteId: compareVigilanteId || '' 
+                              onOpenEdit({
+                                asig: asigB || { dia: d, rol: per.rol, turno: per.turnoId || 'AM', jornada: 'sin_asignar' },
+                                progId: freshCProg.id,
+                                preSelectVigilanteId: compareVigilanteId || ''
                               });
                             }}
-                            className={`size-12 rounded-xl flex items-center justify-center transition-all ${
-                              isVacant 
-                                ? 'bg-cyan-500/10 border-2 border-cyan-400/30 shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:scale-110 hover:bg-cyan-500/20 cursor-pointer animate-pulse' 
-                                : 'bg-slate-800/40 border border-white/20 hover:border-indigo-400/50 cursor-pointer'
-                            }`}
+                            className={`size-12 rounded-xl flex items-center justify-center transition-all ${cellClass}`}
+                            title={isVacant
+                              ? (compareVigilanteId && selectedBusy ? 'Conflicto: vigilante ya asignado este día' : 'Vacante — clic para asignar')
+                              : (assignedVig?.nombre || 'Asignado')}
                           >
-                            {isVacant ? (
-                               <span className="material-symbols-outlined text-cyan-400 text-[18px]">add_task</span>
-                            ) : (
-                               <span className="text-[11px] font-black text-white/50">{assignedVig?.nombre?.[0] || '✓'}</span>
-                            )}
+                            {cellContent}
                           </button>
                         );
                       })}
