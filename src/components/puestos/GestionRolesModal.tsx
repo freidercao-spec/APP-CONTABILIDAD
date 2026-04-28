@@ -80,6 +80,7 @@ export const GestionRolesModal: React.FC<GestionRolesModalProps> = ({
       rol: rolId,
       vigilanteId: null,
       turnoId: nuevoTurno,
+      displayName: n, // ← Guardar el nombre visible que escribió el operador
     };
     setLocalRoles(prev => [...prev, nuevo]);
     setNuevoNombre('');

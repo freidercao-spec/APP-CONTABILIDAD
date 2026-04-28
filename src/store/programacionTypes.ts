@@ -77,6 +77,7 @@ export interface PersonalPuesto {
     rol: RolPuesto;
     vigilanteId: string | null;
     turnoId?: string;
+    displayName?: string; // Etiqueta visible personalizada (para roles con ID UUID-style)
 }
 
 export interface CambioProgramacion {

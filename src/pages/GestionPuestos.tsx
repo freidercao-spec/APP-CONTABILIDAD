@@ -60,10 +60,15 @@ const getPuestoNombre = (prog: any, allPuestos: any[]) => {
 
 const getTipoIcon = (tipo: string) => TIPOS_PUESTO.find(t => t.value === tipo) || TIPOS_PUESTO[3];
 
-const getRolLabel = (rol: string) => {
+const getRolLabel = (rol: string, displayName?: string) => {
+  // Si tiene un nombre visible personalizado, usarlo siempre
+  if (displayName) return displayName;
   const base: Record<string, string> = { titular_a: "Titular A", titular_b: "Titular B", relevante: "Relevante" };
   if (base[rol]) return base[rol];
-  if (/^\d+$/.test(rol) || rol.length > 10) return "Rol Personalizado";
+  // IDs UUID-style de roles custom (ej: turno_1699_abc) → mostrar genérico
+  if (rol.startsWith('turno_')) return "Turno Personalizado";
+  if (/^\d+$/.test(rol)) return "Rol Personalizado";
+  // Nombres cortos legibles (ej: control_acceso) → convertir a título
   return rol.replace(/_/g, " ").toUpperCase();
 };
 
@@ -1518,11 +1523,14 @@ const PanelMensualPuesto = ({
 
           <button
             onClick={() => setShowRolesModal(true)}
-            className="px-5 py-2.5 bg-violet-900 text-violet-300 border border-violet-500/30 rounded-2xl text-[10px] font-black uppercase hover:bg-violet-700 hover:text-white transition-all flex items-center gap-2"
-            title="Gestionar filas del tablero (múltiples turnos simultáneos)"
+            className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white border border-violet-400/30 rounded-2xl text-[10px] font-black uppercase transition-all flex items-center gap-2 shadow-lg shadow-violet-900/40 relative"
+            title="Gestionar filas del tablero — agregar hasta 20+ vigilantes por puesto"
           >
-            <span className="material-symbols-outlined text-[18px]">grid_view</span>
-            Filas ({progPersonal.length})
+            <span className="material-symbols-outlined text-[18px]">add_row_above</span>
+            Gestionar Filas
+            <span className="px-2 py-0.5 bg-violet-400/30 rounded-full text-[9px] font-black">
+              {progPersonal.length}
+            </span>
           </button>
           
           <button
@@ -2006,7 +2014,8 @@ const PanelMensualPuesto = ({
 
                 return allPersonal;
               })().map((per: PersonalPuesto, index: number) => {
-                const rolLabel = getRolLabel(per.rol);
+                // Usar displayName cuando existe (roles añadidos desde GestionRolesModal)
+                const rolLabel = getRolLabel(per.rol, (per as any).displayName);
                 const isNightRole = ['b', 'pm', 'noche', 'nocturno', 'vigilia'].some(k => per.rol.toLowerCase().includes(k) || rolLabel.toLowerCase().includes(k));
                 const lookupId = per.turnoId || (isNightRole ? 'PM' : 'AM');
                 let turno = turnosConfig.find((tc) => tc.id === lookupId);
@@ -2130,6 +2139,27 @@ const PanelMensualPuesto = ({
                  </tr>
                 );
               })}
+
+              {/* ── FILA INLINE: Añadir nueva fila / vigilante ── */}
+              <tr>
+                <td
+                  colSpan={daysArr.length + 1}
+                  className="px-6 py-3 border-t border-dashed border-white/[0.05]"
+                >
+                  <button
+                    onClick={() => setShowRolesModal(true)}
+                    className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl border border-dashed border-violet-500/25 hover:border-violet-400/60 bg-violet-500/[0.02] hover:bg-violet-500/10 text-violet-500/50 hover:text-violet-300 transition-all group"
+                  >
+                    <span className="material-symbols-outlined text-[22px] group-hover:rotate-90 transition-transform duration-300">add_circle</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.25em]">
+                      Añadir Fila / Vigilante al Tablero
+                    </span>
+                    <span className="px-2 py-0.5 bg-violet-500/20 rounded-full text-[9px] font-black text-violet-400">
+                      {progPersonal.length} fila{progPersonal.length !== 1 ? 's' : ''} activa{progPersonal.length !== 1 ? 's' : ''}
+                    </span>
+                  </button>
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
