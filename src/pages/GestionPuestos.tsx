@@ -2523,6 +2523,7 @@ const GestionPuestos = () => {
 
                   {/* Input Field */}
                   <input
+                    type="text"
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     placeholder="LOCALIZAR PUESTO O CÓDIGO TÁCTICO..."
@@ -2531,13 +2532,13 @@ const GestionPuestos = () => {
                   
                   {/* Status Indicator (Right side inside) */}
                   {!searchQuery && (
-                    <div className="hidden sm:flex items-center gap-2 pr-5 pointer-events-none opacity-50 group-focus-within:opacity-100 transition-opacity">
-                      <div className="flex gap-1">
-                        <div className="w-1.5 h-1.5 rounded-sm bg-slate-600 group-focus-within:bg-indigo-500 group-focus-within:animate-pulse" />
-                        <div className="w-1.5 h-1.5 rounded-sm bg-slate-700 group-focus-within:bg-indigo-500/60 group-focus-within:animate-pulse delay-75" />
-                        <div className="w-1.5 h-1.5 rounded-sm bg-slate-800 group-focus-within:bg-indigo-500/30 group-focus-within:animate-pulse delay-150" />
+                    <div className="hidden sm:flex items-center gap-3 pr-6 pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
+                      <div className="flex gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-slate-600 group-focus-within:bg-indigo-500 group-focus-within:animate-pulse" />
+                        <div className="w-2 h-2 rounded-full bg-slate-700 group-focus-within:bg-indigo-400 group-focus-within:animate-pulse delay-75" />
+                        <div className="w-2 h-2 rounded-full bg-slate-800 group-focus-within:bg-indigo-300 group-focus-within:animate-pulse delay-150" />
                       </div>
-                      <span className="text-[9px] font-black tracking-[0.3em] text-slate-500 group-focus-within:text-indigo-400 uppercase">Input</span>
+                      <span className="text-[10px] font-black tracking-[0.4em] text-slate-500 group-focus-within:text-indigo-400 uppercase italic">Ready</span>
                     </div>
                   )}
 
@@ -2558,21 +2559,22 @@ const GestionPuestos = () => {
 
               {/* Filter Pills with Result Counter */}
               <div
-                className="flex flex-col sm:flex-row gap-2 p-1.5"
+                className="flex flex-col sm:flex-row gap-3 p-2"
                 style={{
-                  background: 'rgba(255,255,255,0.02)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  borderRadius: '20px',
-                  backdropFilter: 'blur(30px)',
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)'
+                  background: 'rgba(10, 17, 32, 0.6)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '24px',
+                  backdropFilter: 'blur(40px)',
+                  boxShadow: 'inset 0 0 20px rgba(0,0,0,0.5), 0 10px 30px rgba(0,0,0,0.4)'
                 }}
               >
                 {[
-                  { id: 'todos',        label: 'TODOS',      icon: 'apps',       accent: '#5B6EE8' },
-                  { id: 'alerta',       label: 'ALERTAS',    icon: 'bolt',       accent: '#FF4C4C' },
-                  { id: 'sin_personal', label: 'VACÍOS',     icon: 'person_off', accent: '#F5A623' },
-                  { id: 'publicados',   label: 'OPERATIVOS', icon: 'verified',   accent: '#00C97B' },
+                  { id: 'todos',        label: 'TODOS',      icon: 'grid_view',  accent: '#6366f1' },
+                  { id: 'alerta',       label: 'ALERTAS',    icon: 'notifications_active', accent: '#f43f5e' },
+                  { id: 'sin_personal', label: 'VACÍOS',     icon: 'person_off', accent: '#f59e0b' },
+                  { id: 'publicados',   label: 'OPERATIVOS', icon: 'verified',   accent: '#10b981' },
                 ].map(t => {
+                   const isActive = filterTab === t.id;
                    const count = (t.id === 'todos') ? (puestos||[]).filter(p=>(p as any).estado!=='inactivo').length : 
                                  (t.id === 'alerta') ? filteredPuestos.filter(p => {
                                    const store = useProgramacionStore.getState();
@@ -2594,23 +2596,27 @@ const GestionPuestos = () => {
                       <button
                         key={t.id}
                         onClick={() => setFilterTab(t.id as any)}
-                        className="relative flex items-center justify-between gap-3 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all duration-300"
-                        style={filterTab === t.id ? {
-                          background: `${t.accent}15`,
+                        className={`relative flex items-center justify-between gap-4 px-6 py-3.5 rounded-[20px] text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 group/pill ${isActive ? 'scale-105' : 'hover:bg-white/05'}`}
+                        style={isActive ? {
+                          background: `linear-gradient(135deg, ${t.accent}20 0%, ${t.accent}05 100%)`,
                           border: `1px solid ${t.accent}40`,
                           color: t.accent,
-                          boxShadow: `0 4px 16px ${t.accent}10`
+                          boxShadow: `0 0 25px ${t.accent}15, inset 0 0 10px ${t.accent}10`
                         } : {
-                          color: '#64748b'
+                          color: '#475569'
                         }}
                       >
-                        <div className="flex items-center gap-2">
-                          <span className="material-symbols-outlined text-[16px]">{t.icon}</span>
-                          <span className="hidden lg:inline">{t.label}</span>
+                        <div className="flex items-center gap-3">
+                          <span className={`material-symbols-outlined text-[18px] transition-all duration-500 ${isActive ? 'scale-110 rotate-12' : 'group-hover/pill:text-slate-300'}`} style={isActive ? { filter: `drop-shadow(0 0 5px ${t.accent})` } : {}}>{t.icon}</span>
+                          <span className="hidden lg:inline italic">{t.label}</span>
                         </div>
-                        <span className={`px-2 py-0.5 rounded-md text-[8px] font-black ${filterTab === t.id ? 'bg-white text-black' : 'bg-white/5 text-slate-500'}`}>
+                        <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black transition-all duration-500 ${isActive ? 'bg-white text-black shadow-[0_0_15px_white]' : 'bg-white/05 text-slate-600 group-hover/pill:text-slate-400'}`}>
                           {count}
                         </span>
+                        
+                        {isActive && (
+                          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1/2 h-[2px] rounded-full blur-[1px]" style={{ backgroundColor: t.accent }} />
+                        )}
                       </button>
                    );
                 })}
@@ -2620,19 +2626,29 @@ const GestionPuestos = () => {
               <button
                 onClick={() => useProgramacionStore.getState().forceSync()}
                 disabled={!progLoaded}
-                className="group relative flex items-center gap-3 px-6 py-2.5 text-[11px] font-black uppercase tracking-widest overflow-hidden transition-all duration-500 disabled:opacity-30"
+                className="group relative flex items-center gap-4 px-8 py-3.5 text-[12px] font-black uppercase tracking-[0.3em] overflow-hidden transition-all duration-700 disabled:opacity-20 active:scale-95"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(255,255,255,0.04), rgba(0,0,0,0.2))',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: '16px',
-                  backdropFilter: 'blur(20px)',
-                  color: '#475569'
+                  background: 'rgba(15, 23, 42, 0.4)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: '24px',
+                  backdropFilter: 'blur(30px)',
+                  color: '#64748b',
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
                 }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#818cf8'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(99,102,241,0.35)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#475569'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)'; }}
+                onMouseEnter={e => { 
+                  (e.currentTarget as HTMLElement).style.color = '#fff'; 
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(99,102,241,0.4)'; 
+                  (e.currentTarget as HTMLElement).style.boxShadow = '0 0 30px rgba(99,102,241,0.2)';
+                }}
+                onMouseLeave={e => { 
+                  (e.currentTarget as HTMLElement).style.color = '#64748b'; 
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.06)';
+                  (e.currentTarget as HTMLElement).style.boxShadow = '0 10px 30px rgba(0,0,0,0.3)';
+                }}
               >
-                <span className="material-symbols-outlined text-[20px] transition-transform duration-700 group-hover:rotate-180">sync</span>
-                <span className="hidden xl:inline">ACTUALIZAR</span>
+                <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/10 to-indigo-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                <span className="material-symbols-outlined text-[22px] transition-all duration-1000 group-hover:rotate-[360deg] relative z-10 group-hover:text-indigo-400">refresh</span>
+                <span className="hidden xl:inline relative z-10 italic">Actualizar</span>
               </button>
             </div>
 
