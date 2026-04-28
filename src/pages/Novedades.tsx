@@ -114,6 +114,18 @@ const Novedades = () => {
 
     return (
         <div className="page-container space-y-10 animate-in fade-in duration-500 pb-20">
+
+            {/* Error de conexión */}
+            {novedadesError && (
+                <div className="flex items-center gap-4 px-6 py-4 bg-danger/10 border border-danger/30 rounded-2xl text-danger">
+                    <span className="material-symbols-outlined text-[22px] notranslate shrink-0" translate="no">wifi_off</span>
+                    <div>
+                        <p className="text-[11px] font-black uppercase tracking-widest">Error de conexión con la base de datos</p>
+                        <p className="text-[10px] font-medium opacity-70 mt-0.5">No se pudieron cargar las novedades en tiempo real. Verificar conexión con Supabase.</p>
+                    </div>
+                </div>
+            )}
+
             {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2">
                 <div>

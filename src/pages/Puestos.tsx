@@ -217,6 +217,7 @@ const Puestos = () => {
     const [draftGuardHour, setDraftGuardHour] = useState<{ id: string, start: string, end: string } | null>(null);
     const [activeLogGuardId, setActiveLogGuardId] = useState<string | null>(null);
     const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
+    const [editScheduleTimes, setEditScheduleTimes] = useState<Record<string, { start: string; end: string }>>({});
     const [notifications, setNotifications] = useState<{ id: string, msg: string, type: 'error' | 'warning' }[]>([]);
     const [sidebarTab, setSidebarTab] = useState<'personal' | 'detalles'>('personal');
     const addActivity = useVigilanteStore(s => s.addActivity);
@@ -752,21 +753,16 @@ const Puestos = () => {
                                                             {editingScheduleId === v.id && (
                                                                 <div className="mt-3 space-y-2 border-t pt-3">
                                                                     <div className="flex gap-2">
-                                                                        <MilitaryTimeInput value={t.horaInicio} onChange={val => {
-                                                                            const field = document.getElementById(`start-${v.id}`) as HTMLInputElement;
-                                                                            if(field) field.value = val;
-                                                                        }} className="!h-7 text-[10px]" />
-                                                                        <MilitaryTimeInput value={t.horaFin} onChange={val => {
-                                                                            const field = document.getElementById(`end-${v.id}`) as HTMLInputElement;
-                                                                            if(field) field.value = val;
-                                                                        }} className="!h-7 text-[10px]" />
-                                                                        <input type="hidden" id={`start-${v.id}`} defaultValue={t.horaInicio} />
-                                                                        <input type="hidden" id={`end-${v.id}`} defaultValue={t.horaFin} />
+                                                                        <MilitaryTimeInput value={editScheduleTimes[v.id]?.start ?? t.horaInicio} onChange={val =>
+                                                                            setEditScheduleTimes(prev => ({ ...prev, [v.id]: { ...prev[v.id], start: val, end: prev[v.id]?.end ?? t.horaFin } }))
+                                                                        } className="!h-7 text-[10px]" />
+                                                                        <MilitaryTimeInput value={editScheduleTimes[v.id]?.end ?? t.horaFin} onChange={val =>
+                                                                            setEditScheduleTimes(prev => ({ ...prev, [v.id]: { ...prev[v.id], end: val, start: prev[v.id]?.start ?? t.horaInicio } }))
+                                                                        } className="!h-7 text-[10px]" />
                                                                     </div>
                                                                     <button onClick={() => {
-                                                                        const s = (document.getElementById(`start-${v.id}`) as HTMLInputElement).value;
-                                                                        const e = (document.getElementById(`end-${v.id}`) as HTMLInputElement).value;
-                                                                        assignGuardToPuesto(selectedPuesto.id, v.id, s, e);
+                                                                        const times = editScheduleTimes[v.id] ?? { start: t.horaInicio, end: t.horaFin };
+                                                                        assignGuardToPuesto(selectedPuesto.id, v.id, times.start, times.end);
                                                                         setEditingScheduleId(null);
                                                                     }} className="w-full py-1 bg-primary text-white text-[9px] font-bold rounded">Actualizar</button>
                                                                 </div>

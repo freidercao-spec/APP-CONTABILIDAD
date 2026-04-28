@@ -147,7 +147,15 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
     const [cliente, setCliente] = useState('');
     const [tipoServicio, setTipoServicio] = useState('');
     const [direccion, setDireccion] = useState('');
+    const [zona, setZona] = useState('');
     const [conArmamento, setConArmamento] = useState(false);
+
+    // Zonas predefinidas (configurable por el operador)
+    const ZONAS_PREDEFINIDAS = [
+        'Zona 1', 'Zona 2', 'Zona 3', 'Zona Norte', 'Zona Sur',
+        'Zona Centro', 'Zona Este', 'Zona Oeste', 'Zona 20', 'Zona Metropolitana',
+    ];
+
 
     const abortRef = useRef<AbortController | null>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -290,6 +298,7 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                 setCliente(existingPuesto.cliente || '');
                 setTipoServicio(existingPuesto.tipoServicio || '');
                 setDireccion(existingPuesto.direccion || '');
+                setZona((existingPuesto as any).zona || '');
                 setConArmamento(existingPuesto.conArmamento || false);
                 setShowAdvanced(true); // Mostrar campos avanzados al editar
             } else {
@@ -307,6 +316,7 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                 setCliente('');
                 setTipoServicio('');
                 setDireccion('');
+                setZona('');
                 setConArmamento(false);
                 setShowAdvanced(false);
             }
@@ -364,6 +374,7 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                 cliente: cliente || undefined,
                 tipoServicio: tipoServicio || undefined,
                 direccion: direccion || undefined,
+                zona: zona || undefined,
                 conArmamento,
             };
 
@@ -574,6 +585,33 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                                     <p className="text-[9px] text-slate-600 ml-1">
                                         ✅ <span className="text-success/80 font-bold">Solo el nombre es obligatorio</span> — puedes completar el resto después
                                     </p>
+                                </div>
+
+                                {/* ── CAMPO ZONA / SECTOR ── */}
+                                <div className="mt-3 space-y-1.5 animate-in fade-in slide-in-from-top-1">
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                                        Zona / Sector <span className="text-slate-600">(opcional)</span>
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            list="zonas-list"
+                                            value={zona}
+                                            onChange={(e) => setZona(e.target.value)}
+                                            className="w-full bg-[#0b1424] border border-white/10 rounded-xl py-3 px-4 pr-10 text-xs text-white focus:border-primary/50 outline-none"
+                                            placeholder="Ej: Zona Norte, Zona 1, Sector Centro..."
+                                        />
+                                        <datalist id="zonas-list">
+                                            {ZONAS_PREDEFINIDAS.map(z => (
+                                                <option key={z} value={z} />
+                                            ))}
+                                        </datalist>
+                                        <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-primary/40 text-[18px]">explore</span>
+                                    </div>
+                                    {zona && (
+                                        <p className="text-[9px] text-primary/80 font-bold ml-1">
+                                            Zona asignada: <span className="font-mono">{zona}</span>
+                                        </p>
+                                    )}
                                 </div>
                             </div>
 

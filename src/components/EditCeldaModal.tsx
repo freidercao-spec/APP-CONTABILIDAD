@@ -1,138 +1,335 @@
-// VERSION 2.1 - Cleaned and isolated EditCeldaModal component
-import React, { useState } from 'react';
-import { AsignacionPuesto, Vigilante, TurnoConfig, JornadaConfig } from '../types';
+// VERSION 3.0 — EditCeldaModal con estados laborales completos + sincronización inmediata
+import React, { useState, useMemo } from 'react';
+import { AsignacionDia, TipoJornada, ESTADOS_LABORALES, getEstadoLaboral, CodigoEstado } from '../store/programacionTypes';
+import type { TurnoConfig, JornadaConfig } from '../types';
+
+interface Vigilante { id: string; dbId?: string; nombre: string; estado: string; }
+interface Titular { rol: string; vigilanteId: string | null; turnoId?: string; }
 
 interface EditCeldaModalProps {
-    asig: AsignacionPuesto;
-    vigilantes: Array<{ id: string; dbId?: string; nombre: string; estado: string }>;
+    asig: AsignacionDia;
+    vigilantes: Vigilante[];
     titularesId: string[];
+    titulares?: Titular[];
     ocupados: Map<string, string[]>;
     turnosConfig: TurnoConfig[];
     jornadasCustom: JornadaConfig[];
-    onSave: (asig: AsignacionPuesto) => void;
+    initialVigilanteId?: string;
+    diaLabel?: string;
+    onSave: (asig: AsignacionDia) => Promise<any> | void;
     onClose: () => void;
 }
 
-const EditCeldaModal: React.FC<EditCeldaModalProps> = ({ asig, vigilantes, titularesId, ocupados, turnosConfig, jornadasCustom, onSave, onClose }) => {
-    const [vigilanteId, setVigilanteId] = useState<string | null>(asig.vigilanteId);
-    const [jornada, setJornada] = useState<string>(asig.jornada);
+// ── Celdas de estado laboral ─────────────────────────────────────────────────
+const EstadoBtn: React.FC<{
+    estado: (typeof ESTADOS_LABORALES)[number];
+    selected: boolean;
+    onClick: () => void;
+}> = ({ estado, selected, onClick }) => (
+    <button
+        type="button"
+        onClick={onClick}
+        className={`
+            relative flex flex-col items-center justify-center gap-1 p-3 rounded-2xl border-2 transition-all
+            ${selected
+                ? 'border-white/40 shadow-lg scale-[1.04]'
+                : 'border-transparent bg-white/5 hover:bg-white/10 hover:border-white/10'}
+        `}
+        style={selected ? {
+            background: `${estado.colorHex}22`,
+            borderColor: `${estado.colorHex}55`,
+            boxShadow: `0 0 16px ${estado.colorHex}33`,
+        } : {}}
+        title={estado.nombre}
+    >
+        {estado.esNovedad && (
+            <span className="absolute -top-1 -right-1 size-2 rounded-full bg-rose-500 animate-pulse" />
+        )}
+        <span
+            className="material-symbols-outlined text-[20px]"
+            style={{ color: selected ? estado.colorHex : '#64748b' }}
+        >
+            {estado.icono}
+        </span>
+        <span
+            className="text-[9px] font-black uppercase tracking-wider"
+            style={{ color: selected ? estado.colorHex : '#94a3b8' }}
+        >
+            {estado.codigo}
+        </span>
+        {selected && (
+            <span className="text-[7px] font-bold text-center leading-tight" style={{ color: estado.colorHex }}>
+                {estado.nombre.slice(0, 14)}
+            </span>
+        )}
+    </button>
+);
+
+// ── Componente principal ─────────────────────────────────────────────────────
+const EditCeldaModal: React.FC<EditCeldaModalProps> = ({
+    asig,
+    vigilantes,
+    titularesId,
+    titulares = [],
+    ocupados,
+    turnosConfig,
+    jornadasCustom,
+    initialVigilanteId,
+    diaLabel,
+    onSave,
+    onClose,
+}) => {
+    const [vigilanteId, setVigilanteId] = useState<string | null>(
+        initialVigilanteId ?? asig.vigilanteId
+    );
+    // Estado laboral seleccionado: derivar el código inicial desde la jornada actual
+    const initialEstado = useMemo(
+        () => getEstadoLaboral(asig.jornada || 'sin_asignar', asig.turno),
+        []
+    );
+    const [codigoSeleccionado, setCodigoSeleccionado] = useState<CodigoEstado>(
+        asig.codigo_personalizado ?? initialEstado.codigo
+    );
     const [error, setError] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
 
-    const jornadasList = (jornadasCustom.length ? jornadasCustom : [
-        { id: 'normal', nombre: 'Normal', short: 'N', color: '#4318FF' },
-        { id: 'descanso_remunerado', nombre: 'Descanso Rem.', short: 'DR', color: '#10b981' },
-        { id: 'descanso_no_remunerado', nombre: 'Descanso No R.', short: 'DNR', color: '#f59e0b' },
-        { id: 'sin_asignar', nombre: 'Sin Asignar', short: '-', color: '#f1f5f9' },
-    ]);
+    const estadoActual = ESTADOS_LABORALES.find(e => e.codigo === codigoSeleccionado)
+        ?? ESTADOS_LABORALES[ESTADOS_LABORALES.length - 1];
 
-    const checkConflict = (vid: string | null, t: string) => {
+    const selectedVig = vigilantes.find(v => v.id === vigilanteId || v.dbId === vigilanteId);
+
+    // ── Validación de conflictos ─────────────────────────────────────────────
+    const checkConflict = (vid: string | null): string | null => {
         if (!vid) return null;
         const slots = ocupados.get(vid) || [];
-        if (slots.includes(`${asig.dia}-${t}`)) {
+        const turno = asig.turno || 'AM';
+        if (slots.includes(`${asig.dia}-24H`) || slots.includes(`${asig.dia}-${turno}`)) {
             const v = vigilantes.find(gv => gv.id === vid || gv.dbId === vid);
-            return `${v?.nombre || 'Efectivo'} ya tiene turno el dia ${asig.dia} (${t})`;
+            return `${v?.nombre || 'Efectivo'} ya tiene turno el día ${asig.dia} (${turno})`;
         }
         return null;
     };
 
-    const handleSave = () => {
-        const conflict = checkConflict(vigilanteId, asig.turno || 'AM');
-        if (conflict) {
-            setError(conflict);
-            return;
-        }
-        onSave({ ...asig, vigilanteId, jornada });
+    // ── Mapeo código → jornada + turno ──────────────────────────────────────
+    const codigoToAsig = (codigo: CodigoEstado): Partial<AsignacionDia> => {
+        const estado = ESTADOS_LABORALES.find(e => e.codigo === codigo)!;
+        const turno = codigo === 'N' ? 'PM' : codigo === 'D' ? 'AM' : asig.turno || 'AM';
+        return {
+            jornada: estado.jornada,
+            turno,
+            codigo_personalizado: codigo,
+        };
     };
 
-    const selectedVig = vigilantes.find(v => v.id === vigilanteId || v.dbId === vigilanteId);
-    const jornadaActual = jornadasList.find(j => j.id === jornada) ?? jornadasList[0];
+    // ── Guardar ──────────────────────────────────────────────────────────────
+    const handleSave = async () => {
+        const conflict = codigoSeleccionado !== '-' ? checkConflict(vigilanteId) : null;
+        if (conflict) { setError(conflict); return; }
+
+        setIsSaving(true);
+        const patch = codigoToAsig(codigoSeleccionado);
+        const updated: AsignacionDia = {
+            ...asig,
+            ...patch,
+            vigilanteId,
+            confirmado_por: (window as any).__usuario_actual || 'Operador',
+            timestamp_confirmacion: new Date().toISOString(),
+        };
+        try {
+            await onSave(updated);
+            onClose();
+        } catch (err: any) {
+            setError(err?.message || 'Error al guardar. Intenta de nuevo.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // ── Grupos de estados ────────────────────────────────────────────────────
+    const turnosActivos = ESTADOS_LABORALES.filter(e => ['D', 'N'].includes(e.codigo));
+    const descansos    = ESTADOS_LABORALES.filter(e => ['DR', 'NR'].includes(e.codigo));
+    const ausencias    = ESTADOS_LABORALES.filter(e => ['VAC', 'LC', 'SP', 'IN', 'AC'].includes(e.codigo));
+    const sinAsignar   = ESTADOS_LABORALES.filter(e => e.codigo === '-');
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in transition-all">
-            <div className="bg-white max-w-lg w-full rounded-[32px] overflow-hidden shadow-[0_25px_80px_rgba(0,0,0,0.3)] border border-slate-100 flex flex-col md:flex-row animate-in zoom-in-95 duration-200">
-                <div className="p-8 flex-1 space-y-6">
-                    <div className="flex justify-between items-start mb-2">
-                        <div>
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2">Editor de Asignacion</p>
-                            <h3 className="text-xl font-black text-slate-900 uppercase">DIA {asig.dia} - {asig.turno}</h3>
+        <div
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in"
+            onClick={onClose}
+        >
+            <div
+                className="w-full max-w-2xl bg-[#0a1120] border border-white/10 rounded-[28px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]"
+                onClick={e => e.stopPropagation()}
+            >
+                {/* ── Header ── */}
+                <div className="flex items-center justify-between px-8 py-5 border-b border-white/5 bg-gradient-to-r from-primary/10 to-transparent shrink-0">
+                    <div>
+                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">
+                            Editor de Asignación
+                        </p>
+                        <h3 className="text-xl font-black text-white uppercase">
+                            {diaLabel ?? `Día ${asig.dia}`} — {asig.rol?.replace('_', ' ').toUpperCase()}
+                        </h3>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        {/* Preview del estado seleccionado */}
+                        <div
+                            className="flex items-center gap-2 px-4 py-2 rounded-2xl border-2 font-black text-sm tracking-wider"
+                            style={{ background: `${estadoActual.colorHex}18`, borderColor: `${estadoActual.colorHex}44`, color: estadoActual.colorHex }}
+                        >
+                            <span className="material-symbols-outlined text-[18px]">{estadoActual.icono}</span>
+                            {estadoActual.codigo}
                         </div>
-                        <button onClick={onClose} className="size-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 transition-colors">
+                        <button
+                            onClick={onClose}
+                            className="size-9 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-all"
+                        >
                             <span className="material-symbols-outlined text-[18px]">close</span>
                         </button>
                     </div>
+                </div>
 
+                {/* ── Body ── */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+
+                    {/* Error */}
                     {error && (
-                        <div className="p-3 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-2 text-red-600 animate-in slide-in-from-top-2">
+                        <div className="flex items-center gap-3 px-4 py-3 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-400 animate-in slide-in-from-top-2">
                             <span className="material-symbols-outlined text-[18px]">error</span>
                             <span className="text-[11px] font-bold">{error}</span>
                         </div>
                     )}
 
-                    <div className="space-y-4">
-                        <div>
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Personal Asignado</label>
-                            <select
-                                value={vigilanteId || ''}
-                                onChange={e => { setVigilanteId(e.target.value || null); setError(null); }}
-                                className="w-full h-12 bg-slate-50 border-2 border-slate-100 rounded-2xl px-4 text-sm font-bold text-slate-900 outline-none focus:border-primary/30 focus:bg-white transition-all shadow-sm"
-                            >
-                                <option value="">- Sin Vigilante -</option>
-                                <optgroup label="TITULARES DEL PUESTO">
-                                    {vigilantes.filter(v => titularesId.includes(v.id) || (v.dbId && titularesId.includes(v.dbId))).map(v => (
+                    {/* ── Selector de Vigilante ── */}
+                    <div>
+                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mb-3 block">
+                            Personal Asignado
+                        </label>
+                        <select
+                            value={vigilanteId || ''}
+                            onChange={e => { setVigilanteId(e.target.value || null); setError(null); }}
+                            className="w-full h-12 bg-white/5 border-2 border-white/10 rounded-2xl px-4 text-sm font-bold text-white outline-none focus:border-primary/50 focus:bg-primary/5 transition-all"
+                        >
+                            <option value="">— Sin Vigilante —</option>
+                            <optgroup label="TITULARES DEL PUESTO">
+                                {vigilantes
+                                    .filter(v => titularesId.includes(v.id) || (v.dbId && titularesId.includes(v.dbId)))
+                                    .map(v => (
                                         <option key={v.id} value={v.id}>⭐ {v.nombre}</option>
                                     ))}
-                                </optgroup>
-                                <optgroup label="REEMPLAZOS / OTROS">
-                                    {vigilantes.filter(v => !titularesId.includes(v.id) && !(v.dbId && titularesId.includes(v.dbId))).map(v => (
+                            </optgroup>
+                            <optgroup label="REEMPLAZOS / OTROS">
+                                {vigilantes
+                                    .filter(v => !titularesId.includes(v.id) && !(v.dbId && titularesId.includes(v.dbId)))
+                                    .map(v => (
                                         <option key={v.id} value={v.id}>{v.nombre} ({v.estado})</option>
                                     ))}
-                                </optgroup>
-                            </select>
+                            </optgroup>
+                        </select>
+                        {selectedVig && (
+                            <p className="text-[10px] text-emerald-400 font-bold mt-2 ml-1">
+                                ✓ {selectedVig.nombre} — {selectedVig.estado}
+                            </p>
+                        )}
+                    </div>
+
+                    {/* ── Estado Laboral ── */}
+                    <div>
+                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2 block">
+                            Estado Laboral
+                        </label>
+
+                        {/* Turnos activos */}
+                        <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-2 mt-2">
+                            Turnos Activos
+                        </p>
+                        <div className="grid grid-cols-5 gap-2 mb-3">
+                            {turnosActivos.map(e => (
+                                <EstadoBtn
+                                    key={e.codigo}
+                                    estado={e}
+                                    selected={codigoSeleccionado === e.codigo}
+                                    onClick={() => { setCodigoSeleccionado(e.codigo); setError(null); }}
+                                />
+                            ))}
+                            {descansos.map(e => (
+                                <EstadoBtn
+                                    key={e.codigo}
+                                    estado={e}
+                                    selected={codigoSeleccionado === e.codigo}
+                                    onClick={() => { setCodigoSeleccionado(e.codigo); setError(null); }}
+                                />
+                            ))}
+                            {sinAsignar.map(e => (
+                                <EstadoBtn
+                                    key={e.codigo}
+                                    estado={e}
+                                    selected={codigoSeleccionado === e.codigo}
+                                    onClick={() => { setCodigoSeleccionado(e.codigo); setError(null); }}
+                                />
+                            ))}
                         </div>
 
-                        <div>
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Tipo de Jornada</label>
-                            <div className="grid grid-cols-2 gap-2">
-                                {jornadasList.map(j => (
-                                    <button
-                                        key={j.id}
-                                        onClick={() => { setJornada(j.id); setError(null); }}
-                                        className={`px-4 py-3 rounded-2xl border-2 transition-all flex items-center gap-3 ${jornada === j.id ? 'bg-primary/5 border-primary shadow-sm' : 'bg-slate-50 border-transparent hover:bg-white hover:border-slate-200'}`}
-                                    >
-                                        <div className="size-3 rounded-full shrink-0" style={{ background: j.color }} />
-                                        <div className="text-left">
-                                            <p className={`text-[11px] font-black uppercase ${jornada === j.id ? 'text-primary' : 'text-slate-600'}`}>{j.nombre}</p>
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
+                        {/* Ausencias / Novedades */}
+                        <p className="text-[8px] font-black text-rose-500/70 uppercase tracking-widest mb-2 flex items-center gap-2">
+                            <span className="size-1.5 rounded-full bg-rose-500 inline-block animate-pulse" />
+                            Novedades — generan alerta automática
+                        </p>
+                        <div className="grid grid-cols-5 gap-2 p-3 rounded-2xl border border-rose-500/10 bg-rose-500/[0.03]">
+                            {ausencias.map(e => (
+                                <EstadoBtn
+                                    key={e.codigo}
+                                    estado={e}
+                                    selected={codigoSeleccionado === e.codigo}
+                                    onClick={() => { setCodigoSeleccionado(e.codigo); setError(null); }}
+                                />
+                            ))}
                         </div>
                     </div>
 
-                    <div className="flex gap-3 pt-4">
-                        <button onClick={onClose} className="flex-1 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest hover:bg-slate-50 rounded-2xl transition-all">Cancelar</button>
-                        <button onClick={handleSave} className="flex-[2] py-4 bg-primary text-white text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-primary/30 hover:brightness-110 active:scale-95 transition-all">Confirmar Cambios</button>
+                    {/* Descripción del estado seleccionado */}
+                    <div
+                        className="flex items-center gap-4 p-4 rounded-2xl border"
+                        style={{ background: `${estadoActual.colorHex}0d`, borderColor: `${estadoActual.colorHex}30` }}
+                    >
+                        <span
+                            className="material-symbols-outlined text-[28px]"
+                            style={{ color: estadoActual.colorHex }}
+                        >
+                            {estadoActual.icono}
+                        </span>
+                        <div>
+                            <p className="text-sm font-black text-white">{estadoActual.nombre}</p>
+                            <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                                Código: <span className="font-mono" style={{ color: estadoActual.colorHex }}>{estadoActual.codigo}</span>
+                                {estadoActual.esNovedad && (
+                                    <span className="ml-3 text-rose-400">⚠ Genera alerta en el tablero</span>
+                                )}
+                            </p>
+                        </div>
                     </div>
                 </div>
 
-                <div className="w-full md:w-56 bg-slate-50 p-8 border-t md:border-t-0 md:border-l border-slate-100">
-                    <div className="space-y-6">
-                        <div>
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Vigilante Seleccionado</p>
-                            <div className="aspect-square rounded-3xl bg-white border border-slate-100 flex items-center justify-center shadow-sm">
-                                <span className="material-symbols-outlined text-[48px] text-slate-200">person</span>
-                            </div>
-                            <p className="mt-3 text-xs font-black text-slate-900 line-clamp-2 leading-tight">{selectedVig?.nombre || 'VACANTE'}</p>
-                            <p className="text-[10px] font-bold text-slate-400 mt-1">{selectedVig?.estado || 'Sin asignar'}</p>
-                        </div>
-                        <div className="pt-4 border-t border-slate-200">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Turno & Jornada</p>
-                            <div className="flex items-center gap-2">
-                                <div className="px-2 py-1 rounded-md bg-white border border-slate-100 text-[10px] font-black text-slate-700">{asig.turno}</div>
-                                <div className="px-2 py-1 rounded-md text-[10px] font-black text-white" style={{ background: jornadaActual.color }}>{jornadaActual.short}</div>
-                            </div>
-                        </div>
-                    </div>
+                {/* ── Footer ── */}
+                <div className="border-t border-white/5 p-6 bg-black/20 flex gap-3 shrink-0">
+                    <button
+                        onClick={onClose}
+                        className="flex-1 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest hover:bg-white/5 rounded-2xl transition-all"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className="flex-[2] py-4 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                        style={{ background: estadoActual.colorHex, boxShadow: `0 8px 24px ${estadoActual.colorHex}33` }}
+                    >
+                        {isSaving ? (
+                            <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+                        ) : (
+                            <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                        )}
+                        {isSaving ? 'Guardando...' : 'Confirmar Despacho'}
+                    </button>
                 </div>
             </div>
         </div>

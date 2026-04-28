@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { type AsignacionDia, type TipoJornada, type TurnoHora } from '../../store/programacionStore';
+import { type AsignacionDia, type TipoJornada, type TurnoHora, ESTADOS_LABORALES, getEstadoLaboral } from '../../store/programacionStore';
 import { type TurnoConfig, type JornadaCustom } from '../../store/puestoStore';
 import { useVigilanteStore, type Vigilante } from '../../store/vigilanteStore';
+import { DEFAULT_TURNOS } from '../../utils/puestosConstants';
+
 
 interface EditCeldaModalProps {
   asig: AsignacionDia;
@@ -13,7 +15,8 @@ interface EditCeldaModalProps {
   turnosConfig?: TurnoConfig[];
   jornadasCustom?: JornadaCustom[];
   initialVigilanteId?: string;
-  onSave: (asig: AsignacionDia) => void;
+  ocupados?: Map<string, any[]>;
+  onSave: (asig: AsignacionDia) => Promise<any> | void;
   onClose: () => void;
 }
 
@@ -108,9 +111,15 @@ export const EditCeldaModal = ({
     }));
   };
 
-  const handleSave = () => {
-    onSave(tempAsig);
-    onClose();
+  const handleSave = async () => {
+    const updated: AsignacionDia = {
+      ...tempAsig,
+      vigilanteId: selectedVigilante?.dbId || selectedVigilante?.id || tempAsig.vigilanteId || null,
+      confirmado_por: (window as any).__usuario_actual || 'Operador',
+      timestamp_confirmacion: new Date().toISOString(),
+    };
+    await onSave(updated);
+    // onClose() is called by the parent after successful save
   };
 
   return (
@@ -339,28 +348,54 @@ export const EditCeldaModal = ({
             <div className="xl:col-span-5 space-y-6">
               <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.4em] px-2">Estado Laboral</span>
               <div className="bg-black/20 rounded-[40px] p-2 border border-white/5 space-y-1 shadow-inner">
-                {[
-                  { id: 'normal',   label: 'NORMAL (OPERATIVO)', icon: 'verified_user', color: 'text-emerald-400' },
-                  { id: 'descanso_remunerado', label: 'DESCANSO REMUNERADO (DR)', icon: 'home_work', color: 'text-sky-400' },
-                  { id: 'descanso_no_remunerado', label: 'DESC. NO REMUNERADO (DNR)', icon: 'event_busy', color: 'text-amber-400' },
-                  { id: 'vacacion', label: 'VACACIONES / LICENCIA (VAC)', icon: 'beach_access', color: 'text-pink-400' },
-                  { id: 'incapacidad', label: 'INCAPACIDAD / MÉDICA', icon: 'medical_services', color: 'text-rose-400' }
-                ].map(j => (
+                {ESTADOS_LABORALES.map(j => (
                   <button 
-                    key={j.id}
-                    onClick={() => setTempAsig({ ...tempAsig, jornada: j.id as any })}
-                    className={`w-full px-6 py-4.5 rounded-[24px] flex items-center justify-between transition-all ${
-                      tempAsig.jornada === j.id 
+                    key={j.jornada + j.codigo}
+                    onClick={() => setTempAsig({ ...tempAsig, jornada: j.jornada as any, codigo_personalizado: j.codigo })}
+                    className={`w-full px-6 py-4 rounded-[24px] flex items-center justify-between transition-all ${
+                      tempAsig.jornada === j.jornada 
                         ? 'bg-white/10 text-white border border-white/10' 
                         : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
                     }`}
+                    style={tempAsig.jornada === j.jornada ? {
+                      background: `${j.colorHex}18`,
+                      borderColor: `${j.colorHex}44`,
+                    } : {}}
                   >
                     <div className="flex items-center gap-4">
-                       <span className={`material-symbols-outlined text-[20px] ${j.color}`}>{j.icon}</span>
-                       <span className={`text-[12px] font-black uppercase tracking-wider ${tempAsig.jornada === j.id ? 'text-white' : 'text-slate-500'}`}>{j.label}</span>
+                       <span
+                         className={`material-symbols-outlined text-[20px]`}
+                         style={{ color: tempAsig.jornada === j.jornada ? j.colorHex : '#64748b' }}
+                       >{j.icono}</span>
+                       <div className="text-left">
+                         <span
+                           className={`text-[11px] font-black uppercase tracking-wider block`}
+                           style={{ color: tempAsig.jornada === j.jornada ? '#fff' : '#64748b' }}
+                         >{j.nombre}</span>
+                         {j.esNovedad && (
+                           <span className="text-[8px] text-rose-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                             <span className="size-1.5 rounded-full bg-rose-500 inline-block animate-pulse" />
+                             Genera alerta
+                           </span>
+                         )}
+                       </div>
                     </div>
-                    <div className={`size-5 rounded-full border-2 flex items-center justify-center transition-all ${tempAsig.jornada === j.id ? 'border-indigo-500 bg-indigo-500/20' : 'border-slate-800'}`}>
-                      {tempAsig.jornada === j.id && <div className="size-2 bg-indigo-400 rounded-full shadow-[0_0_8px_rgba(129,140,248,0.8)]" />}
+                    <div className="flex items-center gap-3">
+                      <span
+                        className="text-[9px] font-black px-2 py-0.5 rounded-md"
+                        style={tempAsig.jornada === j.jornada
+                          ? { background: j.colorHex, color: '#fff' }
+                          : { background: 'rgba(255,255,255,0.05)', color: '#64748b' }
+                        }
+                      >{j.codigo}</span>
+                      <div className={`size-5 rounded-full border-2 flex items-center justify-center transition-all`}
+                        style={tempAsig.jornada === j.jornada
+                          ? { borderColor: j.colorHex, background: `${j.colorHex}20` }
+                          : { borderColor: '#1e293b' }
+                        }
+                      >
+                        {tempAsig.jornada === j.jornada && <div className="size-2 rounded-full shadow-lg" style={{ background: j.colorHex }} />}
+                      </div>
                     </div>
                   </button>
                 ))}

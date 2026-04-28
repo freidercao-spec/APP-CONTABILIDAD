@@ -7,9 +7,6 @@ import { showTacticalToast } from '../utils/tacticalToast';
 
 // ─── UTIL ─────────────────────────────────────────────────────────────────────
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-const now = new Date();
-const CURR_MES = now.getMonth();
-const CURR_ANIO = now.getFullYear();
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 const Dashboard = () => {
@@ -20,6 +17,11 @@ const Dashboard = () => {
     const getCobertura = usePuestoStore(s => s.getCobertura24Horas);
     const getCobPct    = useProgramacionStore(s => s.getCoberturaPorcentaje);
     const [isSyncing, setIsSyncing] = useState(false);
+
+    // Date computed reactively so it refreshes after midnight
+    const now = useMemo(() => new Date(), []);
+    const CURR_MES = now.getMonth();
+    const CURR_ANIO = now.getFullYear();
 
     const [activeTab, setActiveTab] = useState<'personal'|'puestos'>('personal');
     const [tableSearch, setTableSearch] = useState('');

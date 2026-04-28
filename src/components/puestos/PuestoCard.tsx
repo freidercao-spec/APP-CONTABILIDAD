@@ -204,6 +204,12 @@ export const PuestoCard = React.memo(({ puesto, anio, mes, onClick, onAsignar, o
             <h3 className="text-[24px] font-black text-white uppercase leading-[1.1] tracking-tighter drop-shadow-lg">
               {puesto.nombre}
             </h3>
+            {puesto.zona && (
+              <div className="flex items-center gap-1.5 mt-2 text-indigo-400">
+                <span className="material-symbols-outlined text-[14px]">location_on</span>
+                <span className="text-[9px] font-black uppercase tracking-[0.2em]">{puesto.zona}</span>
+              </div>
+            )}
           </div>
         </div>
 
