@@ -21,6 +21,13 @@ class ErrorBoundary extends Component<Props, State> {
 
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error("[CORAZA] Error crítico capturado:", error, errorInfo);
+        
+        // Auto-fix para errores de carga de módulos (chunks viejos después de deploy)
+        if (error.message.includes("Failed to fetch dynamically imported module") || 
+            error.message.includes("error loading dynamically imported module")) {
+            console.warn("[CORAZA] Detectado fallo de módulo. Reiniciando sistema automáticamente...");
+            setTimeout(() => window.location.reload(), 1000);
+        }
     }
 
     public render() {

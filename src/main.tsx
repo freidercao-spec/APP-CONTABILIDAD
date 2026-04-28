@@ -13,6 +13,12 @@ window.onerror = (msg, url, line, col, error) => {
 
 console.log('[CORAZA] 🚀 Iniciando Nucleo del Sistema...');
 
+// Handle Vite dynamic import failures (common after new deployments)
+window.addEventListener('vite:preloadError', (event) => {
+  console.warn('[CORAZA] Error de precarga detectado. Reiniciando núcleo...', event);
+  window.location.reload();
+});
+
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   const msg = '[CORAZA] ❌ Elemento #root no encontrado en el DOM.';
