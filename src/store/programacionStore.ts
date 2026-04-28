@@ -17,22 +17,39 @@ import {
     type AlertaMotor,
 } from './motorTurnos';
 
-// ── Types ────────────────────────────────────────────────────────────────────
+import {
+    type TipoJornada,
+    type CodigoEstado,
+    type TurnoHora,
+    type RolPuesto,
+    type EstadoProgramacion,
+    type EstadoLaboral,
+    ESTADOS_LABORALES,
+    getEstadoLaboral,
+    type AsignacionDia,
+    type PersonalPuesto,
+    type CambioProgramacion,
+    type ProgramacionMensual,
+    type TemplateProgramacion,
+} from './programacionTypes';
 
-export type TipoJornada = 'normal' | 'descanso_remunerado' | 'descanso_no_remunerado' | 'vacacion' | 'sin_asignar';
-export type TurnoHora = 'AM' | 'PM' | '24H';
-export type RolPuesto = 'titular_a' | 'titular_b' | 'relevante' | string;
-export type EstadoProgramacion = 'borrador' | 'publicado' | 'anulado';
+export {
+    type TipoJornada,
+    type CodigoEstado,
+    type TurnoHora,
+    type RolPuesto,
+    type EstadoProgramacion,
+    type EstadoLaboral,
+    ESTADOS_LABORALES,
+    getEstadoLaboral,
+    type AsignacionDia,
+    type PersonalPuesto,
+    type CambioProgramacion,
+    type ProgramacionMensual,
+    type TemplateProgramacion,
+};
 
-export interface AsignacionDia {
-    dia: number;
-    vigilanteId: string | null;
-    turno: TurnoHora | string;
-    jornada: TipoJornada;
-    rol: RolPuesto;
-    inicio?: string; 
-    fin?: string;    
-}
+
 
 // ── Helpers de Traducción y Comparación ───────────────────────────────────────
 
@@ -366,18 +383,47 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
             }
 
             // 3. Asignaciones en lotes de 100
+            // WORKAROUND: The DB CHECK constraint only allows standard jornada values.
+            // Special states (licencia, suspension, incapacidad, accidente) are mapped to
+            // 'vacacion' for DB storage, with the real code encoded in the `inicio` field
+            // as a metadata prefix "ESTADO:<code>|<hora>". This is backward-compatible
+            // and will be replaced once migration 007 adds codigo_personalizado column.
+            const JORNADA_DB_ALLOWED = new Set([
+                'normal', 'descanso_remunerado', 'descanso_no_remunerado', 'vacacion', 'sin_asignar'
+            ]);
+            const JORNADA_TO_CODE: Record<string, string> = {
+                licencia:    'LC',
+                suspension:  'SP',
+                incapacidad: 'IN',
+                accidente:   'AC',
+            };
+
             const asignacionesPayload = prog.asignaciones
                 .map(a => {
                     const mappedVid = a.vigilanteId ? translateToUuid(a.vigilanteId) : null;
+                    const jornadaRaw = a.jornada || 'sin_asignar';
+                    const isSpecial = !JORNADA_DB_ALLOWED.has(jornadaRaw);
+                    const jornadaDb = isSpecial ? 'vacacion' : jornadaRaw;
+                    const code = isSpecial ? JORNADA_TO_CODE[jornadaRaw] || jornadaRaw.slice(0,2).toUpperCase() : null;
+                    
+                    // Encode special state in inicio field: "ESTADO:LC|06:00" 
+                    const inicioPrev = a.inicio || (a.turno === 'PM' ? '18:00' : '06:00');
+                    const inicioDb = code 
+                        ? `ESTADO:${code}|${inicioPrev.replace(/^ESTADO:[^|]+\|/, '')}` 
+                        : inicioPrev.startsWith('ESTADO:') ? inicioPrev : inicioPrev;
+                    
+                    // Also set codigo_personalizado if already in AsignacionDia
+                    const codigoPersonalizado = a.codigo_personalizado || code || null;
+
                     return {
                         programacion_id: dbProgId,
                         dia: a.dia,
                         vigilante_id: mappedVid,
                         turno: a.turno || 'AM',
-                        jornada: a.jornada || 'sin_asignar',
+                        jornada: jornadaDb,
                         rol: a.rol || 'titular_a',
-                        inicio: a.inicio || null,
-                        fin: a.fin || null
+                        inicio: inicioDb,
+                        fin: a.fin || (a.turno === 'PM' ? '06:00' : '18:00'),
                     };
                 });
 
@@ -685,9 +731,13 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         turnoId: p.turno_id || undefined
                     }));
 
-                    ['titular_a', 'titular_b', 'relevante'].forEach(rol => {
-                        if (!personal.find(p => p.rol === rol)) personal.push({ rol, vigilanteId: null, turnoId: undefined });
-                    });
+                    // MULTI-TURNO: Solo agregar los 3 roles base si el puesto NO TIENE NINGÚN ROL configurado.
+                    // Si tiene roles personalizados (ej: 15 turnos de hospital), los respetamos íntegramente.
+                    if (personal.length === 0) {
+                        ['titular_a', 'titular_b', 'relevante'].forEach(rol => {
+                            personal.push({ rol, vigilanteId: null, turnoId: undefined });
+                        });
+                    }
 
                     const asigMap = new Map();
                     (asigsRes.data || []).forEach((a: any) => {
@@ -710,13 +760,28 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         Array.from(allRolesForDay).forEach(rol => {
                             const match = asigMap.get(`${d}-${rol}`);
                             if (match) {
+                                // Decode ESTADO:<code>|<hora> prefix stored by syncProgramacionToDb
+                                const rawInicio = match.inicio || '';
+                                const estadoPrefixMatch = rawInicio.match(/^ESTADO:([^|]+)\|(.*)$/);
+                                const codigoPers = estadoPrefixMatch ? estadoPrefixMatch[1] : null;
+                                const realInicio = estadoPrefixMatch ? estadoPrefixMatch[2] : rawInicio || undefined;
+                                
+                                // Map code back to jornada
+                                const CODE_TO_JORNADA: Record<string, TipoJornada> = {
+                                    LC: 'licencia', SP: 'suspension', IN: 'incapacidad', AC: 'accidente'
+                                };
+                                const jornadaDecoded = codigoPers 
+                                    ? (CODE_TO_JORNADA[codigoPers] || match.jornada || 'sin_asignar') as TipoJornada
+                                    : (match.jornada || 'sin_asignar') as TipoJornada;
+
                                 asignaciones.push({
                                     dia: match.dia,
                                     vigilanteId: translateFromDb(match.vigilante_id),
                                     turno: match.turno,
-                                    jornada: (match.jornada || 'sin_asignar') as TipoJornada,
+                                    jornada: jornadaDecoded,
                                     rol: (match.rol || rol) as RolPuesto,
-                                    inicio: match.inicio || undefined,
+                                    codigo_personalizado: (codigoPers || match.codigo_personalizado || null) as any,
+                                    inicio: realInicio,
                                     fin: match.fin || undefined
                                 });
                             } else {
@@ -1266,6 +1331,37 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                 if (!prog) {
                     return { permitido: false, tipo: 'bloqueo', mensaje: 'Programación no encontrada' };
+                }
+
+                // CASO ESPECIAL: LIMPIAR TODO EL MES (dia === -1)
+                if (dia === -1 && (data as any).jornada === 'limpiar_todo') {
+                    const cleanAsignaciones: AsignacionDia[] = [];
+                    const daysInMonth = new Date(prog.anio, prog.mes + 1, 0).getDate();
+                    
+                    prog.personal.forEach(p => {
+                        for(let d=1; d<=daysInMonth; d++) {
+                            cleanAsignaciones.push({
+                                dia: d,
+                                rol: p.rol,
+                                vigilanteId: null,
+                                turno: p.turnoId || 'AM',
+                                jornada: 'sin_asignar'
+                            });
+                        }
+                    });
+
+                    set((s: any) => ({
+                        programaciones: s.programaciones.map((p: any) => p.id === prog?.id ? {
+                            ...p,
+                            asignaciones: cleanAsignaciones,
+                            actualizadoEn: new Date().toISOString(),
+                            syncStatus: 'pending' as const,
+                            isDirty: true
+                        } : p),
+                        version: (s.version || 0) + 1
+                    }));
+                    queueSync(prog.id, set, get, true);
+                    return { permitido: true, mensaje: 'Mes limpiado correctamente' };
                 }
 
                 // ── VALIDACIÓN TÁCTICA FLEXIBLE (Shift-Aware) ───────────────────

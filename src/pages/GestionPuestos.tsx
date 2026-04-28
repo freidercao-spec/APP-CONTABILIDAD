@@ -30,6 +30,7 @@ import PuestoDetailModal from '../components/puestos/PuestoDetailModal';
 import { CoordinationPanel } from "../components/puestos/CoordinationPanel";
 import { MasterGrid } from "../components/puestos/MasterGrid";
 import { KpiCard } from "../components/dashboard/KpiCard";
+import { GestionRolesModal } from '../components/puestos/GestionRolesModal';
 
 // Constants
 import {
@@ -69,13 +70,30 @@ const getRolLabel = (rol: string) => {
 const JORNADA_PDF: Record<string, string> = {
   normal: "D",
   descanso_remunerado: "DR",
-  descanso_no_remunerado: "DNR",
+  descanso_no_remunerado: "NR",
   vacacion: "VAC",
+  licencia: "LC",
+  suspension: "SP",
+  incapacidad: "IN",
+  accidente: "AC",
   sin_asignar: "",
   AM: "D",
   PM: "N",
   "24H": "24",
 };
+
+// Leyenda de códigos para PDF/Excel
+const LEYENDA_PDF = [
+  { codigo: 'D',   desc: 'Turno Diurno' },
+  { codigo: 'N',   desc: 'Turno Nocturno' },
+  { codigo: 'DR',  desc: 'Descanso Remunerado' },
+  { codigo: 'NR',  desc: 'Descanso No Remunerado' },
+  { codigo: 'VAC', desc: 'Vacaciones / Licencia Ordinaria' },
+  { codigo: 'LC',  desc: 'Licencia / Calamidades' },
+  { codigo: 'SP',  desc: 'Suspensión Disciplinaria' },
+  { codigo: 'IN',  desc: 'Incapacidad Médica' },
+  { codigo: 'AC',  desc: 'Accidente de Trabajo' },
+];
 
 const ROL_PDF_BASE: Record<string, string> = {
   titular_a: "TITULAR A",
@@ -598,6 +616,7 @@ const PanelMensualPuesto = ({
     guardarComoPlantilla,
     aplicarPlantilla,
     templates,
+    generarMesConMotor,
   } = useProgramacionStore() as any;
 
   const [editCell, setEditCell] = useState<{
@@ -614,7 +633,9 @@ const PanelMensualPuesto = ({
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [autoOpenPersonal, setAutoOpenPersonal] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isApplyingCiclo, setIsApplyingCiclo] = useState(false);
   const [showTurnosConfig, setShowTurnosConfig] = useState(false);
+  const [showRolesModal, setShowRolesModal] = useState(false);
 
   const currentUser =
     username || useAuthStore.getState().username || "Operador";
@@ -624,6 +645,21 @@ const PanelMensualPuesto = ({
     () => getProgramacion(puestoId, anio, mes),
     [allProgramaciones, getProgramacion, puestoId, anio, mes, version]
   );
+
+  // ── Suscripciones reactivas DIRECTAS al store ───────────────────────────────
+  // Garantizan re-render INMEDIATO cuando actualizarAsignacion/actualizarPersonalPuesto
+  // llaman a set() en Zustand - no dependen de useMemo intermedio
+  const progId = prog?.id;
+  const progAsignaciones = useProgramacionStore(s => {
+    if (!progId) return [];
+    const found = s.programaciones.find((p: any) => p.id === progId);
+    return found?.asignaciones || [];
+  });
+  const progPersonal = useProgramacionStore(s => {
+    if (!progId) return [];
+    const found = s.programaciones.find((p: any) => p.id === progId);
+    return found?.personal || [];
+  });
   const puesto = useMemo(
     () =>
       allPuestos.find((p: any) => p.id === puestoId || p.dbId === puestoId),
@@ -766,6 +802,55 @@ const PanelMensualPuesto = ({
     [prog, puestoNombre, logAction]
   );
 
+  // ── Motor de Ciclo D/N/R/NR — Aplicar plantilla del mes anterior ────────────
+  const handleAplicarCiclo = useCallback(async () => {
+    if (isApplyingCiclo) return;
+    setIsApplyingCiclo(true);
+    try {
+      // 1. Cargar detalles del mes anterior si no están cargados
+      const mesAnterior = mes === 0 ? 11 : mes - 1;
+      const anioAnterior = mes === 0 ? anio - 1 : anio;
+      const progAnterior = getProgramacion(puestoId, anioAnterior, mesAnterior);
+
+      if (progAnterior && !progAnterior.isDetailLoaded && !progAnterior.isFetching) {
+        showTacticalToast({
+          title: '⏳ Cargando datos del mes anterior...',
+          message: 'Recuperando posición del ciclo para continuar la secuencia.',
+          type: 'info',
+        });
+        await fetchProgramacionDetalles(progAnterior.id);
+        // Aguardar que el estado de Zustand se propague
+        await new Promise(r => setTimeout(r, 700));
+      } else if (!progAnterior) {
+        // Intentar fetch del mes anterior desde Supabase
+        await useProgramacionStore.getState().fetchProgramacionesByMonth(anioAnterior, mesAnterior);
+        await new Promise(r => setTimeout(r, 500));
+        const progAnteriorRefetched = getProgramacion(puestoId, anioAnterior, mesAnterior);
+        if (progAnteriorRefetched && !progAnteriorRefetched.isDetailLoaded) {
+          await fetchProgramacionDetalles(progAnteriorRefetched.id);
+          await new Promise(r => setTimeout(r, 700));
+        }
+      }
+
+      // 2. Aplicar el motor de ciclos (hereda posición del mes anterior automáticamente)
+      const result = generarMesConMotor(puestoId, anio, mes, currentUser);
+      if (result) {
+        logAction('PROGRAMACION', 'Ciclo D/N/R Aplicado', `Puesto: ${puestoNombre} | ${MONTH_NAMES[mes]} ${anio}`, 'success');
+      } else {
+        showTacticalToast({
+          title: '⚠️ Sin datos suficientes',
+          message: 'No hay personal asignado en este puesto. Primero define el personal.',
+          type: 'warning',
+        });
+      }
+    } catch (err) {
+      console.error('[CicloMotor] Error:', err);
+      showTacticalToast({ title: '❌ Error del Motor', message: 'No se pudo aplicar el ciclo.', type: 'error' });
+    } finally {
+      setIsApplyingCiclo(false);
+    }
+  }, [puestoId, anio, mes, currentUser, puestoNombre, getProgramacion, fetchProgramacionDetalles, generarMesConMotor, logAction, isApplyingCiclo]);
+
   const handleGeneratePDF = useCallback(async () => {
     if (!prog) return;
     setIsGeneratingPDF(true);
@@ -820,6 +905,13 @@ const PanelMensualPuesto = ({
       doc.text("DIRECCIÓN:", pX+4, 26);
       doc.setTextColor(215,230,255);
       doc.text((puesto?.direccion || "—").slice(0, 44), pX+24, 26);
+      // ── Zona del puesto (Mejora 3) ──
+      if ((puesto as any)?.zona) {
+        doc.setTextColor(155,185,255); doc.setFontSize(6);
+        doc.text("ZONA:", pX+4, 30);
+        doc.setTextColor(215,230,255);
+        doc.text(((puesto as any).zona).slice(0, 30), pX+16, 30);
+      }
       doc.setTextColor(140,165,220); doc.setFontSize(5.5);
       doc.text(`Impreso: ${fechaActual}`, pX+4, 33);
 
@@ -829,6 +921,51 @@ const PanelMensualPuesto = ({
       doc.text("CUADRO DE PROGRAMACIÓN MENSUAL", centerX, 11, { align: "center" });
 
       doc.setFont("helvetica","normal"); doc.setFontSize(6.2); doc.setTextColor(170,195,255);
+      
+      // --- RECOPILACIÓN DE DATOS DINÁMICA (Multi-Turno) ---
+      const rowsToRender: any[] = [];
+      const vigEntries = new Map<string, {cedula:string, nombre:string}>();
+
+      // Recorrer todos los roles definidos en el personal del programa (soporta N filas)
+      progPersonal.forEach((per: any) => {
+        const rolLabel = getRolLabel(per.rol);
+        const v = vigilantes.find(vx => vx.id === per.vigilanteId || vx.dbId === per.vigilanteId);
+        
+        if (v && per.vigilanteId) {
+            vigEntries.set(per.vigilanteId, { 
+                cedula: v.documento || "—", 
+                nombre: v.nombre 
+            });
+        }
+
+        const rowData = [
+          rolLabel.toUpperCase(),
+          v?.documento || "—",
+          (v?.nombre || "VIGILANTE NO ASIGNADO").toUpperCase()
+        ];
+
+        // Llenar los días del mes para este rol
+        daysArr.forEach(d => {
+          const asig = progAsignaciones.find(a => a.dia === d && a.rol === per.rol);
+          rowData.push(getTacticalCode(asig));
+        });
+
+        // Totales al final del PDF
+        const asigsRol = progAsignaciones.filter(a => a.rol === per.rol);
+        const tD = asigsRol.filter(a => a.jornada === 'normal').length;
+        const tDR = asigsRol.filter(a => a.jornada === 'descanso_remunerado').length;
+        const tVAC = asigsRol.filter(a => a.jornada === 'vacacion').length;
+
+        rowData.push(tD);
+        rowData.push(tDR);
+        rowData.push(tVAC);
+
+        rowsToRender.push(rowData);
+      });
+
+      const tableData = rowsToRender;
+      const tN = tableData[0]?.length || 0;
+
       doc.text(
         "COOPERATIVA DE VIGILANCIA Y SEGURIDAD PRIVADA CORAZA C.T.A  —  NIT: 901.509.121",
         centerX, 17, { align: "center", maxWidth: pX - 4 - 42 }
@@ -837,79 +974,18 @@ const PanelMensualPuesto = ({
       doc.setFont("helvetica","bold"); doc.setFontSize(18); doc.setTextColor(255,255,255);
       doc.text(`${MONTH_NAMES[mes].toUpperCase()}  ${anio}`, 44, 30);
 
-      const vigDataMap = new Map<string, { nombre:string; cedula:string; rol:string; asigs: Map<number,string> }>();
-
-      (prog.personal || []).forEach((per: any) => {
-        if (!per.vigilanteId) return;
-        const vid = per.vigilanteId;
-        if (!vigDataMap.has(vid)) {
-          const vig = vigilantes.find(v => v.id===vid||v.dbId===vid);
-          vigDataMap.set(vid, { nombre:(vig?.nombre||vid).toUpperCase(), cedula:vig?.cedula||"—", rol:getRolPdfLabel(per.rol), asigs:new Map() });
-        }
-      });
-
-      (prog.asignaciones||[]).forEach((a: AsignacionDia) => {
-        if (!a.vigilanteId || a.jornada==="sin_asignar") return;
-        if (!vigDataMap.has(a.vigilanteId)) {
-          const vig = vigilantes.find(v => v.id===a.vigilanteId||v.dbId===a.vigilanteId);
-          const rolDef = (prog.personal||[]).find((p:any)=>p.vigilanteId===a.vigilanteId);
-          vigDataMap.set(a.vigilanteId, { nombre:(vig?.nombre||a.vigilanteId).toUpperCase(), cedula:vig?.cedula||"—", rol:getRolPdfLabel(rolDef?.rol||"—"), asigs:new Map() });
-        }
-        
-        const code = JORNADA_PDF[a.jornada] || a.jornada;
-        let finalContent = code;
-        
-        if (code === "D" || code === "N" || code === "24") {
-          const isNight = ['b', 'pm', 'noche', 'nocturno', 'vigilia'].some(k => (a.rol || "").toLowerCase().includes(k)) || a.turno === 'PM';
-          const rCode = code === "24" ? "24" : (isNight ? "N" : "D");
-          
-          let tInicio = "06";
-          let tFin = code === "24" ? "06" : "18";
-          
-          if (isNight && code !== "24") {
-             tInicio = "18"; tFin = "06";
-          }
-          
-          if (a.inicio) tInicio = a.inicio.slice(0, 5).replace(":00", "");
-          if (a.fin) tFin = a.fin.slice(0, 5).replace(":00", "");
-
-          finalContent = `${rCode}\n${tInicio}-${tFin}`;
-        }
-        
-        vigDataMap.get(a.vigilanteId)!.asigs.set(a.dia, finalContent);
-      });
-
-      const vigEntries = Array.from(vigDataMap.entries());
-
       const headRow = [
         "ROL", "C.C.", "APELLIDOS Y NOMBRES",
         ...days.map(d => { const dow=new Date(anio,mes,d).getDay(); return `${DAY_NAMES[dow]}\n${String(d).padStart(2,"0")}`; }),
         "TRAB.","DESC.","VAC."
       ];
 
-      const bodyRows = vigEntries.map(([, v]) => {
-        let trab=0, desc=0, vac=0;
-        const row: string[] = [v.rol, v.cedula, v.nombre];
-        days.forEach(d => {
-          const code = v.asigs.get(d) || "";
-          const isDR = code === "DR";
-          const isDNR = code === "DNR";
-          const isVAC = code === "VAC";
-          
-          if (code && !isDR && !isDNR && !isVAC && code !== "-") trab++;
-          else if (isDR || isDNR) desc++;
-          else if (isVAC) vac++;
-          row.push(code);
-        });
-        row.push(String(trab), String(desc), String(vac));
-        return row;
-      });
+      const bodyRows = tableData;
 
       if (bodyRows.length===0) {
         bodyRows.push(["—","—","SIN PERSONAL ASIGNADO ESTE MES",...days.map(()=>""),"0","0","0"]);
       }
 
-      const tN = headRow.length;
       autoTable(doc, {
         startY: 43,
         head: [headRow],
@@ -978,17 +1054,41 @@ const PanelMensualPuesto = ({
               return;
             }
 
-            if (val === "DR") {
+            if (val === 'D') {
+              data.cell.styles.fillColor = [186, 230, 253]; // Azul cielo
+              data.cell.styles.textColor = [7, 89, 133];
+              data.cell.styles.fontStyle = "bold";
+            } else if (val === 'N') {
+              data.cell.styles.fillColor = [99, 102, 241]; // Indigo oscuro
+              data.cell.styles.textColor = [255, 255, 255];
+              data.cell.styles.fontStyle = "bold";
+            } else if (val === "DR") {
               data.cell.styles.fillColor = [209, 250, 229];
               data.cell.styles.textColor = [4, 120, 87];
               data.cell.styles.fontStyle = "bold";
-            } else if (val === "DNR") {
-              data.cell.styles.fillColor = [255, 243, 199];
-              data.cell.styles.textColor = [146, 64, 14];
+            } else if (val === "NR") {
+              data.cell.styles.fillColor = [255, 237, 213];
+              data.cell.styles.textColor = [154, 52, 18];
               data.cell.styles.fontStyle = "bold";
             } else if (val === "VAC") {
-              data.cell.styles.fillColor = [237, 233, 254];
+              data.cell.styles.fillColor = [209, 250, 229];
+              data.cell.styles.textColor = [5, 122, 85];
+              data.cell.styles.fontStyle = "bold";
+            } else if (val === "LC") {
+              data.cell.styles.fillColor = [254, 249, 195];
+              data.cell.styles.textColor = [113, 63, 18];
+              data.cell.styles.fontStyle = "bold";
+            } else if (val === "SP") {
+              data.cell.styles.fillColor = [254, 202, 202];
+              data.cell.styles.textColor = [127, 7, 23];
+              data.cell.styles.fontStyle = "bold";
+            } else if (val === "IN") {
+              data.cell.styles.fillColor = [233, 213, 255];
               data.cell.styles.textColor = [109, 40, 217];
+              data.cell.styles.fontStyle = "bold";
+            } else if (val === "AC") {
+              data.cell.styles.fillColor = [255, 205, 211];
+              data.cell.styles.textColor = [136, 19, 55];
               data.cell.styles.fontStyle = "bold";
             }
           }
@@ -999,12 +1099,12 @@ const PanelMensualPuesto = ({
       const afterTable = (doc as any).lastAutoTable?.finalY || 130;
       let firmaY = afterTable + 5;
 
-      if (firmaY < pageH - 38 && vigEntries.length > 0) {
+      if (firmaY < pageH - 38 && vigEntries.size > 0) {
         doc.setFont("helvetica","bold"); doc.setFontSize(6); doc.setTextColor(15,23,84);
         doc.text("RECIBIDO Y CONFORME — FIRMA DEL PERSONAL:", 10, firmaY + 5);
-        const maxFirmas = Math.min(vigEntries.length, 6);
+        const maxFirmas = Math.min(vigEntries.size, 6);
         const fW = (pageW-20) / maxFirmas;
-        vigEntries.slice(0, maxFirmas).forEach(([,v], i) => {
+        Array.from(vigEntries.entries()).slice(0, maxFirmas).forEach(([vid, v], i) => {
           const fx = 10 + i*fW;
           const ly = firmaY + 18;
           doc.setDrawColor(80,100,160); doc.setLineWidth(0.4);
@@ -1018,12 +1118,6 @@ const PanelMensualPuesto = ({
       }
 
       const legendY = Math.min(firmaY + 2, pageH - 18);
-      const baseLeyendas = [
-        {code:"DR", label:"DESCANSO REMUN.", bg:[209,250,229] as [number,number,number], fg:[4,120,87] as [number,number,number]},
-        {code:"DNR",label:"DESC. NO REMUN.", bg:[255,243,199] as [number,number,number], fg:[146,64,14] as [number,number,number]},
-        {code:"VAC",label:"VACACIONES", bg:[237,233,254] as [number,number,number], fg:[109,40,217] as [number,number,number]},
-      ];
-
       const turnosLeyendas = turnosConfig.map(t => {
         const hex = (t.color || "#6366f1").replace('#', '');
         const r = parseInt(hex.substring(0, 2), 16);
@@ -1038,7 +1132,18 @@ const PanelMensualPuesto = ({
         };
       });
 
-      const todasLeyendas = [...turnosLeyendas, ...baseLeyendas];
+      const todasLeyendas = [
+        ...turnosLeyendas,
+        {code:"D",   label:"Turno Diurno (06-18)",        bg:[186,230,253] as [number,number,number], fg:[7,89,133] as [number,number,number]},
+        {code:"N",   label:"Turno Nocturno (18-06)",      bg:[99,102,241] as [number,number,number],  fg:[255,255,255] as [number,number,number]},
+        {code:"DR",  label:"Descanso Remunerado",         bg:[209,250,229] as [number,number,number], fg:[4,120,87] as [number,number,number]},
+        {code:"NR",  label:"Descanso No Remunerado",      bg:[255,237,213] as [number,number,number], fg:[154,52,18] as [number,number,number]},
+        {code:"VAC", label:"Vacaciones",                  bg:[209,250,229] as [number,number,number], fg:[5,122,85] as [number,number,number]},
+        {code:"LC",  label:"Licencia/Calamidades",        bg:[254,249,195] as [number,number,number], fg:[113,63,18] as [number,number,number]},
+        {code:"SP",  label:"Suspensión",                  bg:[254,202,202] as [number,number,number], fg:[127,7,23] as [number,number,number]},
+        {code:"IN",  label:"Incapacidad",                 bg:[233,213,255] as [number,number,number], fg:[109,40,217] as [number,number,number]},
+        {code:"AC",  label:"Accidente de Trabajo",        bg:[255,205,211] as [number,number,number], fg:[136,19,55] as [number,number,number]},
+      ];
       const lW = (pageW-16)/todasLeyendas.length;
       doc.setFillColor(245,247,255); doc.setDrawColor(200,210,230); doc.setLineWidth(0.2);
       doc.roundedRect(8, legendY, pageW-16, 9, 1.5, 1.5, "FD");
@@ -1067,7 +1172,7 @@ const PanelMensualPuesto = ({
     } finally {
       setIsGeneratingPDF(false);
     }
-  }, [prog, puestoNombre, mes, anio, daysInMonth, vigilantes, puesto, logAction]);
+  }, [prog, puestoNombre, mes, anio, daysInMonth, vigilantes, puesto, logAction, progPersonal, progAsignaciones]);
 
 
     const handleGenerateExcel = useCallback(async () => {
@@ -1077,11 +1182,6 @@ const PanelMensualPuesto = ({
         const ws = wb.addWorksheet(sheetName);
 
         const CLR_VERDE_MES = '4ADE80'; 
-        const CLR_D12 = 'FFB547';     
-        const CLR_N12 = '3B82F6';     
-        const CLR_NR  = 'EF4444';     
-        const CLR_X   = 'FACC15';     
-        const CLR_VAC = 'F472B6';     
 
         const borderThin = {
           top: { style: 'thin' as const, color: { argb: '000000' } },
@@ -1090,62 +1190,31 @@ const PanelMensualPuesto = ({
           right: { style: 'thin' as const, color: { argb: '000000' } }
         };
 
-        const getTacticalCode = (a: AsignacionDia): string => {
-          const isUnassigned = a.jornada === 'sin_asignar' || !a.jornada;
-          if (isUnassigned) return '-';
-          
-          if (a.codigo_personalizado) return a.codigo_personalizado;
-          if (a.jornada === 'descanso_remunerado') return 'X';
-          if (a.jornada === 'descanso_no_remunerado') return 'NR';
-          if (a.jornada === 'vacacion') return 'VAC';
-          if (a.jornada === 'AM' || a.jornada === 'D') return 'D12';
-          if (a.jornada === 'PM' || a.jornada === 'N') return 'N12';
-          if (a.jornada === '24H') return '24';
-          
-          if (a.jornada === 'normal') {
-             const isNightRole = ['b', 'pm', 'noche', 'nocturno', 'vigilia'].some(k => (a.rol || "").toLowerCase().includes(k)) || a.turno === 'PM';
-             return isNightRole ? 'N12' : 'D12';
-          }
-          return a.jornada;
-        };
-
         const getCodeColor = (code: string): string | null => {
-          if (code === '-') return 'EF4444'; // Rojo fuerte para huecos
-          if (code === 'D12') return CLR_D12;
-          if (code === 'N12') return CLR_N12;
-          if (code === 'NR')  return CLR_NR;
-          if (code === 'X')   return CLR_X;
-          if (code === 'VAC') return CLR_VAC;
+          if (code === '-') return 'CBD5E1';    // gris vacío
+          if (code === 'D')  return 'BAE6FD';   // azul cielo diurno
+          if (code === 'N')  return '6366F1';   // indigo nocturno
+          if (code === 'DR') return 'BBF7D0';   // verde descanso remun.
+          if (code === 'NR') return 'FED7AA';   // naranja desc. no remun.
+          if (code === 'VAC')return 'D8B4FE';   // violeta vacaciones
+          if (code === 'LC') return 'FEF08A';   // amarillo licencia
+          if (code === 'SP') return 'FECACA';   // rojo suspensión
+          if (code === 'IN') return 'E9D5FF';   // lila incapacidad
+          if (code === 'AC') return 'FCA5A5';   // rosa accidente
           return null;
         };
 
-        // --- MAPEO DE FILAS (Fiel al Tablero) ---
+        // --- EXTRACCIÓN DE DATOS REACTIVA (Excel Multi-Turno) ---
         const rowsToExport = new Map<string, any>();
         
-        // 1. Cargamos roles del personal definido (titulares)
-        (prog.personal || []).forEach(p => {
-          const v = vigilantes.find(vx => vx.id === p.vigilanteId || vx.dbId === p.vigilanteId);
-          rowsToExport.set(p.rol, {
-            rol: p.rol,
-            cedula: v?.cedula || "—",
+        progPersonal.forEach((per: any) => {
+          const v = vigilantes.find(vx => vx.id === per.vigilanteId || vx.dbId === per.vigilanteId);
+          rowsToExport.set(per.rol, {
+            rol: per.rol,
+            cedula: v?.documento || "—",
             nombre: (v?.nombre || "SIN ASIGNAR").toUpperCase(),
             asigs: new Map()
           });
-        });
-
-        // 2. Cargamos asignaciones (para incluir relevos o detectar códigos)
-        (prog.asignaciones || []).forEach((a: AsignacionDia) => {
-          if (!a.rol) return;
-          if (!rowsToExport.has(a.rol)) {
-            const v = vigilantes.find(vx => vx.id === a.vigilanteId || vx.dbId === a.vigilanteId);
-            rowsToExport.set(a.rol, {
-              rol: a.rol,
-              cedula: v?.cedula || "—",
-              nombre: (v?.nombre || "SIN ASIGNAR").toUpperCase(),
-              asigs: new Map()
-            });
-          }
-          rowsToExport.get(a.rol).asigs.set(a.dia, getTacticalCode(a));
         });
 
         const sortedRows = Array.from(rowsToExport.values()).sort((a,b) => {
@@ -1173,7 +1242,7 @@ const PanelMensualPuesto = ({
 
         ws.mergeCells('A4', 'C4');
         const headPuesto = ws.getCell('A4');
-        headPuesto.value = `PUESTO: ${puestoNombre.toUpperCase()}`;
+        headPuesto.value = `PUESTO: ${puestoNombre.toUpperCase()} ${(puesto as any)?.zona ? ' - ZONA: ' + (puesto as any).zona.toUpperCase() : ''}`;
         headPuesto.font = { name: 'Arial Narrow', size: 11, bold: true };
         headPuesto.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' } };
 
@@ -1278,10 +1347,14 @@ const PanelMensualPuesto = ({
             const color = getCodeColor(code);
             if (color) {
               cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+              // Texto blanco para celdas oscuras (N = indigo)
+              if (code === 'N' || code === 'SP') {
+                cell.font = { name: 'Arial Narrow', size: 7, bold: true, color: { argb: 'FFFFFF' } };
+              }
             }
 
-            if (['D12', 'N12', '24'].includes(code)) tT++;
-            else if (code === 'X') tD++;
+            if (code === 'D' || code === 'N') tT++;
+            else if (code === 'DR') tD++;
             else if (code === 'NR') tNR++;
             else if (code === 'VAC') tV++;
           });
@@ -1360,7 +1433,7 @@ const PanelMensualPuesto = ({
     : DEFAULT_JORNADAS;
   const syncStatus = prog?.syncStatus ?? 'synced';
 
-  const staffAsignado = (prog.personal || []).filter((p: any) => p.vigilanteId);
+  const staffAsignado = progPersonal.filter((p: any) => p.vigilanteId);
 
   return (
     <div className="page-container animate-fade-in bg-slate-50 min-h-screen pb-32">
@@ -1373,7 +1446,15 @@ const PanelMensualPuesto = ({
             <span className="material-symbols-outlined text-[14px]">chevron_right</span>
             <span>Tablero {nombrePuesto}</span>
           </div>
-          <h1 className="text-3xl font-black text-slate-900 uppercase">{nombrePuesto}</h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-3xl font-black text-slate-900 uppercase">{nombrePuesto}</h1>
+            {(puesto as any)?.zona && (
+              <div className="px-4 py-1 bg-primary/10 border border-primary/20 rounded-full flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-[14px]">location_on</span>
+                <span className="text-[12px] font-black text-primary uppercase tracking-widest">{(puesto as any).zona}</span>
+              </div>
+            )}
+          </div>
           {/* ── Navegación de mes dentro del panel ── */}
           <div className="flex items-center gap-3 mt-2">
             <button
@@ -1409,6 +1490,19 @@ const PanelMensualPuesto = ({
         </div>
 
         <div className="flex flex-wrap gap-2">
+          {/* ── Motor Ciclo D/N/R ── */}
+          <button
+            onClick={handleAplicarCiclo}
+            disabled={isApplyingCiclo}
+            title="Aplica el ciclo continuo 6D → 2R+1NR → 6N → 2R+1NR. Hereda la posición del mes anterior automáticamente."
+            className="px-5 py-2.5 bg-indigo-700 text-indigo-100 border border-indigo-500/40 rounded-2xl text-[10px] font-black uppercase hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-2 shadow-lg shadow-indigo-900/30 disabled:opacity-60"
+          >
+            <span className={`material-symbols-outlined text-[18px] ${isApplyingCiclo ? 'animate-spin' : ''}`}>
+              {isApplyingCiclo ? 'sync' : 'autorenew'}
+            </span>
+            {isApplyingCiclo ? 'Aplicando...' : 'Aplicar Ciclo D/N/R'}
+          </button>
+
           <button
             onClick={() => setShowPersonalModal(true)}
             className="px-5 py-2.5 bg-slate-800 text-white border border-white/10 rounded-2xl text-[10px] font-black uppercase hover:bg-slate-700 transition-all flex items-center gap-2"
@@ -1420,6 +1514,15 @@ const PanelMensualPuesto = ({
                 {staffAsignado.length}
               </span>
             )}
+          </button>
+
+          <button
+            onClick={() => setShowRolesModal(true)}
+            className="px-5 py-2.5 bg-violet-900 text-violet-300 border border-violet-500/30 rounded-2xl text-[10px] font-black uppercase hover:bg-violet-700 hover:text-white transition-all flex items-center gap-2"
+            title="Gestionar filas del tablero (múltiples turnos simultáneos)"
+          >
+            <span className="material-symbols-outlined text-[18px]">grid_view</span>
+            Filas ({progPersonal.length})
           </button>
           
           <button
@@ -1580,20 +1683,20 @@ const PanelMensualPuesto = ({
           {(prog?.personal || [])
             .filter((p: PersonalPuesto) => p.vigilanteId)
             .map((per: PersonalPuesto) => {
-              const v = vigilantes.find(
-                (v) => v.id === per.vigilanteId || v.dbId === per.vigilanteId
-              );
-              const colors: Record<string, string> = {
-                titular_a: "bg-primary/10 text-primary border-primary/20",
-                titular_b: "bg-indigo-500/10 text-indigo-600 border-indigo-300/30",
-                relevante: "bg-slate-100 text-slate-600 border-slate-200",
-              };
+              const COLORS_ARRAY = [
+                "bg-primary/10 text-primary border-primary/20",
+                "bg-indigo-500/10 text-indigo-600 border-indigo-300/30",
+                "bg-violet-500/10 text-violet-600 border-violet-300/30",
+                "bg-emerald-500/10 text-emerald-600 border-emerald-300/30",
+                "bg-rose-500/10 text-rose-600 border-rose-300/30",
+                "bg-amber-500/10 text-amber-600 border-amber-300/30"
+              ];
+              const colorClass = COLORS_ARRAY[Object.keys(progPersonal).indexOf(per.rol) % COLORS_ARRAY.length] || COLORS_ARRAY[0];
+              
               return (
                 <div
                   key={per.rol}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-2xl border ${
-                    colors[per.rol] || "bg-slate-100 text-slate-600 border-slate-200"
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-2xl border ${colorClass}`}
                 >
                   <span className="material-symbols-outlined text-[16px]">
                     {per.rol === "relevante" ? "groups" : "shield_person"}
@@ -1773,6 +1876,21 @@ const PanelMensualPuesto = ({
               </div>
             )}
           </div>
+
+          <button
+            onClick={() => {
+              if (confirm('⚠️ ¿ESTÁ SEGURO? Esta acción ELIMINARÁ TODAS las asignaciones de este mes (D/N/Descansos). No se puede deshacer.')) {
+                // Actualizar store con array vacío para que el backend limpie
+                (useProgramacionStore.getState() as any).actualizarAsignacion(prog.id, -1, { jornada: 'limpiar_todo' }, currentUser);
+                showTacticalToast({ title: '🧹 Mes Limpiado', message: 'Se han removido todos los turnos del mes.', type: 'warning' });
+              }
+            }}
+            className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/30 text-rose-400 border border-rose-500/20 rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-2 shadow-lg shadow-rose-500/5"
+            title="Limpiar todas las asignaciones del mes"
+          >
+            <span className="material-symbols-outlined text-[16px]">backspace</span>
+            Limpiar Mes
+          </button>
         </div>
 
         <div className="ml-auto hidden lg:flex items-center gap-3 pr-4">
@@ -1795,48 +1913,74 @@ const PanelMensualPuesto = ({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 mb-4 px-6 py-3 bg-white/40 rounded-2xl border border-slate-100 backdrop-blur-sm shadow-sm">
-        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Turnos de este Puesto:</span>
+      <div className="flex flex-wrap items-center gap-3 mb-5 px-5 py-3 bg-gradient-to-r from-slate-900/60 via-slate-900/40 to-transparent rounded-2xl border border-white/[0.06] backdrop-blur-xl">
+        <div className="flex items-center gap-2 pr-4 border-r border-white/10">
+          <span className="material-symbols-outlined text-[16px] text-slate-500">schedule</span>
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Turnos</span>
+        </div>
         {turnosConfig.map(t => (
-          <div key={t.id} className="flex items-center gap-2 bg-white/80 px-3 py-1.5 rounded-xl border border-slate-200">
-            <div className="size-2.5 rounded-full" style={{ backgroundColor: t.color || '#6366f1' }}></div>
-            <span className="text-[10px] font-black text-slate-700 uppercase">{t.nombre}</span>
-            <span className="text-[9px] font-bold text-slate-400">{t.inicio}-{t.fin}</span>
+          <div key={t.id} className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-white/[0.06] hover:border-white/15 transition-all" style={{ background: `${t.color || '#6366f1'}12` }}>
+            <div className="size-2.5 rounded-full shadow-[0_0_8px_currentColor]" style={{ backgroundColor: t.color || '#6366f1', color: t.color || '#6366f1' }} />
+            <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: t.color || '#94a3b8' }}>{t.nombre}</span>
+            <span className="text-[9px] font-bold text-slate-500 tabular-nums">{t.inicio}–{t.fin}</span>
           </div>
         ))}
-        {turnosConfig.length === 0 && <span className="text-[9px] italic text-slate-400">Sin turnos configurados</span>}
+        {turnosConfig.length === 0 && <span className="text-[9px] italic text-slate-600">Sin turnos configurados</span>}
       </div>
 
-      <div className="bg-slate-950 rounded-[40px] border border-white/5 shadow-[0_0_50px_rgba(0,0,0,0.4)] overflow-hidden mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="bg-gradient-to-b from-[#0a0f1e] via-[#080d1a] to-[#060a14] rounded-[32px] border border-white/[0.06] shadow-[0_8px_60px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.03)] overflow-hidden mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="overflow-x-auto custom-scrollbar">
           <table className="border-collapse select-none" style={{ width: 'max-content', tableLayout: 'fixed' }}>
             <thead>
-              <tr className="h-28 bg-slate-950 border-b-2 border-amber-500/40 shadow-2xl">
+              <tr className="h-24 bg-gradient-to-r from-[#0c1425] via-[#0e1730] to-[#0c1425]" style={{ borderBottom: '2px solid rgba(99,102,241,0.25)' }}>
                 <th 
-                  className="sticky left-0 z-40 px-8 bg-slate-900 border-r-2 border-amber-500/30 shadow-[10px_0_40px_rgba(0,0,0,0.7)]"
-                  style={{ width: 360 }}
+                  className="sticky left-0 z-40 px-6 border-r border-indigo-500/15"
+                  style={{ width: 320, background: 'linear-gradient(135deg, #0c1225, #0a0f1e)', boxShadow: '8px 0 30px rgba(0,0,0,0.5)' }}
                 >
-                  <div className="flex items-center gap-5">
-                    <div className="size-16 rounded-[22px] bg-gradient-to-br from-amber-400 via-amber-600 to-amber-700 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.4)] border border-amber-300/30">
-                      <span className="material-symbols-outlined text-white text-[32px] font-black">security</span>
+                  <div className="flex items-center gap-4">
+                    <div className="size-14 rounded-2xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-700 flex items-center justify-center shadow-[0_4px_20px_rgba(99,102,241,0.35)] border border-indigo-400/20">
+                      <span className="material-symbols-outlined text-white text-[28px]">security</span>
                     </div>
                     <div className="text-left">
-                      <span className="text-[18px] font-black text-white uppercase tracking-tighter block leading-tight">Mando Operativo</span>
-                      <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.3em] mt-1.5 block opacity-90 animate-pulse">Tactical Elite v4.0</span>
+                      <span className="text-[16px] font-black text-white uppercase tracking-tight block leading-tight">Mando Operativo</span>
+                      <span className="text-[9px] font-bold text-indigo-400/60 uppercase tracking-[0.3em] mt-1 block">Command Center v5.0</span>
                     </div>
                   </div>
                 </th>
                 {daysArr.map((d) => {
                   const dayDate = new Date(anio, mes, d);
                   const isSun = dayDate.getDay() === 0;
+                  const isSat = dayDate.getDay() === 6;
+                  const isToday = (() => { const t = new Date(); return t.getDate() === d && t.getMonth() === mes && t.getFullYear() === anio; })();
+                  const isWeekend = isSun || isSat;
+                  
                   return (
-                    <th key={d} className={`text-[13px] font-black uppercase tracking-[0.1em] border-r border-white/5 px-2 relative transition-all ${isSun ? 'bg-red-500/20' : 'hover:bg-white/[0.05]'}`} style={{ width: 130 }}>
-                      <div className="flex flex-col items-center justify-center h-full gap-1">
-                         <span className={`text-[10px] tracking-widest font-black ${isSun ? 'text-red-400' : 'text-slate-500'}`}>
-                           {dayDate.toLocaleDateString('es', {weekday: 'short'}).toUpperCase()}
-                         </span>
-                         <span className={`text-[22px] font-black tabular-nums ${isSun ? 'text-red-400' : 'text-white'}`}>{d}</span>
-                         {isSun && <div className="absolute top-0 left-0 w-full h-1.5 bg-red-600 shadow-[0_0_15px_rgba(220,38,38,0.5)]" />}
+                    <th 
+                      key={d} 
+                      className={`text-center border-r border-white/[0.04] px-1 relative transition-all duration-300`}
+                      style={{ 
+                        width: 120,
+                        background: isToday 
+                          ? 'linear-gradient(180deg, rgba(99,102,241,0.15), rgba(99,102,241,0.05))' 
+                          : isSun 
+                            ? 'linear-gradient(180deg, rgba(239,68,68,0.08), transparent)' 
+                            : 'transparent'
+                      }}
+                    >
+                      {isToday && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] bg-indigo-500 rounded-b-full shadow-[0_0_12px_rgba(99,102,241,0.6)]" />}
+                      {isSun && <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-rose-500/60 to-transparent" />}
+                      <div className="flex flex-col items-center justify-center h-full gap-0.5 py-3">
+                        <span className={`text-[9px] tracking-[0.15em] font-black ${
+                          isToday ? 'text-indigo-400' : isSun ? 'text-rose-400/80' : isSat ? 'text-amber-400/40' : 'text-slate-500/60'
+                        }`}>
+                          {dayDate.toLocaleDateString('es', {weekday: 'short'}).toUpperCase()}
+                        </span>
+                        <span className={`text-[20px] font-black tabular-nums leading-none ${
+                          isToday ? 'text-indigo-300' : isSun ? 'text-rose-300/80' : 'text-white/80'
+                        }`}>{d}</span>
+                        {isToday && (
+                          <span className="text-[7px] font-black text-indigo-400 uppercase tracking-[0.2em] mt-1 animate-pulse">HOY</span>
+                        )}
                       </div>
                     </th>
                   );
@@ -1845,21 +1989,22 @@ const PanelMensualPuesto = ({
             </thead>
             <tbody>
               {(() => {
-                const personalDefinido = (prog?.personal || []);
+                // ── MULTI-TURNO REACTIVO: leer de progPersonal (subscribe directo al store) ──
+                // progPersonal se actualiza inmediatamente cuando actualizarPersonalPuesto hace set()
+                // Agregar roles base solo si no hay ninguno definido (setup inicial)
+                const rolesDefinidos = progPersonal.map((p: PersonalPuesto) => p.rol);
                 const rolesBase = ['titular_a', 'titular_b', 'relevante'];
-                const rolesDefinidos = personalDefinido.map(p => p.rol);
-                const allRoles = Array.from(new Set([...rolesBase, ...rolesDefinidos]));
+                
+                let allPersonal: PersonalPuesto[];
+                if (progPersonal.length === 0) {
+                  // Setup inicial: mostrar los 3 roles base vacíos
+                  allPersonal = rolesBase.map(rol => ({ rol: rol as any, vigilanteId: null, turnoId: 'AM' }));
+                } else {
+                  // Usar exactamente lo que hay en el store (puede ser 1 a 20+ roles)
+                  allPersonal = progPersonal;
+                }
 
-                return allRoles.map(rol => {
-                   const config = personalDefinido.find(p => p.rol === rol);
-                   const isNight = ['b', 'pm', 'noche', 'nocturno', 'vigilia'].some(k => rol.toLowerCase().includes(k));
-                   
-                    return {
-                      rol,
-                      vigilanteId: config?.vigilanteId || null,
-                      turnoId: config?.turnoId || (isNight ? 'PM' : 'AM')
-                    };
-                });
+                return allPersonal;
               })().map((per: PersonalPuesto, index: number) => {
                 const rolLabel = getRolLabel(per.rol);
                 const isNightRole = ['b', 'pm', 'noche', 'nocturno', 'vigilia'].some(k => per.rol.toLowerCase().includes(k) || rolLabel.toLowerCase().includes(k));
@@ -1884,60 +2029,66 @@ const PanelMensualPuesto = ({
                 return (
                   <tr 
                     key={`${per.rol}-${index}`} 
-                    className="group/row transition-all border-b border-white/5 bg-slate-900/60 hover:bg-amber-500/[0.04]"
-                    style={{ height: 120 }}
+                    className="group/row transition-all duration-200"
+                    style={{ 
+                      height: 110, 
+                      borderBottom: '1px solid rgba(255,255,255,0.04)',
+                      background: index % 2 === 0 ? 'rgba(15,23,42,0.3)' : 'rgba(15,23,42,0.15)'
+                    }}
                   >
                    <td 
-                     className="sticky left-0 z-30 transition-all border-r-2 border-amber-500/10 px-8 bg-slate-900 shadow-[10px_0_40px_rgba(0,0,0,0.8)] group-hover/row:bg-slate-800"
-                     style={{ width: 360 }}
+                     className="sticky left-0 z-30 transition-all border-r border-indigo-500/10 px-5 group-hover/row:bg-[#111827]"
+                     style={{ width: 320, background: index % 2 === 0 ? '#0b1120' : '#0a0f1c', boxShadow: '8px 0 25px rgba(0,0,0,0.4)' }}
                    >
-                     <div className="flex flex-col gap-3.5">
-                       <div className="flex items-center gap-4">
-                          <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl border-2 font-black text-[10px] tracking-[0.15em] uppercase shadow-lg ${
-                            isActuallyNight 
-                            ? 'bg-slate-950 border-amber-500/40 text-amber-500 shadow-amber-500/10' 
-                            : 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300 shadow-indigo-500/10'
-                          }`}>
-                            <span className="material-symbols-outlined text-[18px] font-black">
-                              {isActuallyNight ? 'brightness_3' : 'wb_sunny'}
-                            </span>
-                            {isActuallyNight ? 'Noche' : 'Día'}
-                          </div>
-                          
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-[15px] font-black uppercase tracking-tight truncate text-white group-hover/row:text-amber-400 transition-colors">
-                              {rolLabel}
-                            </span>
-                            <div className="flex items-center gap-2 opacity-80">
-                               <div className="size-2 rounded-full shadow-[0_0_8px_currentColor]" style={{ backgroundColor: turno.color || '#6366f1', color: turno.color || '#6366f1' }}></div>
-                               <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">{turno.nombre}</span>
-                            </div>
-                          </div>
-                       </div>
-                       
-                       {assignedVig ? (
-                          <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl border-2 bg-emerald-500/[0.08] border-emerald-500/40 shadow-[0_5px_15px_rgba(16,185,129,0.15)] group-hover/row:border-emerald-500/70 transition-all transform group-hover/row:scale-[1.02]">
-                             <div className="size-8 rounded-xl bg-emerald-500/30 flex items-center justify-center text-emerald-400 border border-emerald-500/40 shadow-inner">
-                                <span className="material-symbols-outlined text-[16px] font-black">verified_user</span>
+                     <div className="flex flex-col gap-2.5">
+                        <div className="flex items-center gap-3">
+                           <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-black text-[9px] tracking-[0.12em] uppercase ${
+                             isActuallyNight 
+                             ? 'bg-violet-500/10 border-violet-500/25 text-violet-400' 
+                             : 'bg-sky-500/10 border-sky-500/25 text-sky-400'
+                           }`}>
+                             <span className="material-symbols-outlined text-[14px]">
+                               {isActuallyNight ? 'dark_mode' : 'light_mode'}
+                             </span>
+                             {isActuallyNight ? 'Noche' : 'Día'}
+                           </div>
+                           
+                           <div className="flex flex-col min-w-0">
+                             <span className="text-[13px] font-black uppercase tracking-tight truncate text-white/90 group-hover/row:text-white transition-colors">
+                               {rolLabel}
+                             </span>
+                             <div className="flex items-center gap-1.5 mt-0.5">
+                                <div className="size-1.5 rounded-full" style={{ backgroundColor: turno.color || '#6366f1' }} />
+                                <span className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.12em]">{turno.nombre} · {turno.inicio}–{turno.fin}</span>
                              </div>
-                             <div className="min-w-0">
-                                <span className="text-[11px] font-black uppercase truncate block text-white tracking-wide">
-                                  {typeof assignedVig === 'string' ? assignedVig : assignedVig.nombre}
-                                </span>
-                                <span className="text-[8px] font-black text-emerald-400/70 uppercase tracking-widest">Personal Activo</span>
-                             </div>
-                          </div>
-                       ) : (
-                          <div className="flex items-center gap-3 px-4 py-2.5 border-2 border-dashed border-slate-700 bg-slate-800/30 rounded-2xl opacity-50 group-hover/row:opacity-80 transition-opacity">
-                             <span className="material-symbols-outlined text-slate-500 text-[20px]">person_add</span>
-                             <span className="text-[9px] font-black uppercase text-slate-500 tracking-wider">Vacante Operativa</span>
-                          </div>
-                       )}
+                           </div>
+                        </div>
+                        
+                        {assignedVig ? (
+                           <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl border bg-emerald-500/[0.06] border-emerald-500/20 group-hover/row:border-emerald-500/40 transition-all">
+                              <div className="size-7 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 border border-emerald-500/25">
+                                 <span className="material-symbols-outlined text-[14px]">verified_user</span>
+                              </div>
+                              <div className="min-w-0">
+                                 <span className="text-[10px] font-black uppercase truncate block text-emerald-100/90 tracking-wide">
+                                   {typeof assignedVig === 'string' ? assignedVig : assignedVig.nombre}
+                                 </span>
+                                 <span className="text-[7px] font-bold text-emerald-500/50 uppercase tracking-widest">Activo</span>
+                              </div>
+                           </div>
+                        ) : (
+                           <div className="flex items-center gap-2 px-3 py-2 border border-dashed border-slate-700/50 bg-slate-800/20 rounded-xl opacity-40 group-hover/row:opacity-70 transition-opacity">
+                              <span className="material-symbols-outlined text-slate-600 text-[16px]">person_add</span>
+                              <span className="text-[8px] font-black uppercase text-slate-600 tracking-wider">Vacante</span>
+                           </div>
+                        )}
                      </div>
                    </td>
 
                    {daysArr.map((d) => {
-                     const asigFound = (prog?.asignaciones || []).find(
+                     // ── REACTIVIDAD CRÍTICA: Usar progAsignaciones (suscrito directamente al store) ──
+                     // En vez de prog?.asignaciones (que puede estar stale en el useMemo)
+                     const asigFound = progAsignaciones.find(
                        (a: AsignacionDia) => a.dia === d && a.rol === per.rol
                      );
                      
@@ -1962,7 +2113,7 @@ const PanelMensualPuesto = ({
                        : '';
 
                      return (
-                       <td key={d} style={{ padding: 10, width: 130 }} className={`border-r border-white/5 transition-all outline-none ${isWeekend ? 'bg-white/[0.04]' : 'group-hover/row:bg-white/[0.08]'}`}>
+                       <td key={d} className={`border-r border-white/[0.03] transition-all p-1.5 ${isWeekend ? 'bg-white/[0.02]' : ''}`} style={{ width: 120 }}>
                          <CeldaCalendario
                            asig={asig}
                            vigilanteNombre={asig.vigilanteId ? (vigilanteMap.get(asig.vigilanteId) || "Asignado") : undefined}
@@ -2008,13 +2159,34 @@ const PanelMensualPuesto = ({
           onSave={handleSavePersonal}
         />
       )}
+
+      {showRolesModal && prog && (
+        <GestionRolesModal
+          roles={progPersonal}
+          turnosConfig={turnosConfig}
+          vigilantes={vigilantes}
+          puestoNombre={nombrePuesto}
+          onClose={() => setShowRolesModal(false)}
+          onSave={(rolesActualizados) => {
+            const user = useAuthStore.getState().username || 'Operador';
+            // Actualizar el personal del programa con los nuevos roles
+            (useProgramacionStore.getState() as any).actualizarPersonalPuesto(
+              prog.id,
+              rolesActualizados,
+              user
+            );
+            setShowRolesModal(false);
+          }}
+        />
+      )}
+
       {editCell && (
         <EditCeldaModal
           key={`${editCell.progId}-${editCell.asig.dia}-${editCell.asig.rol || 'any'}`}
           asig={editCell.asig}
           vigilantes={vigilantes}
           titularesId={titularesId}
-          titulares={prog?.personal || []}
+          titulares={progPersonal}
           ocupados={ocupadosMap}
           turnosConfig={turnosConfig}
           jornadasCustom={jornadasCustom}
@@ -2040,6 +2212,8 @@ const PanelMensualPuesto = ({
                 type: "error",
               });
             } else {
+              // ── REACTIVIDAD GARANTIZADA: La asignación ya fue actualizada en el store ──
+              // progAsignaciones se re-evaluará automáticamente porque está suscrito
               setEditCell(null);
               showTacticalToast({
                 title: result?.tipo === "confirmacion" ? "✓ Doble Turno Confirmado" : "✓ Despacho Exitoso",
@@ -2099,7 +2273,8 @@ const GestionPuestos = () => {
       base = base.filter(p => 
         p.nombre?.toLowerCase().includes(q) ||
         p.id?.toLowerCase().includes(q) ||
-        (p as any).direccion?.toLowerCase().includes(q)
+        (p as any).direccion?.toLowerCase().includes(q) ||
+        (p as any).zona?.toLowerCase().includes(q)
       );
     }
     if (filterTab === 'alerta') {

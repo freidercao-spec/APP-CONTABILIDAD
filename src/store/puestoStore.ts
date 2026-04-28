@@ -60,6 +60,7 @@ export interface Puesto {
     conArmamento?: boolean;
     turnosConfig?: TurnoConfig[];
     jornadasCustom?: JornadaCustom[];
+    zona?: string;
     plantillaRecurrente?: {
         activa: boolean;
         asignaciones: import('./programacionStore').AsignacionDia[];
@@ -92,12 +93,13 @@ interface PuestoState {
             cliente?: string;
             tipoServicio?: string;
             direccion?: string;
+            zona?: string;
             conArmamento?: boolean;
         }
     ) => Promise<string>;
     updatePuestoStatus: (id: string, estado: Puesto['estado']) => void;
     deletePuesto: (id: string) => void;
-    updatePuesto: (id: string, changes: Partial<Pick<Puesto, 'turnosConfig'|'jornadasCustom'|'plantillaRecurrente'|'nombre'|'contacto'|'telefono'|'requisitos'|'instrucciones'|'prioridad'|'numeroContrato'|'cliente'|'tipoServicio'|'direccion'|'conArmamento'>>) => void;
+    updatePuesto: (id: string, changes: Partial<Pick<Puesto, 'turnosConfig'|'jornadasCustom'|'plantillaRecurrente'|'nombre'|'contacto'|'telefono'|'requisitos'|'instrucciones'|'prioridad'|'numeroContrato'|'cliente'|'tipoServicio'|'direccion'|'conArmamento'|'zona'>>) => void;
 
     assignGuard: (puestoId: string, vigilanteId: string, horaInicio: string, horaFin: string) => void;
     removeGuard: (puestoId: string, vigilanteId: string, reason?: string) => void;
@@ -236,6 +238,7 @@ export const usePuestoStore = create<PuestoState>()(
                             coberturas: [],
                             turnosConfig: row.turnos_config || [],
                             jornadasCustom: row.jornadas_custom || [],
+                            zona: row.zona || (row.instrucciones && row.instrucciones.startsWith('ZONA:') ? row.instrucciones.split('|')[0].replace('ZONA:', '') : undefined),
                             plantillaRecurrente: row.plantilla_recurrente || null,
                         };
                     });
@@ -276,6 +279,7 @@ export const usePuestoStore = create<PuestoState>()(
                             cliente: detalles?.cliente || null,
                             tipo_servicio: detalles?.tipoServicio || null,
                             direccion: detalles?.direccion || null,
+                            zona: detalles?.zona || null,
                             con_armamento: detalles?.conArmamento || false,
                         })
                         .select()
@@ -367,6 +371,7 @@ export const usePuestoStore = create<PuestoState>()(
                     if (changes.cliente !== undefined) dbUpdates.cliente = changes.cliente;
                     if (changes.tipoServicio !== undefined) dbUpdates.tipo_servicio = changes.tipoServicio;
                     if (changes.direccion !== undefined) dbUpdates.direccion = changes.direccion;
+                    if (changes.zona !== undefined) dbUpdates.zona = changes.zona;
                     if (changes.conArmamento !== undefined) dbUpdates.con_armamento = changes.conArmamento;
                     if (changes.turnosConfig !== undefined) dbUpdates.turnos_config = changes.turnosConfig;
                     if (changes.jornadasCustom !== undefined) dbUpdates.jornadas_custom = changes.jornadasCustom;
