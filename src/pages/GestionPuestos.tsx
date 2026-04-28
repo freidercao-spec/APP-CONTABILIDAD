@@ -20,6 +20,7 @@ import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { getColombiaHolidays, isHoliday } from "../utils/colombiaHolidays";
 
 // Sub-components
 import { CeldaCalendario } from "../components/puestos/CeldaCalendario";
@@ -643,6 +644,9 @@ const PanelMensualPuesto = ({
     generarMesConMotor,
   } = useProgramacionStore() as any;
 
+  // ── Cálculo de Festivos Colombia ──
+  const colombiaHolidays = useMemo(() => getColombiaHolidays(anio), [anio]);
+
 
   const [editCell, setEditCell] = useState<{
     asig: AsignacionDia;
@@ -870,6 +874,7 @@ const PanelMensualPuesto = ({
       const pageW = doc.internal.pageSize.getWidth();
       const pageH = doc.internal.pageSize.getHeight();
       const fechaActual = new Date().toLocaleDateString("es-CO", { dateStyle: "long" });
+      const holidays = getColombiaHolidays(anio);
       const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
       const DAY_NAMES = ["DOM","LUN","MAR","MIE","JUE","VIE","SAB"];
 
@@ -1033,8 +1038,11 @@ const PanelMensualPuesto = ({
           if (data.row.section==="head") {
             const dIdx=data.column.index-3;
             if (dIdx>=0&&dIdx<days.length) {
-              const dow=new Date(anio,mes,days[dIdx]).getDay();
-              if (dow===0||dow===6) data.cell.styles.fillColor=[67,24,255];
+              const dateObj = new Date(anio,mes,days[dIdx]);
+              const dow = dateObj.getDay();
+              const isFestivo = !!isHoliday(dateObj, holidays);
+              if (isFestivo) data.cell.styles.fillColor=[244,63,94]; // Rojo vibrante para festivos en cabecera
+              else if (dow===0||dow===6) data.cell.styles.fillColor=[67,24,255];
             }
             return;
           }
@@ -1043,10 +1051,12 @@ const PanelMensualPuesto = ({
             const val = raw.split("\n")[0];
             
             const dIdx = data.column.index - 3;
-            const dow = dIdx >= 0 && dIdx < days.length ? new Date(anio, mes, days[dIdx]).getDay() : -1;
+            const dateObj = dIdx >= 0 && dIdx < days.length ? new Date(anio, mes, days[dIdx]) : null;
+            const dow = dateObj ? dateObj.getDay() : -1;
+            const isFestivo = dateObj ? !!isHoliday(dateObj, holidays) : false;
             
-            if (!val && (dow === 0 || dow === 6)) {
-              data.cell.styles.fillColor = [220, 228, 240];
+            if (!val && (isFestivo || dow === 0 || dow === 6)) {
+              data.cell.styles.fillColor = isFestivo ? [254, 226, 226] : [220, 228, 240];
               return;
             }
 
@@ -1190,6 +1200,7 @@ const PanelMensualPuesto = ({
         const wb = new ExcelJS.Workbook();
         const sheetName = (puestoNombre || "Puesto").slice(0, 31).replace(/[[\]*/\\?:]/g, '');
         const ws = wb.addWorksheet(sheetName);
+        const holidays = getColombiaHolidays(anio);
 
         const CLR_VERDE_MES = '4ADE80'; 
 
@@ -1272,21 +1283,32 @@ const PanelMensualPuesto = ({
         daysArr.forEach((d, i) => {
            const dt = new Date(anio, mes, d);
            const cell = dayNameRow.getCell(4 + i);
-           cell.value = dowNames[dt.getDay()];
-           cell.font = { name: 'Arial Narrow', size: 8, bold: true };
+           const isFestivo = !!isHoliday(dt, holidays);
+           const dow = dt.getDay();
+           cell.value = dowNames[dow];
+           cell.font = { name: 'Arial Narrow', size: 8, bold: true, color: { argb: (isFestivo || dow === 0) ? 'FFFFFF' : '000000' } };
            cell.alignment = { horizontal: 'center' };
            cell.border = borderThin;
+           if (isFestivo) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F43F5E' } };
+           else if (dow === 0) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '4318FF' } };
         });
 
         // Fila 7: Números
         const dayNumRow = ws.getRow(7);
         daysArr.forEach((d, i) => {
+          const dt = new Date(anio, mes, d);
           const cell = dayNumRow.getCell(4 + i);
+          const isFestivo = !!isHoliday(dt, holidays);
+          const dow = dt.getDay();
           cell.value = d;
-          cell.font = { name: 'Arial Narrow', size: 8, bold: true };
+          cell.font = { name: 'Arial Narrow', size: 8, bold: true, color: { argb: (isFestivo || dow === 0) ? 'FFFFFF' : '000000' } };
           cell.alignment = { horizontal: 'center' };
           cell.border = borderThin;
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' } };
+          cell.fill = { 
+            type: 'pattern', 
+            pattern: 'solid', 
+            fgColor: { argb: isFestivo ? 'F43F5E' : (dow === 0 ? '4318FF' : 'F1F5F9') } 
+          };
         });
 
         // Fila 8: Cabeceras
@@ -1467,23 +1489,41 @@ const PanelMensualPuesto = ({
             )}
           </div>
           {/* ── Navegación de mes dentro del panel ── */}
-          <div className="flex items-center gap-3 mt-2">
+          <div className="flex items-center gap-2 mt-3">
+            {/* Botón Mes Anterior */}
             <button
               onClick={() => navegarMes(-1)}
-              className="size-8 rounded-full bg-slate-100 hover:bg-primary hover:text-white flex items-center justify-center transition-all text-slate-500"
               title="Mes anterior"
+              className="group relative size-10 rounded-2xl bg-[#0f172a] border border-white/10 hover:border-indigo-500/60 flex items-center justify-center transition-all duration-300 hover:shadow-[0_0_18px_rgba(99,102,241,0.35)] active:scale-95 overflow-hidden"
             >
-              <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/0 to-indigo-600/0 group-hover:from-indigo-600/20 group-hover:to-violet-600/10 transition-all duration-300" />
+              <span className="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-indigo-300 transition-colors relative z-10">chevron_left</span>
             </button>
-            <p className="text-sm font-black text-slate-700 uppercase tracking-wider min-w-[140px] text-center">
-              {MONTH_NAMES[mes]} {anio}
-            </p>
+
+            {/* Bloque central: Año + Mes */}
+            <div className="relative flex flex-col items-center justify-center px-6 py-2.5 rounded-2xl bg-[#0f172a] border border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.4)] min-w-[150px] overflow-hidden cursor-default select-none">
+              {/* Fondo decorativo */}
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/5 via-transparent to-violet-600/5 pointer-events-none" />
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-[2px] bg-gradient-to-r from-transparent via-indigo-500/70 to-transparent" />
+
+              <span className="text-[9px] font-black text-indigo-400/80 tracking-[0.35em] uppercase leading-none mb-0.5 relative z-10">
+                {anio}
+              </span>
+              <span className="text-[18px] font-black text-white tracking-[0.15em] uppercase leading-none relative z-10"
+                style={{ textShadow: '0 0 30px rgba(99,102,241,0.4)' }}
+              >
+                {MONTH_NAMES[mes]}
+              </span>
+            </div>
+
+            {/* Botón Mes Siguiente */}
             <button
               onClick={() => navegarMes(1)}
-              className="size-8 rounded-full bg-slate-100 hover:bg-primary hover:text-white flex items-center justify-center transition-all text-slate-500"
               title="Mes siguiente"
+              className="group relative size-10 rounded-2xl bg-[#0f172a] border border-white/10 hover:border-indigo-500/60 flex items-center justify-center transition-all duration-300 hover:shadow-[0_0_18px_rgba(99,102,241,0.35)] active:scale-95 overflow-hidden"
             >
-              <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/0 to-indigo-600/0 group-hover:from-indigo-600/20 group-hover:to-violet-600/10 transition-all duration-300" />
+              <span className="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-indigo-300 transition-colors relative z-10">chevron_right</span>
             </button>
           </div>
           <p className="text-xs font-bold text-slate-500 mt-1">
@@ -1969,8 +2009,8 @@ const PanelMensualPuesto = ({
                   const dayDate = new Date(anio, mes, d);
                   const isSun = dayDate.getDay() === 0;
                   const isSat = dayDate.getDay() === 6;
+                  const holiday = isHoliday(dayDate, colombiaHolidays);
                   const isToday = (() => { const t = new Date(); return t.getDate() === d && t.getMonth() === mes && t.getFullYear() === anio; })();
-                  const isWeekend = isSun || isSat;
                   
                   return (
                     <th 
@@ -1979,26 +2019,40 @@ const PanelMensualPuesto = ({
                       style={{ 
                         width: 120,
                         background: isToday 
-                          ? 'linear-gradient(180deg, rgba(99,102,241,0.15), rgba(99,102,241,0.05))' 
-                          : isSun 
-                            ? 'linear-gradient(180deg, rgba(239,68,68,0.08), transparent)' 
-                            : 'transparent'
+                          ? 'linear-gradient(180deg, rgba(99,102,241,0.25), rgba(99,102,241,0.05))' 
+                          : holiday
+                            ? 'linear-gradient(180deg, rgba(239,68,68,0.25), rgba(239,68,68,0.05))'
+                            : isSun 
+                              ? 'linear-gradient(180deg, rgba(239,68,68,0.15), rgba(239,68,68,0.02))' 
+                              : isSat
+                                ? 'linear-gradient(180deg, rgba(245,158,11,0.15), rgba(245,158,11,0.02))'
+                                : 'transparent'
                       }}
+                      title={holiday?.name}
                     >
-                      {isToday && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] bg-indigo-500 rounded-b-full shadow-[0_0_12px_rgba(99,102,241,0.6)]" />}
-                      {isSun && <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-rose-500/60 to-transparent" />}
+                      {isToday && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] bg-indigo-500 rounded-b-full shadow-[0_0_12px_rgba(99,102,241,0.8)]" />}
+                      {(isSun || holiday) && <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-rose-500 via-rose-400 to-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.4)]" />}
+                      {isSat && !holiday && <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.4)]" />}
+                      
                       <div className="flex flex-col items-center justify-center h-full gap-0.5 py-3">
-                        <span className={`text-[9px] tracking-[0.15em] font-black ${
-                          isToday ? 'text-indigo-400' : isSun ? 'text-rose-400/80' : isSat ? 'text-amber-400/40' : 'text-slate-500/60'
+                        <span className={`text-[10px] tracking-[0.2em] font-black ${
+                          isToday ? 'text-indigo-400' : (isSun || holiday) ? 'text-rose-400' : isSat ? 'text-amber-400' : 'text-slate-500/60'
                         }`}>
                           {dayDate.toLocaleDateString('es', {weekday: 'short'}).toUpperCase()}
                         </span>
-                        <span className={`text-[20px] font-black tabular-nums leading-none ${
-                          isToday ? 'text-indigo-300' : isSun ? 'text-rose-300/80' : 'text-white/80'
+                        <span className={`text-[26px] font-black tabular-nums leading-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)] ${
+                          isToday ? 'text-white' : (isSun || holiday) ? 'text-rose-200' : isSat ? 'text-amber-100' : 'text-white/90'
                         }`}>{d}</span>
-                        {isToday && (
-                          <span className="text-[7px] font-black text-indigo-400 uppercase tracking-[0.2em] mt-1 animate-pulse">HOY</span>
-                        )}
+                        
+                        {isToday ? (
+                          <span className="text-[7px] font-black text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-full uppercase tracking-[0.2em] mt-1 animate-pulse">HOY</span>
+                        ) : holiday ? (
+                          <span className="text-[7px] font-black text-white bg-rose-600 px-2 py-0.5 rounded-full uppercase tracking-[0.1em] mt-1 truncate max-w-[90px] shadow-[0_2px_8px_rgba(225,29,72,0.4)]" title={holiday.name}>FESTIVO</span>
+                        ) : isSun ? (
+                          <span className="text-[7px] font-black text-rose-400 uppercase tracking-[0.2em] mt-1">DOM</span>
+                        ) : isSat ? (
+                          <span className="text-[7px] font-black text-amber-400 uppercase tracking-[0.2em] mt-1">SÁB</span>
+                        ) : null}
                       </div>
                     </th>
                   );

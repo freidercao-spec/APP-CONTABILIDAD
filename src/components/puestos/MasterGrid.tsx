@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { getColombiaHolidays, isHoliday } from '../../utils/colombiaHolidays';
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -17,6 +18,7 @@ interface MasterGridProps {
 
 export const MasterGrid = ({ anio, mes, filteredPuestos, programaciones, isInitialLoading, onSelectPuesto, onEditPuesto }: MasterGridProps) => {
   const totalDias = new Date(anio, mes + 1, 0).getDate();
+  const colombiaHolidays = useMemo(() => getColombiaHolidays(anio), [anio]);
 
   if (isInitialLoading) {
     return (
@@ -78,13 +80,28 @@ export const MasterGrid = ({ anio, mes, filteredPuestos, programaciones, isIniti
               </th>
               {Array.from({ length: totalDias }, (_, i) => i + 1).map(d => {
                 const date = new Date(anio, mes, d);
-                const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                const isSun = date.getDay() === 0;
+                const isSat = date.getDay() === 6;
+                const holiday = isHoliday(date, colombiaHolidays);
+                const isWeekend = isSun || isSat;
+                
                 return (
-                  <th key={d} className={`px-2 py-6 border-r border-white/5 text-center transition-all ${isWeekend ? 'bg-indigo-950/40' : 'bg-[#1e293b]/40'}`} style={{ width: 75 }}>
-                    <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${isWeekend ? 'text-indigo-400 opacity-90' : 'text-slate-500 opacity-60'}`}>
+                  <th 
+                    key={d} 
+                    className={`px-2 py-6 border-r border-white/5 text-center transition-all relative ${holiday ? 'bg-rose-900/60' : isSun ? 'bg-rose-950/60' : isSat ? 'bg-amber-950/40' : 'bg-[#1e293b]/40'}`} 
+                    style={{ width: 75 }}
+                    title={holiday?.name}
+                  >
+                    <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${holiday || isSun ? 'text-rose-400' : isSat ? 'text-amber-400' : 'text-slate-500/60'}`}>
                       {date.toLocaleDateString('es', { weekday: 'short' }).toUpperCase()}
                     </p>
-                    <p className={`text-[20px] font-black italic tracking-tighter ${isWeekend ? 'text-white' : 'text-slate-200'}`}>{d}</p>
+                    <p className={`text-[24px] font-black italic tracking-tighter drop-shadow-lg ${holiday || isSun ? 'text-rose-100' : isSat ? 'text-amber-100' : 'text-slate-200'}`}>{d}</p>
+                    {(holiday || isSun) && (
+                      <div className="absolute top-0 left-0 w-full h-[3px] bg-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.8)]" />
+                    )}
+                    {isSat && !holiday && (
+                      <div className="absolute top-0 left-0 w-full h-[3px] bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.8)]" />
+                    )}
                   </th>
                 );
               })}
