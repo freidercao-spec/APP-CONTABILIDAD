@@ -20,6 +20,14 @@ interface EditCeldaModalProps {
   onClose: () => void;
 }
 
+// Helper para comparar IDs de manera robusta (UUID vs Legacy)
+const idsMatch = (id1: any, id2: any) => {
+  if (!id1 || !id2) return false;
+  const s1 = String(id1).toLowerCase();
+  const s2 = String(id2).toLowerCase();
+  return s1 === s2;
+};
+
 export const EditCeldaModal = ({ 
   asig, vigilantes, titularesId, titulares, puestoNombre, diaLabel, 
   turnosConfig = [], jornadasCustom = [], initialVigilanteId, onSave, onClose 
@@ -32,7 +40,8 @@ export const EditCeldaModal = ({
 
   const [selectedVigilante, setSelectedVigilante] = useState<Vigilante | null>(() => {
     const vid = asig.vigilanteId || initialVigilanteId;
-    return vigilantes.find(v => v.id === vid || v.dbId === vid) || null;
+    if (!vid) return null;
+    return vigilantes.find(v => idsMatch(v.id, vid) || idsMatch(v.dbId, vid)) || null;
   });
 
   const [tempAsig, setTempAsig] = useState<AsignacionDia>(() => {
@@ -57,7 +66,7 @@ export const EditCeldaModal = ({
 
   const titularesList = useMemo(() => {
     return titularesId.map(id => {
-      const found = vigilantes.find(v => v.id === id || v.dbId === id);
+      const found = vigilantes.find(v => idsMatch(v.id, id) || idsMatch(v.dbId, id));
       if (found) return found;
       // RECUPERACIÓN SINTÉTICA: Si no está en el store global pero sí en el tablero, crear perfil temporal
       return { 
@@ -243,7 +252,7 @@ export const EditCeldaModal = ({
                         onClick={() => handleSelectVigilante(v)}
                         className="flex items-center gap-5 p-5 bg-white/5 border border-white/5 hover:border-indigo-500/30 hover:bg-indigo-500/10 rounded-[28px] transition-all group text-left"
                       >
-                         <div className="size-14 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-lg font-black group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-inner">
+                        <div className={`size-14 rounded-2xl border flex items-center justify-center text-lg font-black transition-all shadow-inner ${idsMatch(selectedVigilante?.id, v.id) ? 'bg-indigo-600 border-indigo-400 text-white' : 'bg-indigo-600/10 border-indigo-500/20 text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white'}`}>
                            {v.nombre.substring(0,2).toUpperCase()}
                          </div>
                          <div className="min-w-0">
@@ -407,7 +416,16 @@ export const EditCeldaModal = ({
         {/* Footer Elite */}
         <div className="px-12 py-10 bg-slate-950 border-t border-white/5 flex flex-col md:flex-row gap-6 items-center justify-between">
            <button 
-            onClick={() => { setTempAsig({ ...tempAsig, jornada: 'sin_asignar', vigilanteId: '' }); handleSave(); }}
+            onClick={() => { 
+                setSelectedVigilante(null);
+                const cleared = { ...tempAsig, jornada: 'sin_asignar' as any, vigilanteId: null as string | null };
+                setTempAsig(cleared);
+                onSave({
+                    ...cleared,
+                    confirmado_por: (window as any).__usuario_actual || 'Operador',
+                    timestamp_confirmacion: new Date().toISOString(),
+                });
+            }}
             className="flex items-center gap-2.5 text-[12px] font-black text-slate-600 hover:text-rose-500 uppercase tracking-[0.2em] transition-all group"
            >
              <div className="size-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500/40 group-hover:text-rose-500 transition-colors">

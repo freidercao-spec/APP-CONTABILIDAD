@@ -270,60 +270,79 @@ export const CorazaAI = () => {
             </div>
             )}
 
-            {/* Floating Action Button */}
+            {/* Botón de Acción Flotante (FAB) - Rediseño Premium Elite */}
             <div className={`mt-4 ${isOpen ? '' : 'animate-float'}`}>
                 <button
                     onClick={toggleOpen}
                     className={`
-                        size-14 rounded-[20px] flex items-center justify-center transition-all duration-500 outline-none relative group overflow-visible
+                        size-16 rounded-[24px] flex items-center justify-center transition-all duration-700 outline-none relative group overflow-visible
                         ${isOpen 
-                            ? 'bg-slate-900 shadow-2xl rotate-90 scale-90 border border-white/20' 
-                            : 'bg-primary shadow-[0_15px_40px_rgba(67,24,255,0.4)] hover:shadow-[0_25px_60px_rgba(67,24,255,0.6)] hover:scale-110 hover:-rotate-3 border-2 border-white/30'}
+                            ? 'bg-slate-900 shadow-[0_20px_50px_rgba(0,0,0,0.5)] rotate-90 scale-90 border border-white/20' 
+                            : 'bg-primary shadow-[0_10px_40px_rgba(67,24,255,0.4)] hover:shadow-[0_20px_70px_rgba(67,24,255,0.7)] hover:scale-110 hover:-rotate-3 border-2 border-white/20'}
                     `}
                 >
-                    {/* Tech Orbits (Rings) */}
+                    {/* Anillos Orbitales de Alta Tecnología */}
                     {!isOpen && (
-                        <>
-                            <div className="absolute -inset-3 border border-primary/20 rounded-[26px] animate-spin-slower opacity-40 pointer-events-none"></div>
-                            <div className="absolute -inset-1.5 border border-primary-light/10 rounded-[22px] animate-spin-reverse opacity-30 pointer-events-none"></div>
-                        </>
+                        <div className="absolute inset-0 pointer-events-none">
+                            {/* Anillo Exterior Pulsante */}
+                            <div className="absolute -inset-4 border border-primary/20 rounded-[30px] animate-spin-slower opacity-40 group-hover:opacity-100 group-hover:border-primary/40 group-hover:scale-110 transition-all duration-700"></div>
+                            {/* Anillo Medio con Efecto de Radar */}
+                            <div className="absolute -inset-2 border border-primary-light/10 rounded-[26px] animate-spin-reverse opacity-30 group-hover:opacity-60 transition-all duration-500">
+                                <div className="absolute top-0 left-1/2 -translate-x-1/2 size-2 bg-primary-light rounded-full blur-[2px] shadow-[0_0_10px_#818cf8]"></div>
+                            </div>
+                            {/* Destello de Escaneo */}
+                            <div className="absolute inset-0 rounded-[24px] overflow-hidden opacity-0 group-hover:opacity-20 transition-opacity duration-500">
+                                <div className="absolute top-0 left-0 w-full h-[2px] bg-white animate-scanline"></div>
+                            </div>
+                        </div>
                     )}
 
-                    {/* Container for the image to keep it within bounds */}
-                    <div className="absolute inset-0 rounded-[18px] overflow-hidden">
-                        {/* High-Tech Background Layer */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary-dark to-[#0D1117] opacity-95"></div>
+                    {/* Contenedor del Avatar / Icono */}
+                    <div className="absolute inset-1 rounded-[20px] overflow-hidden">
+                        {/* Capa de Fondo Tecnológico con Degradado */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary-dark to-[#0b1120] transition-transform duration-700 group-hover:scale-110"></div>
                         
-                        {/* Tech Scanlines Effect */}
-                        <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[size:100%_2px,3px_100%] pointer-events-none opacity-20"></div>
+                        {/* Micro-Patrón Digital de Fondo */}
+                        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:4px_4px]"></div>
 
-                        {/* Internal Glow */}
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.15),transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                        {/* Brillo Interno Dinámico */}
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.2),transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
 
                         {isOpen ? (
-                            <div className="w-full h-full flex items-center justify-center">
-                                <span className="material-symbols-outlined text-[26px] text-white relative z-10 transition-transform duration-500 -rotate-90">close</span>
+                            <div className="w-full h-full flex items-center justify-center relative z-10 transition-all duration-500">
+                                <span className="material-symbols-outlined text-[28px] text-white -rotate-90">close</span>
                             </div>
                         ) : (
                             <div className="relative z-10 w-full h-full flex items-center justify-center">
-                                <img 
-                                    src={corazaiAvatar} 
-                                    alt="CorazAI" 
-                                    className="size-full object-cover object-top scale-[1.3] origin-top transition-all duration-700 group-hover:scale-[1.4] brightness-125 contrast-110" 
-                                />
-                                {/* Elegant Lens Flare/Sheen Overlay */}
-                                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                                {/* Mascara para el Avatar con efecto de cristal */}
+                                <div className="size-full overflow-hidden rounded-full border-2 border-white/10 group-hover:border-white/30 transition-all duration-500 shadow-inner">
+                                    <img 
+                                        src={corazaiAvatar} 
+                                        alt="CorazAI" 
+                                        className="size-full object-cover object-top scale-[1.4] origin-top transition-all duration-1000 group-hover:scale-[1.55] brightness-125 contrast-110 drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)]" 
+                                    />
+                                </div>
+                                
+                                {/* Reflejo de Lente Táctico */}
+                                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out"></div>
+                                
+                                {/* Overlay de Interfaz Holográfica (Sutil) */}
+                                <div className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none">
+                                    <div className="absolute top-2 left-2 size-2 border-t border-l border-white"></div>
+                                    <div className="absolute bottom-2 right-2 size-2 border-b border-r border-white"></div>
+                                </div>
                             </div>
                         )}
                     </div>
 
-                    {/* Refined Status indicator */}
-                    <div className="absolute top-1.5 right-1.5 z-20 flex items-center justify-center">
-                        <span className="absolute size-3 bg-success rounded-full animate-ping opacity-40 scale-150"></span>
-                        <div className="size-2.5 rounded-full bg-success ring-2 ring-[#0D1117] shadow-[0_0_10px_rgba(48,209,88,1)]"></div>
+                    {/* Indicador de Estado (Online) Refinado */}
+                    <div className="absolute -top-1 -right-1 z-20 flex items-center justify-center">
+                        <span className="absolute size-4 bg-success rounded-full animate-ping opacity-30 scale-150"></span>
+                        <div className="size-3.5 rounded-full bg-success ring-4 ring-[#0D1117] shadow-[0_0_15px_rgba(48,209,88,0.8)] border border-white/20"></div>
                     </div>
                 </button>
             </div>
+
         </div>
     );
 };

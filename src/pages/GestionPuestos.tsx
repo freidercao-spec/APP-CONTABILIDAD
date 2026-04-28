@@ -110,6 +110,25 @@ const getRolPdfLabel = (rol: string) => {
   return ROL_PDF_BASE[rol] || rol.replace(/_/g, " ").toUpperCase();
 };
 
+const getTacticalCode = (asig: any): string => {
+  if (!asig || asig.jornada === 'sin_asignar' || !asig.jornada) return '-';
+  if (asig.codigo_personalizado) return asig.codigo_personalizado;
+  const j = asig.jornada || asig.turno || '';
+  if (j === 'descanso_remunerado' || j === 'X' || j === 'DR') return 'X';
+  if (j === 'descanso_no_remunerado' || j === 'NR' || j === 'DNR') return 'NR';
+  if (j === 'vacacion' || j === 'VAC') return 'VAC';
+  // Licencias y novedades
+  if (j === 'licencia') return 'LC';
+  if (j === 'incapacidad') return 'IN';
+  if (j === 'suspension') return 'SP';
+  if (j === 'accidente') return 'AC';
+
+  if (j === 'AM' || j === 'D' || (j === 'normal' && asig.turno !== 'PM')) return 'D12';
+  if (j === 'PM' || j === 'N' || (j === 'normal' && asig.turno === 'PM')) return 'N12';
+  if (j === '24H' || j === '24') return '24';
+  return j;
+};
+
 const GestionPersonalModal = ({
   prog,
   puestoNombre,
@@ -624,6 +643,7 @@ const PanelMensualPuesto = ({
     generarMesConMotor,
   } = useProgramacionStore() as any;
 
+
   const [editCell, setEditCell] = useState<{
     asig: AsignacionDia;
     progId: string;
@@ -751,24 +771,11 @@ const PanelMensualPuesto = ({
   }, [vigilantes]);
 
   // ── MAPA DE CONFLICTOS: Detecta doble asignación por vigilante/día ──────
+  // Optimizado: Ahora se lee directamente del mapa pre-calculado en el store
+  const storeConflictMap = useProgramacionStore(s => (s as any).conflictMap);
   const conflictMap = useMemo(() => {
-    const map = new Map<string, string>(); // key: "vidId-dia" => puestoNombre del conflicto
-    if (!prog) return map;
-    
-    allProgramaciones.forEach(otherProg => {
-      if (otherProg.id === prog.id) return;
-      if (otherProg.anio !== prog.anio || otherProg.mes !== prog.mes) return;
-      
-      (otherProg.asignaciones || []).forEach(a => {
-        if (a.vigilanteId && a.jornada !== 'sin_asignar') {
-          const otherPuesto = getPuestoNombre(otherProg, allPuestos);
-          const key = `${a.vigilanteId}-${a.dia}`;
-          map.set(key, otherPuesto);
-        }
-      });
-    });
-    return map;
-  }, [allProgramaciones, allPuestos, prog]);
+    return storeConflictMap || new Map<string, string>();
+  }, [storeConflictMap, version]);
 
   // ── ALERTAS ACTIVAS DEL MES ──────────────────────────────────
   const alertas = useMemo(() => {
@@ -800,11 +807,9 @@ const PanelMensualPuesto = ({
         message: `${personal.filter((p) => p.vigilanteId).length} efectivos asignados al puesto.`,
         type: "success",
       });
-      const queueSync = (useProgramacionStore as any).__syncQueue;
-      if (queueSync) queueSync(prog.id);
       logAction("PROGRAMACION", "Personal Actualizado", `Puesto: ${puestoNombre}`, "success");
     },
-    [prog, puestoNombre, logAction]
+    [prog, puestoNombre, currentUser, logAction]
   );
 
   // ── Motor de Ciclo D/N/R/NR — Aplicar plantilla del mes anterior ────────────
@@ -945,8 +950,8 @@ const PanelMensualPuesto = ({
 
         const rowData = [
           rolLabel.toUpperCase(),
-          v?.documento || "—",
-          (v?.nombre || "VIGILANTE NO ASIGNADO").toUpperCase()
+          v?.cedula || "—",
+          (v?.nombres ? `${v.nombres} ${v.apellidos}` : (v?.nombre || "VIGILANTE NO ASIGNADO")).toUpperCase()
         ];
 
         // Llenar los días del mes para este rol
@@ -1399,31 +1404,12 @@ const PanelMensualPuesto = ({
       }
     }, [prog, puestoNombre, mes, anio, daysArr, vigilantes, logAction]);
 
-  // RELAXED LOADING: Dejar pasar si ya hay prog, aunque esté "fetching" para evitar pantallas en blanco infinitas
-  if (!prog) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
-        <div className="size-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-sm font-black text-slate-500 uppercase tracking-widest">
-           Cargando {MONTH_NAMES[mes]} {anio}...
-        </p>
-        <p className="text-[10px] text-slate-400 mt-2">Si tarda mucho, el mes puede estar vacío en la base de datos.</p>
-        <button
-          onClick={() => crearOObtenerProgramacion(puestoId, anio, mes, currentUser)}
-          className="mt-6 px-8 py-3 bg-primary hover:bg-indigo-500 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all"
-        >
-          Crear Tablero para este Mes
-        </button>
-      </div>
-    );
-  }
-
   const nombrePuesto = puestoNombre || getPuestoNombre(prog, allPuestos);
   const titularesId = useMemo(() => {
     if (!prog) return [];
     // RECOPILACIÓN TOTAL: Si está en el tablero, debe estar en el modal.
     const fromProg = (prog.personal || []).map((p: any) => p.vigilanteId);
-    const fromPuesto = (puesto?.personal || []).map((p: any) => p.vigilanteId);
+    const fromPuesto = ((puesto as any)?.personal || []).map((p: any) => p.vigilanteId);
     const fromAsigs = (prog.asignaciones || []).map((a: any) => a.vigilanteId);
     
     const combined = Array.from(new Set([...fromProg, ...fromPuesto, ...fromAsigs])).filter(Boolean);
@@ -1440,6 +1426,25 @@ const PanelMensualPuesto = ({
   const syncStatus = prog?.syncStatus ?? 'synced';
 
   const staffAsignado = progPersonal.filter((p: any) => p.vigilanteId);
+
+  // RELAXED LOADING: Dejar pasar si ya hay prog, aunque esté "fetching" para evitar pantallas en blanco infinitas
+  if (isInitialLoading && !prog) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
+        <div className="size-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-sm font-black text-slate-500 uppercase tracking-widest">
+           Cargando {MONTH_NAMES[mes]} {anio}...
+        </p>
+        <p className="text-[10px] text-slate-400 mt-2">Si tarda mucho, el mes puede estar vacío en la base de datos.</p>
+        <button
+          onClick={() => crearOObtenerProgramacion(puestoId, anio, mes, currentUser)}
+          className="mt-6 px-8 py-3 bg-primary hover:bg-indigo-500 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all"
+        >
+          Crear Tablero para este Mes
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="page-container animate-fade-in bg-slate-50 min-h-screen pb-32">
@@ -1501,22 +1506,23 @@ const PanelMensualPuesto = ({
             onClick={handleAplicarCiclo}
             disabled={isApplyingCiclo}
             title="Aplica el ciclo continuo 6D → 2R+1NR → 6N → 2R+1NR. Hereda la posición del mes anterior automáticamente."
-            className="px-5 py-2.5 bg-indigo-700 text-indigo-100 border border-indigo-500/40 rounded-2xl text-[10px] font-black uppercase hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-2 shadow-lg shadow-indigo-900/30 disabled:opacity-60"
+            className="group relative px-6 py-2.5 bg-gradient-to-br from-indigo-600 to-violet-700 text-white border border-indigo-400/30 rounded-2xl text-[10px] font-black uppercase tracking-wider hover:from-indigo-500 hover:to-violet-600 transition-all flex items-center gap-2.5 shadow-[0_10px_30px_rgba(79,70,229,0.3)] hover:shadow-[0_15px_40px_rgba(79,70,229,0.5)] active:scale-95 disabled:opacity-60 overflow-hidden"
           >
-            <span className={`material-symbols-outlined text-[18px] ${isApplyingCiclo ? 'animate-spin' : ''}`}>
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+            <span className={`material-symbols-outlined text-[18px] relative z-10 ${isApplyingCiclo ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`}>
               {isApplyingCiclo ? 'sync' : 'autorenew'}
             </span>
-            {isApplyingCiclo ? 'Aplicando...' : 'Aplicar Ciclo D/N/R'}
+            <span className="relative z-10">{isApplyingCiclo ? 'Aplicando...' : 'Aplicar Ciclo D/N/R'}</span>
           </button>
 
           <button
             onClick={() => setShowPersonalModal(true)}
-            className="px-5 py-2.5 bg-slate-800 text-white border border-white/10 rounded-2xl text-[10px] font-black uppercase hover:bg-slate-700 transition-all flex items-center gap-2"
+            className="group px-6 py-2.5 bg-slate-800/80 backdrop-blur-md text-white border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-wider hover:bg-slate-700 hover:border-white/20 transition-all flex items-center gap-2.5 shadow-xl active:scale-95"
           >
-            <span className="material-symbols-outlined text-[18px]">manage_accounts</span>
-            Personal
+            <span className="material-symbols-outlined text-[18px] text-slate-400 group-hover:text-white transition-colors">manage_accounts</span>
+            <span>Personal</span>
             {staffAsignado.length > 0 && (
-              <span className="px-1.5 py-0.5 bg-emerald-500 text-white rounded-full text-[8px] font-black">
+              <span className="px-2 py-0.5 bg-indigo-500 text-white rounded-full text-[8px] font-black shadow-[0_0_10px_rgba(99,102,241,0.5)]">
                 {staffAsignado.length}
               </span>
             )}
@@ -1817,9 +1823,9 @@ const PanelMensualPuesto = ({
           <button
             onClick={() => {
               const nombre = prompt("Nombre de la plantilla:");
-              {nombre && prog?.id && (
-                guardarComoPlantilla(prog.id, nombre, nombrePuesto, currentUser)
-              )}
+              if (nombre && prog?.id) {
+                guardarComoPlantilla(prog.id, nombre, nombrePuesto, currentUser);
+              }
             }}
             className="px-4 py-2 bg-white/5 hover:bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-2 border border-white/5"
           >
@@ -2105,24 +2111,26 @@ const PanelMensualPuesto = ({
                        (a: AsignacionDia) => a.dia === d && a.rol === per.rol
                      );
                      
-                     const asig = asigFound || { 
+                     const asig = asigFound || ({ 
                        dia: d, 
+                       vigilanteId: null,
                        turno: per.turnoId || 'AM', 
                        jornada: "sin_asignar", 
                        rol: per.rol,
-                       inicio: turno.inicio || '',
-                       fin: turno.fin || ''
-                     };
+                       inicio: (turno as any)?.inicio || '',
+                       fin: (turno as any)?.fin || ''
+                     } as AsignacionDia);
 
                      const dow = new Date(anio, mes, d).getDay();
                      const isWeekend = dow === 0 || dow === 6;
 
                      // Detectar conflicto: mismo vigilante asignado en otro puesto ese día
-                     const hasConflict = asig.vigilanteId && asig.jornada !== 'sin_asignar'
-                       ? conflictMap.has(`${asig.vigilanteId}-${d}`)
+                     const conflictKey = asig.vigilanteId ? `${asig.vigilanteId}-${anio}-${mes}-${d}` : '';
+                     const hasConflict = !!conflictKey && asig.jornada !== 'sin_asignar'
+                       ? conflictMap.has(conflictKey)
                        : false;
                      const conflictDetail = hasConflict 
-                       ? conflictMap.get(`${asig.vigilanteId}-${d}`) || ''
+                       ? conflictMap.get(conflictKey) || ''
                        : '';
 
                      return (
@@ -2408,13 +2416,33 @@ const GestionPuestos = () => {
             </button>
           </div>
 
+          {/* Botón Nuevo Objetivo - Rediseño Elite Táctico */}
           <button 
             onClick={() => setIsNewPuestoModalOpen(true)}
-            className="flex items-center gap-3 bg-white text-black h-[54px] px-6 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-primary hover:text-white transition-all transform hover:-translate-y-1 active:scale-95 shadow-2xl relative overflow-hidden group"
+            className="group relative h-[56px] px-8 rounded-2xl flex items-center gap-3 transition-all duration-500 overflow-hidden active:scale-95"
           >
-            <span className="material-symbols-outlined text-[20px]">add_location</span>
-            <span>Nuevo Objetivo</span>
+            {/* Capa de Resplandor (Glow) Externo */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-primary via-indigo-400 to-primary rounded-2xl blur-md opacity-20 group-hover:opacity-60 transition-opacity duration-500 animate-pulse pointer-events-none"></div>
+            
+            {/* Fondo Base con Degradado Premium */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white via-slate-100 to-slate-200 group-hover:from-primary group-hover:via-indigo-600 group-hover:to-primary-dark transition-all duration-500 border border-white/20 pointer-events-none"></div>
+            
+            {/* Efecto de Barrido de Luz (Shine) */}
+            <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-[-20deg] pointer-events-none"></div>
+
+            {/* Contenido del Botón */}
+            <span className="material-symbols-outlined text-[22px] text-black group-hover:text-white transition-colors duration-500 relative z-10 group-hover:rotate-12 transition-transform">
+              add_location
+            </span>
+            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-black group-hover:text-white transition-colors duration-500 relative z-10 italic">
+              Nuevo Objetivo
+            </span>
+
+            {/* Decoración de Esquina Táctica */}
+            <div className="absolute top-1 right-1 size-2 border-t border-r border-black/10 group-hover:border-white/40 transition-colors z-10"></div>
+            <div className="absolute bottom-1 left-1 size-2 border-b border-l border-black/10 group-hover:border-white/40 transition-colors z-10"></div>
           </button>
+
         </div>
       </header>
 

@@ -587,32 +587,48 @@ const PuestoModal = ({ isOpen, onClose, initialLat = 6.2442, initialLng = -75.58
                                     </p>
                                 </div>
 
-                                {/* ── CAMPO ZONA / SECTOR ── */}
-                                <div className="mt-3 space-y-1.5 animate-in fade-in slide-in-from-top-1">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                                        Zona / Sector <span className="text-slate-600">(opcional)</span>
-                                    </label>
-                                    <div className="relative">
+                                {/* ── CAMPO ZONA / SECTOR (TOTALMENTE PERSONALIZABLE) ── */}
+                                <div className="mt-4 space-y-2 animate-in fade-in slide-in-from-top-1">
+                                    <div className="flex items-center justify-between ml-1">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                            Zona / Sector / Región
+                                        </label>
+                                        <span className="text-[8px] font-black bg-primary/10 text-primary-light px-2 py-0.5 rounded-md uppercase tracking-tighter">Manual Habilitado</span>
+                                    </div>
+                                    
+                                    <div className="relative group/zona">
                                         <input
                                             list="zonas-list"
                                             value={zona}
                                             onChange={(e) => setZona(e.target.value)}
-                                            className="w-full bg-[#0b1424] border border-white/10 rounded-xl py-3 px-4 pr-10 text-xs text-white focus:border-primary/50 outline-none"
-                                            placeholder="Ej: Zona Norte, Zona 1, Sector Centro..."
+                                            className="w-full bg-[#0d1a2e] border border-white/10 rounded-xl py-3.5 px-5 pr-12 text-sm text-white focus:border-primary/60 focus:ring-1 focus:ring-primary/20 outline-none transition-all placeholder:text-slate-600 shadow-inner"
+                                            placeholder="Escribe el nombre de la zona o sector..."
                                         />
                                         <datalist id="zonas-list">
                                             {ZONAS_PREDEFINIDAS.map(z => (
-                                                <option key={z} value={z} />
+                                                <option key={z} value={z}>{z}</option>
                                             ))}
                                         </datalist>
-                                        <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-primary/40 text-[18px]">explore</span>
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-primary/30 group-focus-within/zona:text-primary transition-colors">
+                                            <span className="material-symbols-outlined text-[20px]">explore</span>
+                                        </div>
                                     </div>
-                                    {zona && (
-                                        <p className="text-[9px] text-primary/80 font-bold ml-1">
-                                            Zona asignada: <span className="font-mono">{zona}</span>
+                                    
+                                    <div className="flex items-start gap-2 ml-1">
+                                        <span className="material-symbols-outlined text-[14px] text-primary-light/50 mt-0.5">info</span>
+                                        <p className="text-[9px] text-slate-500 leading-relaxed font-medium">
+                                            Puedes escribir <span className="text-slate-300 font-bold">cualquier nombre de zona</span> manualmente si no está en la lista. Se guardará exactamente como lo escribas.
                                         </p>
+                                    </div>
+
+                                    {zona && !ZONAS_PREDEFINIDAS.includes(zona) && (
+                                        <div className="mx-1 px-3 py-1.5 rounded-lg bg-amber-500/5 border border-amber-500/20 flex items-center gap-2 animate-in zoom-in-95">
+                                            <span className="size-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                            <span className="text-[9px] font-black text-amber-500/80 uppercase tracking-widest">Nueva Zona Detectada</span>
+                                        </div>
                                     )}
                                 </div>
+
                             </div>
 
                             <div className="space-y-1.5">

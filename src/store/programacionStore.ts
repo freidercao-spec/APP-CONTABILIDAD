@@ -4,6 +4,7 @@ import { supabase, EMPRESA_ID } from '../lib/supabase';
 import { useVigilanteStore } from './vigilanteStore';
 import { usePuestoStore } from './puestoStore';
 import { useAuthStore } from './authStore';
+import { useAuditStore } from './auditStore';
 import { showTacticalToast } from '../utils/tacticalToast';
 import {
     aplicarMotorTurnos,
@@ -136,48 +137,7 @@ export const translateFromDb = (dbId: string | null, lookupMap?: Map<string, str
 };
 
 
-export interface PersonalPuesto {
-    rol: RolPuesto;
-    vigilanteId: string | null;
-    turnoId?: string; // ID del turno (AM, PM, o custom) vinculado a este rol/puesto
-}
-
-export interface ProgramacionMensual {
-    id: string; // UUID from Supabase
-    puestoId: string;
-    anio: number;
-    mes: number;
-    personal: PersonalPuesto[];
-    asignaciones: AsignacionDia[];
-    estado: EstadoProgramacion;
-    creadoEn: string;
-    actualizadoEn: string;
-    version: number;
-    historialCambios: CambioProgramacion[];
-    isDetailLoaded?: boolean;
-    isFetching?: boolean;
-    syncStatus?: 'synced' | 'pending' | 'error';
-}
-
-export interface TemplateProgramacion {
-    id: string;
-    nombre: string;
-    puestoId: string;
-    puestoNombre: string;
-    personal: PersonalPuesto[];
-    patron: Array<{ diaRelativo: number; rol: RolPuesto; turno: string; jornada: TipoJornada; vigilanteId: string | null }>;
-    creadoEn: string;
-    creadoPor: string;
-}
-
-export interface CambioProgramacion {
-    id: string;
-    timestamp: string;
-    usuario: string;
-    descripcion: string;
-    tipo: 'asignacion' | 'publicacion' | 'borrador' | 'personal' | 'rechazo_ia' | 'sistema';
-    reglaViolada?: string;
-}
+// Los tipos e interfaces ahora se importan exclusivamente de ./programacionTypes.ts
 
 export interface ResultadoValidacion {
     permitido: boolean;
@@ -200,7 +160,7 @@ interface ProgramacionState {
     fetchProgramacionesByMonth: (anio: number, mes: number) => Promise<void>;
     fetchTemplates: () => Promise<void>;
     fetchProgramacionById: (progId: string) => Promise<ProgramacionMensual | null>;
-    fetchProgramacionDetalles: (progId: string) => Promise<void>; // Carga selectiva
+    fetchProgramacionDetalles: (progId: string, force?: boolean) => Promise<void>; // Carga selectiva
     setSelectedProgId: (id: string | null) => void;
     forceSync: () => Promise<void>;
     getProgramacion: (puestoId: string, anio: number, mes: number) => ProgramacionMensual | undefined;
@@ -225,6 +185,8 @@ interface ProgramacionState {
     flushPendingSyncs: () => Promise<void>;
     _progMap?: Map<string, ProgramacionMensual>;
     _busyMap?: Map<string, Set<number>>; // key: vid-anio-mes
+    conflictMap: Map<string, string>; // Mapa de conflictos de vigilantes
+    version: number;
     _fetchDetails: (rows: any[], progIds: string[]) => Promise<void>;
     _updateMap: () => void;
     hasPendingChanges: () => boolean;
@@ -356,10 +318,10 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                     const newMap = new Map(state._progMap);
                     const p = newProgs.find((px: any) => px.id === dbProgId);
                     if (p) {
+                        // Mantener el ID viejo como alias para evitar que modales abiertos fallen durante la transición
+                        newMap.set(prog.id, p);
                         newMap.set(dbProgId, p);
                         newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
-                        // Limpiamos el ID viejo del mapa para evitar basura
-                        newMap.delete(prog.id);
                     }
                     return { programaciones: newProgs, _progMap: newMap };
                 });
@@ -573,10 +535,14 @@ export const useProgramacionStore = create<ProgramacionState>()(
             isSyncing: false,
             lastSyncError: null,
             selectedProgId: null,
+            version: 0,
+            _progMap: new Map(),
+            _busyMap: new Map(),
+            conflictMap: new Map(),
 
             hasPendingChanges: () => {
                 const s = get();
-                return s.programaciones.some(p => p.syncStatus === 'pending') || pendingSyncs.size > 0;
+                return s.programaciones.some((p: any) => p.syncStatus === 'pending') || pendingSyncs.size > 0;
             },
 
             forceSync: async () => {
@@ -633,7 +599,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     }
 
                     if (allRows.length > 0) {
-                         const headers = allRows.map(row => ({
+                         const headers = allRows.map((row: any) => ({
                             id: row.id,
                             puestoId: row.puesto_id as string,
                             anio: row.anio,
@@ -650,11 +616,11 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                         set((state: any) => {
                             const merged = [...state.programaciones];
-                            headers.forEach(h => {
+                            headers.forEach((h: any) => {
                                 const dbUuid = translatePuestoToUuid(h.puestoId) || h.puestoId;
-                                let idx = merged.findIndex(p => p.id === h.id);
+                                let idx = merged.findIndex((p: any) => p.id === h.id);
                                 if (idx < 0) {
-                                    idx = merged.findIndex(p => 
+                                    idx = merged.findIndex((p: any) => 
                                         (p.puestoId === h.puestoId || p.puestoId === dbUuid) && 
                                         p.anio === h.anio && 
                                         p.mes === h.mes
@@ -697,17 +663,14 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 }
             },
 
-            fetchProgramacionDetalles: async (progId: string) => {
+            fetchProgramacionDetalles: async (progId: string, force = false) => {
                 try {
                     const state = get();
                     const prog = state.programaciones.find(p => p.id === progId);
                     
                     if (!prog || prog.isFetching) return;
 
-                    // CORRECCIÓN CRÍTICA: Solo saltar si ya fue cargado EN ESTA SESIÓN
-                    // (isDetailLoaded se resetea al rehidratar, por lo que localStorage
-                    // nunca puede bloquear la carga de datos reales de Supabase)
-                    if (prog.isDetailLoaded) {
+                    if (prog.isDetailLoaded && !force) {
                         return; 
                     }
 
@@ -888,33 +851,33 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     });
 
                     const assignmentsByProgId = new Map<string, any[]>();
-                    allAsignaciones.forEach(a => {
+                    allAsignaciones.forEach((a: any) => {
                         if (!assignmentsByProgId.has(a.programacion_id)) assignmentsByProgId.set(a.programacion_id, []);
                         assignmentsByProgId.get(a.programacion_id)!.push(a);
                     });
 
-                    const newProgramaciones: ProgramacionMensual[] = rows.map(row => {
-                        const personal = allPersonal.filter(p => p.programacion_id === row.id).map(p => ({ 
+                    const newProgramaciones: ProgramacionMensual[] = rows.map((row: any) => {
+                        const personal = allPersonal.filter((p: any) => p.programacion_id === row.id).map((p: any) => ({ 
                             rol: p.rol as RolPuesto, 
                             vigilanteId: p.vigilante_id ? (vigLookup.get(p.vigilante_id) || p.vigilante_id) : null,
                             turnoId: p.turno_id || undefined
                         }));
-                        ['titular_a', 'titular_b', 'relevante'].forEach(rol => {
-                            if (!personal.find(p => p.rol === rol)) personal.push({ rol: rol as RolPuesto, vigilanteId: null, turnoId: rol === 'titular_b' ? 'PM' : 'AM' });
+                        ['titular_a', 'titular_b', 'relevante'].forEach((rol: any) => {
+                            if (!personal.find((p: any) => p.rol === rol)) personal.push({ rol: rol as RolPuesto, vigilanteId: null, turnoId: rol === 'titular_b' ? 'PM' : 'AM' });
                         });
                         const dbAsignaciones = assignmentsByProgId.get(row.id) || [];
                         const asigMap = new Map();
-                        dbAsignaciones.forEach(a => asigMap.set(`${a.dia}-${a.rol}`, a));
+                        dbAsignaciones.forEach((a: any) => asigMap.set(`${a.dia}-${a.rol}`, a));
                         const daysInMonth = new Date(row.anio, row.mes + 1, 0).getDate();
                         const asignaciones: AsignacionDia[] = [];
-                        const rolesToEnsure: RolPuesto[] = personal.length > 0 ? personal.map(p => p.rol) : ['titular_a', 'titular_b', 'relevante'];
+                        const rolesToEnsure: RolPuesto[] = personal.length > 0 ? personal.map((p: any) => p.rol) : ['titular_a', 'titular_b', 'relevante'];
                         for (let d = 1; d <= daysInMonth; d++) {
                             const allRolesForDay = new Set<string>(rolesToEnsure);
                             asigMap.forEach((_v: any, key: string) => {
                                 const [dayStr, ...rolParts] = key.split('-');
                                 if (parseInt(dayStr) === d) allRolesForDay.add(rolParts.join('-'));
                             });
-                            Array.from(allRolesForDay).forEach(rol => {
+                            Array.from(allRolesForDay).forEach((rol: any) => {
                                 const match = asigMap.get(`${d}-${rol}`);
                                 if (match) asignaciones.push({
                                     dia: match.dia, vigilanteId: match.vigilante_id ? (vigLookup.get(match.vigilante_id) || match.vigilante_id) : null,
@@ -933,12 +896,12 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                     set((state: any) => {
                         const merged = [...state.programaciones];
-                        newProgramaciones.forEach(np => {
+                        newProgramaciones.forEach((np: any) => {
                             // BÚSQUEDA TÁCTICA MEJORADA: Buscar por ID, o por la combinación única de Puesto-Año-Mes
                             const dbUuid = translatePuestoToUuid(np.puestoId);
-                            let idx = merged.findIndex(p => p.id === np.id);
+                            let idx = merged.findIndex((p: any) => p.id === np.id);
                             if (idx < 0) {
-                                idx = merged.findIndex(p => 
+                                idx = merged.findIndex((p: any) => 
                                     (p.puestoId === np.puestoId || p.puestoId === dbUuid || translatePuestoToUuid(p.puestoId) === dbUuid) && 
                                     p.anio === np.anio && 
                                     p.mes === np.mes
@@ -958,7 +921,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             }
                         });
                         const newMap = new Map<string, ProgramacionMensual>();
-                        merged.forEach(p => {
+                        merged.forEach((p: any) => {
                             newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
                             newMap.set(p.id, p);
                             const dbUuidLocal = translatePuestoToUuid(p.puestoId);
@@ -1050,8 +1013,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 ];
                 
                 // Si el puesto tiene personal ya definido, lo usamos como base superior
-                const personalFinal = (targetPuesto?.personal && targetPuesto.personal.length > 0)
-                    ? targetPuesto.personal.map(p => ({ ...p }))
+                const personalFinal = ((targetPuesto as any)?.personal && (targetPuesto as any).personal.length > 0)
+                    ? (targetPuesto as any).personal.map((p: any) => ({ ...p }))
                     : rolesBase;
 
                 // ── MOTOR DE TURNOS: Intentar calcular ciclo desde mes anterior ──
@@ -1139,8 +1102,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 const targetPuesto = pStore.puestos?.find(px => px.id === puestoId || px.dbId === puestoId);
                 const personalBase: PersonalPuesto[] = prog?.personal?.length
                     ? prog.personal
-                    : targetPuesto?.personal?.length
-                        ? targetPuesto.personal.map(p => ({ ...p }))
+                    : (targetPuesto as any)?.personal?.length
+                        ? (targetPuesto as any).personal.map((p: any) => ({ ...p }))
                         : [
                             { rol: 'titular_a', vigilanteId: null, turnoId: 'AM' },
                             { rol: 'titular_b', vigilanteId: null, turnoId: 'PM' },
@@ -1320,229 +1283,82 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 queueSync(progId, set, get, true);
             },
 
-            actualizarAsignacion: (progId, dia, data, usuario) => {
-                const state = get();
-                let prog = state.programaciones.find(p => p.id === progId);
+            actualizarAsignacion: (progId: string, dia: number, data: any, usuario: string) => {
+                const s = get();
+                const prog = s.programaciones.find((p: any) => p.id === progId) || s._progMap?.get(progId);
                 
-                // RESCATE TÁCTICO: Si falla por ID, buscamos por mapa (Coordenadas)
-                if (!prog && (state as any)._progMap) {
-                    prog = (state as any)._progMap.get(progId);
-                }
-
                 if (!prog) {
+                    console.error(`[Coraza] ❌ Programación no encontrada: ${progId}`);
                     return { permitido: false, tipo: 'bloqueo', mensaje: 'Programación no encontrada' };
                 }
 
+                const realId = isUuid(prog.id) ? prog.id : progId;
+
                 // CASO ESPECIAL: LIMPIAR TODO EL MES (dia === -1)
                 if (dia === -1 && (data as any).jornada === 'limpiar_todo') {
-                    const cleanAsignaciones: AsignacionDia[] = [];
-                    const daysInMonth = new Date(prog.anio, prog.mes + 1, 0).getDate();
-                    
-                    prog.personal.forEach(p => {
-                        for(let d=1; d<=daysInMonth; d++) {
-                            cleanAsignaciones.push({
-                                dia: d,
-                                rol: p.rol,
-                                vigilanteId: null,
-                                turno: p.turnoId || 'AM',
-                                jornada: 'sin_asignar'
-                            });
-                        }
-                    });
-
-                    set((s: any) => ({
-                        programaciones: s.programaciones.map((p: any) => p.id === prog?.id ? {
+                    set((state: any) => ({
+                        programaciones: state.programaciones.map((p: any) => (p.id === progId || p.id === realId) ? {
                             ...p,
-                            asignaciones: cleanAsignaciones,
+                            asignaciones: [], 
                             actualizadoEn: new Date().toISOString(),
                             syncStatus: 'pending' as const,
-                            isDirty: true
+                            isDirty: true,
+                            version: (p.version || 0) + 1
                         } : p),
-                        version: (s.version || 0) + 1
+                        version: (state.version || 0) + 1
                     }));
-                    queueSync(prog.id, set, get, true);
-                    return { permitido: true, mensaje: 'Mes limpiado correctamente' };
+                    get()._updateMap();
+                    queueSync(realId, set, get, true);
+                    return { permitido: true, tipo: 'ok', mensaje: 'Mes limpiado correctamente' };
                 }
 
-                // ── VALIDACIÓN TÁCTICA FLEXIBLE (Shift-Aware) ───────────────────
-                if (data.vigilanteId && data.jornada !== 'sin_asignar') {
-                    const normVid = translateToUuid(data.vigilanteId);
-                    const key = `${normVid}-${prog.anio}-${prog.mes}`;
-                    const busyDays = (state as any)._busyMap?.get(key);
-                    
-                    const jornadaSolicitada = (data.jornada || (data as any).turno || 'normal') as string;
-                    const isOccupiedShift = busyDays && (
-                        busyDays.has(`${dia}-24H`) || 
-                        busyDays.has(`${dia}-${jornadaSolicitada}`) ||
-                        (jornadaSolicitada === '24H' && (busyDays.has(`${dia}-AM`) || busyDays.has(`${dia}-PM`)))
-                    );
+                // CASO NORMAL: Actualizar un día/celda específico
+                set((state: any) => {
+                    const newProgs = state.programaciones.map((p: any) => {
+                        if (p.id === progId || p.id === realId) {
+                            const newAsignaciones = [...p.asignaciones];
+                            const targetRol = data.rol || 'titular_a';
+                            const idx = newAsignaciones.findIndex((a: any) => a.dia === dia && a.rol === targetRol);
+                            
+                            const updatedAsig = {
+                                ...(idx >= 0 ? newAsignaciones[idx] : { dia, rol: targetRol }),
+                                ...data,
+                                actualizadoEn: new Date().toISOString()
+                            };
 
-                    if (isOccupiedShift) {
-                        // Buscamos si es en ESTA misma programación (posible cambio de rol)
-                        const samePostConflict = prog.asignaciones.find(a => 
-                            a.dia === dia && 
-                            idsMatch(a.vigilanteId, data.vigilanteId as string) && 
-                            ((a.jornada as string) === jornadaSolicitada || (a.jornada as string) === '24H' || jornadaSolicitada === '24H')
-                        );
+                            if (idx >= 0) newAsignaciones[idx] = updatedAsig;
+                            else newAsignaciones.push(updatedAsig);
 
-                        if (!samePostConflict) {
-                            // Dejamos que el componente muestre el toast de exito
+                            return { 
+                                ...p, 
+                                asignaciones: newAsignaciones, 
+                                actualizadoEn: new Date().toISOString(),
+                                syncStatus: 'pending' as const,
+                                isDirty: true,
+                                version: (p.version || 0) + 1
+                            };
                         }
-                    }
-                }
-
-                const newAsignaciones = [...prog.asignaciones];
-                const idx = newAsignaciones.findIndex(a => a.dia === dia && a.rol === data.rol);
-                const oldAsig = idx >= 0 ? newAsignaciones[idx] : null;
-
-                if (idx >= 0) newAsignaciones[idx] = { ...newAsignaciones[idx], ...data };
-                else newAsignaciones.push({ dia, vigilanteId: data.vigilanteId || null, turno: data.turno || 'AM', jornada: data.jornada || 'sin_asignar', rol: data.rol as string });
-
-                // AUDITORÍA INTERNA: Registrar el cambio en el historial
-                const descripcionCambio = `Día ${dia}: Cambio en rol ${data.rol || oldAsig?.rol}. ${data.vigilanteId ? 'Asignado a: ' + data.vigilanteId : 'Puesto liberado'}.`;
-                const nuevoCambio: CambioProgramacion = {
-                    id: crypto.randomUUID(),
-                    timestamp: new Date().toISOString(),
-                    usuario: usuario || "Operador",
-                    descripcion: descripcionCambio,
-                    tipo: 'asignacion'
-                };
-
-                set((s: any) => {
-                    // RESILIENCIA TÁCTICA: Si el progId no se encuentra (posible cambio de ID en sync),
-                    // intentamos localizarlo por Puesto + Tiempo
-                    let targetProg = s.programaciones.find((p: any) => p.id === progId);
-                    
-                    if (!targetProg && prog.puestoId) {
-                        console.warn(`[Coraza] ⚠️ ID ${progId} no hallado en store. Buscando por coordenadas operativas...`);
-                        targetProg = s.getProgramacionRapid(prog.puestoId, prog.anio, prog.mes);
-                    }
-
-                    if (!targetProg) {
-                        console.error('[Coraza] ❌ Fallo Crítico: No se pudo localizar la programación objetivo.');
-                        return s;
-                    }
-
-                    const realId = targetProg.id;
-                    // AUTO-ASIGNACIÓN DE ROL: Si asignamos un guardia a un día de una fila vacía,
-                    // lo promovemos automáticamente a titular de esa fila para que el tablero coincida.
-                    const currentPersonal = [...(targetProg.personal || [])];
-                    const pIdx = currentPersonal.findIndex(px => px.rol === data.rol);
-                    if (pIdx >= 0 && !currentPersonal[pIdx].vigilanteId && data.vigilanteId) {
-                         currentPersonal[pIdx] = { ...currentPersonal[pIdx], vigilanteId: data.vigilanteId };
-                    }
-
-                    const newProgs = s.programaciones.map((p: any) => p.id === realId ? { 
-                        ...p,
-                        personal: currentPersonal,
-                        asignaciones: newAsignaciones, 
-                        actualizadoEn: new Date().toISOString(), 
-                        syncStatus: 'pending' as const,
-                        isDirty: true,
-                        historialCambios: [...(targetProg.historialCambios || []), nuevoCambio]
-                    } : p);
-                    
-                    const updatedProg = newProgs.find((p: any) => p.id === realId);
-                    
-                    // PROYECTAR NOVEDAD EN FICHA DEL VIGILANTE
-                    if (data.vigilanteId) {
-                        const vStore = useVigilanteStore.getState();
-                        const pStore = usePuestoStore.getState();
-                        const targetPid = updatedProg?.puestoId || prog.puestoId;
-                        const puestoNombre = pStore.puestos.find(px => px.id === targetPid || px.dbId === targetPid)?.nombre || 'Puesto';
-                        vStore.addActivity(
-                            data.vigilanteId, 
-                            'Asignación Diaria', 
-                            `Asignado a ${puestoNombre} p/ día ${dia} (Rol: ${data.rol || 'General'})`
-                        );
-                    }
-                    
-                    // INCREMENTAL BUSY MAP UPDATE (Shift-Aware)
-                    if (s._busyMap) {
-                        const anio = targetProg.anio;
-                        const mes = targetProg.mes;
-
-                        if (oldAsig && oldAsig.vigilanteId && oldAsig.jornada !== 'sin_asignar') {
-                            const oldVid = translateToUuid(oldAsig.vigilanteId);
-                            if (oldVid) {
-                                const oldKey = `${oldVid}-${anio}-${mes}`;
-                                const oldBusySet = s._busyMap.get(oldKey);
-                                if (oldBusySet) {
-                                    const nextSet = new Set(oldBusySet);
-                                    const oldJ = (oldAsig.jornada || (oldAsig as any).turno || 'normal') as string;
-                                    if (oldJ === '24H' || oldJ === 'normal' || oldJ === 'vacacion' || oldJ.startsWith('descanso')) {
-                                        nextSet.delete(`${dia}-AM`); nextSet.delete(`${dia}-PM`); 
-                                        nextSet.delete(`${dia}-24H`); nextSet.delete(`${dia}-normal`);
-                                    } else { nextSet.delete(`${dia}-${oldJ}`); }
-                                    const hasMore = Array.from(nextSet).some((k: any) => String(k).startsWith(`${dia}-`));
-                                    if (!hasMore) nextSet.delete(dia);
-                                    if (nextSet.size === 0) s._busyMap.delete(oldKey);
-                                    else s._busyMap.set(oldKey, nextSet);
-                                }
-                            }
-                        }
-
-                        if (data.vigilanteId && data.jornada && data.jornada !== 'sin_asignar') {
-                            const newVid = translateToUuid(data.vigilanteId);
-                            if (newVid) {
-                                const newKey = `${newVid}-${anio}-${mes}`;
-                                const currentSet = s._busyMap.get(newKey) || new Set();
-                                const nextSet = new Set(currentSet);
-                                const j = (data.jornada || (data as any).turno || 'normal') as string;
-                                nextSet.add(dia);
-                                if (j === '24H' || j === 'normal' || j.startsWith('descanso') || j === 'vacacion') {
-                                    nextSet.add(`${dia}-AM`); nextSet.add(`${dia}-PM`);
-                                    nextSet.add(`${dia}-24H`); nextSet.add(`${dia}-normal`);
-                                } else if (j === 'AM') { nextSet.add(`${dia}-AM`); }
-                                  else if (j === 'PM') { nextSet.add(`${dia}-PM`); }
-                                  else { nextSet.add(`${dia}-${j}`); }
-                                s._busyMap.set(newKey, nextSet);
-                            }
-                        }
-                    }
-
-                     // REFRESCAR MAPAS PARA REACTIVIDAD INMEDIATA (All Keys)
-                     const nextProgMap = new Map<string, ProgramacionMensual>(s._progMap || []);
-                     if (updatedProg) {
-                         // 1. Por ID propio (UUID o Deterministico)
-                         nextProgMap.set(realId, updatedProg);
-                         
-                         // 2. Por coordenadas operativas
-                         const coordinates = `${updatedProg.puestoId}-${updatedProg.anio}-${updatedProg.mes}`;
-                         nextProgMap.set(coordinates, updatedProg);
-
-                         // 3. Por UUID de Base de Datos si es distinto
-                         const dbUuid = translatePuestoToUuid(updatedProg.puestoId);
-                         if (dbUuid && dbUuid !== updatedProg.puestoId) {
-                             nextProgMap.set(`${dbUuid}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
-                         }
-
-                         // 4. Por ID legible (M-1, P-3, etc)
-                         const rid = translateToReadableId(updatedProg.puestoId);
-                         if (rid && rid !== updatedProg.puestoId) {
-                             nextProgMap.set(`${rid}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
-                         }
-                     }
+                        return p;
+                    });
 
                     return { 
-                        programaciones: newProgs, 
-                        _busyMap: new Map(s._busyMap || []), 
-                        _progMap: nextProgMap,
-                        version: (s.version || 0) + 1
+                        programaciones: newProgs,
+                        version: (state.version || 0) + 1
                     };
                 });
-                
-                // GUARDADO INMEDIATO usando el ID Real (UUID) para evitar desincronización
+
+                // Refrescar mapas y persistir
+                get()._updateMap();
                 queueSync(realId, set, get, true);
 
                 const conflictMsg = get().checkConflict(progId, dia, data.vigilanteId || '', data.turno || 'AM');
-                const latestProg = get().getProgramacion(prog.puestoId, prog.anio, prog.mes);
+                const latestProg = get()._progMap?.get(realId);
                 
                 return { 
                     permitido: true, 
-                    tipo: conflictMsg ? 'confirmacion' : 'exito', 
+                    tipo: conflictMsg ? 'advertencia' : 'ok', 
                     mensaje: conflictMsg || 'Cambio registrado con éxito',
-                    prog: latestProg
+                    prog: latestProg || prog
                 };
             },
 
@@ -1612,24 +1428,15 @@ export const useProgramacionStore = create<ProgramacionState>()(
                               }
                             : p
                     );
-                    // REFRESCAR MAPAS PARA REACTIVIDAD INMEDIATA
-                    const nextProgMap = new Map<string, ProgramacionMensual>(s._progMap || []);
-                    const updatedProg = updatedProgs.find((p: any) => p.id === progId);
-                    if (updatedProg) {
-                        nextProgMap.set(progId, updatedProg);
-                        nextProgMap.set(`${updatedProg.puestoId}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
-                        const dbUuid = translatePuestoToUuid(updatedProg.puestoId);
-                        if (dbUuid && dbUuid !== updatedProg.puestoId) {
-                            nextProgMap.set(`${dbUuid}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
-                        }
-                    }
-
+                    
                     return { 
                         programaciones: updatedProgs, 
-                        _progMap: nextProgMap,
-                        _busyMap: new Map(s._busyMap || []) 
+                        version: (s.version || 0) + 1
                     };
                 });
+                
+                // IMPORTANTE: Refrescar mapas globales tras cambio de personal
+                get()._updateMap();
                 queueSync(progId, set, get, false);
             },
 
@@ -1891,6 +1698,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 const progs = get().programaciones;
                 const newMap = new Map<string, any>();
                 const newBusyMap = new Map<string, Set<any>>();
+                get().conflictMap.clear();
 
                 progs.forEach(p => {
                     // INDEXACIÓN MULTIDIMENSIONAL (Crítico para evitar 'Señal Perdida')
@@ -1926,26 +1734,35 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                 busySet.add(asig.dia);
                                 busySet.add(`${asig.dia}`); 
                                 
-                                if (jornada === '24H' || jornada === 'normal' || 
+                                 if (jornada === '24H' || jornada === 'normal' || 
                                     jornada === 'descanso_remunerado' || 
                                     jornada === 'descanso_no_remunerado' || 
-                                    jornada === 'vacacion') {
+                                    jornada === 'vacacion' ||
+                                    jornada === 'licencia' ||
+                                    jornada === 'incapacidad' ||
+                                    jornada === 'suspension') {
                                     busySet.add(`${asig.dia}-AM`);
                                     busySet.add(`${asig.dia}-PM`);
                                     busySet.add(`${asig.dia}-24H`);
                                     busySet.add(`${asig.dia}-normal`);
-                                } else if (jornada === 'AM') {
-                                    busySet.add(`${asig.dia}-AM`);
-                                } else if (jornada === 'PM') {
-                                    busySet.add(`${asig.dia}-PM`);
-                                } else {
-                                    busySet.add(`${asig.dia}-${jornada}`);
+                                }
+                                
+                                // BÚSQUEDA DE CONFLICTOS RÁPIDA
+                                const conflictKey = `${dbVid}-${p.anio}-${p.mes}-${asig.dia}`;
+                                if (!get().conflictMap.has(conflictKey)) {
+                                    const pStore = usePuestoStore.getState();
+                                    const puesto = pStore.puestos?.find(px => px.id === p.puestoId || px.dbId === p.puestoId);
+                                    get().conflictMap.set(conflictKey, puesto?.nombre || 'Otro Puesto');
                                 }
                             }
                         });
                     }
                 });
-                set({ _progMap: newMap, _busyMap: newBusyMap } as any);
+                set({ 
+                    _progMap: newMap, 
+                    _busyMap: newBusyMap,
+                    version: get().version + 1 
+                } as any);
             },
 
             getAssignmentsForVigilante: (vigilanteId, anio, mes) => {
@@ -1999,7 +1816,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             // Si se cambia una asignacion, refrescar los detalles de esa programacion
                             if (payload.new && (payload.new as any).programacion_id) {
                                 console.log('[Realtime] Cambio detectado en asignaciones_dia');
-                                await get().fetchProgramacionDetalles((payload.new as any).programacion_id);
+                                await get().fetchProgramacionDetalles((payload.new as any).programacion_id, true);
                             }
                         }
                     )
