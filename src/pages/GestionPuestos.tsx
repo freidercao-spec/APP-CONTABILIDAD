@@ -933,7 +933,7 @@ const PanelMensualPuesto = ({
 
       // Recorrer todos los roles definidos en el personal del programa (soporta N filas)
       progPersonal.forEach((per: any) => {
-        const rolLabel = getRolLabel(per.rol);
+        const rolLabel = getRolLabel(per.rol, per.displayName);
         const v = vigilantes.find(vx => vx.id === per.vigilanteId || vx.dbId === per.vigilanteId);
         
         if (v && per.vigilanteId) {
@@ -1216,6 +1216,7 @@ const PanelMensualPuesto = ({
           const v = vigilantes.find(vx => vx.id === per.vigilanteId || vx.dbId === per.vigilanteId);
           rowsToExport.set(per.rol, {
             rol: per.rol,
+            displayName: per.displayName,
             cedula: v?.documento || "—",
             nombre: (v?.nombre || "SIN ASIGNAR").toUpperCase(),
             asigs: new Map()
@@ -1320,7 +1321,7 @@ const PanelMensualPuesto = ({
 
           // ROL
           const c0 = exRow.getCell(1);
-          c0.value = ROL_LABELS[row.rol] || row.rol.toUpperCase();
+          c0.value = getRolLabel(row.rol, row.displayName).toUpperCase();
           c0.font = { name: 'Arial Narrow', size: 7, bold: true };
           c0.alignment = { horizontal: 'center' };
           c0.border = borderThin;
