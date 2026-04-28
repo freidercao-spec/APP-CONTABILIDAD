@@ -2357,34 +2357,36 @@ const GestionPuestos = () => {
 
   return (
     <div className="h-screen flex flex-col bg-[#050b16]">
-      <header className="bg-[#0a1120] text-white px-10 py-6 border-b border-white/5 shrink-0 flex items-center justify-between shadow-2xl z-30 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-1/3 h-full bg-indigo-500/5 blur-[100px] pointer-events-none"></div>
+      <header className="bg-[#070B14] text-white px-10 py-8 border-b border-white/5 shrink-0 flex items-center justify-between shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-30 relative overflow-hidden">
+        {/* Animated Background Accent */}
+        <div className="absolute top-0 right-0 w-1/2 h-full bg-indigo-500/5 blur-[120px] pointer-events-none animate-pulse"></div>
+        <div className="absolute bottom-0 left-0 w-1/4 h-1/2 bg-emerald-500/5 blur-[80px] pointer-events-none"></div>
         
-        <div className="flex items-center gap-8 flex-1">
+        <div className="flex items-center gap-12 flex-1 relative z-10">
           <div className="flex flex-col">
-            <div className="flex items-center gap-2 mb-0.5">
-              <div className="size-2 bg-primary rounded-full animate-pulse shadow-[0_0_8px_#4318ff]"></div>
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">SISTEMA DE CONTROL TÁCTICO</span>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="size-2.5 bg-primary rounded-full animate-pulse-glow"></div>
+              <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] italic">CORAZA TACTICAL OS v1.5.5</span>
             </div>
-            <h1 className="text-3xl font-black text-white uppercase tracking-tighter leading-none italic flex items-baseline gap-3">
-              GESTIÓN <span className="text-primary text-[28px] not-italic">DE</span> <span className="bg-gradient-to-r from-white to-slate-500 bg-clip-text text-transparent not-italic">PUESTOS</span>
+            <h1 className="text-4xl font-black text-white uppercase tracking-tighter leading-none italic flex items-baseline gap-4">
+              CENTRO <span className="text-primary text-[32px] not-italic">DE</span> <span className="bg-gradient-to-r from-white via-slate-400 to-slate-600 bg-clip-text text-transparent not-italic">MANDO</span>
             </h1>
           </div>
 
-          <div className="flex items-center bg-black/50 border border-white/5 rounded-3xl p-1 ml-6 shadow-2xl backdrop-blur-xl">
+          <div className="flex items-center bg-white/05 border border-white/10 rounded-[24px] p-1.5 ml-8 shadow-2xl backdrop-blur-3xl group/calendar">
             <button 
               onClick={() => { const d = new Date(anio, mes - 1); setAnio(d.getFullYear()); setMes(d.getMonth()); }}
-              className="p-3 text-slate-500 hover:text-white transition-all transform active:scale-90"
+              className="p-4 text-slate-500 hover:text-white transition-all transform active:scale-90 hover:bg-white/10 rounded-2xl"
             >
               <span className="material-symbols-outlined text-2xl">arrow_back_ios_new</span>
             </button>
-            <div className="px-5 py-0.5 text-center min-w-[130px] border-x border-white/5">
-              <p className="text-[9px] font-black text-primary uppercase tracking-[0.4em] mb-0">{anio}</p>
-              <p className="text-[16px] font-black text-white uppercase tracking-[0.1em] italic">{MONTH_NAMES[mes]}</p>
+            <div className="px-8 py-1 text-center min-w-[160px] border-x border-white/10">
+              <p className="text-[10px] font-black text-primary uppercase tracking-[0.5em] mb-1">{anio}</p>
+              <p className="text-[20px] font-black text-white uppercase tracking-[0.2em] italic drop-shadow-lg">{MONTH_NAMES[mes]}</p>
             </div>
             <button 
               onClick={() => { const d = new Date(anio, mes + 1); setAnio(d.getFullYear()); setMes(d.getMonth()); }}
-              className="p-3 text-slate-500 hover:text-white transition-all transform active:scale-90"
+              className="p-4 text-slate-500 hover:text-white transition-all transform active:scale-90 hover:bg-white/10 rounded-2xl"
             >
               <span className="material-symbols-outlined text-2xl">arrow_forward_ios</span>
             </button>

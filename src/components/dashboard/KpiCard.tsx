@@ -15,89 +15,97 @@ interface KpiCardProps {
 
 export const KpiCard = ({ label, value, sub, icon, color, urgent, trend, trendValue, detail, onClick }: KpiCardProps) => {
     const colorMap: any = {
-        indigo:  { bg: 'bg-indigo-50/10',  text: 'text-indigo-400',  border: 'border-indigo-500/20', shadow: 'shadow-indigo-500/10', dot: 'bg-indigo-500' },
-        emerald: { bg: 'bg-emerald-50/10', text: 'text-emerald-400', border: 'border-emerald-500/20', shadow: 'shadow-emerald-500/10', dot: 'bg-emerald-500' },
-        red:     { bg: 'bg-red-500/5',     text: 'text-red-400',     border: 'border-red-500/20',     shadow: 'shadow-red-500/20',     dot: 'bg-red-500' },
-        blue:    { bg: 'bg-blue-50/10',    text: 'text-blue-400',    border: 'border-blue-500/20',    shadow: 'shadow-blue-500/10',    dot: 'bg-blue-500' },
-        amber:   { bg: 'bg-amber-500/5',   text: 'text-amber-400',   border: 'border-amber-500/20',   shadow: 'shadow-amber-500/20',   dot: 'bg-amber-500' },
-        violet:  { bg: 'bg-violet-50/10',  text: 'text-violet-400',  border: 'border-violet-500/20',  shadow: 'shadow-violet-500/10',  dot: 'bg-violet-500' },
-        cyan:    { bg: 'bg-cyan-50/10',    text: 'text-cyan-400',    border: 'border-cyan-500/20',    shadow: 'shadow-cyan-500/10',    dot: 'bg-cyan-500' },
+        indigo:  { primary: '#6366f1', secondary: '#818cf8', glow: 'rgba(99,102,241,0.25)', bg: 'bg-indigo-500/5' },
+        emerald: { primary: '#10b981', secondary: '#34d399', glow: 'rgba(16,185,129,0.25)', bg: 'bg-emerald-500/5' },
+        red:     { primary: '#f43f5e', secondary: '#fb7185', glow: 'rgba(244,63,94,0.35)',  bg: 'bg-rose-500/5' },
+        blue:    { primary: '#0ea5e9', secondary: '#38bdf8', glow: 'rgba(14,165,233,0.25)', bg: 'bg-sky-500/5' },
+        amber:   { primary: '#f59e0b', secondary: '#fbbf24', glow: 'rgba(245,158,11,0.35)',  bg: 'bg-amber-500/5' },
+        violet:  { primary: '#8b5cf6', secondary: '#a78bfa', glow: 'rgba(139,92,246,0.25)', bg: 'bg-violet-500/5' },
+        cyan:    { primary: '#06b6d4', secondary: '#22d3ee', glow: 'rgba(6,182,212,0.25)', bg: 'bg-cyan-500/5' },
     };
     
     const c = colorMap[color] || colorMap.blue;
-    const isCritical = urgent || (label === 'Con Alertas' && Number(value) > 0) || (label === 'Sin Asignar' && Number(value) > 0);
+    const isCritical = urgent || (label.includes('Alertas') && Number(value) > 0) || (label.includes('Asignar') && Number(value) > 0);
 
     return (
         <div 
             onClick={onClick}
             className={`
-                relative group overflow-hidden rounded-[28px] p-6 border transition-all duration-500 
-                hover:-translate-y-1.5 hover:shadow-2xl ${onClick ? 'cursor-pointer active:scale-95' : 'cursor-default'}
-                ${isCritical && label === 'Con Alertas' ? 'bg-[#FF4C4C08]' : ''}
-                ${isCritical && label === 'Sin Asignar' ? 'bg-[#F5A62308]' : ''}
-                ${!isCritical ? 'bg-white/5' : ''}
+                relative group overflow-hidden rounded-[32px] p-8 border transition-all duration-700 
+                hover:-translate-y-2 hover:shadow-[0_30px_60px_-12px_rgba(0,0,0,0.6)]
+                ${onClick ? 'cursor-pointer active:scale-95' : 'cursor-default'}
+                bg-gradient-to-br from-[#0D1525] to-[#070B14]
             `}
             style={{
-                borderColor: isCritical ? `${c.dot}40` : 'rgba(255,255,255,0.06)',
-                backdropFilter: 'blur(20px)',
-                boxShadow: isCritical ? `0 10px 40px ${c.dot}10` : '0 8px 30px rgba(0,0,0,0.3)'
+                borderColor: isCritical ? `${c.primary}60` : 'rgba(255,255,255,0.08)',
+                boxShadow: isCritical ? `0 0 40px ${c.glow}, inset 0 0 20px ${c.glow}` : '0 10px 40px rgba(0,0,0,0.4)'
             }}
-            aria-label={`${label}: ${value}`}
         >
-            {/* Tooltip Float */}
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 -translate-y-2 group-hover:translate-y-0 pointer-events-none z-30">
-                <div className="bg-[#161B22] border border-white/10 px-3 py-1.5 rounded-xl whitespace-nowrap shadow-2xl">
-                    <p className="text-[10px] font-black text-white uppercase tracking-widest">{detail || sub}</p>
-                </div>
+            {/* Holographic Scanline Animation */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-[0.03]">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.1)_0.5px,transparent_0.5px)] bg-[length:16px_16px]"></div>
             </div>
+            <div className="absolute inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-white/10 to-transparent top-0 -translate-y-full group-hover:animate-[scan_3s_linear_infinite] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
 
-            <div className="flex items-start justify-between mb-4">
-                <div 
-                    className={`size-11 rounded-2xl flex items-center justify-center border ${c.bg} ${c.border} group-hover:scale-110 transition-transform duration-500 shadow-lg`}
-                    style={{ borderColor: `${c.dot}30` }}
-                >
-                    <span className={`material-symbols-outlined text-[24px] ${c.text}`}>{icon}</span>
-                </div>
-                
-                {/* Status Badge with pulse if critical */}
-                <div className="relative">
-                    {isCritical && (
-                        <div className={`absolute inset-0 rounded-full animate-ping opacity-60`} style={{ backgroundColor: c.dot }} />
-                    )}
+            {/* Content Overlay */}
+            <div className="relative z-10">
+                <div className="flex items-start justify-between mb-8">
                     <div 
-                        className={`relative size-2.5 rounded-full shadow-[0_0_8px_currentColor]`}
-                        style={{ backgroundColor: c.dot, color: c.dot }}
-                    />
-                </div>
-            </div>
-
-            <div className="flex flex-col">
-                <div className={`text-[36px] font-black leading-none tracking-tighter tabular-nums transition-colors duration-300 ${isCritical ? 'text-white' : 'text-white/90 group-hover:text-white'}`}>
-                    {value}
-                </div>
-                
-                <div className="flex items-center gap-2 mt-2">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{label}</p>
-                    {trend && (
-                        <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg border text-[9px] font-black font-mono transition-all duration-500 ${
-                            trend === 'up' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 
-                            trend === 'down' ? 'bg-red-500/10 border-red-500/30 text-red-400' :
-                            'bg-slate-500/10 border-slate-500/30 text-slate-400'
-                        }`}>
-                            <span className="material-symbols-outlined text-[10px]">
-                                {trend === 'up' ? 'trending_up' : trend === 'down' ? 'trending_down' : 'horizontal_rule'}
-                            </span>
-                            {trendValue || '0'}
+                        className={`size-14 rounded-2xl flex items-center justify-center border transition-all duration-700 group-hover:rotate-[360deg] group-hover:scale-110 shadow-2xl relative overflow-hidden`}
+                        style={{ backgroundColor: `${c.primary}10`, borderColor: `${c.primary}30` }}
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <span className={`material-symbols-outlined text-[28px] relative z-10`} style={{ color: c.primary, filter: `drop-shadow(0 0 8px ${c.primary}80)` }}>{icon}</span>
+                    </div>
+                    
+                    <div className="relative flex items-center gap-2">
+                        {isCritical && (
+                            <span className="text-[9px] font-black tracking-widest text-white/40 uppercase animate-pulse">Critical</span>
+                        )}
+                        <div className="relative size-3">
+                            {isCritical && (
+                                <div className={`absolute inset-0 rounded-full animate-ping opacity-60`} style={{ backgroundColor: c.primary }} />
+                            )}
+                            <div 
+                                className={`relative size-full rounded-full`}
+                                style={{ backgroundColor: c.primary, boxShadow: `0 0 15px ${c.primary}` }}
+                            />
                         </div>
-                    )}
+                    </div>
+                </div>
+
+                <div className="flex flex-col">
+                    <div className="flex items-baseline gap-2">
+                        <div className={`text-[48px] font-black leading-none tracking-tighter tabular-nums text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]`}>
+                            {value}
+                        </div>
+                        {trend && (
+                            <div className={`flex items-center gap-1 px-2.5 py-1 rounded-xl border text-[10px] font-black font-mono shadow-lg transition-all duration-700 ${
+                                trend === 'up' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 
+                                trend === 'down' ? 'bg-rose-500/10 border-rose-500/30 text-rose-400' :
+                                'bg-slate-500/10 border-slate-500/30 text-slate-400'
+                            }`}>
+                                <span className="material-symbols-outlined text-[12px]">
+                                    {trend === 'up' ? 'keyboard_double_arrow_up' : trend === 'down' ? 'keyboard_double_arrow_down' : 'remove'}
+                                </span>
+                                {trendValue || '0'}
+                            </div>
+                        )}
+                    </div>
+                    
+                    <div className="flex flex-col mt-4">
+                        <p className="text-[11px] font-black text-white/90 uppercase tracking-[0.25em] mb-1">{label}</p>
+                        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest leading-relaxed max-w-[80%]">{sub}</p>
+                    </div>
                 </div>
             </div>
 
-            <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest mt-2">{sub}</p>
+            {/* Interactive Shine Effect */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none"></div>
             
-            {/* Bottom accent bar */}
-            <div className={`absolute bottom-0 left-0 right-0 h-[3px] opacity-20 group-hover:opacity-100 transition-all duration-700`}
-                style={{ background: `linear-gradient(90deg, transparent, ${c.dot}, transparent)` }} />
+            {/* Corner Decorative Elements */}
+            <div className="absolute top-0 right-0 size-8 border-t-2 border-r-2 rounded-tr-[32px] opacity-0 group-hover:opacity-100 transition-all duration-700" style={{ borderColor: `${c.primary}40` }}></div>
+            <div className="absolute bottom-0 left-0 size-8 border-b-2 border-l-2 rounded-bl-[32px] opacity-0 group-hover:opacity-100 transition-all duration-700" style={{ borderColor: `${c.primary}40` }}></div>
         </div>
     );
 };
