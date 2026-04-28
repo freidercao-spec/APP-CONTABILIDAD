@@ -35,7 +35,8 @@ const Resumen = () => {
     const getCobertura24Horas = usePuestoStore(s => s.getCobertura24Horas);
     const logAction = useAuditStore(s => s.logAction);
 
-    const now = new Date();
+    const now = useMemo(() => new Date(), []);
+
     const [filterPuesto, setFilterPuesto] = useState('todos');
     const [filterEstado, setFilterEstado] = useState('todos');
     const [scheduleYear, setScheduleYear] = useState(now.getFullYear());
