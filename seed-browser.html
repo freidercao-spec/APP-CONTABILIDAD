@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Seed Puestos - CORAZA CTA</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #050b16; color: #fff; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .container { width: 640px; background: #0a1020; border: 1px solid rgba(99,102,241,0.2); border-radius: 24px; overflow: hidden; }
+  .header { background: linear-gradient(135deg, #1e3a8a, #4f46e5); padding: 32px; text-align: center; }
+  .header h1 { font-size: 22px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; }
+  .header p { font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.3em; }
+  .body { padding: 32px; }
+  .log { background: #020810; border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 20px; min-height: 200px; max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 12px; line-height: 1.8; margin-bottom: 24px; }
+  .log .ok   { color: #34d399; }
+  .log .warn { color: #fbbf24; }
+  .log .err  { color: #f87171; }
+  .log .info { color: #60a5fa; }
+  .log .dim  { color: #475569; }
+  button { width: 100%; padding: 16px; background: #4f46e5; color: #fff; font-weight: 900; font-size: 13px; text-transform: uppercase; letter-spacing: 0.2em; border: none; border-radius: 14px; cursor: pointer; transition: all 0.2s; }
+  button:hover { background: #6366f1; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .done { background: #065f46; border-color: #10b981; color: #34d399; font-size: 13px; font-weight: 700; text-align: center; padding: 16px; border-radius: 12px; border: 1px solid; display: none; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🛡️ Seed Puestos</h1>
+    <p>Crear CORAZA CONTROL y ALTOS DEL PINO · Junio 2026</p>
+  </div>
+  <div class="body">
+    <div class="log" id="log"><span class="dim">Presiona el botón para comenzar...</span></div>
+    <button id="btn" onclick="runSeed()">⚡ Ejecutar Seed en Supabase</button>
+    <div class="done" id="done">✅ ¡Seed completado! Abre la app → PUESTOS para ver los resultados.</div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://ylcpizjfwupfvffsbjmz.supabase.co/rest/v1';
+const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsY3Bpempmd3VwZnZmZnNiam16Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0MDMzNjgsImV4cCI6MjA4ODk3OTM2OH0.6V6DS0JsGj-TPs0grZ-pathS_TXAMr4a4ym1pMKJBnE';
+const EMPRESA_ID = 'a0000000-0000-0000-0000-000000000001';
+const ANIO = 2026, MES = 5; // Junio
+
+const logEl = document.getElementById('log');
+function log(msg, cls = 'info') {
+  logEl.innerHTML += `<div class="${cls}">${msg}</div>`;
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+async function api(path, method = 'GET', body = null, extra = {}) {
+  const res = await fetch(`${SUPABASE_URL}/${path}`, {
+    method,
+    headers: {
+      apikey: KEY,
+      Authorization: `Bearer ${KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation',
+      ...extra
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`${method} ${path} → ${res.status}: ${text.slice(0, 200)}`);
+  return text ? JSON.parse(text) : null;
+}
+
+const PUESTOS = [
+  { nombre: 'CORAZA CONTROL', tipo: 'comando', latitud: 6.255958, longitud: -75.596207, direccion: 'Cra. 81 #49-24, Calasanz, Medellín', contacto: 'Control Central', telefono: '311 3836939', prioridad: 'critica', zona: 'ZONA NORTE' },
+  { nombre: 'ALTOS DEL PINO', tipo: 'edificio', latitud: 6.2442, longitud: -75.5700, direccion: 'Altos del Pino, Medellín, Antioquia', contacto: 'Administración', telefono: '311 0000001', prioridad: 'alta', zona: 'ZONA SUR' },
+];
+
+const TURNOS_CONFIG = [
+  { id: 'AM', nombre: 'Turno Diurno',   inicio: '06:00', fin: '18:00', color: '#0ea5e9' },
+  { id: 'PM', nombre: 'Turno Nocturno', inicio: '18:00', fin: '06:00', color: '#6366f1' },
+];
+
+async function runSeed() {
+  document.getElementById('btn').disabled = true;
+  logEl.innerHTML = '';
+  log('🚀 Iniciando seed...', 'info');
+
+  const puestosCreados = [];
+
+  for (const p of PUESTOS) {
+    try {
+      const existing = await api(`puestos?empresa_id=eq.${EMPRESA_ID}&nombre=ilike.${encodeURIComponent(p.nombre)}&select=id,codigo,nombre&limit=1`);
+      if (existing && existing.length > 0) {
+        log(`⚠️  "${p.nombre}" ya existe → ${existing[0].codigo}. Reutilizando.`, 'warn');
+        puestosCreados.push({ ...p, id: existing[0].id, codigo: existing[0].codigo });
+        continue;
+      }
+
+      const rows = await api('puestos', 'POST', { empresa_id: EMPRESA_ID, ...p, turnos_config: TURNOS_CONFIG });
+      const row = Array.isArray(rows) ? rows[0] : rows;
+      log(`✅ Puesto creado: <b>${row.codigo}</b> — ${row.nombre}`, 'ok');
+
+      await api('historial_puesto', 'POST', { puesto_id: row.id, accion: 'creacion', detalles: `Puesto ${row.nombre} creado para prueba Junio 2026` }, { Prefer: 'return=minimal' });
+      puestosCreados.push({ ...p, id: row.id, codigo: row.codigo });
+    } catch (e) {
+      log(`❌ Error en "${p.nombre}": ${e.message}`, 'err');
+    }
+  }
+
+  log(`\n📋 Puestos listos: ${puestosCreados.length}`, 'info');
+
+  for (const puesto of puestosCreados) {
+    log(`\n📅 Programación Junio 2026 → ${puesto.nombre}`, 'info');
+
+    try {
+      const existingProg = await api(`programaciones_mensuales?puesto_id=eq.${puesto.id}&anio=eq.${ANIO}&mes=eq.${MES}&select=id&limit=1`);
+      let progId;
+
+      const personalBase = [
+        { rol: 'titular_a', vigilanteId: null, turnoId: 'AM' },
+        { rol: 'titular_b', vigilanteId: null, turnoId: 'PM' },
+        { rol: 'relevante', vigilanteId: null, turnoId: 'AM' },
+      ];
+
+      if (existingProg && existingProg.length > 0) {
+        progId = existingProg[0].id;
+        log(`   ⚠️  Programación ya existe: ${progId}`, 'warn');
+      } else {
+        const newProg = await api('programaciones_mensuales', 'POST', {
+          puesto_id: puesto.id, empresa_id: EMPRESA_ID,
+          anio: ANIO, mes: MES, estado: 'borrador',
+          personal: personalBase, version: 1,
+          historial_cambios: [{ id: crypto.randomUUID(), timestamp: new Date().toISOString(), usuario: 'Sistema', descripcion: `Tablero ${puesto.nombre} — Junio 2026`, tipo: 'sistema' }],
+        });
+        const row = Array.isArray(newProg) ? newProg[0] : newProg;
+        progId = row.id;
+        log(`   ✅ Programación creada: ${progId}`, 'ok');
+      }
+
+      // Asignaciones 30 días
+      const existingAsigs = await api(`asignaciones_programacion?programacion_id=eq.${progId}&select=dia,rol`);
+      const existingKeys = new Set((existingAsigs || []).map(a => `${a.dia}-${a.rol}`));
+      const asigs = [];
+
+      for (let dia = 1; dia <= 30; dia++) {
+        const dow = new Date(ANIO, MES, dia).getDay();
+        const finde = dow === 0 || dow === 6;
+        for (const [rol, turno, jornadaNormal] of [['titular_a','AM','normal'],['titular_b','PM','normal'],['relevante','AM','descanso_remunerado']]) {
+          if (!existingKeys.has(`${dia}-${rol}`)) {
+            asigs.push({ programacion_id: progId, empresa_id: EMPRESA_ID, dia, rol, turno, jornada: (rol === 'relevante' || finde) ? 'descanso_remunerado' : jornadaNormal, vigilante_id: null });
+          }
+        }
+      }
+
+      if (asigs.length > 0) {
+        for (let i = 0; i < asigs.length; i += 50) {
+          await api('asignaciones_programacion', 'POST', asigs.slice(i, i+50), { Prefer: 'return=minimal' });
+        }
+        log(`   ✅ ${asigs.length} asignaciones creadas (30 días × 3 roles)`, 'ok');
+      } else {
+        log(`   ⚠️  Asignaciones ya existían`, 'warn');
+      }
+    } catch(e) {
+      log(`   ❌ Error en programación: ${e.message}`, 'err');
+    }
+  }
+
+  log('\n🎉 ¡Proceso completado!', 'ok');
+  log('→ Abre la app → PUESTOS → verás CORAZA CONTROL y ALTOS DEL PINO', 'dim');
+  document.getElementById('done').style.display = 'block';
+  document.getElementById('btn').textContent = '✅ Seed Ejecutado';
+}
+</script>
+</body>
+</html>

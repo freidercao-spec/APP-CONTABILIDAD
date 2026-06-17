@@ -1,22 +1,34 @@
 /**
  * seed-2-puestos-prueba.mjs
- * Crea los puestos "Coraza Control" y "Altos del Pino" con programacion
- * de Junio 2026 lista para verificar en el tablero.
- * 
+ * Usa la API REST de Supabase directamente (sin npm install).
+ * Crea "CORAZA CONTROL" y "ALTOS DEL PINO" + programacion Junio 2026.
+ *
  * Uso: node seed-2-puestos-prueba.mjs
  */
-
-import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://ylcpizjfwupfvffsbjmz.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsY3Bpempmd3VwZnZmZnNiam16Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0MDMzNjgsImV4cCI6MjA4ODk3OTM2OH0.6V6DS0JsGj-TPs0grZ-pathS_TXAMr4a4ym1pMKJBnE';
 const EMPRESA_ID = 'a0000000-0000-0000-0000-000000000001';
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const HEADERS = {
+  'apikey': SUPABASE_KEY,
+  'Authorization': `Bearer ${SUPABASE_KEY}`,
+  'Content-Type': 'application/json',
+  'Prefer': 'return=representation',
+};
 
-// Mes de prueba: Junio 2026 (0-indexed = mes 5)
+async function query(path, method = 'GET', body = null, extra = {}) {
+  const url = `${SUPABASE_URL}/rest/v1/${path}`;
+  const opts = { method, headers: { ...HEADERS, ...extra } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  const text = await res.text();
+  if (!res.ok) throw new Error(`${method} ${path} → ${res.status}: ${text}`);
+  return text ? JSON.parse(text) : null;
+}
+
 const ANIO = 2026;
-const MES = 5; // Junio
+const MES = 5; // Junio (0-indexed)
 
 const PUESTOS_SEED = [
   {
@@ -43,182 +55,133 @@ const PUESTOS_SEED = [
   },
 ];
 
+const TURNOS_CONFIG = [
+  { id: 'AM', nombre: 'Turno Diurno',   inicio: '06:00', fin: '18:00', color: '#0ea5e9' },
+  { id: 'PM', nombre: 'Turno Nocturno', inicio: '18:00', fin: '06:00', color: '#6366f1' },
+];
+
 async function run() {
-  console.log('🚀 Iniciando seed de 2 puestos de prueba...\n');
+  console.log('🚀 Iniciando seed de 2 puestos de prueba (via REST API)...\n');
 
   const puestosCreados = [];
 
   for (const p of PUESTOS_SEED) {
     // Verificar si ya existe
-    const { data: existing } = await supabase
-      .from('puestos')
-      .select('id, codigo, nombre')
-      .eq('empresa_id', EMPRESA_ID)
-      .ilike('nombre', p.nombre)
-      .limit(1);
+    const existing = await query(
+      `puestos?empresa_id=eq.${EMPRESA_ID}&nombre=ilike.${encodeURIComponent(p.nombre)}&select=id,codigo,nombre&limit=1`
+    );
 
     if (existing && existing.length > 0) {
-      console.log(`⚠️  "${p.nombre}" ya existe (${existing[0].codigo}). Reutilizando.`);
-      puestosCreados.push({ ...existing[0], ...p });
+      console.log(`⚠️  "${p.nombre}" ya existe → Código: ${existing[0].codigo}. Reutilizando.`);
+      puestosCreados.push({ ...p, id: existing[0].id, codigo: existing[0].codigo });
       continue;
     }
 
-    const { data: inserted, error } = await supabase
-      .from('puestos')
-      .insert({
-        empresa_id: EMPRESA_ID,
-        nombre: p.nombre,
-        tipo: p.tipo,
-        latitud: p.latitud,
-        longitud: p.longitud,
-        direccion: p.direccion,
-        contacto: p.contacto,
-        telefono: p.telefono,
-        prioridad: p.prioridad,
-        zona: p.zona,
-        turnos_config: [
-          { id: 'AM', nombre: 'Turno Diurno', inicio: '06:00', fin: '18:00', color: '#0ea5e9' },
-          { id: 'PM', nombre: 'Turno Nocturno', inicio: '18:00', fin: '06:00', color: '#6366f1' },
-        ],
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error(`❌ Error creando "${p.nombre}":`, error.message);
-      continue;
-    }
-
-    console.log(`✅ Puesto creado: ${inserted.codigo} — ${inserted.nombre}`);
-
-    // Historial de creación
-    await supabase.from('historial_puesto').insert({
-      puesto_id: inserted.id,
-      accion: 'creacion',
-      detalles: `Puesto ${inserted.nombre} creado para prueba de programación`,
+    const inserted = await query('puestos', 'POST', {
+      empresa_id: EMPRESA_ID,
+      nombre: p.nombre,
+      tipo: p.tipo,
+      latitud: p.latitud,
+      longitud: p.longitud,
+      direccion: p.direccion,
+      contacto: p.contacto,
+      telefono: p.telefono,
+      prioridad: p.prioridad,
+      zona: p.zona,
+      turnos_config: TURNOS_CONFIG,
     });
 
-    puestosCreados.push(inserted);
+    const row = Array.isArray(inserted) ? inserted[0] : inserted;
+    console.log(`✅ Puesto creado: ${row.codigo} — ${row.nombre}`);
+
+    // Historial de creación
+    await query('historial_puesto', 'POST', {
+      puesto_id: row.id,
+      accion: 'creacion',
+      detalles: `Puesto ${row.nombre} creado para prueba de programación Junio 2026`,
+    }, { 'Prefer': 'return=minimal' });
+
+    puestosCreados.push({ ...p, id: row.id, codigo: row.codigo });
   }
 
-  console.log(`\n📋 Puestos disponibles: ${puestosCreados.length}`);
+  console.log(`\n📋 Puestos disponibles: ${puestosCreados.length}\n`);
 
-  // Crear programaciones para cada puesto
   for (const puesto of puestosCreados) {
-    const puestoId = puesto.id;
-    const puestoCodigo = puesto.codigo || puesto.id;
-    const puestoNombre = puesto.nombre;
+    console.log(`📅 Configurando programación: ${puesto.nombre} → Junio 2026`);
 
-    console.log(`\n📅 Creando programación para: ${puestoNombre} (${ANIO}/${MES + 1})`);
-
-    // Verificar si ya existe la programación
-    const { data: existingProg } = await supabase
-      .from('programaciones_mensuales')
-      .select('id')
-      .eq('puesto_id', puestoId)
-      .eq('anio', ANIO)
-      .eq('mes', MES)
-      .limit(1);
+    // Buscar si ya existe la programación
+    const existingProg = await query(
+      `programaciones_mensuales?puesto_id=eq.${puesto.id}&anio=eq.${ANIO}&mes=eq.${MES}&select=id&limit=1`
+    );
 
     let progId;
 
+    const personalBase = [
+      { rol: 'titular_a', vigilanteId: null, turnoId: 'AM' },
+      { rol: 'titular_b', vigilanteId: null, turnoId: 'PM' },
+      { rol: 'relevante', vigilanteId: null, turnoId: 'AM' },
+    ];
+
+    const historialInicial = [{
+      id: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+      usuario: 'Sistema',
+      descripcion: `Tablero de ${puesto.nombre} inicializado para Junio 2026`,
+      tipo: 'sistema',
+    }];
+
     if (existingProg && existingProg.length > 0) {
       progId = existingProg[0].id;
-      console.log(`   ⚠️  Programación ya existe (${progId}). Actualizando...`);
+      console.log(`   ⚠️  Programación ya existe (${progId})`);
     } else {
-      // Crear nueva programación
-      const { data: newProg, error: progError } = await supabase
-        .from('programaciones_mensuales')
-        .insert({
-          puesto_id: puestoId,
-          empresa_id: EMPRESA_ID,
-          anio: ANIO,
-          mes: MES,
-          estado: 'borrador',
-          personal: [
-            { rol: 'titular_a', vigilanteId: null, turnoId: 'AM' },
-            { rol: 'titular_b', vigilanteId: null, turnoId: 'PM' },
-            { rol: 'relevante', vigilanteId: null, turnoId: 'AM' },
-          ],
-          version: 1,
-          historial_cambios: [
-            {
-              id: crypto.randomUUID(),
-              timestamp: new Date().toISOString(),
-              usuario: 'Sistema',
-              descripcion: `Tablero de ${puestoNombre} inicializado para Junio 2026`,
-              tipo: 'sistema',
-            },
-          ],
-        })
-        .select()
-        .single();
+      const newProg = await query('programaciones_mensuales', 'POST', {
+        puesto_id: puesto.id,
+        empresa_id: EMPRESA_ID,
+        anio: ANIO,
+        mes: MES,
+        estado: 'borrador',
+        personal: personalBase,
+        version: 1,
+        historial_cambios: historialInicial,
+      });
 
-      if (progError) {
-        console.error(`   ❌ Error creando programación:`, progError.message);
-        continue;
-      }
-
-      progId = newProg.id;
+      const progRow = Array.isArray(newProg) ? newProg[0] : newProg;
+      progId = progRow.id;
       console.log(`   ✅ Programación creada: ${progId}`);
     }
 
     // Crear asignaciones para los 30 días de Junio 2026
-    const diasJunio = 30;
-    const asignacionesExistentes = [];
+    const existingAsigs = await query(
+      `asignaciones_programacion?programacion_id=eq.${progId}&select=dia,rol`
+    );
 
-    const { data: existingAsigs } = await supabase
-      .from('asignaciones_programacion')
-      .select('dia, rol')
-      .eq('programacion_id', progId);
-
-    if (existingAsigs) {
-      existingAsigs.forEach(a => asignacionesExistentes.push(`${a.dia}-${a.rol}`));
-    }
-
+    const existingKeys = new Set((existingAsigs || []).map(a => `${a.dia}-${a.rol}`));
     const asignacionesNuevas = [];
+    const diasJunio = 30;
 
     for (let dia = 1; dia <= diasJunio; dia++) {
-      const fecha = new Date(ANIO, MES, dia);
-      const diaSemana = fecha.getDay(); // 0=Dom, 6=Sab
-
-      // Patrón: titular_a trabaja D(lun-vie), DR(sab-dom)
-      //         titular_b trabaja N(lun-vie), DR(sab-dom)  
-      //         relevante: DR toda la semana (pool de descanso)
-
+      const diaSemana = new Date(ANIO, MES, dia).getDay();
       const esFinde = diaSemana === 0 || diaSemana === 6;
 
       const rolesDelDia = [
-        {
-          rol: 'titular_a',
-          turno: 'AM',
-          jornada: esFinde ? 'descanso_remunerado' : 'normal',
-        },
-        {
-          rol: 'titular_b',
-          turno: 'PM',
-          jornada: esFinde ? 'descanso_remunerado' : 'normal',
-        },
-        {
-          rol: 'relevante',
-          turno: 'AM',
-          jornada: 'descanso_remunerado',
-        },
+        { rol: 'titular_a', turno: 'AM', jornada: esFinde ? 'descanso_remunerado' : 'normal' },
+        { rol: 'titular_b', turno: 'PM', jornada: esFinde ? 'descanso_remunerado' : 'normal' },
+        { rol: 'relevante', turno: 'AM', jornada: 'descanso_remunerado' },
       ];
 
       for (const r of rolesDelDia) {
         const key = `${dia}-${r.rol}`;
-        if (asignacionesExistentes.includes(key)) continue;
-
-        asignacionesNuevas.push({
-          programacion_id: progId,
-          empresa_id: EMPRESA_ID,
-          dia,
-          rol: r.rol,
-          turno: r.turno,
-          jornada: r.jornada,
-          vigilante_id: null,
-        });
+        if (!existingKeys.has(key)) {
+          asignacionesNuevas.push({
+            programacion_id: progId,
+            empresa_id: EMPRESA_ID,
+            dia,
+            rol: r.rol,
+            turno: r.turno,
+            jornada: r.jornada,
+            vigilante_id: null,
+          });
+        }
       }
     }
 
@@ -226,23 +189,21 @@ async function run() {
       // Insertar en lotes de 50
       for (let i = 0; i < asignacionesNuevas.length; i += 50) {
         const batch = asignacionesNuevas.slice(i, i + 50);
-        const { error: asigError } = await supabase
-          .from('asignaciones_programacion')
-          .insert(batch);
-
-        if (asigError) {
-          console.error(`   ❌ Error insertando asignaciones (batch ${i}):`, asigError.message);
-        }
+        await query('asignaciones_programacion', 'POST', batch, { 'Prefer': 'return=minimal' });
       }
-      console.log(`   ✅ ${asignacionesNuevas.length} asignaciones creadas para los 30 días`);
+      console.log(`   ✅ ${asignacionesNuevas.length} asignaciones de Junio creadas`);
     } else {
-      console.log(`   ⚠️  Asignaciones ya existían, no se duplicaron`);
+      console.log(`   ⚠️  Asignaciones ya existían`);
     }
   }
 
-  console.log('\n🎉 ¡Seed completado! Los puestos y su programación de Junio 2026 están listos.');
-  console.log('   Abre la app → PUESTOS → verás "CORAZA CONTROL" y "ALTOS DEL PINO"');
-  console.log('   Haz clic en cada uno para ver el tablero mensual de Junio 2026.');
+  console.log('\n🎉 ¡Seed completado exitosamente!');
+  console.log('   → Abre la app y ve a PUESTOS');
+  console.log('   → Verás: CORAZA CONTROL y ALTOS DEL PINO');
+  console.log('   → Haz clic en cada uno → tablero Junio 2026 con 30 días programados');
 }
 
-run().catch(console.error);
+run().catch(err => {
+  console.error('❌ Error fatal:', err.message);
+  process.exit(1);
+});
