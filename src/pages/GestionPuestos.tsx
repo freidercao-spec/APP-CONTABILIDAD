@@ -2411,92 +2411,87 @@ const GestionPuestos = () => {
 
   return (
     <div className="h-screen flex flex-col bg-[#050b16]">
-      <header className="bg-[#070B14] text-white px-10 py-8 border-b border-white/5 shrink-0 flex items-center justify-between shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-30 relative overflow-hidden">
+      <header className="bg-[#070B14] text-white px-10 py-6 border-b border-white/5 shrink-0 flex items-center justify-between shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-30 relative overflow-hidden">
         {/* Animated Background Accent */}
         <div className="absolute top-0 right-0 w-1/2 h-full bg-indigo-500/5 blur-[120px] pointer-events-none animate-pulse"></div>
         <div className="absolute bottom-0 left-0 w-1/4 h-1/2 bg-emerald-500/5 blur-[80px] pointer-events-none"></div>
         
-        <div className="flex items-center gap-12 flex-1 relative z-10">
-          <div className="flex flex-col">
-            <div className="flex items-center gap-3 mb-1">
-              <div className="size-2.5 bg-primary rounded-full animate-pulse-glow"></div>
-              <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] italic">CORAZA TACTICAL OS v1.5.5</span>
+        <div className="flex items-center gap-10 flex-1 relative z-10">
+          {/* Logo + Título */}
+          <div className="flex items-center gap-5">
+            <div className="relative">
+              <div className="absolute -inset-1.5 bg-indigo-500/20 rounded-[20px] blur-md"></div>
+              <div className="relative size-12 rounded-[16px] bg-white/5 border border-white/10 flex items-center justify-center">
+                <img src="/logo.png" alt="CORAZA" className="w-8 h-8 object-contain" />
+              </div>
             </div>
-            <h1 className="text-4xl font-black text-white uppercase tracking-tighter leading-none italic flex items-baseline gap-4">
-              CENTRO <span className="text-primary text-[32px] not-italic">DE</span> <span className="bg-gradient-to-r from-white via-slate-400 to-slate-600 bg-clip-text text-transparent not-italic">MANDO</span>
-            </h1>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <div className="size-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
+                <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em]">Sistema Activo</span>
+              </div>
+              <h1 className="text-[22px] font-black text-white uppercase tracking-tight leading-none">
+                Centro de <span className="text-indigo-400">Mando</span>
+              </h1>
+            </div>
           </div>
 
-          <div className="flex items-center bg-white/05 border border-white/10 rounded-[24px] p-1.5 ml-8 shadow-2xl backdrop-blur-3xl group/calendar">
+          {/* Navegación de Mes — centrada */}
+          <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-2xl overflow-hidden">
             <button 
               onClick={() => { const d = new Date(anio, mes - 1); setAnio(d.getFullYear()); setMes(d.getMonth()); }}
-              className="p-4 text-slate-500 hover:text-white transition-all transform active:scale-90 hover:bg-white/10 rounded-2xl"
+              className="px-4 py-3 text-slate-500 hover:text-white hover:bg-white/[0.06] transition-all"
             >
-              <span className="material-symbols-outlined text-2xl">arrow_back_ios_new</span>
+              <span className="material-symbols-outlined text-xl">chevron_left</span>
             </button>
-            <div className="px-8 py-1 text-center min-w-[160px] border-x border-white/10">
-              <p className="text-[10px] font-black text-primary uppercase tracking-[0.5em] mb-1">{anio}</p>
-              <p className="text-[20px] font-black text-white uppercase tracking-[0.2em] italic drop-shadow-lg">{MONTH_NAMES[mes]}</p>
+            <div className="px-6 py-2 text-center border-x border-white/[0.08] min-w-[130px]">
+              <p className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.4em] mb-0.5">{anio}</p>
+              <p className="text-[15px] font-black text-white uppercase tracking-[0.15em]">{MONTH_NAMES[mes]}</p>
             </div>
             <button 
               onClick={() => { const d = new Date(anio, mes + 1); setAnio(d.getFullYear()); setMes(d.getMonth()); }}
-              className="p-4 text-slate-500 hover:text-white transition-all transform active:scale-90 hover:bg-white/10 rounded-2xl"
+              className="px-4 py-3 text-slate-500 hover:text-white hover:bg-white/[0.06] transition-all"
             >
-              <span className="material-symbols-outlined text-2xl">arrow_forward_ios</span>
+              <span className="material-symbols-outlined text-xl">chevron_right</span>
             </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-5">
-          <div className="flex bg-black/40 border border-white/5 rounded-3xl p-1.5 shadow-xl">
+        {/* Controles derecha */}
+        <div className="flex items-center gap-4 relative z-10">
+          {/* Toggle de vista */}
+          <div className="flex bg-white/[0.04] border border-white/[0.08] rounded-xl p-1">
             <button 
               onClick={() => setViewMode('cards')}
-              className={`flex items-center gap-3 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'cards' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-500 hover:text-white'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'cards' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
             >
-              <span className="material-symbols-outlined text-[18px]">grid_view</span>
-              <span>CARPETAS</span>
+              <span className="material-symbols-outlined text-[16px]">grid_view</span>
+              <span className="hidden lg:inline">Carpetas</span>
             </button>
             <button 
               onClick={() => setViewMode('master_grid')}
-              className={`flex items-center gap-3 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'master_grid' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-500 hover:text-white'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'master_grid' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
             >
-              <span className="material-symbols-outlined text-[18px]">table_chart</span>
-              <span>MAESTRO</span>
+              <span className="material-symbols-outlined text-[16px]">table_chart</span>
+              <span className="hidden lg:inline">Maestro</span>
             </button>
             <button 
               onClick={() => navigate('/auditoria?q=PROGRAMACION')}
-              className="flex items-center gap-3 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-emerald-400 transition-all group/hist"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-emerald-400 transition-all"
             >
-              <span className="material-symbols-outlined text-[18px] group-hover/hist:rotate-180 transition-transform duration-500">history</span>
-              <span>HISTORIAL TÁCTICO</span>
+              <span className="material-symbols-outlined text-[16px]">history</span>
+              <span className="hidden xl:inline">Historial</span>
             </button>
           </div>
 
-          {/* Botón Nuevo Objetivo - Rediseño Elite Táctico */}
+          {/* Botón Nuevo Puesto */}
           <button 
             onClick={() => setIsNewPuestoModalOpen(true)}
-            className="group relative h-[56px] px-8 rounded-2xl flex items-center gap-3 transition-all duration-500 overflow-hidden active:scale-95"
+            className="group relative h-[44px] px-6 rounded-xl flex items-center gap-2.5 transition-all duration-300 overflow-hidden bg-indigo-600 hover:bg-indigo-500 border border-indigo-400/30 hover:shadow-[0_0_25px_rgba(99,102,241,0.4)] active:scale-95"
           >
-            {/* Capa de Resplandor (Glow) Externo */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-primary via-indigo-400 to-primary rounded-2xl blur-md opacity-20 group-hover:opacity-60 transition-opacity duration-500 animate-pulse pointer-events-none"></div>
-            
-            {/* Fondo Base con Degradado Premium */}
-            <div className="absolute inset-0 bg-gradient-to-br from-white via-slate-100 to-slate-200 group-hover:from-primary group-hover:via-indigo-600 group-hover:to-primary-dark transition-all duration-500 border border-white/20 pointer-events-none"></div>
-            
-            {/* Efecto de Barrido de Luz (Shine) */}
-            <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-[-20deg] pointer-events-none"></div>
-
-            {/* Contenido del Botón */}
-            <span className="material-symbols-outlined text-[22px] text-black group-hover:text-white transition-colors duration-500 relative z-10 group-hover:rotate-12 transition-transform">
-              add_location
-            </span>
-            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-black group-hover:text-white transition-colors duration-500 relative z-10 italic">
-              Nuevo Puesto
-            </span>
-
-            {/* Decoración de Esquina Táctica */}
-            <div className="absolute top-1 right-1 size-2 border-t border-r border-black/10 group-hover:border-white/40 transition-colors z-10"></div>
-            <div className="absolute bottom-1 left-1 size-2 border-b border-l border-black/10 group-hover:border-white/40 transition-colors z-10"></div>
+            <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-[-20deg]"></div>
+            <span className="material-symbols-outlined text-[18px] text-white relative z-10 group-hover:rotate-12 transition-transform duration-300">add_location</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white relative z-10 hidden lg:inline">Nuevo Puesto</span>
           </button>
 
         </div>
