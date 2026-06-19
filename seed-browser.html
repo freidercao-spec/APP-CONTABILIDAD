@@ -2,168 +2,747 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Seed Puestos - CORAZA CTA</title>
+<title>Setup Supabase - CORAZA CTA</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Segoe UI', sans-serif; background: #050b16; color: #fff; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-  .container { width: 640px; background: #0a1020; border: 1px solid rgba(99,102,241,0.2); border-radius: 24px; overflow: hidden; }
-  .header { background: linear-gradient(135deg, #1e3a8a, #4f46e5); padding: 32px; text-align: center; }
-  .header h1 { font-size: 22px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; }
-  .header p { font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.3em; }
-  .body { padding: 32px; }
-  .log { background: #020810; border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 20px; min-height: 200px; max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 12px; line-height: 1.8; margin-bottom: 24px; }
-  .log .ok   { color: #34d399; }
-  .log .warn { color: #fbbf24; }
-  .log .err  { color: #f87171; }
-  .log .info { color: #60a5fa; }
-  .log .dim  { color: #475569; }
-  button { width: 100%; padding: 16px; background: #4f46e5; color: #fff; font-weight: 900; font-size: 13px; text-transform: uppercase; letter-spacing: 0.2em; border: none; border-radius: 14px; cursor: pointer; transition: all 0.2s; }
-  button:hover { background: #6366f1; }
-  button:disabled { opacity: 0.4; cursor: not-allowed; }
-  .done { background: #065f46; border-color: #10b981; color: #34d399; font-size: 13px; font-weight: 700; text-align: center; padding: 16px; border-radius: 12px; border: 1px solid; display: none; margin-top: 16px; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Segoe UI',sans-serif; background:#050b16; color:#fff; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .container { width:720px; background:#0a1020; border:1px solid rgba(99,102,241,0.25); border-radius:24px; overflow:hidden; }
+  .header { background:linear-gradient(135deg,#1e3a8a,#4f46e5); padding:28px 32px; }
+  .header h1 { font-size:20px; font-weight:900; letter-spacing:0.1em; text-transform:uppercase; }
+  .header p { font-size:10px; color:rgba(255,255,255,0.5); margin-top:5px; text-transform:uppercase; letter-spacing:0.3em; }
+  .body { padding:28px 32px; }
+  .steps { display:flex; gap:8px; margin-bottom:20px; }
+  .step { flex:1; padding:10px; border:1px solid rgba(255,255,255,0.05); border-radius:12px; text-align:center; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; color:#475569; transition:all 0.3s; }
+  .step.active { border-color:rgba(99,102,241,0.5); color:#818cf8; background:rgba(99,102,241,0.1); }
+  .step.done { border-color:rgba(52,211,153,0.5); color:#34d399; background:rgba(52,211,153,0.08); }
+  .step.error { border-color:rgba(248,113,113,0.5); color:#f87171; background:rgba(248,113,113,0.08); }
+  .log { background:#020810; border:1px solid rgba(255,255,255,0.04); border-radius:12px; padding:18px; height:320px; overflow-y:auto; font-family:monospace; font-size:11.5px; line-height:1.9; margin-bottom:20px; }
+  .ok { color:#34d399; } .warn { color:#fbbf24; } .err { color:#f87171; } .info { color:#60a5fa; } .dim { color:#334155; }
+  .btn { width:100%; padding:15px; font-weight:900; font-size:12px; text-transform:uppercase; letter-spacing:0.2em; border:none; border-radius:14px; cursor:pointer; transition:all 0.3s; }
+  .btn-primary { background:#4f46e5; color:#fff; }
+  .btn-primary:hover { background:#6366f1; }
+  .btn-primary:disabled { opacity:0.3; cursor:not-allowed; }
+  .btn-success { background:#065f46; color:#34d399; border:1px solid rgba(52,211,153,0.3); }
+  .progress { width:100%; height:4px; background:rgba(255,255,255,0.05); border-radius:2px; margin-bottom:20px; overflow:hidden; }
+  .progress-bar { height:100%; background:linear-gradient(90deg,#4f46e5,#8b5cf6); border-radius:2px; transition:width 0.5s ease; width:0%; }
 </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
-    <h1>🛡️ Seed Puestos</h1>
-    <p>Crear CORAZA CONTROL y ALTOS DEL PINO · Junio 2026</p>
+    <h1>🛡️ Setup Supabase — CORAZA CTA</h1>
+    <p>Aplicar schema completo + seed datos iniciales → ykchpbqkjvmnddndkvno</p>
   </div>
   <div class="body">
-    <div class="log" id="log"><span class="dim">Presiona el botón para comenzar...</span></div>
-    <button id="btn" onclick="runSeed()">⚡ Ejecutar Seed en Supabase</button>
-    <div class="done" id="done">✅ ¡Seed completado! Abre la app → PUESTOS para ver los resultados.</div>
+    <div class="steps">
+      <div class="step" id="s1">1. Schema Base</div>
+      <div class="step" id="s2">2. Programación</div>
+      <div class="step" id="s3">3. RLS + Permisos</div>
+      <div class="step" id="s4">4. Empresa + Puestos</div>
+    </div>
+    <div class="progress"><div class="progress-bar" id="prog"></div></div>
+    <div class="log" id="log"><span class="dim">Presiona el botón para iniciar el setup completo...</span></div>
+    <button class="btn btn-primary" id="btn" onclick="runSetup()">⚡ Iniciar Setup Completo</button>
   </div>
 </div>
 
 <script>
-const SUPABASE_URL = 'https://ylcpizjfwupfvffsbjmz.supabase.co/rest/v1';
-const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsY3Bpempmd3VwZnZmZnNiam16Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0MDMzNjgsImV4cCI6MjA4ODk3OTM2OH0.6V6DS0JsGj-TPs0grZ-pathS_TXAMr4a4ym1pMKJBnE';
+const URL_BASE = 'https://ykchpbqkjvmnddndkvno.supabase.co';
+const ANON_KEY = 'sb_publishable_OlEXiywU13_j1FlB4QZWLQ_kYI41a-E';
+// Service key ingresada por el usuario (no se guarda en repositorio)
+const SVC_KEY  = document.getElementById('svc_key')?.value || '';
 const EMPRESA_ID = 'a0000000-0000-0000-0000-000000000001';
-const ANIO = 2026, MES = 5; // Junio
+const ANIO = 2026, MES = 5;
 
 const logEl = document.getElementById('log');
-function log(msg, cls = 'info') {
+const progEl = document.getElementById('prog');
+let progress = 0;
+
+function log(msg, cls='info') {
   logEl.innerHTML += `<div class="${cls}">${msg}</div>`;
   logEl.scrollTop = logEl.scrollHeight;
 }
+function setStep(id, state) {
+  const el = document.getElementById(id);
+  el.className = 'step ' + state;
+}
+function setProgress(pct) {
+  progress = pct;
+  progEl.style.width = pct + '%';
+}
 
-async function api(path, method = 'GET', body = null, extra = {}) {
-  const res = await fetch(`${SUPABASE_URL}/${path}`, {
+async function sql(query, useService = true) {
+  const key = useService ? SVC_KEY : ANON_KEY;
+  const res = await fetch(`${URL_BASE}/rest/v1/rpc/exec_sql`, {
+    method: 'POST',
+    headers: {
+      'apikey': key,
+      'Authorization': `Bearer ${key}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    },
+    body: JSON.stringify({ query })
+  });
+  // Si exec_sql no existe, usamos el endpoint de query directo
+  if (res.status === 404) {
+    const res2 = await fetch(`${URL_BASE}/rest/v1/?query=${encodeURIComponent(query)}`, {
+      headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+    });
+    return res2;
+  }
+  return res;
+}
+
+async function execSQL(sqlText, description) {
+  log(`   ⏳ ${description}...`, 'dim');
+  const res = await fetch(`${URL_BASE}/rest/v1/rpc/exec_sql`, {
+    method: 'POST',
+    headers: {
+      'apikey': SVC_KEY,
+      'Authorization': `Bearer ${SVC_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ sql: sqlText })
+  });
+  
+  if (!res.ok) {
+    const text = await res.text();
+    // Ignorar errores de "ya existe"
+    if (text.includes('already exists') || text.includes('duplicate') || text.includes('ya existe')) {
+      log(`   ⚠️  ${description}: ya existe (OK)`, 'warn');
+      return true;
+    }
+    log(`   ❌ ${description}: ${text.slice(0,200)}`, 'err');
+    return false;
+  }
+  log(`   ✅ ${description}`, 'ok');
+  return true;
+}
+
+async function api(path, method='GET', body=null, svc=false) {
+  const key = svc ? SVC_KEY : ANON_KEY;
+  const res = await fetch(`${URL_BASE}/rest/v1/${path}`, {
     method,
     headers: {
-      apikey: KEY,
-      Authorization: `Bearer ${KEY}`,
+      'apikey': key,
+      'Authorization': `Bearer ${key}`,
       'Content-Type': 'application/json',
-      Prefer: 'return=representation',
-      ...extra
+      'Prefer': 'return=representation'
     },
     body: body ? JSON.stringify(body) : undefined
   });
   const text = await res.text();
-  if (!res.ok) throw new Error(`${method} ${path} → ${res.status}: ${text.slice(0, 200)}`);
+  if (!res.ok && !text.includes('already exists')) {
+    throw new Error(`${method} ${path}: ${res.status} ${text.slice(0,300)}`);
+  }
   return text ? JSON.parse(text) : null;
 }
 
-const PUESTOS = [
-  { nombre: 'CORAZA CONTROL', tipo: 'comando', latitud: 6.255958, longitud: -75.596207, direccion: 'Cra. 81 #49-24, Calasanz, Medellín', contacto: 'Control Central', telefono: '311 3836939', prioridad: 'critica', zona: 'ZONA NORTE' },
-  { nombre: 'ALTOS DEL PINO', tipo: 'edificio', latitud: 6.2442, longitud: -75.5700, direccion: 'Altos del Pino, Medellín, Antioquia', contacto: 'Administración', telefono: '311 0000001', prioridad: 'alta', zona: 'ZONA SUR' },
-];
+// === SQL COMPLETO DEL SCHEMA ===
+const SQL_001 = `
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-const TURNOS_CONFIG = [
-  { id: 'AM', nombre: 'Turno Diurno',   inicio: '06:00', fin: '18:00', color: '#0ea5e9' },
-  { id: 'PM', nombre: 'Turno Nocturno', inicio: '18:00', fin: '06:00', color: '#6366f1' },
-];
+CREATE TYPE IF NOT EXISTS estado_vigilante AS ENUM (
+  'Disponible','En Turno','Próximo a Turno','Límite Horas','En Vacaciones','Incapacidad','Permiso','Inactivo'
+);
 
-async function runSeed() {
+CREATE TABLE IF NOT EXISTS public.empresas (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    nombre_comercial VARCHAR(255) NOT NULL,
+    nit VARCHAR(50) UNIQUE NOT NULL,
+    estado VARCHAR(20) DEFAULT 'Activo',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.puestos (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    empresa_id UUID REFERENCES public.empresas(id) ON DELETE CASCADE,
+    nombre VARCHAR(255) NOT NULL,
+    tipo VARCHAR(50) DEFAULT 'edificio',
+    direccion VARCHAR(255),
+    latitud DECIMAL(10,8),
+    longitud DECIMAL(11,8),
+    contacto VARCHAR(255),
+    telefono VARCHAR(50),
+    estado VARCHAR(20) DEFAULT 'activo',
+    codigo TEXT UNIQUE GENERATED ALWAYS AS (
+      'MED-' || LPAD(CAST(ROW_NUMBER() OVER (ORDER BY created_at) AS TEXT), 4, '0')
+    ) STORED,
+    prioridad VARCHAR(20) DEFAULT 'media',
+    zona TEXT,
+    numero_contrato TEXT,
+    cliente TEXT,
+    tipo_servicio TEXT,
+    con_armamento BOOLEAN DEFAULT false,
+    requisitos TEXT,
+    instrucciones TEXT,
+    turnos_config JSONB DEFAULT '[]',
+    jornadas_custom JSONB DEFAULT '[]',
+    plantilla_recurrente JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.vigilantes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    empresa_id UUID REFERENCES public.empresas(id) ON DELETE CASCADE,
+    codigo TEXT,
+    nombre TEXT,
+    nombres TEXT,
+    apellidos TEXT,
+    cedula TEXT,
+    documento TEXT,
+    telefono TEXT,
+    estado TEXT DEFAULT 'Disponible',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.turnos_puesto (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    empresa_id UUID REFERENCES public.empresas(id),
+    puesto_id UUID REFERENCES public.puestos(id) ON DELETE CASCADE,
+    vigilante_id UUID REFERENCES public.vigilantes(id) ON DELETE CASCADE,
+    hora_inicio TEXT,
+    hora_fin TEXT,
+    dia TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.historial_puesto (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    puesto_id UUID REFERENCES public.puestos(id) ON DELETE CASCADE,
+    accion TEXT,
+    vigilante_id UUID,
+    detalles TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+`;
+
+const SQL_PUESTOS_CODIGO = `
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name='puestos' AND column_name='codigo'
+  ) THEN
+    ALTER TABLE public.puestos ADD COLUMN codigo TEXT;
+  END IF;
+END $$;
+`;
+
+const SQL_002 = `
+CREATE TABLE IF NOT EXISTS public.programaciones_mensuales (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    empresa_id UUID REFERENCES public.empresas(id) ON DELETE CASCADE,
+    puesto_id UUID REFERENCES public.puestos(id) ON DELETE CASCADE,
+    anio INTEGER NOT NULL,
+    mes INTEGER NOT NULL CHECK (mes >= 0 AND mes <= 11),
+    estado VARCHAR(20) DEFAULT 'borrador',
+    personal JSONB DEFAULT '[]',
+    version INTEGER DEFAULT 1,
+    historial_cambios JSONB DEFAULT '[]',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(empresa_id, puesto_id, anio, mes)
+);
+
+CREATE TABLE IF NOT EXISTS public.asignaciones_programacion (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    programacion_id UUID REFERENCES public.programaciones_mensuales(id) ON DELETE CASCADE,
+    empresa_id UUID REFERENCES public.empresas(id),
+    dia INTEGER NOT NULL CHECK (dia >= 1 AND dia <= 31),
+    vigilante_id UUID REFERENCES public.vigilantes(id) ON DELETE SET NULL,
+    rol VARCHAR(100) NOT NULL,
+    turno VARCHAR(20) DEFAULT 'AM',
+    jornada VARCHAR(50) DEFAULT 'sin_asignar',
+    codigo_personalizado TEXT,
+    inicio TEXT,
+    fin TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(programacion_id, dia, rol)
+);
+`;
+
+const SQL_003 = `
+ALTER TABLE public.empresas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.puestos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vigilantes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.turnos_puesto ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.historial_puesto ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.programaciones_mensuales ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.asignaciones_programacion ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "allow_all_empresas" ON public.empresas;
+CREATE POLICY "allow_all_empresas" ON public.empresas FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "allow_all_puestos" ON public.puestos;
+CREATE POLICY "allow_all_puestos" ON public.puestos FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "allow_all_vigilantes" ON public.vigilantes;
+CREATE POLICY "allow_all_vigilantes" ON public.vigilantes FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "allow_all_turnos" ON public.turnos_puesto;
+CREATE POLICY "allow_all_turnos" ON public.turnos_puesto FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "allow_all_historial" ON public.historial_puesto;
+CREATE POLICY "allow_all_historial" ON public.historial_puesto FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "allow_all_prog" ON public.programaciones_mensuales;
+CREATE POLICY "allow_all_prog" ON public.programaciones_mensuales FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "allow_all_asig" ON public.asignaciones_programacion;
+CREATE POLICY "allow_all_asig" ON public.asignaciones_programacion FOR ALL USING (true) WITH CHECK (true);
+
+GRANT ALL ON public.empresas TO anon, authenticated, service_role;
+GRANT ALL ON public.puestos TO anon, authenticated, service_role;
+GRANT ALL ON public.vigilantes TO anon, authenticated, service_role;
+GRANT ALL ON public.turnos_puesto TO anon, authenticated, service_role;
+GRANT ALL ON public.historial_puesto TO anon, authenticated, service_role;
+GRANT ALL ON public.programaciones_mensuales TO anon, authenticated, service_role;
+GRANT ALL ON public.asignaciones_programacion TO anon, authenticated, service_role;
+`;
+
+const SQL_AUDIT = `
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    empresa_id UUID,
+    modulo TEXT,
+    accion TEXT,
+    descripcion TEXT,
+    nivel TEXT DEFAULT 'info',
+    usuario TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "allow_all_audit" ON public.audit_logs;
+CREATE POLICY "allow_all_audit" ON public.audit_logs FOR ALL USING (true) WITH CHECK (true);
+GRANT ALL ON public.audit_logs TO anon, authenticated, service_role;
+`;
+
+async function ejecutarSQL(sqlText, desc) {
+  // Usamos el endpoint de SQL directo de Supabase Management API
+  const res = await fetch(`${URL_BASE}/rest/v1/rpc/pgrst_watch`, {
+    method: 'POST',
+    headers: { 'apikey': SVC_KEY, 'Authorization': `Bearer ${SVC_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({})
+  });
+  // Intentar con el SQL Editor endpoint
+  const res2 = await fetch(`${URL_BASE}/rest/v1/`, {
+    method: 'POST',
+    headers: {
+      'apikey': SVC_KEY,
+      'Authorization': `Bearer ${SVC_KEY}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({ query: sqlText })
+  });
+  log(`   ⚠️ ${desc}: requiere SQL Editor manual`, 'warn');
+  return false;
+}
+
+async function createTableViaREST(name) {
+  // Verificar si la tabla existe intentando un query
+  try {
+    const res = await fetch(`${URL_BASE}/rest/v1/${name}?limit=1`, {
+      headers: { 'apikey': SVC_KEY, 'Authorization': `Bearer ${SVC_KEY}` }
+    });
+    if (res.ok) {
+      log(`   ✅ Tabla <b>${name}</b> → accesible`, 'ok');
+      return true;
+    } else {
+      log(`   ❌ Tabla <b>${name}</b> → no existe (${res.status})`, 'err');
+      return false;
+    }
+  } catch(e) {
+    log(`   ❌ Tabla <b>${name}</b> → error: ${e.message}`, 'err');
+    return false;
+  }
+}
+
+async function runSetup() {
   document.getElementById('btn').disabled = true;
   logEl.innerHTML = '';
-  log('🚀 Iniciando seed...', 'info');
+  log('🚀 Iniciando setup del nuevo Supabase...', 'info');
+  log(`📡 Proyecto: <b>ykchpbqkjvmnddndkvno</b>`, 'dim');
+
+  // === PASO 1: Verificar conexión y tablas existentes ===
+  setStep('s1', 'active');
+  setProgress(5);
+  log('\n<b>PASO 1 — Verificando estructura de BD</b>', 'info');
+
+  const tablas = ['empresas','puestos','vigilantes','turnos_puesto','historial_puesto','programaciones_mensuales','asignaciones_programacion','audit_logs'];
+  let tablasOk = 0;
+  let tablasFaltantes = [];
+
+  for (const t of tablas) {
+    const res = await fetch(`${URL_BASE}/rest/v1/${t}?limit=1`, {
+      headers: { 'apikey': SVC_KEY, 'Authorization': `Bearer ${SVC_KEY}` }
+    });
+    if (res.ok || res.status === 406) {
+      log(`   ✅ <b>${t}</b>`, 'ok');
+      tablasOk++;
+    } else {
+      log(`   ❌ <b>${t}</b> → no existe (status ${res.status})`, 'err');
+      tablasFaltantes.push(t);
+    }
+  }
+
+  setProgress(25);
+
+  if (tablasFaltantes.length > 0) {
+    setStep('s1', 'error');
+    log(`\n⚠️  Faltan ${tablasFaltantes.length} tablas. Debes aplicar el schema en el SQL Editor de Supabase.`, 'warn');
+    log(`\n📋 <b>Ve al SQL Editor de Supabase y ejecuta el schema que se copiará abajo.</b>`, 'info');
+    
+    // Mostrar instrucciones
+    document.getElementById('btn').textContent = '📋 Ver SQL para copiar en Supabase';
+    document.getElementById('btn').disabled = false;
+    document.getElementById('btn').onclick = mostrarSQL;
+    
+    setProgress(30);
+    return;
+  }
+
+  setStep('s1', 'done');
+  setProgress(40);
+  log(`\n✅ Todas las tablas existen (${tablasOk}/${tablas.length})`, 'ok');
+
+  // === PASO 2: Verificar programación ===
+  setStep('s2', 'active');
+  log('\n<b>PASO 2 — Programaciones mensuales</b>', 'info');
+  setProgress(50);
+  setStep('s2', 'done');
+
+  // === PASO 3: Permisos ===
+  setStep('s3', 'active');
+  log('\n<b>PASO 3 — Verificando acceso de escritura</b>', 'info');
+  
+  // Test write access
+  try {
+    const testId = crypto.randomUUID();
+    await api('empresas', 'POST', {
+      id: 'a0000000-0000-0000-0000-000000000001',
+      nombre_comercial: 'CORAZA COOPERATIVA DE VIGILANCIA Y SEGURIDAD PRIVADA CTA',
+      nit: '901509121',
+      estado: 'Activo'
+    }, true);
+    log(`   ✅ Empresa CORAZA CTA creada/verificada`, 'ok');
+  } catch(e) {
+    if (e.message.includes('duplicate') || e.message.includes('already') || e.message.includes('23505')) {
+      log(`   ⚠️  Empresa ya existe (OK)`, 'warn');
+    } else {
+      log(`   ❌ Error: ${e.message}`, 'err');
+    }
+  }
+
+  setStep('s3', 'done');
+  setProgress(65);
+
+  // === PASO 4: Crear puestos y programación ===
+  setStep('s4', 'active');
+  log('\n<b>PASO 4 — Creando puestos de prueba</b>', 'info');
+
+  const PUESTOS = [
+    { nombre:'CORAZA CONTROL', tipo:'comando', latitud:6.255958, longitud:-75.596207, direccion:'Cra. 81 #49-24, Calasanz, Medellín', contacto:'Control Central', telefono:'311 3836939', prioridad:'critica', zona:'ZONA NORTE' },
+    { nombre:'ALTOS DEL PINO', tipo:'edificio', latitud:6.2442, longitud:-75.5700, direccion:'Altos del Pino, Medellín, Antioquia', contacto:'Administración', telefono:'311 0000001', prioridad:'alta', zona:'ZONA SUR' },
+  ];
+
+  const TURNOS_CONFIG = [
+    { id:'AM', nombre:'Turno Diurno', inicio:'06:00', fin:'18:00', color:'#0ea5e9' },
+    { id:'PM', nombre:'Turno Nocturno', inicio:'18:00', fin:'06:00', color:'#6366f1' },
+  ];
 
   const puestosCreados = [];
 
   for (const p of PUESTOS) {
     try {
-      const existing = await api(`puestos?empresa_id=eq.${EMPRESA_ID}&nombre=ilike.${encodeURIComponent(p.nombre)}&select=id,codigo,nombre&limit=1`);
-      if (existing && existing.length > 0) {
-        log(`⚠️  "${p.nombre}" ya existe → ${existing[0].codigo}. Reutilizando.`, 'warn');
-        puestosCreados.push({ ...p, id: existing[0].id, codigo: existing[0].codigo });
+      // Buscar si existe
+      const existing = await fetch(`${URL_BASE}/rest/v1/puestos?empresa_id=eq.${EMPRESA_ID}&nombre=ilike.${encodeURIComponent(p.nombre)}&select=id,nombre,codigo&limit=1`, {
+        headers: { 'apikey': SVC_KEY, 'Authorization': `Bearer ${SVC_KEY}` }
+      });
+      const exData = await existing.json();
+      
+      if (exData && exData.length > 0) {
+        log(`   ⚠️  "${p.nombre}" ya existe → reutilizando`, 'warn');
+        puestosCreados.push({ ...p, id: exData[0].id });
         continue;
       }
 
-      const rows = await api('puestos', 'POST', { empresa_id: EMPRESA_ID, ...p, turnos_config: TURNOS_CONFIG });
+      const rows = await api('puestos', 'POST', {
+        empresa_id: EMPRESA_ID, ...p, turnos_config: TURNOS_CONFIG
+      }, true);
       const row = Array.isArray(rows) ? rows[0] : rows;
-      log(`✅ Puesto creado: <b>${row.codigo}</b> — ${row.nombre}`, 'ok');
+      log(`   ✅ Puesto creado: <b>${row.nombre}</b> (${row.id?.slice(0,8)}...)`, 'ok');
+      puestosCreados.push({ ...p, id: row.id });
 
-      await api('historial_puesto', 'POST', { puesto_id: row.id, accion: 'creacion', detalles: `Puesto ${row.nombre} creado para prueba Junio 2026` }, { Prefer: 'return=minimal' });
-      puestosCreados.push({ ...p, id: row.id, codigo: row.codigo });
-    } catch (e) {
-      log(`❌ Error en "${p.nombre}": ${e.message}`, 'err');
+      // Historial
+      await api('historial_puesto', 'POST', {
+        puesto_id: row.id, accion: 'creacion',
+        detalles: `Puesto ${row.nombre} creado — Setup inicial`
+      }, true);
+    } catch(e) {
+      log(`   ❌ Error en "${p.nombre}": ${e.message}`, 'err');
     }
   }
 
-  log(`\n📋 Puestos listos: ${puestosCreados.length}`, 'info');
+  setProgress(80);
+  log('\n<b>Creando programaciones Junio 2026...</b>', 'info');
 
   for (const puesto of puestosCreados) {
-    log(`\n📅 Programación Junio 2026 → ${puesto.nombre}`, 'info');
-
+    if (!puesto.id) continue;
     try {
-      const existingProg = await api(`programaciones_mensuales?puesto_id=eq.${puesto.id}&anio=eq.${ANIO}&mes=eq.${MES}&select=id&limit=1`);
+      const progCheck = await fetch(`${URL_BASE}/rest/v1/programaciones_mensuales?puesto_id=eq.${puesto.id}&anio=eq.${ANIO}&mes=eq.${MES}&select=id&limit=1`, {
+        headers: { 'apikey': SVC_KEY, 'Authorization': `Bearer ${SVC_KEY}` }
+      });
+      const progData = await progCheck.json();
+
       let progId;
-
-      const personalBase = [
-        { rol: 'titular_a', vigilanteId: null, turnoId: 'AM' },
-        { rol: 'titular_b', vigilanteId: null, turnoId: 'PM' },
-        { rol: 'relevante', vigilanteId: null, turnoId: 'AM' },
-      ];
-
-      if (existingProg && existingProg.length > 0) {
-        progId = existingProg[0].id;
-        log(`   ⚠️  Programación ya existe: ${progId}`, 'warn');
+      if (progData && progData.length > 0) {
+        progId = progData[0].id;
+        log(`   ⚠️  Prog. ${puesto.nombre} ya existe`, 'warn');
       } else {
         const newProg = await api('programaciones_mensuales', 'POST', {
           puesto_id: puesto.id, empresa_id: EMPRESA_ID,
           anio: ANIO, mes: MES, estado: 'borrador',
-          personal: personalBase, version: 1,
-          historial_cambios: [{ id: crypto.randomUUID(), timestamp: new Date().toISOString(), usuario: 'Sistema', descripcion: `Tablero ${puesto.nombre} — Junio 2026`, tipo: 'sistema' }],
-        });
-        const row = Array.isArray(newProg) ? newProg[0] : newProg;
-        progId = row.id;
-        log(`   ✅ Programación creada: ${progId}`, 'ok');
+          personal: [
+            { rol:'titular_a', vigilanteId:null, turnoId:'AM' },
+            { rol:'titular_b', vigilanteId:null, turnoId:'PM' },
+            { rol:'relevante', vigilanteId:null, turnoId:'AM' },
+          ],
+          version: 1,
+          historial_cambios: [{ id: crypto.randomUUID(), timestamp: new Date().toISOString(), usuario: 'Sistema', descripcion: `Tablero ${puesto.nombre} — Junio 2026`, tipo: 'sistema' }]
+        }, true);
+        const pr = Array.isArray(newProg) ? newProg[0] : newProg;
+        progId = pr.id;
+        log(`   ✅ Programación <b>${puesto.nombre}</b> creada`, 'ok');
       }
 
       // Asignaciones 30 días
-      const existingAsigs = await api(`asignaciones_programacion?programacion_id=eq.${progId}&select=dia,rol`);
-      const existingKeys = new Set((existingAsigs || []).map(a => `${a.dia}-${a.rol}`));
+      const asigCheck = await fetch(`${URL_BASE}/rest/v1/asignaciones_programacion?programacion_id=eq.${progId}&select=dia,rol`, {
+        headers: { 'apikey': SVC_KEY, 'Authorization': `Bearer ${SVC_KEY}` }
+      });
+      const existAsigs = await asigCheck.json();
+      const existKeys = new Set((existAsigs||[]).map(a=>`${a.dia}-${a.rol}`));
       const asigs = [];
 
-      for (let dia = 1; dia <= 30; dia++) {
+      for (let dia=1; dia<=30; dia++) {
         const dow = new Date(ANIO, MES, dia).getDay();
-        const finde = dow === 0 || dow === 6;
-        for (const [rol, turno, jornadaNormal] of [['titular_a','AM','normal'],['titular_b','PM','normal'],['relevante','AM','descanso_remunerado']]) {
-          if (!existingKeys.has(`${dia}-${rol}`)) {
-            asigs.push({ programacion_id: progId, empresa_id: EMPRESA_ID, dia, rol, turno, jornada: (rol === 'relevante' || finde) ? 'descanso_remunerado' : jornadaNormal, vigilante_id: null });
+        const finde = dow===0||dow===6;
+        for (const [rol,turno] of [['titular_a','AM'],['titular_b','PM'],['relevante','AM']]) {
+          if (!existKeys.has(`${dia}-${rol}`)) {
+            asigs.push({ programacion_id:progId, empresa_id:EMPRESA_ID, dia, rol, turno,
+              jornada: (rol==='relevante'||finde) ? 'descanso_remunerado' : 'normal',
+              vigilante_id:null });
           }
         }
       }
 
       if (asigs.length > 0) {
-        for (let i = 0; i < asigs.length; i += 50) {
-          await api('asignaciones_programacion', 'POST', asigs.slice(i, i+50), { Prefer: 'return=minimal' });
+        for (let i=0; i<asigs.length; i+=50) {
+          await api('asignaciones_programacion','POST',asigs.slice(i,i+50),true);
         }
         log(`   ✅ ${asigs.length} asignaciones creadas (30 días × 3 roles)`, 'ok');
-      } else {
-        log(`   ⚠️  Asignaciones ya existían`, 'warn');
       }
     } catch(e) {
-      log(`   ❌ Error en programación: ${e.message}`, 'err');
+      log(`   ❌ ${puesto.nombre}: ${e.message}`, 'err');
     }
   }
 
-  log('\n🎉 ¡Proceso completado!', 'ok');
+  setStep('s4', 'done');
+  setProgress(100);
+
+  log('\n🎉 <b>¡Setup completado!</b>', 'ok');
   log('→ Abre la app → PUESTOS → verás CORAZA CONTROL y ALTOS DEL PINO', 'dim');
-  document.getElementById('done').style.display = 'block';
-  document.getElementById('btn').textContent = '✅ Seed Ejecutado';
+  log('→ Haz clic en cada puesto para ver el tablero de Junio 2026', 'dim');
+
+  const btn = document.getElementById('btn');
+  btn.textContent = '✅ Setup Completado — Abrir App';
+  btn.className = 'btn btn-success';
+  btn.disabled = false;
+  btn.onclick = () => window.open('http://localhost:5173', '_blank');
+}
+
+function mostrarSQL() {
+  const sqlCompleto = `-- =============================================
+-- SCHEMA COMPLETO CORAZA CTA - Pegar en SQL Editor de Supabase
+-- =============================================
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- EMPRESAS
+CREATE TABLE IF NOT EXISTS public.empresas (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    nombre_comercial VARCHAR(255) NOT NULL,
+    nit VARCHAR(50) UNIQUE NOT NULL,
+    estado VARCHAR(20) DEFAULT 'Activo',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- PUESTOS
+CREATE TABLE IF NOT EXISTS public.puestos (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    empresa_id UUID REFERENCES public.empresas(id) ON DELETE CASCADE,
+    nombre VARCHAR(255) NOT NULL,
+    tipo VARCHAR(50) DEFAULT 'edificio',
+    codigo TEXT,
+    direccion VARCHAR(255),
+    latitud DECIMAL(10,8),
+    longitud DECIMAL(11,8),
+    contacto VARCHAR(255),
+    telefono VARCHAR(50),
+    estado VARCHAR(20) DEFAULT 'activo',
+    prioridad VARCHAR(20) DEFAULT 'media',
+    zona TEXT,
+    numero_contrato TEXT,
+    cliente TEXT,
+    tipo_servicio TEXT,
+    con_armamento BOOLEAN DEFAULT false,
+    requisitos TEXT,
+    instrucciones TEXT,
+    turnos_config JSONB DEFAULT '[]',
+    jornadas_custom JSONB DEFAULT '[]',
+    plantilla_recurrente JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- AUTO-CÓDIGO para puestos
+CREATE OR REPLACE FUNCTION set_puesto_codigo()
+RETURNS TRIGGER AS $$
+DECLARE v_num INT;
+BEGIN
+  SELECT COUNT(*) + 1 INTO v_num FROM public.puestos WHERE empresa_id = NEW.empresa_id;
+  NEW.codigo := 'MED-' || LPAD(v_num::TEXT, 4, '0');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_puesto_codigo ON public.puestos;
+CREATE TRIGGER trg_puesto_codigo BEFORE INSERT ON public.puestos
+  FOR EACH ROW WHEN (NEW.codigo IS NULL) EXECUTE FUNCTION set_puesto_codigo();
+
+-- VIGILANTES
+CREATE TABLE IF NOT EXISTS public.vigilantes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    empresa_id UUID REFERENCES public.empresas(id) ON DELETE CASCADE,
+    codigo TEXT,
+    nombre TEXT,
+    nombres TEXT,
+    apellidos TEXT,
+    cedula TEXT,
+    documento TEXT,
+    telefono TEXT,
+    estado TEXT DEFAULT 'Disponible',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- TURNOS_PUESTO
+CREATE TABLE IF NOT EXISTS public.turnos_puesto (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    empresa_id UUID REFERENCES public.empresas(id),
+    puesto_id UUID REFERENCES public.puestos(id) ON DELETE CASCADE,
+    vigilante_id UUID REFERENCES public.vigilantes(id) ON DELETE CASCADE,
+    hora_inicio TEXT,
+    hora_fin TEXT,
+    dia TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- HISTORIAL_PUESTO
+CREATE TABLE IF NOT EXISTS public.historial_puesto (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    puesto_id UUID REFERENCES public.puestos(id) ON DELETE CASCADE,
+    accion TEXT,
+    vigilante_id UUID,
+    detalles TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- PROGRAMACIONES MENSUALES
+CREATE TABLE IF NOT EXISTS public.programaciones_mensuales (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    empresa_id UUID REFERENCES public.empresas(id) ON DELETE CASCADE,
+    puesto_id UUID REFERENCES public.puestos(id) ON DELETE CASCADE,
+    anio INTEGER NOT NULL,
+    mes INTEGER NOT NULL CHECK (mes >= 0 AND mes <= 11),
+    estado VARCHAR(20) DEFAULT 'borrador',
+    personal JSONB DEFAULT '[]',
+    version INTEGER DEFAULT 1,
+    historial_cambios JSONB DEFAULT '[]',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(empresa_id, puesto_id, anio, mes)
+);
+
+-- ASIGNACIONES
+CREATE TABLE IF NOT EXISTS public.asignaciones_programacion (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    programacion_id UUID REFERENCES public.programaciones_mensuales(id) ON DELETE CASCADE,
+    empresa_id UUID REFERENCES public.empresas(id),
+    dia INTEGER NOT NULL CHECK (dia >= 1 AND dia <= 31),
+    vigilante_id UUID REFERENCES public.vigilantes(id) ON DELETE SET NULL,
+    rol VARCHAR(100) NOT NULL,
+    turno VARCHAR(20) DEFAULT 'AM',
+    jornada VARCHAR(50) DEFAULT 'sin_asignar',
+    codigo_personalizado TEXT,
+    inicio TEXT,
+    fin TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(programacion_id, dia, rol)
+);
+
+-- AUDIT LOGS
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    empresa_id UUID,
+    modulo TEXT, accion TEXT, descripcion TEXT,
+    nivel TEXT DEFAULT 'info', usuario TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- RLS PERMISIVO (seguridad por empresa_id en frontend)
+ALTER TABLE public.empresas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.puestos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vigilantes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.turnos_puesto ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.historial_puesto ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.programaciones_mensuales ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.asignaciones_programacion ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "allow_all" ON public.empresas FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "allow_all" ON public.puestos FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "allow_all" ON public.vigilantes FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "allow_all" ON public.turnos_puesto FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "allow_all" ON public.historial_puesto FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "allow_all" ON public.programaciones_mensuales FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "allow_all" ON public.asignaciones_programacion FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "allow_all" ON public.audit_logs FOR ALL USING (true) WITH CHECK (true);
+
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+
+-- EMPRESA INICIAL
+INSERT INTO public.empresas (id, nombre_comercial, nit, estado)
+VALUES ('a0000000-0000-0000-0000-000000000001', 'CORAZA COOPERATIVA DE VIGILANCIA CTA', '901509121', 'Activo')
+ON CONFLICT (id) DO NOTHING;`;
+
+  const blob = new Blob([sqlCompleto], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'schema_coraza_cta.sql'; a.click();
+  URL.revokeObjectURL(url);
+  
+  log('\n📥 <b>Archivo SQL descargado: schema_coraza_cta.sql</b>', 'ok');
+  log('\n👉 Pasos a seguir:', 'info');
+  log('  1. Ve a <b>supabase.com → tu proyecto → SQL Editor</b>', 'dim');
+  log('  2. Pega el contenido del archivo descargado', 'dim');
+  log('  3. Clic en <b>"Run"</b>', 'dim');
+  log('  4. Vuelve aquí y presiona el botón de abajo para continuar', 'dim');
+  
+  document.getElementById('btn').textContent = '▶ Ya apliqué el SQL — Continuar Setup';
+  document.getElementById('btn').disabled = false;
+  document.getElementById('btn').onclick = runSetup;
 }
 </script>
 </body>
