@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
 import { useProgramacionStore } from './store/programacionStore';
@@ -187,7 +187,7 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <BrowserRouter>
+      <HashRouter>
         <Toaster
           position="top-right"
           toastOptions={{
@@ -205,7 +205,7 @@ function App() {
         />
         <AppRouter />
         <SyncStatusBar />
-      </BrowserRouter>
+      </HashRouter>
     </ErrorBoundary>
   );
 }

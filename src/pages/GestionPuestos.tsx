@@ -880,7 +880,7 @@ const PanelMensualPuesto = ({
 
       let logoDataUrl: string | null = null;
       try {
-        const resp = await fetch("/logo.png");
+        const resp = await fetch("logo.png");
         if (resp.ok) {
           const blob = await resp.blob();
           logoDataUrl = await new Promise<string>((resolve) => {
@@ -2422,7 +2422,7 @@ const GestionPuestos = () => {
             <div className="relative">
               <div className="absolute -inset-1.5 bg-indigo-500/20 rounded-[20px] blur-md"></div>
               <div className="relative size-12 rounded-[16px] bg-white/5 border border-white/10 flex items-center justify-center">
-                <img src="/logo.png" alt="CORAZA" className="w-8 h-8 object-contain" />
+                <img src="./logo.png" alt="CORAZA" className="w-8 h-8 object-contain" />
               </div>
             </div>
             <div>

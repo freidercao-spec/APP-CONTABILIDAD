@@ -475,7 +475,7 @@ const Puestos = () => {
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
                     <div className="flex items-center gap-4 md:gap-8">
                         <div className="hidden sm:flex size-12 md:size-16 rounded-[24px] bg-white items-center justify-center border-2 border-slate-100 shadow-xl shadow-slate-200/50 p-2 transform -rotate-3 hover:rotate-0 transition-transform">
-                            <img src="/logo.png" alt="CORAZA" className="w-full h-full object-contain" />
+                            <img src="./logo.png" alt="CORAZA" className="w-full h-full object-contain" />
                         </div>
                         <div>
                             <div className="flex items-center gap-2 md:gap-3 mb-1 md:mb-2">
@@ -656,7 +656,7 @@ const Puestos = () => {
                     <div className="absolute top-6 right-6 z-10 pointer-events-none">
                         <div className="bg-white/80 backdrop-blur-xl border border-white/40 rounded-[24px] overflow-hidden shadow-xl min-w-[200px]">
                             <div className="flex items-center justify-center py-5 px-4 bg-slate-50/50">
-                                <img src="/logo.png" alt="CORAZA CTA" className="h-16 w-16 object-contain" />
+                                <img src="./logo.png" alt="CORAZA CTA" className="h-16 w-16 object-contain" />
                             </div>
                             <div className="px-5 py-4 space-y-3">
                                 <p className="text-[11px] font-bold text-primary uppercase tracking-[0.2em] text-center mb-1">Enlace Operativo</p>
