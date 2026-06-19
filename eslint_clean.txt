@@ -1,0 +1,106 @@
+﻿
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\components\EditCeldaModal.tsx
+   3:28  warning  'Vigilante' is defined but never used. Allowed unused vars must match /^_/u     @typescript-eslint/no-unused-vars
+  16:99  warning  'turnosConfig' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\components\MapLibreGL.tsx
+  2:39  warning  'Marker' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\components\guards\GuardDetailModal.tsx
+  1:20  warning  'useEffect' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\components\layout\RightPanel.tsx
+  2:17  warning  'useEffect' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  2:28  warning  'useState' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\components\puestos\CoordinationPanel.tsx
+   3:63  warning  'RolPuesto' is defined but never used. Allowed unused vars must match /^_/u      @typescript-eslint/no-unused-vars
+  34:3   warning  'compareProgId' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\components\puestos\PuestoModal.tsx
+   68:11  warning  'body' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+  237:22  warning  'err' is defined but never used. Allowed unused caught errors must match /^_/u                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+  291:44  warning  The ref value 'abortRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'abortRef.current' to a variable inside the effect, and use that variable in the cleanup function  react-hooks/exhaustive-deps
+
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\components\ui\ConfirmDialog.tsx
+  139:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\hooks\useSupabaseInit.ts
+  53:23  warning  'checkAuthReady' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\hooks\useTacticalOps.ts
+  4:8  warning  'toast' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\pages\AuditoriaInterna.tsx
+  3:8  warning  'toast' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\pages\GestionPuestos.tsx
+  325:10  warning  'storeSet' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                     @typescript-eslint/no-unused-vars
+  346:5   warning  React Hook useMemo has an unnecessary dependency: 'allProgramaciones'. Either exclude it or remove the dependency array                                                                 react-hooks/exhaustive-deps
+  360:6   warning  React Hook useEffect has missing dependencies: 'crearOObtenerProgramacion', 'currentUser', 'fetchProgramacionDetalles', and 'prog'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\pages\Inteligencia.tsx
+  10:11  warning  'puestos' is assigned a value but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+  11:11  warning  'vigilantes' is assigned a value but never used. Allowed unused vars must match /^_/u      @typescript-eslint/no-unused-vars
+  12:11  warning  'programaciones' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\pages\Novedades.tsx
+  10:12  warning  'loadingNovedades' is assigned a value but never used. Allowed unused vars must match /^_/u           @typescript-eslint/no-unused-vars
+  11:12  warning  'novedadesError' is assigned a value but never used. Allowed unused vars must match /^_/u             @typescript-eslint/no-unused-vars
+  74:9   warning  React Hook useMemo has a missing dependency: 'now'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  81:9   warning  React Hook useMemo has a missing dependency: 'now'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  88:9   warning  React Hook useMemo has a missing dependency: 'now'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\pages\Puestos.tsx
+    9:8   warning  'toast' is defined but never used. Allowed unused vars must match /^_/u                                                                                                                         @typescript-eslint/no-unused-vars
+   28:7   warning  'hashId' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                               @typescript-eslint/no-unused-vars
+  138:11  warning  The 'puestos' logical expression could make the dependencies of useMemo Hook (at line 210) change on every render. To fix this, wrap the initialization of 'puestos' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  138:11  warning  The 'puestos' logical expression could make the dependencies of useMemo Hook (at line 243) change on every render. To fix this, wrap the initialization of 'puestos' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  138:11  warning  The 'puestos' logical expression could make the dependencies of useMemo Hook (at line 427) change on every render. To fix this, wrap the initialization of 'puestos' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  205:8   warning  React Hook useEffect has a missing dependency: 'puestos'. Either include it or remove the dependency array                                                                                      react-hooks/exhaustive-deps
+  208:11  warning  'updateGuardStatus' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                    @typescript-eslint/no-unused-vars
+  215:12  warning  'notifications' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                        @typescript-eslint/no-unused-vars
+  215:27  warning  'setNotifications' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                     @typescript-eslint/no-unused-vars
+  219:11  warning  'addNotification' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                      @typescript-eslint/no-unused-vars
+  280:11  warning  'confirmDeleteFn' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                      @typescript-eslint/no-unused-vars
+
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\pages\Resumen.tsx
+  39:26  warning  'setFilterEstado' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\pages\Vigilantes.tsx
+  24:11  warning  'updateGuardStatus' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\services\aiService.ts
+  43:11  warning  'hoy' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\store\aiStore.tsx
+    1:8   warning  'React' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    4:10  warning  'toast' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   92:29  warning  'rawText' is never reassigned. Use 'const' instead                       prefer-const
+  106:29  warning  'rawText' is never reassigned. Use 'const' instead                       prefer-const
+
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\store\programacionStore.ts
+    2:10  warning  'persist' is defined but never used. Allowed unused vars must match /^_/u             @typescript-eslint/no-unused-vars
+  184:7   warning  'uuidRegex' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  198:64  warning  'set' is defined but never used. Allowed unused args must match /^_/u                 @typescript-eslint/no-unused-vars
+  198:74  warning  'get' is defined but never used. Allowed unused args must match /^_/u                 @typescript-eslint/no-unused-vars
+  200:62  warning  Empty block statement                                                                 no-empty
+  720:62  warning  'usuario' is defined but never used. Allowed unused args must match /^_/u             @typescript-eslint/no-unused-vars
+  746:49  warning  'usuario' is defined but never used. Allowed unused args must match /^_/u             @typescript-eslint/no-unused-vars
+  765:55  warning  'usuario' is defined but never used. Allowed unused args must match /^_/u             @typescript-eslint/no-unused-vars
+  849:44  warning  'usuario' is defined but never used. Allowed unused args must match /^_/u             @typescript-eslint/no-unused-vars
+  856:39  warning  'usuario' is defined but never used. Allowed unused args must match /^_/u             @typescript-eslint/no-unused-vars
+  880:65  warning  'usuario' is defined but never used. Allowed unused args must match /^_/u             @typescript-eslint/no-unused-vars
+
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\store\puestoStore.ts
+  2:10  warning  'persist' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\store\useMotorInteligencia.ts
+  24:8  warning  React Hook useEffect has a missing dependency: 'analizarSistema'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\Mirley\Downloads\APP - PORGRAMACION\coraza-cta-app\src\store\vigilanteStore.ts
+  2:10  warning  'persist' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+Ô£û 58 problems (0 errors, 58 warnings)
+  0 errors and 2 warnings potentially fixable with the `--fix` option.
+

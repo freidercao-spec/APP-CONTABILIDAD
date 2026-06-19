@@ -1,0 +1,57 @@
+[
+  {
+    "id": "eb46ccc5-59f2-4225-a548-496e073db6f9",
+    "programacion_id": "00546de3-9636-4454-a4cf-19ff48d5dde2",
+    "dia": 1,
+    "vigilante_id": "7d94fa8d-85ae-452a-87aa-aa6f06402681",
+    "turno": "AM",
+    "jornada": "descanso_remunerado",
+    "rol": "titular_a",
+    "inicio": "00:00:00",
+    "fin": "00:00:00"
+  },
+  {
+    "id": "1fee8996-6f7b-4003-b7db-b4bbab0238d9",
+    "programacion_id": "00546de3-9636-4454-a4cf-19ff48d5dde2",
+    "dia": 1,
+    "vigilante_id": "33f8ab45-8114-4765-965b-7d1b4c7e18de",
+    "turno": "AM",
+    "jornada": "normal",
+    "rol": "relevante",
+    "inicio": "06:00:00",
+    "fin": "18:00:00"
+  },
+  {
+    "id": "c1ad9167-acb8-4762-886a-a4eeb7966bce",
+    "programacion_id": "00546de3-9636-4454-a4cf-19ff48d5dde2",
+    "dia": 1,
+    "vigilante_id": "76caaac6-645b-44d2-9836-d2ebac2edb08",
+    "turno": "PM",
+    "jornada": "normal",
+    "rol": "titular_b",
+    "inicio": "18:00:00",
+    "fin": "06:00:00"
+  },
+  {
+    "id": "e5011ba2-63f4-4b2b-bfde-85be1c37747d",
+    "programacion_id": "00546de3-9636-4454-a4cf-19ff48d5dde2",
+    "dia": 2,
+    "vigilante_id": "7d94fa8d-85ae-452a-87aa-aa6f06402681",
+    "turno": "AM",
+    "jornada": "normal",
+    "rol": "titular_a",
+    "inicio": "06:00:00",
+    "fin": "18:00:00"
+  },
+  {
+    "id": "8fc508a1-662d-4cb3-83c2-d7e78eee1043",
+    "programacion_id": "00546de3-9636-4454-a4cf-19ff48d5dde2",
+    "dia": 2,
+    "vigilante_id": "76caaac6-645b-44d2-9836-d2ebac2edb08",
+    "turno": "PM",
+    "jornada": "normal",
+    "rol": "titular_b",
+    "inicio": "18:00:00",
+    "fin": "06:00:00"
+  }
+]

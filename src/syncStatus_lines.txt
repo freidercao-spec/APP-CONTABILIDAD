@@ -1,0 +1,2607 @@
+﻿
+pages\GestionPuestos.tsx:1:import React, { useState, useMemo, useEffect, useCallback } from "react";
+pages\GestionPuestos.tsx:2:import { usePuestoStore } from "../store/puestoStore";
+pages\GestionPuestos.tsx:3:import type { TurnoConfig } from "../store/puestoStore";
+pages\GestionPuestos.tsx:4:import { useVigilanteStore } from "../store/vigilanteStore";
+pages\GestionPuestos.tsx:5:import {
+pages\GestionPuestos.tsx:6:  useProgramacionStore,
+pages\GestionPuestos.tsx:7:  type AsignacionDia,
+pages\GestionPuestos.tsx:8:  type TurnoHora,
+pages\GestionPuestos.tsx:9:  type ProgramacionMensual,
+pages\GestionPuestos.tsx:10:  type PersonalPuesto,
+pages\GestionPuestos.tsx:11:  type RolPuesto,
+pages\GestionPuestos.tsx:12:} from "../store/programacionStore";
+pages\GestionPuestos.tsx:13:import { useAuthStore } from "../store/authStore";
+pages\GestionPuestos.tsx:14:import { useAuditStore } from "../store/auditStore";
+pages\GestionPuestos.tsx:15:import { showTacticalToast } from "../utils/tacticalToast";
+pages\GestionPuestos.tsx:16:import jsPDF from "jspdf";
+pages\GestionPuestos.tsx:17:import autoTable from "jspdf-autotable";
+pages\GestionPuestos.tsx:18:import * as XLSX from 'xlsx';
+pages\GestionPuestos.tsx:19:import ExcelJS from 'exceljs';
+pages\GestionPuestos.tsx:20:import { format } from 'date-fns';
+pages\GestionPuestos.tsx:21:import { es } from 'date-fns/locale';
+pages\GestionPuestos.tsx:22:
+pages\GestionPuestos.tsx:23:// Sub-components
+pages\GestionPuestos.tsx:24:import { CeldaCalendario } from "../components/puestos/CeldaCalendario";
+pages\GestionPuestos.tsx:25:import { EditCeldaModal } from "../components/puestos/EditCeldaModal";
+pages\GestionPuestos.tsx:26:import { PuestoCard } from '../components/puestos/PuestoCard';
+pages\GestionPuestos.tsx:27:import PuestoModal from '../components/puestos/PuestoModal';
+pages\GestionPuestos.tsx:28:import { CoordinationPanel } from "../components/puestos/CoordinationPanel";
+pages\GestionPuestos.tsx:29:import { MasterGrid } from "../components/puestos/MasterGrid";
+pages\GestionPuestos.tsx:30:import { KpiCard } from "../components/dashboard/KpiCard";
+pages\GestionPuestos.tsx:31:
+pages\GestionPuestos.tsx:32:// Constants
+pages\GestionPuestos.tsx:33:import {
+pages\GestionPuestos.tsx:34:  DEFAULT_TURNOS,
+pages\GestionPuestos.tsx:35:  DEFAULT_JORNADAS,
+pages\GestionPuestos.tsx:36:  MONTH_NAMES,
+pages\GestionPuestos.tsx:37:} from "../utils/puestosConstants";
+pages\GestionPuestos.tsx:38:
+pages\GestionPuestos.tsx:39:// ─── TIPOS DISPONIBLES EN EL SISTEMA ───────────────
+pages\GestionPuestos.tsx:40:const TIPOS_PUESTO = [
+pages\GestionPuestos.tsx:41:  { value: 'hospital', icon: 'local_hospital', color: 'text-blue-500' },
+pages\GestionPuestos.tsx:42:  { value: 'comando', icon: 'local_police', color: 'text-purple-500' },
+pages\GestionPuestos.tsx:43:  { value: 'torre', icon: 'cell_tower', color: 'text-cyan-500' },
+pages\GestionPuestos.tsx:44:  { value: 'edificio', icon: 'domain', color: 'text-slate-400' },
+pages\GestionPuestos.tsx:45:  { value: 'retail', icon: 'shopping_bag', color: 'text-amber-500' },
+pages\GestionPuestos.tsx:46:  { value: 'logistica', icon: 'local_shipping', color: 'text-orange-500' },
+pages\GestionPuestos.tsx:47:  { value: 'banco', icon: 'account_balance', color: 'text-emerald-500' },
+pages\GestionPuestos.tsx:48:  { value: 'puerto', icon: 'sailing', color: 'text-sky-500' },
+pages\GestionPuestos.tsx:49:];
+pages\GestionPuestos.tsx:50:
+pages\GestionPuestos.tsx:51:const getPuestoNombre = (prog: any, allPuestos: any[]) => {
+pages\GestionPuestos.tsx:52:    if (!prog || !allPuestos) return "Puesto";
+pages\GestionPuestos.tsx:53:    const pId = prog.puestoId;
+pages\GestionPuestos.tsx:54:    const p = allPuestos.find(px => px.id === pId || px.dbId === pId);
+pages\GestionPuestos.tsx:55:    return p?.nombre || "Puesto Desconocido";
+pages\GestionPuestos.tsx:56:};
+pages\GestionPuestos.tsx:57:
+pages\GestionPuestos.tsx:58:const getTipoIcon = (tipo: string) => TIPOS_PUESTO.find(t => t.value === tipo) || 
+TIPOS_PUESTO[3];
+pages\GestionPuestos.tsx:59:
+pages\GestionPuestos.tsx:60:const getRolLabel = (rol: string) => {
+pages\GestionPuestos.tsx:61:  const base: Record<string, string> = { titular_a: "Titular A", titular_b: "Titular B", 
+relevante: "Relevante" };
+pages\GestionPuestos.tsx:62:  if (base[rol]) return base[rol];
+pages\GestionPuestos.tsx:63:  if (/^\d+$/.test(rol) || rol.length > 10) return "Rol Personalizado";
+pages\GestionPuestos.tsx:64:  return rol.replace(/_/g, " ").toUpperCase();
+pages\GestionPuestos.tsx:65:};
+pages\GestionPuestos.tsx:66:
+pages\GestionPuestos.tsx:67:const JORNADA_PDF: Record<string, string> = {
+pages\GestionPuestos.tsx:68:  normal: "D",
+pages\GestionPuestos.tsx:69:  descanso_remunerado: "DR",
+pages\GestionPuestos.tsx:70:  descanso_no_remunerado: "DNR",
+pages\GestionPuestos.tsx:71:  vacacion: "VAC",
+pages\GestionPuestos.tsx:72:  sin_asignar: "",
+pages\GestionPuestos.tsx:73:  AM: "D",
+pages\GestionPuestos.tsx:74:  PM: "N",
+pages\GestionPuestos.tsx:75:  "24H": "24",
+pages\GestionPuestos.tsx:76:};
+pages\GestionPuestos.tsx:77:
+pages\GestionPuestos.tsx:78:const ROL_PDF_BASE: Record<string, string> = {
+pages\GestionPuestos.tsx:79:  titular_a: "TITULAR A",
+pages\GestionPuestos.tsx:80:  titular_b: "TITULAR B",
+pages\GestionPuestos.tsx:81:  relevante: "RELEVANTE",
+pages\GestionPuestos.tsx:82:};
+pages\GestionPuestos.tsx:83:
+pages\GestionPuestos.tsx:84:const getRolPdfLabel = (rol: string) => {
+pages\GestionPuestos.tsx:85:  return ROL_PDF_BASE[rol] || rol.replace(/_/g, " ").toUpperCase();
+pages\GestionPuestos.tsx:86:};
+pages\GestionPuestos.tsx:87:
+pages\GestionPuestos.tsx:88:const GestionPersonalModal = ({
+pages\GestionPuestos.tsx:89:  prog,
+pages\GestionPuestos.tsx:90:  puestoNombre,
+pages\GestionPuestos.tsx:91:  turnosConfig,
+pages\GestionPuestos.tsx:92:  onClose,
+pages\GestionPuestos.tsx:93:  onSave,
+pages\GestionPuestos.tsx:94:}: {
+pages\GestionPuestos.tsx:95:  prog: ProgramacionMensual;
+pages\GestionPuestos.tsx:96:  puestoNombre: string;
+pages\GestionPuestos.tsx:97:  turnosConfig: TurnoConfig[];
+pages\GestionPuestos.tsx:98:  onClose: () => void;
+pages\GestionPuestos.tsx:99:  onSave: (personal: PersonalPuesto[]) => void;
+pages\GestionPuestos.tsx:100:}) => {
+pages\GestionPuestos.tsx:101:  const vigilantes = useVigilanteStore((s) => s.vigilantes);
+pages\GestionPuestos.tsx:102:  const [personal, setPersonal] = useState<PersonalPuesto[]>(
+pages\GestionPuestos.tsx:103:    prog.personal.length > 0
+pages\GestionPuestos.tsx:104:      ? [...prog.personal]
+pages\GestionPuestos.tsx:105:      : [
+pages\GestionPuestos.tsx:106:          { rol: "titular_a", vigilanteId: null, turnoId: "AM" },
+pages\GestionPuestos.tsx:107:          { rol: "titular_b", vigilanteId: null, turnoId: "PM" },
+pages\GestionPuestos.tsx:108:          { rol: "relevante", vigilanteId: null, turnoId: "AM" },
+pages\GestionPuestos.tsx:109:        ]
+pages\GestionPuestos.tsx:110:  );
+pages\GestionPuestos.tsx:111:  const [searchTerms, setSearchTerms] = useState<Record<string, string>>({});
+pages\GestionPuestos.tsx:112:  const [newRolName, setNewRolName] = useState("");
+pages\GestionPuestos.tsx:113:  const [showAddRol, setShowAddRol] = useState(false);
+pages\GestionPuestos.tsx:114:
+pages\GestionPuestos.tsx:115:  const BASE_ROLES: { rol: string; label: string; color: string; icon: string }[] = [
+pages\GestionPuestos.tsx:116:    { rol: "titular_a", label: "Titular A", color: "bg-primary", icon: "shield" },
+pages\GestionPuestos.tsx:117:    { rol: "titular_b", label: "Titular B", color: "bg-indigo-600", icon: "shield_person" 
+},
+pages\GestionPuestos.tsx:118:    { rol: "relevante", label: "Relevante / Backup", color: "bg-slate-600", icon: 
+"groups" },
+pages\GestionPuestos.tsx:119:  ];
+pages\GestionPuestos.tsx:120:
+pages\GestionPuestos.tsx:121:  const activeRoles = useMemo(() => {
+pages\GestionPuestos.tsx:122:    const baseRolIds = BASE_ROLES.map(r => r.rol);
+pages\GestionPuestos.tsx:123:    const customRoles = personal
+pages\GestionPuestos.tsx:124:      .filter(p => !baseRolIds.includes(p.rol))
+pages\GestionPuestos.tsx:125:      .map(p => ({
+pages\GestionPuestos.tsx:126:        rol: p.rol,
+pages\GestionPuestos.tsx:127:        label: p.rol.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+pages\GestionPuestos.tsx:128:        color: "bg-violet-600",
+pages\GestionPuestos.tsx:129:        icon: "person_add"
+pages\GestionPuestos.tsx:130:      }));
+pages\GestionPuestos.tsx:131:    return [...BASE_ROLES, ...customRoles];
+pages\GestionPuestos.tsx:132:  }, [personal]);
+pages\GestionPuestos.tsx:133:
+pages\GestionPuestos.tsx:134:  const addCustomRol = () => {
+pages\GestionPuestos.tsx:135:    const clean = newRolName.trim().toLowerCase().replace(/\s+/g, '_');
+pages\GestionPuestos.tsx:136:    if (!clean) return;
+pages\GestionPuestos.tsx:137:    
+pages\GestionPuestos.tsx:138:    if (/^\d+$/.test(clean)) {
+pages\GestionPuestos.tsx:139:      showTacticalToast({ 
+pages\GestionPuestos.tsx:140:        title: "Nombre Inválido", 
+pages\GestionPuestos.tsx:141:        message: "El nombre del turno no puede ser solo números. Use letras para 
+identificarlo.", 
+pages\GestionPuestos.tsx:142:        type: "warning" 
+pages\GestionPuestos.tsx:143:      });
+pages\GestionPuestos.tsx:144:      return;
+pages\GestionPuestos.tsx:145:    }
+pages\GestionPuestos.tsx:146:
+pages\GestionPuestos.tsx:147:    if (personal.some(p => p.rol === clean)) {
+pages\GestionPuestos.tsx:148:      showTacticalToast({ title: "Ya existe", message: "Este rol ya está configurado en 
+el puesto.", type: "warning" });
+pages\GestionPuestos.tsx:149:      return;
+pages\GestionPuestos.tsx:150:    }
+pages\GestionPuestos.tsx:151:
+pages\GestionPuestos.tsx:152:    const inferedTurnoId = (clean.toLowerCase().includes('b') || 
+clean.toLowerCase().includes('pm') || clean.toLowerCase().includes('noche')) ? "PM" : "AM";
+pages\GestionPuestos.tsx:153:
+pages\GestionPuestos.tsx:154:    setPersonal(prev => [...prev, { rol: clean, vigilanteId: null, turnoId: 
+inferedTurnoId }]);
+pages\GestionPuestos.tsx:155:    setNewRolName("");
+pages\GestionPuestos.tsx:156:    setShowAddRol(false);
+pages\GestionPuestos.tsx:157:  };
+pages\GestionPuestos.tsx:158:
+pages\GestionPuestos.tsx:159:  const removeRol = (rol: string) => {
+pages\GestionPuestos.tsx:160:    const baseRolIds = BASE_ROLES.map(r => r.rol);
+pages\GestionPuestos.tsx:161:    if (baseRolIds.includes(rol)) return;
+pages\GestionPuestos.tsx:162:    setPersonal(prev => prev.filter(p => p.rol !== rol));
+pages\GestionPuestos.tsx:163:  };
+pages\GestionPuestos.tsx:164:
+pages\GestionPuestos.tsx:165:  const getFilteredVigilantes = (rol: string) => {
+pages\GestionPuestos.tsx:166:    const q = (searchTerms[rol] || "").toLowerCase().trim();
+pages\GestionPuestos.tsx:167:    const usedIds = personal
+pages\GestionPuestos.tsx:168:      .filter((p) => p.rol !== rol && p.vigilanteId)
+pages\GestionPuestos.tsx:169:      .map((p) => p.vigilanteId);
+pages\GestionPuestos.tsx:170:      
+pages\GestionPuestos.tsx:171:    if (!q) {
+pages\GestionPuestos.tsx:172:      return vigilantes
+pages\GestionPuestos.tsx:173:        .filter((v) => !usedIds.includes(v.id) && !usedIds.includes(v.dbId ?? null))
+pages\GestionPuestos.tsx:174:        .slice(0, 30);
+pages\GestionPuestos.tsx:175:    }
+pages\GestionPuestos.tsx:176:    
+pages\GestionPuestos.tsx:177:    return vigilantes
+pages\GestionPuestos.tsx:178:      .filter(
+pages\GestionPuestos.tsx:179:        (v) =>
+pages\GestionPuestos.tsx:180:          (v.nombre?.toLowerCase().includes(q) || v.cedula?.includes(q) || 
+v.id?.toLowerCase().includes(q)) &&
+pages\GestionPuestos.tsx:181:          !usedIds.includes(v.id) &&
+pages\GestionPuestos.tsx:182:          !usedIds.includes(v.dbId ?? null)
+pages\GestionPuestos.tsx:183:      )
+pages\GestionPuestos.tsx:184:      .slice(0, 40);
+pages\GestionPuestos.tsx:185:  };
+pages\GestionPuestos.tsx:186:
+pages\GestionPuestos.tsx:187:  const setPersonalVigilante = (rol: string, vigilanteId: string | null) => {
+pages\GestionPuestos.tsx:188:    setPersonal((prev) => prev.map((p) => (p.rol === rol ? { ...p, vigilanteId } : p)));
+pages\GestionPuestos.tsx:189:    setSearchTerms((prev) => ({ ...prev, [rol]: "" }));
+pages\GestionPuestos.tsx:190:  };
+pages\GestionPuestos.tsx:191:
+pages\GestionPuestos.tsx:192:  const setPersonalTurno = (rol: string, turnoId: string) => {
+pages\GestionPuestos.tsx:193:    setPersonal((prev) => prev.map((p) => (p.rol === rol ? { ...p, turnoId } : p)));
+pages\GestionPuestos.tsx:194:  };
+pages\GestionPuestos.tsx:195:
+pages\GestionPuestos.tsx:196:  const getNombreAsignado = (rol: string) => {
+pages\GestionPuestos.tsx:197:    const p = personal.find((p) => p.rol === rol);
+pages\GestionPuestos.tsx:198:    if (!p?.vigilanteId) return null;
+pages\GestionPuestos.tsx:199:    const v = vigilantes.find((v) => v.id === p.vigilanteId || v.dbId === p.vigilanteId);
+pages\GestionPuestos.tsx:200:    return v?.nombre || p.vigilanteId;
+pages\GestionPuestos.tsx:201:  };
+pages\GestionPuestos.tsx:202:
+pages\GestionPuestos.tsx:203:  return (
+pages\GestionPuestos.tsx:204:    <div
+pages\GestionPuestos.tsx:205:      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 
+backdrop-blur-sm p-4"
+pages\GestionPuestos.tsx:206:      onClick={onClose}
+pages\GestionPuestos.tsx:207:    >
+pages\GestionPuestos.tsx:208:      <div
+pages\GestionPuestos.tsx:209:        className="bg-slate-900 rounded-[40px] w-full max-w-2xl shadow-2xl 
+overflow-hidden border border-white/10"
+pages\GestionPuestos.tsx:210:        onClick={(e) => e.stopPropagation()}
+pages\GestionPuestos.tsx:211:      >
+pages\GestionPuestos.tsx:212:        <div className="px-8 py-6 border-b border-white/10 flex items-center 
+justify-between">
+pages\GestionPuestos.tsx:213:          <div>
+pages\GestionPuestos.tsx:214:            <h2 className="text-xl font-black text-white uppercase tracking-tighter">
+pages\GestionPuestos.tsx:215:              Personal del Puesto
+pages\GestionPuestos.tsx:216:            </h2>
+pages\GestionPuestos.tsx:217:            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest 
+mt-1">
+pages\GestionPuestos.tsx:218:              {puestoNombre} — Configura el equipo de trabajo (100% Personalizable)
+pages\GestionPuestos.tsx:219:            </p>
+pages\GestionPuestos.tsx:220:          </div>
+pages\GestionPuestos.tsx:221:          <button
+pages\GestionPuestos.tsx:222:            onClick={onClose}
+pages\GestionPuestos.tsx:223:            className="size-10 rounded-full bg-white/5 hover:bg-white/10 flex 
+items-center justify-center transition-colors"
+pages\GestionPuestos.tsx:224:          >
+pages\GestionPuestos.tsx:225:            <span className="material-symbols-outlined text-white 
+text-[20px]">close</span>
+pages\GestionPuestos.tsx:226:          </button>
+pages\GestionPuestos.tsx:227:        </div>
+pages\GestionPuestos.tsx:228:
+pages\GestionPuestos.tsx:229:        <div className="p-8 space-y-4 max-h-[65vh] overflow-y-auto custom-scrollbar">
+pages\GestionPuestos.tsx:230:          {activeRoles.map(({ rol, label, color, icon }) => {
+pages\GestionPuestos.tsx:231:            const nombreAsignado = getNombreAsignado(rol);
+pages\GestionPuestos.tsx:232:            const q = searchTerms[rol] || "";
+pages\GestionPuestos.tsx:233:            const filtered = getFilteredVigilantes(rol);
+pages\GestionPuestos.tsx:234:            const isCustom = !["titular_a", "titular_b", "relevante"].includes(rol);
+pages\GestionPuestos.tsx:235:
+pages\GestionPuestos.tsx:236:            return (
+pages\GestionPuestos.tsx:237:              <div key={rol} className="bg-white/[0.04] rounded-3xl p-5 border 
+border-white/5">
+pages\GestionPuestos.tsx:238:                <div className="flex items-center gap-3 mb-4">
+pages\GestionPuestos.tsx:239:                  <div className={`size-9 rounded-xl ${color} flex items-center 
+justify-center shadow-lg`}>
+pages\GestionPuestos.tsx:240:                    <span className="material-symbols-outlined text-white 
+text-[18px]">{icon}</span>
+pages\GestionPuestos.tsx:241:                  </div>
+pages\GestionPuestos.tsx:242:                  <div className="flex-1">
+pages\GestionPuestos.tsx:243:                    <div className="flex items-center gap-2">
+pages\GestionPuestos.tsx:244:                      <p className="text-[12px] font-black text-white 
+uppercase">{label}</p>
+pages\GestionPuestos.tsx:245:                      <div className="flex items-center gap-2 bg-white/5 px-2 py-0.5 
+rounded-lg border border-white/10">
+pages\GestionPuestos.tsx:246:                        <span className="material-symbols-outlined text-[14px] 
+text-slate-400">
+pages\GestionPuestos.tsx:247:                          {(personal.find(p => p.rol === rol)?.turnoId?.includes('PM') || 
+personal.find(p => p.rol === rol)?.rol.toLowerCase().includes('b')) ? 'dark_mode' : 'light_mode'}
+pages\GestionPuestos.tsx:248:                        </span>
+pages\GestionPuestos.tsx:249:                        <select 
+pages\GestionPuestos.tsx:250:                          value={personal.find(p => p.rol === rol)?.turnoId || "AM"}
+pages\GestionPuestos.tsx:251:                          onChange={(e) => setPersonalTurno(rol, e.target.value)}
+pages\GestionPuestos.tsx:252:                          className="bg-transparent text-[9px] font-bold text-slate-300 
+border-none outline-none cursor-pointer hover:text-white transition-all"
+pages\GestionPuestos.tsx:253:                        >
+pages\GestionPuestos.tsx:254:                          {turnosConfig.map((t: any) => (
+pages\GestionPuestos.tsx:255:                            <option key={t.id} value={t.id} className="bg-slate-800 
+text-white">
+pages\GestionPuestos.tsx:256:                              {t.nombre} ({t.inicio}-{t.fin})
+pages\GestionPuestos.tsx:257:                            </option>
+pages\GestionPuestos.tsx:258:                          ))}
+pages\GestionPuestos.tsx:259:                        </select>
+pages\GestionPuestos.tsx:260:                      </div>
+pages\GestionPuestos.tsx:261:                    </div>
+pages\GestionPuestos.tsx:262:                    {nombreAsignado ? (
+pages\GestionPuestos.tsx:263:                      <p className="text-[10px] text-emerald-400 font-bold mt-0.5">✓ 
+{nombreAsignado}</p>
+pages\GestionPuestos.tsx:264:                    ) : (
+pages\GestionPuestos.tsx:265:                      <p className="text-[10px] text-slate-500 font-bold uppercase 
+mt-0.5">Sin asignar</p>
+pages\GestionPuestos.tsx:266:                    )}
+pages\GestionPuestos.tsx:267:                  </div>
+pages\GestionPuestos.tsx:268:                  <div className="flex gap-2">
+pages\GestionPuestos.tsx:269:                    {nombreAsignado && (
+pages\GestionPuestos.tsx:270:                      <button
+pages\GestionPuestos.tsx:271:                        onClick={() => setPersonalVigilante(rol, null)}
+pages\GestionPuestos.tsx:272:                        className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 
+text-red-400 rounded-xl text-[9px] font-black uppercase transition-colors"
+pages\GestionPuestos.tsx:273:                      >
+pages\GestionPuestos.tsx:274:                        Quitar
+pages\GestionPuestos.tsx:275:                      </button>
+pages\GestionPuestos.tsx:276:                    )}
+pages\GestionPuestos.tsx:277:                    {isCustom && (
+pages\GestionPuestos.tsx:278:                      <button
+pages\GestionPuestos.tsx:279:                        onClick={() => removeRol(rol)}
+pages\GestionPuestos.tsx:280:                        className="size-8 bg-red-900/20 hover:bg-red-500/20 text-red-500 
+rounded-xl flex items-center justify-center transition-colors"
+pages\GestionPuestos.tsx:281:                        title="Eliminar este turno"
+pages\GestionPuestos.tsx:282:                      >
+pages\GestionPuestos.tsx:283:                        <span className="material-symbols-outlined 
+text-[16px]">delete</span>
+pages\GestionPuestos.tsx:284:                      </button>
+pages\GestionPuestos.tsx:285:                    )}
+pages\GestionPuestos.tsx:286:                  </div>
+pages\GestionPuestos.tsx:287:                </div>
+pages\GestionPuestos.tsx:288:
+pages\GestionPuestos.tsx:289:                <div className="relative mb-2">
+pages\GestionPuestos.tsx:290:                  <span className="material-symbols-outlined absolute left-3 top-1/2 
+-translate-y-1/2 text-slate-500 text-[16px]">
+pages\GestionPuestos.tsx:291:                    search
+pages\GestionPuestos.tsx:292:                  </span>
+pages\GestionPuestos.tsx:293:                  <input
+pages\GestionPuestos.tsx:294:                    type="text"
+pages\GestionPuestos.tsx:295:                    placeholder="Buscar vigilante..."
+pages\GestionPuestos.tsx:296:                    value={q}
+pages\GestionPuestos.tsx:297:                    onChange={(e) =>
+pages\GestionPuestos.tsx:298:                      setSearchTerms((prev) => ({ ...prev, [rol]: e.target.value }))
+pages\GestionPuestos.tsx:299:                    }
+pages\GestionPuestos.tsx:300:                    className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 
+rounded-xl text-[11px] font-bold text-white outline-none focus:border-primary/50 transition-colors"
+pages\GestionPuestos.tsx:301:                  />
+pages\GestionPuestos.tsx:302:                </div>
+pages\GestionPuestos.tsx:303:
+pages\GestionPuestos.tsx:304:                <div className="max-h-32 overflow-y-auto space-y-1 custom-scrollbar">
+pages\GestionPuestos.tsx:305:                  {filtered.map((v) => (
+pages\GestionPuestos.tsx:306:                    <button
+pages\GestionPuestos.tsx:307:                      key={v.id}
+pages\GestionPuestos.tsx:308:                      onClick={() => setPersonalVigilante(rol, v.id)}
+pages\GestionPuestos.tsx:309:                      className="w-full text-left px-3 py-2 bg-white/5 hover:bg-white/10 
+rounded-xl flex items-center gap-3 transition-colors"
+pages\GestionPuestos.tsx:310:                    >
+pages\GestionPuestos.tsx:311:                      <div className="size-6 rounded bg-black/30 flex items-center 
+justify-center text-[10px] font-black text-white shrink-0">
+pages\GestionPuestos.tsx:312:                        {v.nombre?.[0]}
+pages\GestionPuestos.tsx:313:                      </div>
+pages\GestionPuestos.tsx:314:                      <div className="min-w-0">
+pages\GestionPuestos.tsx:315:                        <p className="text-[11px] font-black text-white 
+truncate">{v.nombre}</p>
+pages\GestionPuestos.tsx:316:                        <p className="text-[8px] font-bold text-slate-500 
+uppercase">{v.cedula}</p>
+pages\GestionPuestos.tsx:317:                      </div>
+pages\GestionPuestos.tsx:318:                    </button>
+pages\GestionPuestos.tsx:319:                  ))}
+pages\GestionPuestos.tsx:320:                  {filtered.length === 0 && q && (
+pages\GestionPuestos.tsx:321:                    <p className="text-center text-[9px] text-slate-600 py-2 uppercase 
+font-black">No encontrado</p>
+pages\GestionPuestos.tsx:322:                  )}
+pages\GestionPuestos.tsx:323:                </div>
+pages\GestionPuestos.tsx:324:              </div>
+pages\GestionPuestos.tsx:325:            );
+pages\GestionPuestos.tsx:326:          })}
+pages\GestionPuestos.tsx:327:
+pages\GestionPuestos.tsx:328:          {showAddRol ? (
+pages\GestionPuestos.tsx:329:            <div className="bg-violet-500/10 border border-violet-500/30 rounded-3xl p-5 
+animate-in fade-in zoom-in duration-200">
+pages\GestionPuestos.tsx:330:              <p className="text-[10px] font-black text-violet-300 uppercase mb-3 
+tracking-widest">Nuevo Turno / Rol Adicional</p>
+pages\GestionPuestos.tsx:331:              <div className="flex gap-2">
+pages\GestionPuestos.tsx:332:                <input
+pages\GestionPuestos.tsx:333:                  type="text"
+pages\GestionPuestos.tsx:334:                  placeholder="Ej: Nocturno Extra, Refuerzo..."
+pages\GestionPuestos.tsx:335:                  value={newRolName}
+pages\GestionPuestos.tsx:336:                  onChange={e => setNewRolName(e.target.value)}
+pages\GestionPuestos.tsx:337:                  onKeyDown={e => e.key === 'Enter' && addCustomRol()}
+pages\GestionPuestos.tsx:338:                  className="flex-1 px-4 py-2.5 bg-white/5 border border-violet-500/30 
+rounded-xl text-[11px] font-bold text-white outline-none focus:border-violet-400 transition-colors"
+pages\GestionPuestos.tsx:339:                  autoFocus
+pages\GestionPuestos.tsx:340:                />
+pages\GestionPuestos.tsx:341:                <button
+pages\GestionPuestos.tsx:342:                  onClick={addCustomRol}
+pages\GestionPuestos.tsx:343:                  disabled={!newRolName.trim()}
+pages\GestionPuestos.tsx:344:                  className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white 
+rounded-xl text-[10px] font-black uppercase transition-colors disabled:opacity-50"
+pages\GestionPuestos.tsx:345:                >
+pages\GestionPuestos.tsx:346:                  Confirmar
+pages\GestionPuestos.tsx:347:                </button>
+pages\GestionPuestos.tsx:348:                <button
+pages\GestionPuestos.tsx:349:                  onClick={() => { setShowAddRol(false); setNewRolName(""); }}
+pages\GestionPuestos.tsx:350:                  className="px-3 py-2.5 bg-white/5 text-slate-400 rounded-xl text-[10px] 
+font-black uppercase transition-colors hover:bg-white/10"
+pages\GestionPuestos.tsx:351:                >
+pages\GestionPuestos.tsx:352:                  <span className="material-symbols-outlined text-[18px]">close</span>
+pages\GestionPuestos.tsx:353:                </button>
+pages\GestionPuestos.tsx:354:              </div>
+pages\GestionPuestos.tsx:355:            </div>
+pages\GestionPuestos.tsx:356:          ) : (
+pages\GestionPuestos.tsx:357:            <button
+pages\GestionPuestos.tsx:358:              onClick={() => setShowAddRol(true)}
+pages\GestionPuestos.tsx:359:              className="w-full py-4 border-2 border-dashed border-white/10 
+hover:border-violet-500/40 hover:bg-violet-500/5 text-slate-500 hover:text-violet-400 rounded-3xl text-[10px] 
+font-black uppercase transition-all flex items-center justify-center gap-3 group"
+pages\GestionPuestos.tsx:360:            >
+pages\GestionPuestos.tsx:361:              <span className="material-symbols-outlined text-[20px] 
+group-hover:scale-110 transition-transform">add_circle</span>
+pages\GestionPuestos.tsx:362:              Agregar Turno Personalizado al Puesto
+pages\GestionPuestos.tsx:363:            </button>
+pages\GestionPuestos.tsx:364:          )}
+pages\GestionPuestos.tsx:365:        </div>
+pages\GestionPuestos.tsx:366:
+pages\GestionPuestos.tsx:367:        <div className="px-8 py-5 border-t border-white/10 bg-black/20 flex gap-3">
+pages\GestionPuestos.tsx:368:          <button
+pages\GestionPuestos.tsx:369:            onClick={onClose}
+pages\GestionPuestos.tsx:370:            className="px-6 py-3 bg-white/5 hover:bg-white/10 text-slate-400 rounded-2xl 
+text-[10px] font-black uppercase transition-colors"
+pages\GestionPuestos.tsx:371:          >
+pages\GestionPuestos.tsx:372:            Cancelar
+pages\GestionPuestos.tsx:373:          </button>
+pages\GestionPuestos.tsx:374:          <button
+pages\GestionPuestos.tsx:375:            onClick={() => onSave(personal)}
+pages\GestionPuestos.tsx:376:            className="flex-1 py-3 bg-emerald-600 text-white rounded-2xl text-[10px] 
+font-black uppercase shadow-lg shadow-emerald-900/40 hover:bg-emerald-500 transition-all hover:-translate-y-0.5 
+active:translate-y-0"
+pages\GestionPuestos.tsx:377:          >
+pages\GestionPuestos.tsx:378:            <span className="material-symbols-outlined text-[16px] mr-2 
+align-middle">lock</span>
+pages\GestionPuestos.tsx:379:            Guardar Configuración de Personal
+pages\GestionPuestos.tsx:380:          </button>
+pages\GestionPuestos.tsx:381:        </div>
+pages\GestionPuestos.tsx:382:      </div>
+pages\GestionPuestos.tsx:383:    </div>
+pages\GestionPuestos.tsx:384:  );
+pages\GestionPuestos.tsx:385:};
+pages\GestionPuestos.tsx:386:
+pages\GestionPuestos.tsx:387:const AddTurnoForm = ({
+pages\GestionPuestos.tsx:388:  turnosActuales,
+pages\GestionPuestos.tsx:389:  onAdd,
+pages\GestionPuestos.tsx:390:}: {
+pages\GestionPuestos.tsx:391:  turnosActuales: TurnoConfig[];
+pages\GestionPuestos.tsx:392:  onAdd: (turno: TurnoConfig) => void;
+pages\GestionPuestos.tsx:393:}) => {
+pages\GestionPuestos.tsx:394:  const [nombre, setNombre] = useState('');
+pages\GestionPuestos.tsx:395:  const [inicio, setInicio] = useState('06:00');
+pages\GestionPuestos.tsx:396:  const [fin, setFin] = useState('18:00');
+pages\GestionPuestos.tsx:397:  const [color, setColor] = useState('#6366f1');
+pages\GestionPuestos.tsx:398:
+pages\GestionPuestos.tsx:399:  const PRESET_COLORS = [
+pages\GestionPuestos.tsx:400:    { name: 'Indigo', value: '#6366f1' },
+pages\GestionPuestos.tsx:401:    { name: 'Emerald', value: '#10b981' },
+pages\GestionPuestos.tsx:402:    { name: 'Amber', value: '#f59e0b' },
+pages\GestionPuestos.tsx:403:    { name: 'Rose', value: '#f43f5e' },
+pages\GestionPuestos.tsx:404:    { name: 'Cyan', value: '#06b6d4' },
+pages\GestionPuestos.tsx:405:    { name: 'Violet', value: '#8b5cf6' },
+pages\GestionPuestos.tsx:406:  ];
+pages\GestionPuestos.tsx:407:
+pages\GestionPuestos.tsx:408:  const handleAdd = () => {
+pages\GestionPuestos.tsx:409:    const n = nombre.trim();
+pages\GestionPuestos.tsx:410:    if (!n) { showTacticalToast({ title: 'Campo vacío', message: 'Ingresa un nombre para 
+el turno.', type: 'warning' }); return; }
+pages\GestionPuestos.tsx:411:    const isDup = turnosActuales.some(t => t.nombre.toLowerCase() === n.toLowerCase());
+pages\GestionPuestos.tsx:412:    if (isDup) { showTacticalToast({ title: 'Ya existe', message: `El turno "${n}" ya 
+está en la lista.`, type: 'warning' }); return; }
+pages\GestionPuestos.tsx:413:    onAdd({ id: `turno_${Date.now()}`, nombre: n, inicio, fin, color });
+pages\GestionPuestos.tsx:414:    setNombre('');
+pages\GestionPuestos.tsx:415:    setInicio('06:00');
+pages\GestionPuestos.tsx:416:    setFin('18:00');
+pages\GestionPuestos.tsx:417:    showTacticalToast({ title: 'Turno Creado', message: `El turno ${n} ha sido inyectado 
+al sistema.`, type: 'success' });
+pages\GestionPuestos.tsx:418:  };
+pages\GestionPuestos.tsx:419:
+pages\GestionPuestos.tsx:420:  return (
+pages\GestionPuestos.tsx:421:    <div className="space-y-4 bg-white/5 p-4 rounded-2xl border border-white/5">
+pages\GestionPuestos.tsx:422:      <div>
+pages\GestionPuestos.tsx:423:        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest 
+mb-1.5 block">Identificador del Turno</label>
+pages\GestionPuestos.tsx:424:        <input
+pages\GestionPuestos.tsx:425:          type="text"
+pages\GestionPuestos.tsx:426:          value={nombre}
+pages\GestionPuestos.tsx:427:          onChange={e => setNombre(e.target.value)}
+pages\GestionPuestos.tsx:428:          placeholder="Ej: Turno Especial, Refuerzo..."
+pages\GestionPuestos.tsx:429:          className="w-full h-10 px-3 bg-slate-900 border border-white/10 rounded-xl 
+text-[11px] font-bold text-white outline-none focus:border-violet-400 placeholder-slate-700 transition-all"
+pages\GestionPuestos.tsx:430:        />
+pages\GestionPuestos.tsx:431:      </div>
+pages\GestionPuestos.tsx:432:
+pages\GestionPuestos.tsx:433:      <div className="flex gap-3">
+pages\GestionPuestos.tsx:434:        <div className="flex-1">
+pages\GestionPuestos.tsx:435:          <label className="text-[8px] font-black text-slate-500 uppercase 
+tracking-widest mb-1.5 block">Hora Inicio</label>
+pages\GestionPuestos.tsx:436:          <input type="time" value={inicio} onChange={e => setInicio(e.target.value)}
+pages\GestionPuestos.tsx:437:            className="w-full h-10 px-3 bg-slate-900 border border-white/10 rounded-xl 
+text-[11px] text-white outline-none focus:border-violet-400 transition-all" />
+pages\GestionPuestos.tsx:438:        </div>
+pages\GestionPuestos.tsx:439:        <div className="flex-1">
+pages\GestionPuestos.tsx:440:          <label className="text-[8px] font-black text-slate-500 uppercase 
+tracking-widest mb-1.5 block">Hora Fin</label>
+pages\GestionPuestos.tsx:441:          <input type="time" value={fin} onChange={e => setFin(e.target.value)}
+pages\GestionPuestos.tsx:442:            className="w-full h-10 px-3 bg-slate-900 border border-white/10 rounded-xl 
+text-[11px] text-white outline-none focus:border-violet-400 transition-all" />
+pages\GestionPuestos.tsx:443:        </div>
+pages\GestionPuestos.tsx:444:      </div>
+pages\GestionPuestos.tsx:445:
+pages\GestionPuestos.tsx:446:      <div>
+pages\GestionPuestos.tsx:447:        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest 
+mb-2 block">Color Distintivo</label>
+pages\GestionPuestos.tsx:448:        <div className="flex flex-wrap gap-2">
+pages\GestionPuestos.tsx:449:          {PRESET_COLORS.map(c => (
+pages\GestionPuestos.tsx:450:            <button
+pages\GestionPuestos.tsx:451:              key={c.value}
+pages\GestionPuestos.tsx:452:              onClick={() => setColor(c.value)}
+pages\GestionPuestos.tsx:453:              className={`size-7 rounded-lg border-2 transition-all ${color === c.value ? 
+'border-white scale-110 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'}`}
+pages\GestionPuestos.tsx:454:              style={{ backgroundColor: c.value }}
+pages\GestionPuestos.tsx:455:              title={c.name}
+pages\GestionPuestos.tsx:456:            />
+pages\GestionPuestos.tsx:457:          ))}
+pages\GestionPuestos.tsx:458:        </div>
+pages\GestionPuestos.tsx:459:      </div>
+pages\GestionPuestos.tsx:460:
+pages\GestionPuestos.tsx:461:      <button
+pages\GestionPuestos.tsx:462:        onClick={handleAdd}
+pages\GestionPuestos.tsx:463:        className="w-full h-11 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl 
+text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 shadow-xl shadow-indigo-600/20 
+group"
+pages\GestionPuestos.tsx:464:      >
+pages\GestionPuestos.tsx:465:        <span className="material-symbols-outlined text-[18px] group-hover:rotate-90 
+transition-transform">add_circle</span>
+pages\GestionPuestos.tsx:466:        Inyectar Turno al Tablero
+pages\GestionPuestos.tsx:467:      </button>
+pages\GestionPuestos.tsx:468:    </div>
+pages\GestionPuestos.tsx:469:  );
+pages\GestionPuestos.tsx:470:};
+pages\GestionPuestos.tsx:471:
+pages\GestionPuestos.tsx:472:const PanelMensualPuesto = ({
+pages\GestionPuestos.tsx:473:  puestoId,
+pages\GestionPuestos.tsx:474:  puestoNombre,
+pages\GestionPuestos.tsx:475:  anio,
+pages\GestionPuestos.tsx:476:  mes,
+pages\GestionPuestos.tsx:477:  onClose,
+pages\GestionPuestos.tsx:478:}: {
+pages\GestionPuestos.tsx:479:  puestoId: string;
+pages\GestionPuestos.tsx:480:  puestoNombre: string;
+pages\GestionPuestos.tsx:481:  anio: number;
+pages\GestionPuestos.tsx:482:  mes: number;
+pages\GestionPuestos.tsx:483:  onClose: () => void;
+pages\GestionPuestos.tsx:484:}) => {
+pages\GestionPuestos.tsx:485:  const username = useAuthStore(s => s.username);
+pages\GestionPuestos.tsx:486:  const vigilantes = useVigilanteStore(s => s.vigilantes);
+pages\GestionPuestos.tsx:487:  const allPuestos = usePuestoStore(s => s.puestos);
+pages\GestionPuestos.tsx:488:  const allProgramaciones = useProgramacionStore(s => s.programaciones);
+pages\GestionPuestos.tsx:489:  const logAction = useAuditStore(s => s.logAction);
+pages\GestionPuestos.tsx:490:  const isSyncing = useProgramacionStore(s => s.isSyncing);
+pages\GestionPuestos.tsx:491:  const asignarPersonal = useProgramacionStore(s => s.asignarPersonal);
+pages\GestionPuestos.tsx:492:
+pages\GestionPuestos.tsx:493:  const {
+pages\GestionPuestos.tsx:494:    crearOObtenerProgramacion,
+pages\GestionPuestos.tsx:495:    actualizarAsignacion,
+pages\GestionPuestos.tsx:496:    publicarProgramacion,
+pages\GestionPuestos.tsx:497:    guardarBorrador,
+pages\GestionPuestos.tsx:498:    getProgramacion,
+pages\GestionPuestos.tsx:499:    fetchProgramacionDetalles,
+pages\GestionPuestos.tsx:500:    guardarComoPlantilla,
+pages\GestionPuestos.tsx:501:    aplicarPlantilla,
+pages\GestionPuestos.tsx:502:    templates,
+pages\GestionPuestos.tsx:503:  } = useProgramacionStore() as any;
+pages\GestionPuestos.tsx:504:
+pages\GestionPuestos.tsx:505:  const [editCell, setEditCell] = useState<{
+pages\GestionPuestos.tsx:506:    asig: AsignacionDia;
+pages\GestionPuestos.tsx:507:    progId: string;
+pages\GestionPuestos.tsx:508:    preSelectVigilanteId?: string;
+pages\GestionPuestos.tsx:509:  } | null>(null);
+pages\GestionPuestos.tsx:510:  const [showEntireStaff, setShowEntireStaff] = useState(false);
+pages\GestionPuestos.tsx:511:  const [hideBusyGuards, setHideBusyGuards] = useState(true);
+pages\GestionPuestos.tsx:512:  const [compareProgId, setCompareProgId] = useState<string | null>(null);
+pages\GestionPuestos.tsx:513:  const [compareVigilanteId, setCompareVigilanteId] = useState<string | null>(null);
+pages\GestionPuestos.tsx:514:  const [showTemplates, setShowTemplates] = useState(false);
+pages\GestionPuestos.tsx:515:  const [showPersonalModal, setShowPersonalModal] = useState(false);
+pages\GestionPuestos.tsx:516:  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+pages\GestionPuestos.tsx:517:  const [showTurnosConfig, setShowTurnosConfig] = useState(false);
+pages\GestionPuestos.tsx:518:
+pages\GestionPuestos.tsx:519:  const currentUser =
+pages\GestionPuestos.tsx:520:    username || useAuthStore.getState().username || "Operador";
+pages\GestionPuestos.tsx:521:
+pages\GestionPuestos.tsx:522:  const prog = useMemo(
+pages\GestionPuestos.tsx:523:    () => getProgramacion(puestoId, anio, mes),
+pages\GestionPuestos.tsx:524:    [allProgramaciones, getProgramacion, puestoId, anio, mes]
+pages\GestionPuestos.tsx:525:  );
+pages\GestionPuestos.tsx:526:  const puesto = useMemo(
+pages\GestionPuestos.tsx:527:    () =>
+pages\GestionPuestos.tsx:528:      allPuestos.find((p: any) => p.id === puestoId || p.dbId === puestoId),
+pages\GestionPuestos.tsx:529:    [allPuestos, puestoId]
+pages\GestionPuestos.tsx:530:  );
+pages\GestionPuestos.tsx:531:
+pages\GestionPuestos.tsx:532:  const isInitialLoading = !useProgramacionStore(s => (s as any).loaded);
+pages\GestionPuestos.tsx:533:  const isPuestosLoaded = usePuestoStore(s => s.loaded);
+pages\GestionPuestos.tsx:534:
+pages\GestionPuestos.tsx:535:  useEffect(() => {
+pages\GestionPuestos.tsx:536:    // PROTECCIÓN TÁCTICA: Evitar que el sistema entre en pánico si los puestos aún no se 
+han traducido desde la DB
+pages\GestionPuestos.tsx:537:    if (isInitialLoading || !isPuestosLoaded) return;
+pages\GestionPuestos.tsx:538:
+pages\GestionPuestos.tsx:539:    if (!prog) {
+pages\GestionPuestos.tsx:540:      (useProgramacionStore.getState() as any).fetchProgramacionesByMonth(anio, 
+mes).then(() => {
+pages\GestionPuestos.tsx:541:        const recheck = getProgramacion(puestoId, anio, mes);
+pages\GestionPuestos.tsx:542:        if (!recheck) {
+pages\GestionPuestos.tsx:543:          crearOObtenerProgramacion(puestoId, anio, mes, currentUser);
+pages\GestionPuestos.tsx:544:        }
+pages\GestionPuestos.tsx:545:      });
+pages\GestionPuestos.tsx:546:    } else if (!prog.isDetailLoaded && !prog.isFetching) {
+pages\GestionPuestos.tsx:547:      fetchProgramacionDetalles(prog.id);
+pages\GestionPuestos.tsx:548:    }
+pages\GestionPuestos.tsx:549:  }, [prog?.id, puestoId, anio, mes, isInitialLoading, isPuestosLoaded]);
+pages\GestionPuestos.tsx:550:
+pages\GestionPuestos.tsx:551:  const daysInMonth = new Date(anio, mes + 1, 0).getDate();
+pages\GestionPuestos.tsx:552:  const daysArr = useMemo(
+pages\GestionPuestos.tsx:553:    () => Array.from({ length: daysInMonth }, (_, i) => i + 1),
+pages\GestionPuestos.tsx:554:    [daysInMonth]
+pages\GestionPuestos.tsx:555:  );
+pages\GestionPuestos.tsx:556:
+pages\GestionPuestos.tsx:557:  const freshCProg = useMemo(
+pages\GestionPuestos.tsx:558:    () =>
+pages\GestionPuestos.tsx:559:      compareProgId
+pages\GestionPuestos.tsx:560:        ? allProgramaciones.find((p) => p.id === compareProgId)
+pages\GestionPuestos.tsx:561:        : null,
+pages\GestionPuestos.tsx:562:    [compareProgId, allProgramaciones]
+pages\GestionPuestos.tsx:563:  );
+pages\GestionPuestos.tsx:564:
+pages\GestionPuestos.tsx:565:  useEffect(() => {
+pages\GestionPuestos.tsx:566:    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+pages\GestionPuestos.tsx:567:      const hasChanges = (useProgramacionStore.getState() as any).hasPendingChanges();
+pages\GestionPuestos.tsx:568:      if (hasChanges) {
+pages\GestionPuestos.tsx:569:        e.preventDefault();
+pages\GestionPuestos.tsx:570:        e.returnValue = '';
+pages\GestionPuestos.tsx:571:      }
+pages\GestionPuestos.tsx:572:    };
+pages\GestionPuestos.tsx:573:    window.addEventListener('beforeunload', handleBeforeUnload);
+pages\GestionPuestos.tsx:574:    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+pages\GestionPuestos.tsx:575:  }, []);
+pages\GestionPuestos.tsx:576:
+pages\GestionPuestos.tsx:577:  const ocupadosMap = useMemo(() => {
+pages\GestionPuestos.tsx:578:    const map = new Map<string, any[]>();
+pages\GestionPuestos.tsx:579:    allProgramaciones.forEach((p) => {
+pages\GestionPuestos.tsx:580:      if (!p.asignaciones) return;
+pages\GestionPuestos.tsx:581:      p.asignaciones.forEach((a) => {
+pages\GestionPuestos.tsx:582:        if (a.vigilanteId && a.jornada !== "sin_asignar") {
+pages\GestionPuestos.tsx:583:          if (!map.has(a.vigilanteId)) map.set(a.vigilanteId, []);
+pages\GestionPuestos.tsx:584:          const pNombre = getPuestoNombre(p, allPuestos);
+pages\GestionPuestos.tsx:585:          map
+pages\GestionPuestos.tsx:586:            .get(a.vigilanteId)!
+pages\GestionPuestos.tsx:587:            .push({ slot: `${a.dia}-${a.turno}`, puesto: pNombre });
+pages\GestionPuestos.tsx:588:        }
+pages\GestionPuestos.tsx:589:      });
+pages\GestionPuestos.tsx:590:    });
+pages\GestionPuestos.tsx:591:    return map;
+pages\GestionPuestos.tsx:592:  }, [allProgramaciones, allPuestos]);
+pages\GestionPuestos.tsx:593:
+pages\GestionPuestos.tsx:594:  const vigilanteMap = useMemo(() => {
+pages\GestionPuestos.tsx:595:    const m = new Map<string, string>();
+pages\GestionPuestos.tsx:596:    if (!Array.isArray(vigilantes)) return m;
+pages\GestionPuestos.tsx:597:    vigilantes.forEach((v) => {
+pages\GestionPuestos.tsx:598:      if (v?.id) m.set(v.id, v.nombre || "Sin nombre");
+pages\GestionPuestos.tsx:599:      if (v?.dbId) m.set(v.dbId, v.nombre || "Sin nombre");
+pages\GestionPuestos.tsx:600:    });
+pages\GestionPuestos.tsx:601:    return m;
+pages\GestionPuestos.tsx:602:  }, [vigilantes]);
+pages\GestionPuestos.tsx:603:
+pages\GestionPuestos.tsx:604:  // ── MAPA DE CONFLICTOS: Detecta doble asignación por vigilante/día ──────
+pages\GestionPuestos.tsx:605:  const conflictMap = useMemo(() => {
+pages\GestionPuestos.tsx:606:    const map = new Map<string, string>(); // key: "vidId-dia" => puestoNombre del 
+conflicto
+pages\GestionPuestos.tsx:607:    if (!prog) return map;
+pages\GestionPuestos.tsx:608:    
+pages\GestionPuestos.tsx:609:    allProgramaciones.forEach(otherProg => {
+pages\GestionPuestos.tsx:610:      if (otherProg.id === prog.id) return;
+pages\GestionPuestos.tsx:611:      if (otherProg.anio !== prog.anio || otherProg.mes !== prog.mes) return;
+pages\GestionPuestos.tsx:612:      
+pages\GestionPuestos.tsx:613:      (otherProg.asignaciones || []).forEach(a => {
+pages\GestionPuestos.tsx:614:        if (a.vigilanteId && a.jornada !== 'sin_asignar') {
+pages\GestionPuestos.tsx:615:          const otherPuesto = getPuestoNombre(otherProg, allPuestos);
+pages\GestionPuestos.tsx:616:          const key = `${a.vigilanteId}-${a.dia}`;
+pages\GestionPuestos.tsx:617:          map.set(key, otherPuesto);
+pages\GestionPuestos.tsx:618:        }
+pages\GestionPuestos.tsx:619:      });
+pages\GestionPuestos.tsx:620:    });
+pages\GestionPuestos.tsx:621:    return map;
+pages\GestionPuestos.tsx:622:  }, [allProgramaciones, allPuestos, prog]);
+pages\GestionPuestos.tsx:623:
+pages\GestionPuestos.tsx:624:  // ── ALERTAS ACTIVAS DEL MES ──────────────────────────────────
+pages\GestionPuestos.tsx:625:  const alertas = useMemo(() => {
+pages\GestionPuestos.tsx:626:    if (!prog) return [];
+pages\GestionPuestos.tsx:627:    return (useProgramacionStore.getState() as any).getAlertas(prog.id) || [];
+pages\GestionPuestos.tsx:628:  }, [prog, allProgramaciones]);
+pages\GestionPuestos.tsx:629:
+pages\GestionPuestos.tsx:630:  const handleSavePersonal = useCallback(
+pages\GestionPuestos.tsx:631:    (personal: PersonalPuesto[]) => {
+pages\GestionPuestos.tsx:632:      if (!prog) return;
+pages\GestionPuestos.tsx:633:      useProgramacionStore.getState().actualizarPersonalPuesto(prog.id, personal, 
+currentUser);
+pages\GestionPuestos.tsx:634:      setShowPersonalModal(false);
+pages\GestionPuestos.tsx:635:      showTacticalToast({
+pages\GestionPuestos.tsx:636:        title: "✅ Personal Actualizado",
+pages\GestionPuestos.tsx:637:        message: `${personal.filter((p) => p.vigilanteId).length} efectivos asignados al 
+puesto.`,
+pages\GestionPuestos.tsx:638:        type: "success",
+pages\GestionPuestos.tsx:639:      });
+pages\GestionPuestos.tsx:640:      const queueSync = (useProgramacionStore as any).__syncQueue;
+pages\GestionPuestos.tsx:641:      if (queueSync) queueSync(prog.id);
+pages\GestionPuestos.tsx:642:      logAction("PROGRAMACION", "Personal Actualizado", `Puesto: ${puestoNombre}`, 
+"success");
+pages\GestionPuestos.tsx:643:    },
+pages\GestionPuestos.tsx:644:    [prog, puestoNombre, logAction]
+pages\GestionPuestos.tsx:645:  );
+pages\GestionPuestos.tsx:646:
+pages\GestionPuestos.tsx:647:  const handleGeneratePDF = useCallback(async () => {
+pages\GestionPuestos.tsx:648:    if (!prog) return;
+pages\GestionPuestos.tsx:649:    setIsGeneratingPDF(true);
+pages\GestionPuestos.tsx:650:    logAction("PROGRAMACION", "Exportar PDF", `${puestoNombre} ${MONTH_NAMES[mes]} 
+${anio}`, "info");
+pages\GestionPuestos.tsx:651:    try {
+pages\GestionPuestos.tsx:652:      const doc = new jsPDF("l", "mm", "a4");
+pages\GestionPuestos.tsx:653:      const pageW = doc.internal.pageSize.getWidth();
+pages\GestionPuestos.tsx:654:      const pageH = doc.internal.pageSize.getHeight();
+pages\GestionPuestos.tsx:655:      const fechaActual = new Date().toLocaleDateString("es-CO", { dateStyle: "long" });
+pages\GestionPuestos.tsx:656:      const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+pages\GestionPuestos.tsx:657:      const DAY_NAMES = ["DOM","LUN","MAR","MIE","JUE","VIE","SAB"];
+pages\GestionPuestos.tsx:658:
+pages\GestionPuestos.tsx:659:      let logoDataUrl: string | null = null;
+pages\GestionPuestos.tsx:660:      try {
+pages\GestionPuestos.tsx:661:        const resp = await fetch("/logo.png");
+pages\GestionPuestos.tsx:662:        if (resp.ok) {
+pages\GestionPuestos.tsx:663:          const blob = await resp.blob();
+pages\GestionPuestos.tsx:664:          logoDataUrl = await new Promise<string>((resolve) => {
+pages\GestionPuestos.tsx:665:            const r = new FileReader();
+pages\GestionPuestos.tsx:666:            r.onloadend = () => resolve(r.result as string);
+pages\GestionPuestos.tsx:667:            r.readAsDataURL(blob);
+pages\GestionPuestos.tsx:668:          });
+pages\GestionPuestos.tsx:669:        }
+pages\GestionPuestos.tsx:670:      } catch { }
+pages\GestionPuestos.tsx:671:
+pages\GestionPuestos.tsx:672:      doc.setFillColor(15, 23, 84);
+pages\GestionPuestos.tsx:673:      doc.rect(0, 0, pageW, 40, "F");
+pages\GestionPuestos.tsx:674:      doc.setFillColor(67, 24, 255);
+pages\GestionPuestos.tsx:675:      doc.rect(0, 38, pageW, 2.5, "F");
+pages\GestionPuestos.tsx:676:
+pages\GestionPuestos.tsx:677:      if (logoDataUrl) {
+pages\GestionPuestos.tsx:678:        doc.addImage(logoDataUrl, "PNG", 5, 3, 33, 33);
+pages\GestionPuestos.tsx:679:      } else {
+pages\GestionPuestos.tsx:680:        doc.setFillColor(67, 24, 255);
+pages\GestionPuestos.tsx:681:        doc.roundedRect(5, 4, 33, 30, 3, 3, "F");
+pages\GestionPuestos.tsx:682:        doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); 
+doc.setFontSize(8);
+pages\GestionPuestos.tsx:683:        doc.text("CORAZA", 21, 15, { align: "center" });
+pages\GestionPuestos.tsx:684:        doc.text("C.T.A", 21, 22, { align: "center" });
+pages\GestionPuestos.tsx:685:      }
+pages\GestionPuestos.tsx:686:
+pages\GestionPuestos.tsx:687:      const pX = pageW - 120;
+pages\GestionPuestos.tsx:688:      doc.setFillColor(255,255,255);
+pages\GestionPuestos.tsx:689:      doc.setGState(new (doc as any).GState({ opacity: 0.08 }));
+pages\GestionPuestos.tsx:690:      doc.roundedRect(pX, 5, 112, 31, 3, 3, "F");
+pages\GestionPuestos.tsx:691:      doc.setGState(new (doc as any).GState({ opacity: 1 }));
+pages\GestionPuestos.tsx:692:
+pages\GestionPuestos.tsx:693:      doc.setFont("helvetica","normal"); doc.setFontSize(6.5); 
+doc.setTextColor(155,185,255);
+pages\GestionPuestos.tsx:694:      doc.text("PUESTO / OBJETIVO:", pX+4, 12);
+pages\GestionPuestos.tsx:695:      doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(255,255,255);
+pages\GestionPuestos.tsx:696:      doc.text(puestoNombre.toUpperCase().slice(0, 44), pX+4, 19);
+pages\GestionPuestos.tsx:697:      doc.setFont("helvetica","normal"); doc.setFontSize(6.5); 
+doc.setTextColor(155,185,255);
+pages\GestionPuestos.tsx:698:      doc.text("DIRECCIÓN:", pX+4, 26);
+pages\GestionPuestos.tsx:699:      doc.setTextColor(215,230,255);
+pages\GestionPuestos.tsx:700:      doc.text((puesto?.direccion || "—").slice(0, 44), pX+24, 26);
+pages\GestionPuestos.tsx:701:      doc.setTextColor(140,165,220); doc.setFontSize(5.5);
+pages\GestionPuestos.tsx:702:      doc.text(`Impreso: ${fechaActual}`, pX+4, 33);
+pages\GestionPuestos.tsx:703:
+pages\GestionPuestos.tsx:704:      const centerX = (42 + pX - 4) / 2;
+pages\GestionPuestos.tsx:705:
+pages\GestionPuestos.tsx:706:      doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+pages\GestionPuestos.tsx:707:      doc.text("CUADRO DE PROGRAMACIÓN MENSUAL", centerX, 11, { align: "center" });
+pages\GestionPuestos.tsx:708:
+pages\GestionPuestos.tsx:709:      doc.setFont("helvetica","normal"); doc.setFontSize(6.2); 
+doc.setTextColor(170,195,255);
+pages\GestionPuestos.tsx:710:      doc.text(
+pages\GestionPuestos.tsx:711:        "COOPERATIVA DE VIGILANCIA Y SEGURIDAD PRIVADA CORAZA C.T.A  —  NIT: 901.509.121",
+pages\GestionPuestos.tsx:712:        centerX, 17, { align: "center", maxWidth: pX - 4 - 42 }
+pages\GestionPuestos.tsx:713:      );
+pages\GestionPuestos.tsx:714:
+pages\GestionPuestos.tsx:715:      doc.setFont("helvetica","bold"); doc.setFontSize(18); doc.setTextColor(255,255,255);
+pages\GestionPuestos.tsx:716:      doc.text(`${MONTH_NAMES[mes].toUpperCase()}  ${anio}`, 44, 30);
+pages\GestionPuestos.tsx:717:
+pages\GestionPuestos.tsx:718:      const vigDataMap = new Map<string, { nombre:string; cedula:string; rol:string; 
+asigs: Map<number,string> }>();
+pages\GestionPuestos.tsx:719:
+pages\GestionPuestos.tsx:720:      (prog.personal || []).forEach((per: any) => {
+pages\GestionPuestos.tsx:721:        if (!per.vigilanteId) return;
+pages\GestionPuestos.tsx:722:        const vid = per.vigilanteId;
+pages\GestionPuestos.tsx:723:        if (!vigDataMap.has(vid)) {
+pages\GestionPuestos.tsx:724:          const vig = vigilantes.find(v => v.id===vid||v.dbId===vid);
+pages\GestionPuestos.tsx:725:          vigDataMap.set(vid, { nombre:(vig?.nombre||vid).toUpperCase(), 
+cedula:vig?.cedula||"—", rol:getRolPdfLabel(per.rol), asigs:new Map() });
+pages\GestionPuestos.tsx:726:        }
+pages\GestionPuestos.tsx:727:      });
+pages\GestionPuestos.tsx:728:
+pages\GestionPuestos.tsx:729:      (prog.asignaciones||[]).forEach((a: AsignacionDia) => {
+pages\GestionPuestos.tsx:730:        if (!a.vigilanteId || a.jornada==="sin_asignar") return;
+pages\GestionPuestos.tsx:731:        if (!vigDataMap.has(a.vigilanteId)) {
+pages\GestionPuestos.tsx:732:          const vig = vigilantes.find(v => v.id===a.vigilanteId||v.dbId===a.vigilanteId);
+pages\GestionPuestos.tsx:733:          const rolDef = (prog.personal||[]).find((p:any)=>p.vigilanteId===a.vigilanteId);
+pages\GestionPuestos.tsx:734:          vigDataMap.set(a.vigilanteId, { 
+nombre:(vig?.nombre||a.vigilanteId).toUpperCase(), cedula:vig?.cedula||"—", rol:getRolPdfLabel(rolDef?.rol||"—"), 
+asigs:new Map() });
+pages\GestionPuestos.tsx:735:        }
+pages\GestionPuestos.tsx:736:        
+pages\GestionPuestos.tsx:737:        const code = JORNADA_PDF[a.jornada] || a.jornada;
+pages\GestionPuestos.tsx:738:        let finalContent = code;
+pages\GestionPuestos.tsx:739:        
+pages\GestionPuestos.tsx:740:        if (code === "D" || code === "N" || code === "24") {
+pages\GestionPuestos.tsx:741:          const isNight = ['b', 'pm', 'noche', 'nocturno', 'vigilia'].some(k => (a.rol || 
+"").toLowerCase().includes(k)) || a.turno === 'PM';
+pages\GestionPuestos.tsx:742:          const rCode = code === "24" ? "24" : (isNight ? "N" : "D");
+pages\GestionPuestos.tsx:743:          
+pages\GestionPuestos.tsx:744:          let tInicio = "06";
+pages\GestionPuestos.tsx:745:          let tFin = code === "24" ? "06" : "18";
+pages\GestionPuestos.tsx:746:          
+pages\GestionPuestos.tsx:747:          if (isNight && code !== "24") {
+pages\GestionPuestos.tsx:748:             tInicio = "18"; tFin = "06";
+pages\GestionPuestos.tsx:749:          }
+pages\GestionPuestos.tsx:750:          
+pages\GestionPuestos.tsx:751:          if (a.inicio) tInicio = a.inicio.slice(0, 5).replace(":00", "");
+pages\GestionPuestos.tsx:752:          if (a.fin) tFin = a.fin.slice(0, 5).replace(":00", "");
+pages\GestionPuestos.tsx:753:
+pages\GestionPuestos.tsx:754:          finalContent = `${rCode}\n${tInicio}-${tFin}`;
+pages\GestionPuestos.tsx:755:        }
+pages\GestionPuestos.tsx:756:        
+pages\GestionPuestos.tsx:757:        vigDataMap.get(a.vigilanteId)!.asigs.set(a.dia, finalContent);
+pages\GestionPuestos.tsx:758:      });
+pages\GestionPuestos.tsx:759:
+pages\GestionPuestos.tsx:760:      const vigEntries = Array.from(vigDataMap.entries());
+pages\GestionPuestos.tsx:761:
+pages\GestionPuestos.tsx:762:      const headRow = [
+pages\GestionPuestos.tsx:763:        "ROL", "C.C.", "APELLIDOS Y NOMBRES",
+pages\GestionPuestos.tsx:764:        ...days.map(d => { const dow=new Date(anio,mes,d).getDay(); return 
+`${DAY_NAMES[dow]}\n${String(d).padStart(2,"0")}`; }),
+pages\GestionPuestos.tsx:765:        "TRAB.","DESC.","VAC."
+pages\GestionPuestos.tsx:766:      ];
+pages\GestionPuestos.tsx:767:
+pages\GestionPuestos.tsx:768:      const bodyRows = vigEntries.map(([, v]) => {
+pages\GestionPuestos.tsx:769:        let trab=0, desc=0, vac=0;
+pages\GestionPuestos.tsx:770:        const row: string[] = [v.rol, v.cedula, v.nombre];
+pages\GestionPuestos.tsx:771:        days.forEach(d => {
+pages\GestionPuestos.tsx:772:          const code = v.asigs.get(d) || "";
+pages\GestionPuestos.tsx:773:          const isDR = code === "DR";
+pages\GestionPuestos.tsx:774:          const isDNR = code === "DNR";
+pages\GestionPuestos.tsx:775:          const isVAC = code === "VAC";
+pages\GestionPuestos.tsx:776:          
+pages\GestionPuestos.tsx:777:          if (code && !isDR && !isDNR && !isVAC && code !== "-") trab++;
+pages\GestionPuestos.tsx:778:          else if (isDR || isDNR) desc++;
+pages\GestionPuestos.tsx:779:          else if (isVAC) vac++;
+pages\GestionPuestos.tsx:780:          row.push(code);
+pages\GestionPuestos.tsx:781:        });
+pages\GestionPuestos.tsx:782:        row.push(String(trab), String(desc), String(vac));
+pages\GestionPuestos.tsx:783:        return row;
+pages\GestionPuestos.tsx:784:      });
+pages\GestionPuestos.tsx:785:
+pages\GestionPuestos.tsx:786:      if (bodyRows.length===0) {
+pages\GestionPuestos.tsx:787:        bodyRows.push(["—","—","SIN PERSONAL ASIGNADO ESTE 
+MES",...days.map(()=>""),"0","0","0"]);
+pages\GestionPuestos.tsx:788:      }
+pages\GestionPuestos.tsx:789:
+pages\GestionPuestos.tsx:790:      const tN = headRow.length;
+pages\GestionPuestos.tsx:791:      autoTable(doc, {
+pages\GestionPuestos.tsx:792:        startY: 43,
+pages\GestionPuestos.tsx:793:        head: [headRow],
+pages\GestionPuestos.tsx:794:        body: bodyRows,
+pages\GestionPuestos.tsx:795:        theme: "grid",
+pages\GestionPuestos.tsx:796:        styles: { 
+pages\GestionPuestos.tsx:797:          fontSize: 5, 
+pages\GestionPuestos.tsx:798:          cellPadding: { top: 1, bottom: 1, left: 0.5, right: 0.5 }, 
+pages\GestionPuestos.tsx:799:          halign: "center", 
+pages\GestionPuestos.tsx:800:          valign: "middle", 
+pages\GestionPuestos.tsx:801:          lineWidth: 0.1, 
+pages\GestionPuestos.tsx:802:          textColor: [15, 23, 42], 
+pages\GestionPuestos.tsx:803:          font: "helvetica", 
+pages\GestionPuestos.tsx:804:          minCellHeight: 10 
+pages\GestionPuestos.tsx:805:        },
+pages\GestionPuestos.tsx:806:        headStyles: { 
+pages\GestionPuestos.tsx:807:          fillColor: [15, 23, 84], 
+pages\GestionPuestos.tsx:808:          textColor: [255, 255, 255], 
+pages\GestionPuestos.tsx:809:          fontStyle: "bold", 
+pages\GestionPuestos.tsx:810:          fontSize: 5.5, 
+pages\GestionPuestos.tsx:811:          minCellHeight: 11, 
+pages\GestionPuestos.tsx:812:          halign: "center", 
+pages\GestionPuestos.tsx:813:          valign: "middle" 
+pages\GestionPuestos.tsx:814:        },
+pages\GestionPuestos.tsx:815:        alternateRowStyles: { fillColor: [247, 248, 255] },
+pages\GestionPuestos.tsx:816:        columnStyles: {
+pages\GestionPuestos.tsx:817:          0: { cellWidth:13, fontStyle:"bold", fillColor:[241,245,249], fontSize:4.8, 
+textColor:[30,64,175] },
+pages\GestionPuestos.tsx:818:          1: { cellWidth:18, fontSize:5 },
+pages\GestionPuestos.tsx:819:          2: { cellWidth:40, halign:"left", fontStyle:"bold", fontSize:5.8, 
+textColor:[15,23,42] },
+pages\GestionPuestos.tsx:820:          [tN-3]: { cellWidth:8, fontStyle:"bold", fillColor:[219,234,254], 
+textColor:[29,78,216] },
+pages\GestionPuestos.tsx:821:          [tN-2]: { cellWidth:8, fontStyle:"bold", fillColor:[209,250,229], 
+textColor:[4,120,87] },
+pages\GestionPuestos.tsx:822:          [tN-1]: { cellWidth:8, fontStyle:"bold", fillColor:[237,233,254], 
+textColor:[109,40,217] },
+pages\GestionPuestos.tsx:823:        },
+pages\GestionPuestos.tsx:824:        didParseCell: (data: any) => {
+pages\GestionPuestos.tsx:825:          if (data.row.section==="head") {
+pages\GestionPuestos.tsx:826:            const dIdx=data.column.index-3;
+pages\GestionPuestos.tsx:827:            if (dIdx>=0&&dIdx<days.length) {
+pages\GestionPuestos.tsx:828:              const dow=new Date(anio,mes,days[dIdx]).getDay();
+pages\GestionPuestos.tsx:829:              if (dow===0||dow===6) data.cell.styles.fillColor=[67,24,255];
+pages\GestionPuestos.tsx:830:            }
+pages\GestionPuestos.tsx:831:            return;
+pages\GestionPuestos.tsx:832:          }
+pages\GestionPuestos.tsx:833:          if (data.row.section === "body" && data.column.index >= 3 && data.column.index 
+< tN - 3) {
+pages\GestionPuestos.tsx:834:            const raw = (data.cell.text[0] || "").trim();
+pages\GestionPuestos.tsx:835:            const val = raw.split("\n")[0];
+pages\GestionPuestos.tsx:836:            
+pages\GestionPuestos.tsx:837:            const dIdx = data.column.index - 3;
+pages\GestionPuestos.tsx:838:            const dow = dIdx >= 0 && dIdx < days.length ? new Date(anio, mes, 
+days[dIdx]).getDay() : -1;
+pages\GestionPuestos.tsx:839:            
+pages\GestionPuestos.tsx:840:            if (!val && (dow === 0 || dow === 6)) {
+pages\GestionPuestos.tsx:841:              data.cell.styles.fillColor = [220, 228, 240];
+pages\GestionPuestos.tsx:842:              return;
+pages\GestionPuestos.tsx:843:            }
+pages\GestionPuestos.tsx:844:
+pages\GestionPuestos.tsx:845:            const tConf = turnosConfig.find(t => t.id === val || t.nombre === val);
+pages\GestionPuestos.tsx:846:            if (tConf && tConf.color) {
+pages\GestionPuestos.tsx:847:              const hex = tConf.color.replace('#', '');
+pages\GestionPuestos.tsx:848:              const r = parseInt(hex.substring(0, 2), 16);
+pages\GestionPuestos.tsx:849:              const g = parseInt(hex.substring(2, 4), 16);
+pages\GestionPuestos.tsx:850:              const b = parseInt(hex.substring(4, 6), 16);
+pages\GestionPuestos.tsx:851:              data.cell.styles.fillColor = [r, g, b];
+pages\GestionPuestos.tsx:852:              const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+pages\GestionPuestos.tsx:853:              const textRgb = brightness > 128 ? [30, 41, 59] : [255, 255, 255];
+pages\GestionPuestos.tsx:854:              data.cell.styles.textColor = textRgb as [number, number, number];
+pages\GestionPuestos.tsx:855:              data.cell.styles.fontStyle = "bold";
+pages\GestionPuestos.tsx:856:              return;
+pages\GestionPuestos.tsx:857:            }
+pages\GestionPuestos.tsx:858:
+pages\GestionPuestos.tsx:859:            if (val === "DR") {
+pages\GestionPuestos.tsx:860:              data.cell.styles.fillColor = [209, 250, 229];
+pages\GestionPuestos.tsx:861:              data.cell.styles.textColor = [4, 120, 87];
+pages\GestionPuestos.tsx:862:              data.cell.styles.fontStyle = "bold";
+pages\GestionPuestos.tsx:863:            } else if (val === "DNR") {
+pages\GestionPuestos.tsx:864:              data.cell.styles.fillColor = [255, 243, 199];
+pages\GestionPuestos.tsx:865:              data.cell.styles.textColor = [146, 64, 14];
+pages\GestionPuestos.tsx:866:              data.cell.styles.fontStyle = "bold";
+pages\GestionPuestos.tsx:867:            } else if (val === "VAC") {
+pages\GestionPuestos.tsx:868:              data.cell.styles.fillColor = [237, 233, 254];
+pages\GestionPuestos.tsx:869:              data.cell.styles.textColor = [109, 40, 217];
+pages\GestionPuestos.tsx:870:              data.cell.styles.fontStyle = "bold";
+pages\GestionPuestos.tsx:871:            }
+pages\GestionPuestos.tsx:872:          }
+pages\GestionPuestos.tsx:873:        },
+pages\GestionPuestos.tsx:874:        margin: { left:8, right:8 },
+pages\GestionPuestos.tsx:875:      });
+pages\GestionPuestos.tsx:876:
+pages\GestionPuestos.tsx:877:      const afterTable = (doc as any).lastAutoTable?.finalY || 130;
+pages\GestionPuestos.tsx:878:      let firmaY = afterTable + 5;
+pages\GestionPuestos.tsx:879:
+pages\GestionPuestos.tsx:880:      if (firmaY < pageH - 38 && vigEntries.length > 0) {
+pages\GestionPuestos.tsx:881:        doc.setFont("helvetica","bold"); doc.setFontSize(6); doc.setTextColor(15,23,84);
+pages\GestionPuestos.tsx:882:        doc.text("RECIBIDO Y CONFORME — FIRMA DEL PERSONAL:", 10, firmaY + 5);
+pages\GestionPuestos.tsx:883:        const maxFirmas = Math.min(vigEntries.length, 6);
+pages\GestionPuestos.tsx:884:        const fW = (pageW-20) / maxFirmas;
+pages\GestionPuestos.tsx:885:        vigEntries.slice(0, maxFirmas).forEach(([,v], i) => {
+pages\GestionPuestos.tsx:886:          const fx = 10 + i*fW;
+pages\GestionPuestos.tsx:887:          const ly = firmaY + 18;
+pages\GestionPuestos.tsx:888:          doc.setDrawColor(80,100,160); doc.setLineWidth(0.4);
+pages\GestionPuestos.tsx:889:          doc.line(fx+2, ly, fx+fW-4, ly);
+pages\GestionPuestos.tsx:890:          doc.setFont("helvetica","bold"); doc.setFontSize(5); doc.setTextColor(15,23,84);
+pages\GestionPuestos.tsx:891:          doc.text(v.nombre.slice(0,26), fx+2, ly+4);
+pages\GestionPuestos.tsx:892:          doc.setFont("helvetica","normal"); doc.setFontSize(4.8); 
+doc.setTextColor(100,116,139);
+pages\GestionPuestos.tsx:893:          doc.text(`CC: ${v.cedula}`, fx+2, ly+8);
+pages\GestionPuestos.tsx:894:        });
+pages\GestionPuestos.tsx:895:        firmaY += 30;
+pages\GestionPuestos.tsx:896:      }
+pages\GestionPuestos.tsx:897:
+pages\GestionPuestos.tsx:898:      const legendY = Math.min(firmaY + 2, pageH - 18);
+pages\GestionPuestos.tsx:899:      const baseLeyendas = [
+pages\GestionPuestos.tsx:900:        {code:"DR", label:"DESCANSO REMUN.", bg:[209,250,229] as [number,number,number], 
+fg:[4,120,87] as [number,number,number]},
+pages\GestionPuestos.tsx:901:        {code:"DNR",label:"DESC. NO REMUN.", bg:[255,243,199] as [number,number,number], 
+fg:[146,64,14] as [number,number,number]},
+pages\GestionPuestos.tsx:902:        {code:"VAC",label:"VACACIONES", bg:[237,233,254] as [number,number,number], 
+fg:[109,40,217] as [number,number,number]},
+pages\GestionPuestos.tsx:903:      ];
+pages\GestionPuestos.tsx:904:
+pages\GestionPuestos.tsx:905:      const turnosLeyendas = turnosConfig.map(t => {
+pages\GestionPuestos.tsx:906:        const hex = (t.color || "#6366f1").replace('#', '');
+pages\GestionPuestos.tsx:907:        const r = parseInt(hex.substring(0, 2), 16);
+pages\GestionPuestos.tsx:908:        const g = parseInt(hex.substring(2, 4), 16);
+pages\GestionPuestos.tsx:909:        const b = parseInt(hex.substring(4, 6), 16);
+pages\GestionPuestos.tsx:910:        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+pages\GestionPuestos.tsx:911:        return {
+pages\GestionPuestos.tsx:912:          code: t.nombre,
+pages\GestionPuestos.tsx:913:          label: `${t.nombre} (${t.inicio}-${t.fin})`,
+pages\GestionPuestos.tsx:914:          bg: [r, g, b] as [number,number,number],
+pages\GestionPuestos.tsx:915:          fg: brightness > 128 ? [30, 41, 59] : [255, 255, 255] as [number,number,number]
+pages\GestionPuestos.tsx:916:        };
+pages\GestionPuestos.tsx:917:      });
+pages\GestionPuestos.tsx:918:
+pages\GestionPuestos.tsx:919:      const todasLeyendas = [...turnosLeyendas, ...baseLeyendas];
+pages\GestionPuestos.tsx:920:      const lW = (pageW-16)/todasLeyendas.length;
+pages\GestionPuestos.tsx:921:      doc.setFillColor(245,247,255); doc.setDrawColor(200,210,230); doc.setLineWidth(0.2);
+pages\GestionPuestos.tsx:922:      doc.roundedRect(8, legendY, pageW-16, 9, 1.5, 1.5, "FD");
+pages\GestionPuestos.tsx:923:      
+pages\GestionPuestos.tsx:924:      todasLeyendas.forEach((l, i) => {
+pages\GestionPuestos.tsx:925:        const lx = 9 + i*lW;
+pages\GestionPuestos.tsx:926:        doc.setFillColor(l.bg[0], l.bg[1], l.bg[2]);
+pages\GestionPuestos.tsx:927:        doc.roundedRect(lx, legendY+1.5, 5, 5.5, 0.5, 0.5, "F");
+pages\GestionPuestos.tsx:928:        doc.setFont("helvetica","bold"); doc.setFontSize(4.5);
+pages\GestionPuestos.tsx:929:        doc.setTextColor(l.fg[0], l.fg[1], l.fg[2]);
+pages\GestionPuestos.tsx:930:        doc.text(l.code.slice(0,4), lx+2.5, legendY+5, {align:"center"});
+pages\GestionPuestos.tsx:931:        doc.setFont("helvetica","normal"); doc.setFontSize(4); 
+doc.setTextColor(50,65,100);
+pages\GestionPuestos.tsx:932:        doc.text(l.label.length > 25 ? l.label.slice(0,22)+"..." : l.label, lx+7, 
+legendY+5);
+pages\GestionPuestos.tsx:933:      });
+pages\GestionPuestos.tsx:934:
+pages\GestionPuestos.tsx:935:      doc.setFillColor(15,23,84);
+pages\GestionPuestos.tsx:936:      doc.rect(0, pageH-9, pageW, 9, "F");
+pages\GestionPuestos.tsx:937:      doc.setFont("helvetica","normal"); doc.setFontSize(5.5); 
+doc.setTextColor(170,195,255);
+pages\GestionPuestos.tsx:938:      doc.text("Cooperativa de Vigilancia y Seguridad Privada CORAZA C.T.A  |  Carrera 81 
+#49-24, Medellín  |  PBX: 311 383 6939  |  www.corazaseguridadcta.com", pageW/2, pageH-4, {align:"center"});
+pages\GestionPuestos.tsx:939:      doc.setTextColor(100,200,120);
+pages\GestionPuestos.tsx:940:      doc.text(`Pág. 1`, pageW-10, pageH-4, {align:"right"});
+pages\GestionPuestos.tsx:941:
+pages\GestionPuestos.tsx:942:      const fileName = 
+`PROG_${puestoNombre.replace(/\s+/g,"_").toUpperCase()}_${MONTH_NAMES[mes].toUpperCase()}_${anio}.pdf`;
+pages\GestionPuestos.tsx:943:      doc.save(fileName);
+pages\GestionPuestos.tsx:944:      showTacticalToast({ title:"📜 PDF Generado", message:`Documento listo para envío 
+operativo.`, type:"success" });
+pages\GestionPuestos.tsx:945:    } finally {
+pages\GestionPuestos.tsx:946:      setIsGeneratingPDF(false);
+pages\GestionPuestos.tsx:947:    }
+pages\GestionPuestos.tsx:948:  }, [prog, puestoNombre, mes, anio, daysInMonth, vigilantes, puesto, logAction]);
+pages\GestionPuestos.tsx:949:
+pages\GestionPuestos.tsx:950:
+pages\GestionPuestos.tsx:951:    const handleGenerateExcel = useCallback(async () => {
+pages\GestionPuestos.tsx:952:      try {
+pages\GestionPuestos.tsx:953:        const wb = new ExcelJS.Workbook();
+pages\GestionPuestos.tsx:954:        const sheetName = (puestoNombre || "Puesto").slice(0, 31).replace(/[[\]*/\\?:]/g, 
+'');
+pages\GestionPuestos.tsx:955:        const ws = wb.addWorksheet(sheetName);
+pages\GestionPuestos.tsx:956:
+pages\GestionPuestos.tsx:957:        const CLR_VERDE_MES = '4ADE80'; 
+pages\GestionPuestos.tsx:958:        const CLR_D12 = 'FFB547';     
+pages\GestionPuestos.tsx:959:        const CLR_N12 = '3B82F6';     
+pages\GestionPuestos.tsx:960:        const CLR_NR  = 'EF4444';     
+pages\GestionPuestos.tsx:961:        const CLR_X   = 'FACC15';     
+pages\GestionPuestos.tsx:962:        const CLR_VAC = 'F472B6';     
+pages\GestionPuestos.tsx:963:
+pages\GestionPuestos.tsx:964:        const borderThin = {
+pages\GestionPuestos.tsx:965:          top: { style: 'thin' as const, color: { argb: '000000' } },
+pages\GestionPuestos.tsx:966:          left: { style: 'thin' as const, color: { argb: '000000' } },
+pages\GestionPuestos.tsx:967:          bottom: { style: 'thin' as const, color: { argb: '000000' } },
+pages\GestionPuestos.tsx:968:          right: { style: 'thin' as const, color: { argb: '000000' } }
+pages\GestionPuestos.tsx:969:        };
+pages\GestionPuestos.tsx:970:
+pages\GestionPuestos.tsx:971:        const getTacticalCode = (a: AsignacionDia): string => {
+pages\GestionPuestos.tsx:972:          const isUnassigned = a.jornada === 'sin_asignar' || !a.jornada;
+pages\GestionPuestos.tsx:973:          if (isUnassigned) return '-';
+pages\GestionPuestos.tsx:974:          
+pages\GestionPuestos.tsx:975:          if (a.codigo_personalizado) return a.codigo_personalizado;
+pages\GestionPuestos.tsx:976:          if (a.jornada === 'descanso_remunerado') return 'X';
+pages\GestionPuestos.tsx:977:          if (a.jornada === 'descanso_no_remunerado') return 'NR';
+pages\GestionPuestos.tsx:978:          if (a.jornada === 'vacacion') return 'VAC';
+pages\GestionPuestos.tsx:979:          if (a.jornada === 'AM' || a.jornada === 'D') return 'D12';
+pages\GestionPuestos.tsx:980:          if (a.jornada === 'PM' || a.jornada === 'N') return 'N12';
+pages\GestionPuestos.tsx:981:          if (a.jornada === '24H') return '24';
+pages\GestionPuestos.tsx:982:          
+pages\GestionPuestos.tsx:983:          if (a.jornada === 'normal') {
+pages\GestionPuestos.tsx:984:             const isNightRole = ['b', 'pm', 'noche', 'nocturno', 'vigilia'].some(k => 
+(a.rol || "").toLowerCase().includes(k)) || a.turno === 'PM';
+pages\GestionPuestos.tsx:985:             return isNightRole ? 'N12' : 'D12';
+pages\GestionPuestos.tsx:986:          }
+pages\GestionPuestos.tsx:987:          return a.jornada;
+pages\GestionPuestos.tsx:988:        };
+pages\GestionPuestos.tsx:989:
+pages\GestionPuestos.tsx:990:        const getCodeColor = (code: string): string | null => {
+pages\GestionPuestos.tsx:991:          if (code === '-') return 'EF4444'; // Rojo fuerte para huecos
+pages\GestionPuestos.tsx:992:          if (code === 'D12') return CLR_D12;
+pages\GestionPuestos.tsx:993:          if (code === 'N12') return CLR_N12;
+pages\GestionPuestos.tsx:994:          if (code === 'NR')  return CLR_NR;
+pages\GestionPuestos.tsx:995:          if (code === 'X')   return CLR_X;
+pages\GestionPuestos.tsx:996:          if (code === 'VAC') return CLR_VAC;
+pages\GestionPuestos.tsx:997:          return null;
+pages\GestionPuestos.tsx:998:        };
+pages\GestionPuestos.tsx:999:
+pages\GestionPuestos.tsx:1000:        // --- MAPEO DE FILAS (Fiel al Tablero) ---
+pages\GestionPuestos.tsx:1001:        const rowsToExport = new Map<string, any>();
+pages\GestionPuestos.tsx:1002:        
+pages\GestionPuestos.tsx:1003:        // 1. Cargamos roles del personal definido (titulares)
+pages\GestionPuestos.tsx:1004:        (prog.personal || []).forEach(p => {
+pages\GestionPuestos.tsx:1005:          const v = vigilantes.find(vx => vx.id === p.vigilanteId || vx.dbId === 
+p.vigilanteId);
+pages\GestionPuestos.tsx:1006:          rowsToExport.set(p.rol, {
+pages\GestionPuestos.tsx:1007:            rol: p.rol,
+pages\GestionPuestos.tsx:1008:            cedula: v?.cedula || "—",
+pages\GestionPuestos.tsx:1009:            nombre: (v?.nombre || "SIN ASIGNAR").toUpperCase(),
+pages\GestionPuestos.tsx:1010:            asigs: new Map()
+pages\GestionPuestos.tsx:1011:          });
+pages\GestionPuestos.tsx:1012:        });
+pages\GestionPuestos.tsx:1013:
+pages\GestionPuestos.tsx:1014:        // 2. Cargamos asignaciones (para incluir relevos o detectar códigos)
+pages\GestionPuestos.tsx:1015:        (prog.asignaciones || []).forEach((a: AsignacionDia) => {
+pages\GestionPuestos.tsx:1016:          if (!a.rol) return;
+pages\GestionPuestos.tsx:1017:          if (!rowsToExport.has(a.rol)) {
+pages\GestionPuestos.tsx:1018:            const v = vigilantes.find(vx => vx.id === a.vigilanteId || vx.dbId === 
+a.vigilanteId);
+pages\GestionPuestos.tsx:1019:            rowsToExport.set(a.rol, {
+pages\GestionPuestos.tsx:1020:              rol: a.rol,
+pages\GestionPuestos.tsx:1021:              cedula: v?.cedula || "—",
+pages\GestionPuestos.tsx:1022:              nombre: (v?.nombre || "SIN ASIGNAR").toUpperCase(),
+pages\GestionPuestos.tsx:1023:              asigs: new Map()
+pages\GestionPuestos.tsx:1024:            });
+pages\GestionPuestos.tsx:1025:          }
+pages\GestionPuestos.tsx:1026:          rowsToExport.get(a.rol).asigs.set(a.dia, getTacticalCode(a));
+pages\GestionPuestos.tsx:1027:        });
+pages\GestionPuestos.tsx:1028:
+pages\GestionPuestos.tsx:1029:        const sortedRows = Array.from(rowsToExport.values()).sort((a,b) => {
+pages\GestionPuestos.tsx:1030:          const ROLES: Record<string, number> = { 'titular_a': 0, 'titular_b': 1, 
+'relevante': 2 };
+pages\GestionPuestos.tsx:1031:          return (ROLES[a.rol] ?? 99) - (ROLES[b.rol] ?? 99);
+pages\GestionPuestos.tsx:1032:        });
+pages\GestionPuestos.tsx:1033:
+pages\GestionPuestos.tsx:1034:        // --- CONSTRUCCIÓN EXCEL ---
+pages\GestionPuestos.tsx:1035:        
+pages\GestionPuestos.tsx:1036:        // --- ENCABEZADO CORPORATIVO ---
+pages\GestionPuestos.tsx:1037:        ws.mergeCells('A1', 'C1');
+pages\GestionPuestos.tsx:1038:        const headTitle = ws.getCell('A1');
+pages\GestionPuestos.tsx:1039:        headTitle.value = 'CORAZA SEGURIDAD PRIVADA CTA';
+pages\GestionPuestos.tsx:1040:        headTitle.font = { name: 'Arial Narrow', size: 14, bold: true, color: { argb: 
+'4318FF' } };
+pages\GestionPuestos.tsx:1041:        
+pages\GestionPuestos.tsx:1042:        ws.mergeCells('A2', 'C2');
+pages\GestionPuestos.tsx:1043:        const headNit = ws.getCell('A2');
+pages\GestionPuestos.tsx:1044:        headNit.value = 'NIT: 901509121';
+pages\GestionPuestos.tsx:1045:        headNit.font = { name: 'Arial Narrow', size: 10, bold: true };
+pages\GestionPuestos.tsx:1046:
+pages\GestionPuestos.tsx:1047:        ws.mergeCells('A3', 'C3');
+pages\GestionPuestos.tsx:1048:        const headAddr = ws.getCell('A3');
+pages\GestionPuestos.tsx:1049:        headAddr.value = 'Carrera 81 #49-24 Medellín | Tel: 311 383 6939';
+pages\GestionPuestos.tsx:1050:        headAddr.font = { name: 'Arial Narrow', size: 9 };
+pages\GestionPuestos.tsx:1051:
+pages\GestionPuestos.tsx:1052:        ws.mergeCells('A4', 'C4');
+pages\GestionPuestos.tsx:1053:        const headPuesto = ws.getCell('A4');
+pages\GestionPuestos.tsx:1054:        headPuesto.value = `PUESTO: ${puestoNombre.toUpperCase()}`;
+pages\GestionPuestos.tsx:1055:        headPuesto.font = { name: 'Arial Narrow', size: 11, bold: true };
+pages\GestionPuestos.tsx:1056:        headPuesto.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' 
+} };
+pages\GestionPuestos.tsx:1057:
+pages\GestionPuestos.tsx:1058:        // Fila 5: Barra Mes
+pages\GestionPuestos.tsx:1059:        ws.mergeCells(`A5:${String.fromCharCode(65 + 3 + daysInMonth + 4)}5`);
+pages\GestionPuestos.tsx:1060:        const monthCell = ws.getCell('A5');
+pages\GestionPuestos.tsx:1061:        monthCell.value = MONTH_NAMES[mes].toUpperCase();
+pages\GestionPuestos.tsx:1062:        monthCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 
+CLR_VERDE_MES } };
+pages\GestionPuestos.tsx:1063:        monthCell.font = { name: 'Arial Narrow', size: 10, bold: true };
+pages\GestionPuestos.tsx:1064:        monthCell.alignment = { horizontal: 'center' };
+pages\GestionPuestos.tsx:1065:        ws.getRow(5).height = 18;
+pages\GestionPuestos.tsx:1066:
+pages\GestionPuestos.tsx:1067:        // Fila 6: Letras de Día (Dow)
+pages\GestionPuestos.tsx:1068:        const dowNames = ['D','L','M','W','J','V','S'];
+pages\GestionPuestos.tsx:1069:        const dayNameRow = ws.getRow(6);
+pages\GestionPuestos.tsx:1070:        daysArr.forEach((d, i) => {
+pages\GestionPuestos.tsx:1071:           const dt = new Date(anio, mes, d);
+pages\GestionPuestos.tsx:1072:           const cell = dayNameRow.getCell(4 + i);
+pages\GestionPuestos.tsx:1073:           cell.value = dowNames[dt.getDay()];
+pages\GestionPuestos.tsx:1074:           cell.font = { name: 'Arial Narrow', size: 8, bold: true };
+pages\GestionPuestos.tsx:1075:           cell.alignment = { horizontal: 'center' };
+pages\GestionPuestos.tsx:1076:           cell.border = borderThin;
+pages\GestionPuestos.tsx:1077:        });
+pages\GestionPuestos.tsx:1078:
+pages\GestionPuestos.tsx:1079:        // Fila 7: Números
+pages\GestionPuestos.tsx:1080:        const dayNumRow = ws.getRow(7);
+pages\GestionPuestos.tsx:1081:        daysArr.forEach((d, i) => {
+pages\GestionPuestos.tsx:1082:          const cell = dayNumRow.getCell(4 + i);
+pages\GestionPuestos.tsx:1083:          cell.value = d;
+pages\GestionPuestos.tsx:1084:          cell.font = { name: 'Arial Narrow', size: 8, bold: true };
+pages\GestionPuestos.tsx:1085:          cell.alignment = { horizontal: 'center' };
+pages\GestionPuestos.tsx:1086:          cell.border = borderThin;
+pages\GestionPuestos.tsx:1087:          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' } };
+pages\GestionPuestos.tsx:1088:        });
+pages\GestionPuestos.tsx:1089:
+pages\GestionPuestos.tsx:1090:        // Fila 8: Cabeceras
+pages\GestionPuestos.tsx:1091:        const hRow = ws.getRow(8);
+pages\GestionPuestos.tsx:1092:        hRow.height = 18;
+pages\GestionPuestos.tsx:1093:        const mainHeaders = ['ROL', 'CÉDULA', 'NOMBRE DE GUARDA'];
+pages\GestionPuestos.tsx:1094:        mainHeaders.forEach((v, i) => {
+pages\GestionPuestos.tsx:1095:          const cell = hRow.getCell(i+1);
+pages\GestionPuestos.tsx:1096:          cell.value = v;
+pages\GestionPuestos.tsx:1097:          cell.font = { name: 'Arial Narrow', size: 9, bold: true };
+pages\GestionPuestos.tsx:1098:          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+pages\GestionPuestos.tsx:1099:          cell.border = borderThin;
+pages\GestionPuestos.tsx:1100:          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F8FAFC' } };
+pages\GestionPuestos.tsx:1101:        });
+pages\GestionPuestos.tsx:1102:
+pages\GestionPuestos.tsx:1103:        // Totales Headers
+pages\GestionPuestos.tsx:1104:        const lastColIdx = 4 + daysInMonth;
+pages\GestionPuestos.tsx:1105:        ['TRAB', 'DESC', 'NR', 'VAC'].forEach((v, i) => {
+pages\GestionPuestos.tsx:1106:            const cell = hRow.getCell(lastColIdx + i);
+pages\GestionPuestos.tsx:1107:            cell.value = v;
+pages\GestionPuestos.tsx:1108:            cell.font = { name: 'Arial Narrow', size: 8, bold: true };
+pages\GestionPuestos.tsx:1109:            cell.alignment = { horizontal: 'center' };
+pages\GestionPuestos.tsx:1110:            cell.border = borderThin;
+pages\GestionPuestos.tsx:1111:            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'E2E8F0' } 
+};
+pages\GestionPuestos.tsx:1112:        });
+pages\GestionPuestos.tsx:1113:
+pages\GestionPuestos.tsx:1114:        const ROL_LABELS: Record<string, string> = {
+pages\GestionPuestos.tsx:1115:            'titular_a': 'TIT-A',
+pages\GestionPuestos.tsx:1116:            'titular_b': 'TIT-B',
+pages\GestionPuestos.tsx:1117:            'relevante': 'REL',
+pages\GestionPuestos.tsx:1118:        };
+pages\GestionPuestos.tsx:1119:
+pages\GestionPuestos.tsx:1120:        // Filas de Datos
+pages\GestionPuestos.tsx:1121:        sortedRows.forEach((row, ri) => {
+pages\GestionPuestos.tsx:1122:          const exRow = ws.getRow(9 + ri);
+pages\GestionPuestos.tsx:1123:          exRow.height = 16;
+pages\GestionPuestos.tsx:1124:
+pages\GestionPuestos.tsx:1125:          // ROL
+pages\GestionPuestos.tsx:1126:          const c0 = exRow.getCell(1);
+pages\GestionPuestos.tsx:1127:          c0.value = ROL_LABELS[row.rol] || row.rol.toUpperCase();
+pages\GestionPuestos.tsx:1128:          c0.font = { name: 'Arial Narrow', size: 7, bold: true };
+pages\GestionPuestos.tsx:1129:          c0.alignment = { horizontal: 'center' };
+pages\GestionPuestos.tsx:1130:          c0.border = borderThin;
+pages\GestionPuestos.tsx:1131:
+pages\GestionPuestos.tsx:1132:          // Cédula
+pages\GestionPuestos.tsx:1133:          const c2 = exRow.getCell(2);
+pages\GestionPuestos.tsx:1134:          c2.value = row.cedula;
+pages\GestionPuestos.tsx:1135:          c2.font = { name: 'Arial Narrow', size: 8 };
+pages\GestionPuestos.tsx:1136:          c2.alignment = { horizontal: 'center' };
+pages\GestionPuestos.tsx:1137:          c2.border = borderThin;
+pages\GestionPuestos.tsx:1138:
+pages\GestionPuestos.tsx:1139:          // Nombre
+pages\GestionPuestos.tsx:1140:          const c3 = exRow.getCell(3);
+pages\GestionPuestos.tsx:1141:          c3.value = row.nombre;
+pages\GestionPuestos.tsx:1142:          c3.font = { name: 'Arial Narrow', size: 8 };
+pages\GestionPuestos.tsx:1143:          c3.border = borderThin;
+pages\GestionPuestos.tsx:1144:
+pages\GestionPuestos.tsx:1145:          // Días & Totales
+pages\GestionPuestos.tsx:1146:          let tT = 0, tD = 0, tNR = 0, tV = 0;
+pages\GestionPuestos.tsx:1147:
+pages\GestionPuestos.tsx:1148:          daysArr.forEach((d, di) => {
+pages\GestionPuestos.tsx:1149:            const cell = exRow.getCell(4 + di);
+pages\GestionPuestos.tsx:1150:            const code = row.asigs.get(d) || "";
+pages\GestionPuestos.tsx:1151:            cell.value = code;
+pages\GestionPuestos.tsx:1152:            cell.font = { name: 'Arial Narrow', size: 7, bold: true };
+pages\GestionPuestos.tsx:1153:            cell.alignment = { horizontal: 'center' };
+pages\GestionPuestos.tsx:1154:            cell.border = borderThin;
+pages\GestionPuestos.tsx:1155:
+pages\GestionPuestos.tsx:1156:            const color = getCodeColor(code);
+pages\GestionPuestos.tsx:1157:            if (color) {
+pages\GestionPuestos.tsx:1158:              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } 
+};
+pages\GestionPuestos.tsx:1159:            }
+pages\GestionPuestos.tsx:1160:
+pages\GestionPuestos.tsx:1161:            if (['D12', 'N12', '24'].includes(code)) tT++;
+pages\GestionPuestos.tsx:1162:            else if (code === 'X') tD++;
+pages\GestionPuestos.tsx:1163:            else if (code === 'NR') tNR++;
+pages\GestionPuestos.tsx:1164:            else if (code === 'VAC') tV++;
+pages\GestionPuestos.tsx:1165:          });
+pages\GestionPuestos.tsx:1166:
+pages\GestionPuestos.tsx:1167:          // Summary cells
+pages\GestionPuestos.tsx:1168:          [tT, tD, tNR, tV].forEach((val, vi) => {
+pages\GestionPuestos.tsx:1169:              const cell = exRow.getCell(lastColIdx + vi);
+pages\GestionPuestos.tsx:1170:              cell.value = val || '';
+pages\GestionPuestos.tsx:1171:              cell.font = { name: 'Arial Narrow', size: 8, bold: true };
+pages\GestionPuestos.tsx:1172:              cell.alignment = { horizontal: 'center' };
+pages\GestionPuestos.tsx:1173:              cell.border = borderThin;
+pages\GestionPuestos.tsx:1174:          });
+pages\GestionPuestos.tsx:1175:        });
+pages\GestionPuestos.tsx:1176:
+pages\GestionPuestos.tsx:1177:        ws.getColumn(1).width = 10;
+pages\GestionPuestos.tsx:1178:        ws.getColumn(2).width = 14;
+pages\GestionPuestos.tsx:1179:        ws.getColumn(3).width = 40;
+pages\GestionPuestos.tsx:1180:        daysArr.forEach((_, i) => { ws.getColumn(4 + i).width = 3.5; });
+pages\GestionPuestos.tsx:1181:        [0,1,2,3].forEach((i) => ws.getColumn(lastColIdx + i).width = 6);
+pages\GestionPuestos.tsx:1182:
+pages\GestionPuestos.tsx:1183:        const buffer = await wb.xlsx.writeBuffer();
+pages\GestionPuestos.tsx:1184:        const blob = new Blob([buffer], { type: 'application/octet-stream' });
+pages\GestionPuestos.tsx:1185:        const url = URL.createObjectURL(blob);
+pages\GestionPuestos.tsx:1186:        const a = document.createElement('a');
+pages\GestionPuestos.tsx:1187:        a.href = url;
+pages\GestionPuestos.tsx:1188:        a.download = 
+`CUADRO_TACTICO_${(puestoNombre||"P").replace(/\s+/g,"_")}_${MONTH_NAMES[mes]}.xlsx`;
+pages\GestionPuestos.tsx:1189:        a.click();
+pages\GestionPuestos.tsx:1190:        URL.revokeObjectURL(url);
+pages\GestionPuestos.tsx:1191:
+pages\GestionPuestos.tsx:1192:        showTacticalToast({ title:"💎 Excel Generado", message:`Fiel reflejo del tablero 
+táctico.`, type:"success" });
+pages\GestionPuestos.tsx:1193:      } catch (err: any) {
+pages\GestionPuestos.tsx:1194:        console.error("EXCEL ERROR:", err);
+pages\GestionPuestos.tsx:1195:        showTacticalToast({ title:"❌ Error", message:"No se pudo procesar el archivo.", 
+type:"error" });
+pages\GestionPuestos.tsx:1196:      } finally {
+pages\GestionPuestos.tsx:1197:        setIsGeneratingPDF(false);
+pages\GestionPuestos.tsx:1198:      }
+pages\GestionPuestos.tsx:1199:    }, [prog, puestoNombre, mes, anio, daysArr, vigilantes, logAction]);
+pages\GestionPuestos.tsx:1200:
+pages\GestionPuestos.tsx:1201:  if (!prog || prog.isFetching) {
+pages\GestionPuestos.tsx:1202:    return (
+pages\GestionPuestos.tsx:1203:      <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
+pages\GestionPuestos.tsx:1204:        <div className="size-16 border-4 border-primary border-t-transparent 
+rounded-full animate-spin mb-4" />
+pages\GestionPuestos.tsx:1205:        <p className="text-sm font-black text-slate-500 uppercase tracking-widest">
+pages\GestionPuestos.tsx:1206:          Sincronizando Tablero Táctico...
+pages\GestionPuestos.tsx:1207:        </p>
+pages\GestionPuestos.tsx:1208:      </div>
+pages\GestionPuestos.tsx:1209:    );
+pages\GestionPuestos.tsx:1210:  }
+pages\GestionPuestos.tsx:1211:
+pages\GestionPuestos.tsx:1212:  const nombrePuesto = puestoNombre || getPuestoNombre(prog, allPuestos);
+pages\GestionPuestos.tsx:1213:  const titularesId = (prog.personal || [])
+pages\GestionPuestos.tsx:1214:    .map((p: any) => p.vigilanteId)
+pages\GestionPuestos.tsx:1215:    .filter(Boolean) as string[];
+pages\GestionPuestos.tsx:1216:  const turnosConfig = puesto?.turnosConfig?.length
+pages\GestionPuestos.tsx:1217:    ? puesto.turnosConfig
+pages\GestionPuestos.tsx:1218:    : DEFAULT_TURNOS;
+pages\GestionPuestos.tsx:1219:  const jornadasCustom = puesto?.jornadasCustom?.length
+pages\GestionPuestos.tsx:1220:    ? puesto.jornadasCustom
+pages\GestionPuestos.tsx:1221:    : DEFAULT_JORNADAS;
+pages\GestionPuestos.tsx:1222:
+pages\GestionPuestos.tsx:1223:  const staffAsignado = (prog.personal || []).filter((p: any) => p.vigilanteId);
+pages\GestionPuestos.tsx:1224:
+pages\GestionPuestos.tsx:1225:  return (
+pages\GestionPuestos.tsx:1226:    <div className="page-container animate-fade-in bg-slate-50 min-h-screen pb-32">
+pages\GestionPuestos.tsx:1227:      <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-8">
+pages\GestionPuestos.tsx:1228:        <div>
+pages\GestionPuestos.tsx:1229:          <div className="flex items-center gap-2 mb-2 text-[10px] font-black 
+text-primary uppercase tracking-[0.2em]">
+pages\GestionPuestos.tsx:1230:            <button onClick={onClose} className="hover:underline">
+pages\GestionPuestos.tsx:1231:              Puestos
+pages\GestionPuestos.tsx:1232:            </button>
+pages\GestionPuestos.tsx:1233:            <span className="material-symbols-outlined text-[14px]">chevron_right</span>
+pages\GestionPuestos.tsx:1234:            <span>Tablero {nombrePuesto}</span>
+pages\GestionPuestos.tsx:1235:          </div>
+pages\GestionPuestos.tsx:1236:          <h1 className="text-3xl font-black text-slate-900 
+uppercase">{nombrePuesto}</h1>
+pages\GestionPuestos.tsx:1237:          <p className="text-xs font-bold text-slate-500 mt-1">
+pages\GestionPuestos.tsx:1238:            {MONTH_NAMES[mes]} {anio} ·{" "}
+pages\GestionPuestos.tsx:1239:            <span
+pages\GestionPuestos.tsx:1240:              className={`${
+pages\GestionPuestos.tsx:1241:                staffAsignado.length > 0 ? "text-emerald-600" : "text-amber-500"
+pages\GestionPuestos.tsx:1242:              }`}
+pages\GestionPuestos.tsx:1243:            >
+pages\GestionPuestos.tsx:1244:              {staffAsignado.length} efectivos asignados
+pages\GestionPuestos.tsx:1245:            </span>
+pages\GestionPuestos.tsx:1246:            {isSyncing && (
+pages\GestionPuestos.tsx:1247:              <span className="ml-3 text-primary animate-pulse">⟳ Sincronizando...</span>
+pages\GestionPuestos.tsx:1248:            )}
+pages\GestionPuestos.tsx:1249:          </p>
+pages\GestionPuestos.tsx:1250:        </div>
+pages\GestionPuestos.tsx:1251:
+pages\GestionPuestos.tsx:1252:        <div className="flex flex-wrap gap-2">
+pages\GestionPuestos.tsx:1253:          <button
+pages\GestionPuestos.tsx:1254:            onClick={() => setShowPersonalModal(true)}
+pages\GestionPuestos.tsx:1255:            className="px-5 py-2.5 bg-slate-800 text-white border border-white/10 
+rounded-2xl text-[10px] font-black uppercase hover:bg-slate-700 transition-all flex items-center gap-2"
+pages\GestionPuestos.tsx:1256:          >
+pages\GestionPuestos.tsx:1257:            <span className="material-symbols-outlined 
+text-[18px]">manage_accounts</span>
+pages\GestionPuestos.tsx:1258:            Personal
+pages\GestionPuestos.tsx:1259:            {staffAsignado.length > 0 && (
+pages\GestionPuestos.tsx:1260:              <span className="px-1.5 py-0.5 bg-emerald-500 text-white rounded-full 
+text-[8px] font-black">
+pages\GestionPuestos.tsx:1261:                {staffAsignado.length}
+pages\GestionPuestos.tsx:1262:              </span>
+pages\GestionPuestos.tsx:1263:            )}
+pages\GestionPuestos.tsx:1264:          </button>
+pages\GestionPuestos.tsx:1265:
+pages\GestionPuestos.tsx:1266:          <div className="flex gap-2">
+pages\GestionPuestos.tsx:1267:            <button
+pages\GestionPuestos.tsx:1268:              onClick={handleGenerateExcel}
+pages\GestionPuestos.tsx:1269:              disabled={isGeneratingPDF}
+pages\GestionPuestos.tsx:1270:              className="px-5 py-2.5 bg-emerald-600 text-white rounded-2xl text-[10px] 
+font-black uppercase hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-lg shadow-emerald-600/20 
+disabled:opacity-60"
+pages\GestionPuestos.tsx:1271:            >
+pages\GestionPuestos.tsx:1272:              <span className={`material-symbols-outlined text-[18px] ${isGeneratingPDF 
+? "animate-spin" : ""}`}>
+pages\GestionPuestos.tsx:1273:                {isGeneratingPDF ? "sync" : "table_view"}
+pages\GestionPuestos.tsx:1274:              </span>
+pages\GestionPuestos.tsx:1275:              {isGeneratingPDF ? "Generando..." : "Exportar Excel"}
+pages\GestionPuestos.tsx:1276:            </button>
+pages\GestionPuestos.tsx:1277:
+pages\GestionPuestos.tsx:1278:            <button
+pages\GestionPuestos.tsx:1279:              onClick={handleGeneratePDF}
+pages\GestionPuestos.tsx:1280:              disabled={isGeneratingPDF}
+pages\GestionPuestos.tsx:1281:              className="px-5 py-2.5 bg-rose-600 text-white rounded-2xl text-[10px] 
+font-black uppercase hover:bg-rose-700 transition-all flex items-center gap-2 shadow-lg shadow-rose-600/20 
+disabled:opacity-60"
+pages\GestionPuestos.tsx:1282:            >
+pages\GestionPuestos.tsx:1283:              <span
+pages\GestionPuestos.tsx:1284:                className={`material-symbols-outlined text-[18px] ${
+pages\GestionPuestos.tsx:1285:                  isGeneratingPDF ? "animate-spin" : ""
+pages\GestionPuestos.tsx:1286:                }`}
+pages\GestionPuestos.tsx:1287:              >
+pages\GestionPuestos.tsx:1288:                {isGeneratingPDF ? "sync" : "picture_as_pdf"}
+pages\GestionPuestos.tsx:1289:              </span>
+pages\GestionPuestos.tsx:1290:              {isGeneratingPDF ? "Generando..." : "Exportar PDF"}
+pages\GestionPuestos.tsx:1291:            </button>
+pages\GestionPuestos.tsx:1292:          </div>
+pages\GestionPuestos.tsx:1293:
+pages\GestionPuestos.tsx:1294:          <button
+pages\GestionPuestos.tsx:1295:            onClick={() => prog?.id && guardarBorrador(prog.id, currentUser)}
+pages\GestionPuestos.tsx:1296:            disabled={!prog?.id}
+pages\GestionPuestos.tsx:1297:            className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 
+rounded-2xl text-[10px] font-black uppercase hover:bg-slate-50 transition-all flex items-center gap-2 
+disabled:opacity-50"
+pages\GestionPuestos.tsx:1298:          >
+pages\GestionPuestos.tsx:1299:            <span className="material-symbols-outlined text-[18px]">save</span>{" "}
+pages\GestionPuestos.tsx:1300:            Borrador
+pages\GestionPuestos.tsx:1301:          </button>
+pages\GestionPuestos.tsx:1302:
+pages\GestionPuestos.tsx:1303:          <button
+pages\GestionPuestos.tsx:1304:            onClick={() => prog?.id && publicarProgramacion(prog.id, currentUser)}
+pages\GestionPuestos.tsx:1305:            disabled={!prog?.id}
+pages\GestionPuestos.tsx:1306:            className="px-6 py-2.5 bg-emerald-500 text-white rounded-2xl text-[10px] 
+font-black uppercase hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2 
+disabled:opacity-50"
+pages\GestionPuestos.tsx:1307:          >
+pages\GestionPuestos.tsx:1308:            <span className="material-symbols-outlined 
+text-[18px]">cloud_upload</span>{" "}
+pages\GestionPuestos.tsx:1309:            Publicar
+pages\GestionPuestos.tsx:1310:          </button>
+pages\GestionPuestos.tsx:1311:
+pages\GestionPuestos.tsx:1312:          <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl border 
+min-w-[120px] justify-center ${
+pages\GestionPuestos.tsx:1314:          }`}>
+pages\GestionPuestos.tsx:1315:            {isSyncing ? (
+pages\GestionPuestos.tsx:1316:              <>
+pages\GestionPuestos.tsx:1317:                <div className="size-2 bg-indigo-500 rounded-full animate-ping" />
+pages\GestionPuestos.tsx:1318:                <span className="text-[9px] font-black text-indigo-600 
+uppercase">Sincronizando...</span>
+pages\GestionPuestos.tsx:1319:              </>
+pages\GestionPuestos.tsx:1321:              <>
+pages\GestionPuestos.tsx:1322:                <span className="material-symbols-outlined text-rose-500 
+text-[16px]">cloud_off</span>
+pages\GestionPuestos.tsx:1323:                <span className="text-[9px] font-black text-rose-600 uppercase">Error de 
+Sync</span>
+pages\GestionPuestos.tsx:1324:                <button 
+pages\GestionPuestos.tsx:1325:                  onClick={() => useProgramacionStore.getState().resumePendingSyncs()}
+pages\GestionPuestos.tsx:1326:                  className="ml-1 px-2 py-0.5 bg-rose-100 hover:bg-rose-200 rounded-lg 
+text-[8px] font-black text-rose-700 uppercase transition-all"
+pages\GestionPuestos.tsx:1327:                >
+pages\GestionPuestos.tsx:1328:                  Reintentar
+pages\GestionPuestos.tsx:1329:                </button>
+pages\GestionPuestos.tsx:1330:              </>
+pages\GestionPuestos.tsx:1332:              <>
+pages\GestionPuestos.tsx:1333:                <div className="size-2 bg-amber-500 rounded-full animate-pulse" />
+pages\GestionPuestos.tsx:1334:                <span className="text-[9px] font-black text-amber-600 
+uppercase">Pendiente...</span>
+pages\GestionPuestos.tsx:1335:              </>
+pages\GestionPuestos.tsx:1336:            ) : (
+pages\GestionPuestos.tsx:1337:              <>
+pages\GestionPuestos.tsx:1338:                <span className="material-symbols-outlined text-emerald-500 
+text-[16px]">cloud_done</span>
+pages\GestionPuestos.tsx:1339:                <span className="text-[9px] font-black text-emerald-600 uppercase">Todo 
+Guardado</span>
+pages\GestionPuestos.tsx:1340:              </>
+pages\GestionPuestos.tsx:1341:            )}
+pages\GestionPuestos.tsx:1342:          </div>
+pages\GestionPuestos.tsx:1343:
+pages\GestionPuestos.tsx:1344:          <button
+pages\GestionPuestos.tsx:1345:            onClick={() => {
+pages\GestionPuestos.tsx:1346:              const hasPending = useProgramacionStore.getState().hasPendingChanges();
+pages\GestionPuestos.tsx:1347:              if (isSyncing || hasPending) {
+pages\GestionPuestos.tsx:1348:                if (confirm('⚠️ Hay cambios sincronizando con la central. Si cierra 
+ahora, los últimos movimientos podrían no guardarse. ¿Desea cerrar de todas formas?')) {
+pages\GestionPuestos.tsx:1349:                  onClose();
+pages\GestionPuestos.tsx:1350:                }
+pages\GestionPuestos.tsx:1351:              } else {
+pages\GestionPuestos.tsx:1352:                onClose();
+pages\GestionPuestos.tsx:1353:              }
+pages\GestionPuestos.tsx:1354:            }}
+pages\GestionPuestos.tsx:1355:            className="px-5 py-2.5 bg-slate-100 text-slate-600 rounded-2xl text-[10px] 
+font-black uppercase hover:bg-slate-200 transition-all"
+pages\GestionPuestos.tsx:1356:          >
+pages\GestionPuestos.tsx:1357:            Cerrar
+pages\GestionPuestos.tsx:1358:          </button>
+pages\GestionPuestos.tsx:1359:        </div>
+pages\GestionPuestos.tsx:1360:      </div>
+pages\GestionPuestos.tsx:1361:
+pages\GestionPuestos.tsx:1362:      {staffAsignado.length === 0 && (
+pages\GestionPuestos.tsx:1363:        <div
+pages\GestionPuestos.tsx:1364:          onClick={() => setShowPersonalModal(true)}
+pages\GestionPuestos.tsx:1365:          className="mb-6 px-6 py-4 bg-amber-50 border border-amber-200 rounded-3xl flex 
+items-center gap-4 cursor-pointer hover:bg-amber-100 transition-colors group"
+pages\GestionPuestos.tsx:1366:        >
+pages\GestionPuestos.tsx:1367:          <span className="material-symbols-outlined text-amber-500 text-[28px]">
+pages\GestionPuestos.tsx:1368:            warning
+pages\GestionPuestos.tsx:1369:          </span>
+pages\GestionPuestos.tsx:1370:          <div>
+pages\GestionPuestos.tsx:1371:            <p className="text-[11px] font-black text-amber-700 uppercase 
+tracking-widest">
+pages\GestionPuestos.tsx:1372:              Sin Personal Asignado
+pages\GestionPuestos.tsx:1373:            </p>
+pages\GestionPuestos.tsx:1374:            <p className="text-[10px] font-bold text-amber-600 mt-0.5">
+pages\GestionPuestos.tsx:1375:              Haz clic aquí para configurar el personal titular del puesto (Titular A, 
+Titular B, Relevante)
+pages\GestionPuestos.tsx:1376:            </p>
+pages\GestionPuestos.tsx:1377:          </div>
+pages\GestionPuestos.tsx:1378:          <span className="material-symbols-outlined text-amber-400 text-[20px] ml-auto 
+group-hover:translate-x-1 transition-transform">
+pages\GestionPuestos.tsx:1379:            arrow_forward
+pages\GestionPuestos.tsx:1380:          </span>
+pages\GestionPuestos.tsx:1381:        </div>
+pages\GestionPuestos.tsx:1382:      )}
+pages\GestionPuestos.tsx:1383:
+pages\GestionPuestos.tsx:1384:      {/* ── PANEL DE ALERTAS DEL MES ── */}
+pages\GestionPuestos.tsx:1385:      {alertas.length > 0 && (
+pages\GestionPuestos.tsx:1386:        <div className="mb-6 px-5 py-4 bg-gradient-to-r from-rose-50 to-amber-50 border 
+border-rose-200 rounded-3xl shadow-sm animate-in slide-in-from-top-2 duration-500">
+pages\GestionPuestos.tsx:1387:          <div className="flex items-center gap-3 mb-3">
+pages\GestionPuestos.tsx:1388:            <div className="size-8 rounded-xl bg-rose-100 flex items-center 
+justify-center">
+pages\GestionPuestos.tsx:1389:              <span className="material-symbols-outlined text-rose-500 
+text-[20px]">notification_important</span>
+pages\GestionPuestos.tsx:1390:            </div>
+pages\GestionPuestos.tsx:1391:            <span className="text-[10px] font-black text-rose-700 uppercase 
+tracking-[0.2em]">Alertas del Mes ({alertas.length})</span>
+pages\GestionPuestos.tsx:1392:          </div>
+pages\GestionPuestos.tsx:1393:          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+pages\GestionPuestos.tsx:1394:            {alertas.map((a: string, i: number) => (
+pages\GestionPuestos.tsx:1395:              <div key={i} className="flex items-center gap-2 px-3 py-2 bg-white/80 
+rounded-xl border border-rose-100">
+pages\GestionPuestos.tsx:1396:                <span className={`material-symbols-outlined text-[14px] ${
+pages\GestionPuestos.tsx:1397:                  a.includes('conflicto') ? 'text-rose-500' : 
+pages\GestionPuestos.tsx:1398:                  a.includes('descanso') ? 'text-amber-500' : 'text-slate-400'
+pages\GestionPuestos.tsx:1399:                }`}>
+pages\GestionPuestos.tsx:1400:                  {a.includes('conflicto') ? 'warning' : 
+pages\GestionPuestos.tsx:1401:                   a.includes('descanso') ? 'event_busy' : 'info'}
+pages\GestionPuestos.tsx:1402:                </span>
+pages\GestionPuestos.tsx:1403:                <span className="text-[10px] font-bold text-slate-700">{a}</span>
+pages\GestionPuestos.tsx:1404:              </div>
+pages\GestionPuestos.tsx:1405:            ))}
+pages\GestionPuestos.tsx:1406:          </div>
+pages\GestionPuestos.tsx:1407:        </div>
+pages\GestionPuestos.tsx:1408:      )}
+pages\GestionPuestos.tsx:1409:
+pages\GestionPuestos.tsx:1410:      {staffAsignado.length > 0 && (
+pages\GestionPuestos.tsx:1411:        <div className="mb-6 flex flex-wrap gap-3">
+pages\GestionPuestos.tsx:1412:          {(prog?.personal || [])
+pages\GestionPuestos.tsx:1413:            .filter((p: PersonalPuesto) => p.vigilanteId)
+pages\GestionPuestos.tsx:1414:            .map((per: PersonalPuesto) => {
+pages\GestionPuestos.tsx:1415:              const v = vigilantes.find(
+pages\GestionPuestos.tsx:1416:                (v) => v.id === per.vigilanteId || v.dbId === per.vigilanteId
+pages\GestionPuestos.tsx:1417:              );
+pages\GestionPuestos.tsx:1418:              const colors: Record<string, string> = {
+pages\GestionPuestos.tsx:1419:                titular_a: "bg-primary/10 text-primary border-primary/20",
+pages\GestionPuestos.tsx:1420:                titular_b: "bg-indigo-500/10 text-indigo-600 border-indigo-300/30",
+pages\GestionPuestos.tsx:1421:                relevante: "bg-slate-100 text-slate-600 border-slate-200",
+pages\GestionPuestos.tsx:1422:              };
+pages\GestionPuestos.tsx:1423:              return (
+pages\GestionPuestos.tsx:1424:                <div
+pages\GestionPuestos.tsx:1425:                  key={per.rol}
+pages\GestionPuestos.tsx:1426:                  className={`flex items-center gap-2 px-4 py-2 rounded-2xl border ${
+pages\GestionPuestos.tsx:1427:                    colors[per.rol] || "bg-slate-100 text-slate-600 border-slate-200"
+pages\GestionPuestos.tsx:1428:                  }`}
+pages\GestionPuestos.tsx:1429:                >
+pages\GestionPuestos.tsx:1430:                  <span className="material-symbols-outlined text-[16px]">
+pages\GestionPuestos.tsx:1431:                    {per.rol === "relevante" ? "groups" : "shield_person"}
+pages\GestionPuestos.tsx:1432:                  </span>
+pages\GestionPuestos.tsx:1433:                  <div>
+pages\GestionPuestos.tsx:1434:                    <span className="text-[10px] font-black text-slate-400 uppercase 
+tracking-tighter block mb-1">
+pages\GestionPuestos.tsx:1435:                      {getRolLabel(per.rol)}
+pages\GestionPuestos.tsx:1436:                    </span>
+pages\GestionPuestos.tsx:1437:                    <p className="text-[11px] font-black leading-tight">
+pages\GestionPuestos.tsx:1438:                      {v?.nombre || per.vigilanteId}
+pages\GestionPuestos.tsx:1439:                    </p>
+pages\GestionPuestos.tsx:1440:                  </div>
+pages\GestionPuestos.tsx:1441:                </div>
+pages\GestionPuestos.tsx:1442:              );
+pages\GestionPuestos.tsx:1443:            })}
+pages\GestionPuestos.tsx:1444:          <button
+pages\GestionPuestos.tsx:1445:            onClick={() => setShowPersonalModal(true)}
+pages\GestionPuestos.tsx:1446:            className="flex items-center gap-2 px-4 py-2 rounded-2xl border 
+border-dashed border-slate-300 text-slate-400 hover:border-primary/40 hover:text-primary transition-colors text-[10px] 
+font-black uppercase"
+pages\GestionPuestos.tsx:1447:          >
+pages\GestionPuestos.tsx:1448:            <span className="material-symbols-outlined text-[16px]">edit</span>
+pages\GestionPuestos.tsx:1449:            Editar Personal
+pages\GestionPuestos.tsx:1450:          </button>
+pages\GestionPuestos.tsx:1451:        </div>
+pages\GestionPuestos.tsx:1452:      )}
+pages\GestionPuestos.tsx:1453:
+pages\GestionPuestos.tsx:1454:      <div className="flex flex-wrap items-center gap-3 p-4 bg-slate-900 rounded-[30px] 
+border border-white/5 shadow-2xl mb-8 animate-in slide-in-from-top-4 duration-500">
+pages\GestionPuestos.tsx:1455:        <div className="flex items-center gap-2 px-4 border-r border-white/10 shrink-0">
+pages\GestionPuestos.tsx:1456:          <span className="material-symbols-outlined text-primary-light 
+text-[20px]">magic_button</span>
+pages\GestionPuestos.tsx:1457:          <span className="text-[10px] font-black text-white uppercase tracking-widest">
+pages\GestionPuestos.tsx:1458:            Personalizar Tablero
+pages\GestionPuestos.tsx:1459:          </span>
+pages\GestionPuestos.tsx:1460:        </div>
+pages\GestionPuestos.tsx:1461:
+pages\GestionPuestos.tsx:1462:        <div className="relative">
+pages\GestionPuestos.tsx:1463:          <button
+pages\GestionPuestos.tsx:1464:            onClick={() => setShowTurnosConfig(!showTurnosConfig)}
+pages\GestionPuestos.tsx:1465:            className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase 
+transition-all flex items-center gap-2 border ${
+pages\GestionPuestos.tsx:1466:              showTurnosConfig
+pages\GestionPuestos.tsx:1467:                ? 'bg-violet-600 border-violet-500 text-white shadow-lg 
+shadow-violet-500/20'
+pages\GestionPuestos.tsx:1468:                : 'bg-white/5 hover:bg-violet-500/30 text-white border-white/10'
+pages\GestionPuestos.tsx:1469:            }`}
+pages\GestionPuestos.tsx:1470:          >
+pages\GestionPuestos.tsx:1471:            <span className="material-symbols-outlined text-[16px]">tune</span>
+pages\GestionPuestos.tsx:1472:            Configurar Turnos
+pages\GestionPuestos.tsx:1473:            {turnosConfig.length > 0 && (
+pages\GestionPuestos.tsx:1474:              <span className="px-1.5 py-0.5 bg-violet-400 rounded-full 
+text-[7px]">{turnosConfig.length}</span>
+pages\GestionPuestos.tsx:1475:            )}
+pages\GestionPuestos.tsx:1476:          </button>
+pages\GestionPuestos.tsx:1477:
+pages\GestionPuestos.tsx:1478:          {showTurnosConfig && (
+pages\GestionPuestos.tsx:1479:            <div className="absolute top-full left-0 mt-3 w-80 bg-slate-800 border 
+border-white/10 rounded-2xl shadow-2xl z-[100] p-4 animate-in zoom-in-95 duration-200">
+pages\GestionPuestos.tsx:1480:              <div className="flex items-center justify-between mb-3">
+pages\GestionPuestos.tsx:1481:                <p className="text-[9px] font-black text-slate-400 uppercase 
+tracking-widest">Turnos Activos del Tablero</p>
+pages\GestionPuestos.tsx:1482:                <button onClick={() => setShowTurnosConfig(false)} className="size-6 
+flex items-center justify-center rounded-full hover:bg-white/10 transition-all">
+pages\GestionPuestos.tsx:1483:                  <span className="material-symbols-outlined text-[14px] 
+text-slate-400">close</span>
+pages\GestionPuestos.tsx:1484:                </button>
+pages\GestionPuestos.tsx:1485:              </div>
+pages\GestionPuestos.tsx:1486:
+pages\GestionPuestos.tsx:1487:              <div className="space-y-2 mb-4 max-h-48 overflow-y-auto pr-1 
+custom-scrollbar">
+pages\GestionPuestos.tsx:1488:                {turnosConfig.map((turno, ti) => (
+pages\GestionPuestos.tsx:1489:                  <div key={turno.id} className="flex items-center gap-2 p-2.5 
+rounded-xl bg-white/5 border border-white/5">
+pages\GestionPuestos.tsx:1490:                    <span className="material-symbols-outlined text-[14px] 
+text-primary-light">schedule</span>
+pages\GestionPuestos.tsx:1491:                    <div className="flex-1 min-w-0">
+pages\GestionPuestos.tsx:1492:                      <p className="text-[11px] font-black text-white 
+truncate">{turno.nombre}</p>
+pages\GestionPuestos.tsx:1493:                      <p className="text-[8px] font-bold text-slate-500">{turno.inicio} 
+→ {turno.fin}</p>
+pages\GestionPuestos.tsx:1494:                    </div>
+pages\GestionPuestos.tsx:1495:                    <button
+pages\GestionPuestos.tsx:1496:                      onClick={() => {
+pages\GestionPuestos.tsx:1497:                        if (turnosConfig.length <= 1) {
+pages\GestionPuestos.tsx:1498:                          showTacticalToast({ title: 'Mínimo 1 Turno', message: 'El 
+tablero debe tener al menos un turno.', type: 'warning' });
+pages\GestionPuestos.tsx:1499:                          return;
+pages\GestionPuestos.tsx:1500:                        }
+pages\GestionPuestos.tsx:1501:                        const newTurnos = turnosConfig.filter((_, i) => i !== ti);
+pages\GestionPuestos.tsx:1502:                        usePuestoStore.getState().updatePuesto(puestoId, { turnosConfig: 
+newTurnos });
+pages\GestionPuestos.tsx:1503:                        showTacticalToast({ title: 'Turno Eliminado', message: 
+turno.nombre, type: 'success' });
+pages\GestionPuestos.tsx:1504:                      }}
+pages\GestionPuestos.tsx:1505:                      className="size-6 flex items-center justify-center rounded-full 
+hover:bg-red-500/20 transition-all text-red-400/60 hover:text-red-400"
+pages\GestionPuestos.tsx:1506:                      title="Eliminar turno"
+pages\GestionPuestos.tsx:1507:                    >
+pages\GestionPuestos.tsx:1508:                      <span className="material-symbols-outlined 
+text-[12px]">delete</span>
+pages\GestionPuestos.tsx:1509:                    </button>
+pages\GestionPuestos.tsx:1510:                  </div>
+pages\GestionPuestos.tsx:1511:                ))}
+pages\GestionPuestos.tsx:1512:              </div>
+pages\GestionPuestos.tsx:1513:
+pages\GestionPuestos.tsx:1514:              <div className="border-t border-white/10 pt-3">
+pages\GestionPuestos.tsx:1515:                <p className="text-[8px] font-black text-slate-500 uppercase 
+tracking-widest mb-2">Añadir Turno Personalizado</p>
+pages\GestionPuestos.tsx:1516:                <AddTurnoForm
+pages\GestionPuestos.tsx:1517:                  turnosActuales={turnosConfig}
+pages\GestionPuestos.tsx:1518:                  onAdd={(nuevoTurno: TurnoConfig) => {
+pages\GestionPuestos.tsx:1519:                    const newTurnos = [...turnosConfig, nuevoTurno];
+pages\GestionPuestos.tsx:1520:                    usePuestoStore.getState().updatePuesto(puestoId, { turnosConfig: 
+newTurnos });
+pages\GestionPuestos.tsx:1521:                    showTacticalToast({ title: '✅ Turno Añadido', message: 
+nuevoTurno.nombre, type: 'success' });
+pages\GestionPuestos.tsx:1522:                  }}
+pages\GestionPuestos.tsx:1523:                />
+pages\GestionPuestos.tsx:1524:              </div>
+pages\GestionPuestos.tsx:1525:
+pages\GestionPuestos.tsx:1526:              <p className="text-[8px] text-slate-600 mt-3 text-center">
+pages\GestionPuestos.tsx:1527:                Los cambios se aplican automáticamente al tablero.
+pages\GestionPuestos.tsx:1528:              </p>
+pages\GestionPuestos.tsx:1529:            </div>
+pages\GestionPuestos.tsx:1530:          )}
+pages\GestionPuestos.tsx:1531:        </div>
+pages\GestionPuestos.tsx:1532:
+pages\GestionPuestos.tsx:1533:        <div className="flex gap-2.5">
+pages\GestionPuestos.tsx:1534:          <button
+pages\GestionPuestos.tsx:1535:            onClick={() => {
+pages\GestionPuestos.tsx:1536:              const nombre = prompt("Nombre de la plantilla:");
+pages\GestionPuestos.tsx:1537:              {nombre && prog?.id && (
+pages\GestionPuestos.tsx:1538:                guardarComoPlantilla(prog.id, nombre, nombrePuesto, currentUser)
+pages\GestionPuestos.tsx:1539:              )}
+pages\GestionPuestos.tsx:1540:            }}
+pages\GestionPuestos.tsx:1541:            className="px-4 py-2 bg-white/5 hover:bg-indigo-500 text-white rounded-xl 
+text-[9px] font-black uppercase transition-all flex items-center gap-2 border border-white/5"
+pages\GestionPuestos.tsx:1542:          >
+pages\GestionPuestos.tsx:1543:            <span className="material-symbols-outlined text-[16px]">save</span> Guardar 
+Patrón
+pages\GestionPuestos.tsx:1544:          </button>
+pages\GestionPuestos.tsx:1545:
+pages\GestionPuestos.tsx:1546:          <div className="relative">
+pages\GestionPuestos.tsx:1547:            <button
+pages\GestionPuestos.tsx:1548:              onClick={() => setShowTemplates(!showTemplates)}
+pages\GestionPuestos.tsx:1549:              className={`px-4 py-2 ${
+pages\GestionPuestos.tsx:1550:                showTemplates ? "bg-indigo-600" : "bg-white/5 hover:bg-white/10"
+pages\GestionPuestos.tsx:1551:              } text-white rounded-xl text-[9px] font-black uppercase transition-all 
+flex items-center gap-2 border border-white/10`}
+pages\GestionPuestos.tsx:1552:            >
+pages\GestionPuestos.tsx:1553:              <span className="material-symbols-outlined text-[16px]">
+pages\GestionPuestos.tsx:1554:                auto_awesome_motion
+pages\GestionPuestos.tsx:1555:              </span>{" "}
+pages\GestionPuestos.tsx:1556:              Cargar Plantilla
+pages\GestionPuestos.tsx:1557:              {templates.length > 0 && (
+pages\GestionPuestos.tsx:1558:                <span className="px-1.5 py-0.5 bg-indigo-400 rounded-full text-[7px]">
+pages\GestionPuestos.tsx:1559:                  {templates.length}
+pages\GestionPuestos.tsx:1560:                </span>
+pages\GestionPuestos.tsx:1561:              )}
+pages\GestionPuestos.tsx:1562:            </button>
+pages\GestionPuestos.tsx:1563:
+pages\GestionPuestos.tsx:1564:            {showTemplates && (
+pages\GestionPuestos.tsx:1565:              <div className="absolute top-full left-0 mt-3 w-64 bg-slate-800 border 
+border-white/10 rounded-2xl shadow-2xl z-[100] p-4 animate-in zoom-in-95 duration-200">
+pages\GestionPuestos.tsx:1566:                <p className="text-[9px] font-black text-slate-500 uppercase 
+tracking-widest mb-3 px-2">
+pages\GestionPuestos.tsx:1567:                  Plantillas Disponibles
+pages\GestionPuestos.tsx:1568:                </p>
+pages\GestionPuestos.tsx:1569:                <div className="space-y-2 max-h-60 overflow-y-auto pr-2 
+custom-scrollbar">
+pages\GestionPuestos.tsx:1570:                  {templates.length === 0 ? (
+pages\GestionPuestos.tsx:1571:                    <p className="text-[10px] text-slate-500 italic px-2 py-4 
+text-center">
+pages\GestionPuestos.tsx:1572:                      No hay plantillas guardadas
+pages\GestionPuestos.tsx:1573:                    </p>
+pages\GestionPuestos.tsx:1574:                  ) : (
+pages\GestionPuestos.tsx:1575:                    templates.map((tpl: any) => (
+pages\GestionPuestos.tsx:1576:                      <button
+pages\GestionPuestos.tsx:1577:                        key={tpl.id}
+pages\GestionPuestos.tsx:1578:                        onClick={() => {
+pages\GestionPuestos.tsx:1579:                          if (
+pages\GestionPuestos.tsx:1580:                            confirm(
+pages\GestionPuestos.tsx:1581:                              `¿Aplicar plantilla "${tpl.nombre}"? Se sobreescribirán 
+las asignaciones.`
+pages\GestionPuestos.tsx:1582:                            )
+pages\GestionPuestos.tsx:1583:                          ) {
+pages\GestionPuestos.tsx:1584:                            aplicarPlantilla(tpl.id, puestoId, anio, mes, currentUser);
+pages\GestionPuestos.tsx:1585:                            setShowTemplates(false);
+pages\GestionPuestos.tsx:1586:                            showTacticalToast({
+pages\GestionPuestos.tsx:1587:                              title: "✅ Plantilla Aplicada",
+pages\GestionPuestos.tsx:1588:                              message: tpl.nombre,
+pages\GestionPuestos.tsx:1589:                              type: "success",
+pages\GestionPuestos.tsx:1590:                            });
+pages\GestionPuestos.tsx:1591:                          }
+pages\GestionPuestos.tsx:1592:                        }}
+pages\GestionPuestos.tsx:1593:                        className="w-full text-left p-3 rounded-xl bg-white/5 
+hover:bg-indigo-500 transition-all flex items-center justify-between group"
+pages\GestionPuestos.tsx:1594:                      >
+pages\GestionPuestos.tsx:1595:                        <span className="text-[11px] font-bold text-white uppercase">
+pages\GestionPuestos.tsx:1596:                          {tpl.nombre}
+pages\GestionPuestos.tsx:1597:                        </span>
+pages\GestionPuestos.tsx:1598:                        <span className="material-symbols-outlined text-[14px] 
+text-white/30 group-hover:text-white">
+pages\GestionPuestos.tsx:1599:                          file_download
+pages\GestionPuestos.tsx:1600:                        </span>
+pages\GestionPuestos.tsx:1601:                      </button>
+pages\GestionPuestos.tsx:1602:                    ))
+pages\GestionPuestos.tsx:1603:                  )}
+pages\GestionPuestos.tsx:1604:                </div>
+pages\GestionPuestos.tsx:1605:              </div>
+pages\GestionPuestos.tsx:1606:            )}
+pages\GestionPuestos.tsx:1607:          </div>
+pages\GestionPuestos.tsx:1608:        </div>
+pages\GestionPuestos.tsx:1609:
+pages\GestionPuestos.tsx:1610:        <div className="ml-auto hidden lg:flex items-center gap-3 pr-4">
+pages\GestionPuestos.tsx:1612:            <div className="flex items-center gap-2">
+pages\GestionPuestos.tsx:1613:              <div className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+pages\GestionPuestos.tsx:1614:              <span className="text-[10px] font-black text-white/40 uppercase 
+tracking-widest">
+pages\GestionPuestos.tsx:1615:                Sincronizado
+pages\GestionPuestos.tsx:1616:              </span>
+pages\GestionPuestos.tsx:1617:            </div>
+pages\GestionPuestos.tsx:1618:          )}
+pages\GestionPuestos.tsx:1620:            <div className="flex items-center gap-2">
+pages\GestionPuestos.tsx:1621:              <div className="size-2 rounded-full bg-amber-500 animate-pulse" />
+pages\GestionPuestos.tsx:1622:              <span className="text-[10px] font-black text-amber-400/60 uppercase 
+tracking-widest">
+pages\GestionPuestos.tsx:1623:                Pendiente de Sync
+pages\GestionPuestos.tsx:1624:              </span>
+pages\GestionPuestos.tsx:1625:            </div>
+pages\GestionPuestos.tsx:1626:          )}
+pages\GestionPuestos.tsx:1627:        </div>
+pages\GestionPuestos.tsx:1628:      </div>
+pages\GestionPuestos.tsx:1629:
+pages\GestionPuestos.tsx:1630:      <div className="flex flex-wrap items-center gap-4 mb-4 px-6 py-3 bg-white/40 
+rounded-2xl border border-slate-100 backdrop-blur-sm shadow-sm">
+pages\GestionPuestos.tsx:1631:        <span className="text-[9px] font-black text-slate-400 uppercase 
+tracking-widest">Turnos de este Puesto:</span>
+pages\GestionPuestos.tsx:1632:        {turnosConfig.map(t => (
+pages\GestionPuestos.tsx:1633:          <div key={t.id} className="flex items-center gap-2 bg-white/80 px-3 py-1.5 
+rounded-xl border border-slate-200">
+pages\GestionPuestos.tsx:1634:            <div className="size-2.5 rounded-full" style={{ backgroundColor: t.color || 
+'#6366f1' }}></div>
+pages\GestionPuestos.tsx:1635:            <span className="text-[10px] font-black text-slate-700 
+uppercase">{t.nombre}</span>
+pages\GestionPuestos.tsx:1636:            <span className="text-[9px] font-bold 
+text-slate-400">{t.inicio}-{t.fin}</span>
+pages\GestionPuestos.tsx:1637:          </div>
+pages\GestionPuestos.tsx:1638:        ))}
+pages\GestionPuestos.tsx:1639:        {turnosConfig.length === 0 && <span className="text-[9px] italic 
+text-slate-400">Sin turnos configurados</span>}
+pages\GestionPuestos.tsx:1640:      </div>
+pages\GestionPuestos.tsx:1641:
+pages\GestionPuestos.tsx:1642:      <div className="bg-slate-950 rounded-[40px] border border-white/5 
+shadow-[0_0_50px_rgba(0,0,0,0.4)] overflow-hidden mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+pages\GestionPuestos.tsx:1643:        <div className="overflow-x-auto custom-scrollbar">
+pages\GestionPuestos.tsx:1644:          <table className="border-collapse select-none" style={{ width: 'max-content', 
+tableLayout: 'fixed' }}>
+pages\GestionPuestos.tsx:1645:            <thead>
+pages\GestionPuestos.tsx:1646:              <tr className="h-28 bg-slate-950 border-b-2 border-amber-500/40 
+shadow-2xl">
+pages\GestionPuestos.tsx:1647:                <th 
+pages\GestionPuestos.tsx:1648:                  className="sticky left-0 z-40 px-8 bg-slate-900 border-r-2 
+border-amber-500/30 shadow-[10px_0_40px_rgba(0,0,0,0.7)]"
+pages\GestionPuestos.tsx:1649:                  style={{ width: 360 }}
+pages\GestionPuestos.tsx:1650:                >
+pages\GestionPuestos.tsx:1651:                  <div className="flex items-center gap-5">
+pages\GestionPuestos.tsx:1652:                    <div className="size-16 rounded-[22px] bg-gradient-to-br 
+from-amber-400 via-amber-600 to-amber-700 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.4)] 
+border border-amber-300/30">
+pages\GestionPuestos.tsx:1653:                      <span className="material-symbols-outlined text-white text-[32px] 
+font-black">security</span>
+pages\GestionPuestos.tsx:1654:                    </div>
+pages\GestionPuestos.tsx:1655:                    <div className="text-left">
+pages\GestionPuestos.tsx:1656:                      <span className="text-[18px] font-black text-white uppercase 
+tracking-tighter block leading-tight">Mando Operativo</span>
+pages\GestionPuestos.tsx:1657:                      <span className="text-[10px] font-black text-amber-500 uppercase 
+tracking-[0.3em] mt-1.5 block opacity-90 animate-pulse">Tactical Elite v4.0</span>
+pages\GestionPuestos.tsx:1658:                    </div>
+pages\GestionPuestos.tsx:1659:                  </div>
+pages\GestionPuestos.tsx:1660:                </th>
+pages\GestionPuestos.tsx:1661:                {daysArr.map((d) => {
+pages\GestionPuestos.tsx:1662:                  const dayDate = new Date(anio, mes, d);
+pages\GestionPuestos.tsx:1663:                  const isSun = dayDate.getDay() === 0;
+pages\GestionPuestos.tsx:1664:                  return (
+pages\GestionPuestos.tsx:1665:                    <th key={d} className={`text-[13px] font-black uppercase 
+tracking-[0.1em] border-r border-white/5 px-2 relative transition-all ${isSun ? 'bg-red-500/20' : 
+'hover:bg-white/[0.05]'}`} style={{ width: 130 }}>
+pages\GestionPuestos.tsx:1666:                      <div className="flex flex-col items-center justify-center h-full 
+gap-1">
+pages\GestionPuestos.tsx:1667:                         <span className={`text-[10px] tracking-widest font-black 
+${isSun ? 'text-red-400' : 'text-slate-500'}`}>
+pages\GestionPuestos.tsx:1668:                           {dayDate.toLocaleDateString('es', {weekday: 
+'short'}).toUpperCase()}
+pages\GestionPuestos.tsx:1669:                         </span>
+pages\GestionPuestos.tsx:1670:                         <span className={`text-[22px] font-black tabular-nums ${isSun ? 
+'text-red-400' : 'text-white'}`}>{d}</span>
+pages\GestionPuestos.tsx:1671:                         {isSun && <div className="absolute top-0 left-0 w-full h-1.5 
+bg-red-600 shadow-[0_0_15px_rgba(220,38,38,0.5)]" />}
+pages\GestionPuestos.tsx:1672:                      </div>
+pages\GestionPuestos.tsx:1673:                    </th>
+pages\GestionPuestos.tsx:1674:                  );
+pages\GestionPuestos.tsx:1675:                })}
+pages\GestionPuestos.tsx:1676:              </tr>
+pages\GestionPuestos.tsx:1677:            </thead>
+pages\GestionPuestos.tsx:1678:            <tbody>
+pages\GestionPuestos.tsx:1679:              {(() => {
+pages\GestionPuestos.tsx:1680:                const personalDefinido = (prog?.personal || []);
+pages\GestionPuestos.tsx:1681:                const rolesBase = ['titular_a', 'titular_b', 'relevante'];
+pages\GestionPuestos.tsx:1682:                const rolesDefinidos = personalDefinido.map(p => p.rol);
+pages\GestionPuestos.tsx:1683:                const allRoles = Array.from(new Set([...rolesBase, ...rolesDefinidos]));
+pages\GestionPuestos.tsx:1684:
+pages\GestionPuestos.tsx:1685:                return allRoles.map(rol => {
+pages\GestionPuestos.tsx:1686:                   const config = personalDefinido.find(p => p.rol === rol);
+pages\GestionPuestos.tsx:1687:                   const isNight = ['b', 'pm', 'noche', 'nocturno', 'vigilia'].some(k => 
+rol.toLowerCase().includes(k));
+pages\GestionPuestos.tsx:1688:                   
+pages\GestionPuestos.tsx:1689:                    return {
+pages\GestionPuestos.tsx:1690:                      rol,
+pages\GestionPuestos.tsx:1691:                      vigilanteId: config?.vigilanteId || null,
+pages\GestionPuestos.tsx:1692:                      turnoId: config?.turnoId || (isNight ? 'PM' : 'AM')
+pages\GestionPuestos.tsx:1693:                    };
+pages\GestionPuestos.tsx:1694:                });
+pages\GestionPuestos.tsx:1695:              })().map((per: PersonalPuesto, index: number) => {
+pages\GestionPuestos.tsx:1696:                const rolLabel = getRolLabel(per.rol);
+pages\GestionPuestos.tsx:1697:                const isNightRole = ['b', 'pm', 'noche', 'nocturno', 'vigilia'].some(k 
+=> per.rol.toLowerCase().includes(k) || rolLabel.toLowerCase().includes(k));
+pages\GestionPuestos.tsx:1698:                const lookupId = per.turnoId || (isNightRole ? 'PM' : 'AM');
+pages\GestionPuestos.tsx:1699:                let turno = turnosConfig.find((tc) => tc.id === lookupId);
+pages\GestionPuestos.tsx:1700:                
+pages\GestionPuestos.tsx:1701:                if (!turno && turnosConfig.length > 0) {
+pages\GestionPuestos.tsx:1702:                    turno = isNightRole ? turnosConfig[turnosConfig.length - 1] : 
+turnosConfig[0];
+pages\GestionPuestos.tsx:1703:                }
+pages\GestionPuestos.tsx:1704:                
+pages\GestionPuestos.tsx:1705:                if (!turno) {
+pages\GestionPuestos.tsx:1706:                    turno = DEFAULT_TURNOS.find(dt => dt.id === lookupId) || 
+pages\GestionPuestos.tsx:1707:                            (lookupId === 'PM' ? DEFAULT_TURNOS[1] : DEFAULT_TURNOS[0]);
+pages\GestionPuestos.tsx:1708:                }
+pages\GestionPuestos.tsx:1709:                
+pages\GestionPuestos.tsx:1710:                const assignedVig = per.vigilanteId ? (vigilanteMap.get(per.vigilanteId) 
+|| "Asignado") : null;
+pages\GestionPuestos.tsx:1711:                
+pages\GestionPuestos.tsx:1712:                const isActuallyNight = turno.id === 'PM' || 
+pages\GestionPuestos.tsx:1713:                                       (turno.inicio && 
+parseInt(turno.inicio.split(':')[0]) >= 16) ||
+pages\GestionPuestos.tsx:1714:                                       isNightRole;
+pages\GestionPuestos.tsx:1715:
+pages\GestionPuestos.tsx:1716:                return (
+pages\GestionPuestos.tsx:1717:                  <tr 
+pages\GestionPuestos.tsx:1718:                    key={`${per.rol}-${index}`} 
+pages\GestionPuestos.tsx:1719:                    className="group/row transition-all border-b border-white/5 
+bg-slate-900/60 hover:bg-amber-500/[0.04]"
+pages\GestionPuestos.tsx:1720:                    style={{ height: 120 }}
+pages\GestionPuestos.tsx:1721:                  >
+pages\GestionPuestos.tsx:1722:                   <td 
+pages\GestionPuestos.tsx:1723:                     className="sticky left-0 z-30 transition-all border-r-2 
+border-amber-500/10 px-8 bg-slate-900 shadow-[10px_0_40px_rgba(0,0,0,0.8)] group-hover/row:bg-slate-800"
+pages\GestionPuestos.tsx:1724:                     style={{ width: 360 }}
+pages\GestionPuestos.tsx:1725:                   >
+pages\GestionPuestos.tsx:1726:                     <div className="flex flex-col gap-3.5">
+pages\GestionPuestos.tsx:1727:                       <div className="flex items-center gap-4">
+pages\GestionPuestos.tsx:1728:                          <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl 
+border-2 font-black text-[10px] tracking-[0.15em] uppercase shadow-lg ${
+pages\GestionPuestos.tsx:1729:                            isActuallyNight 
+pages\GestionPuestos.tsx:1730:                            ? 'bg-slate-950 border-amber-500/40 text-amber-500 
+shadow-amber-500/10' 
+pages\GestionPuestos.tsx:1731:                            : 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300 
+shadow-indigo-500/10'
+pages\GestionPuestos.tsx:1732:                          }`}>
+pages\GestionPuestos.tsx:1733:                            <span className="material-symbols-outlined text-[18px] 
+font-black">
+pages\GestionPuestos.tsx:1734:                              {isActuallyNight ? 'brightness_3' : 'wb_sunny'}
+pages\GestionPuestos.tsx:1735:                            </span>
+pages\GestionPuestos.tsx:1736:                            {isActuallyNight ? 'Noche' : 'Día'}
+pages\GestionPuestos.tsx:1737:                          </div>
+pages\GestionPuestos.tsx:1738:                          
+pages\GestionPuestos.tsx:1739:                          <div className="flex flex-col min-w-0">
+pages\GestionPuestos.tsx:1740:                            <span className="text-[15px] font-black uppercase 
+tracking-tight truncate text-white group-hover/row:text-amber-400 transition-colors">
+pages\GestionPuestos.tsx:1741:                              {rolLabel}
+pages\GestionPuestos.tsx:1742:                            </span>
+pages\GestionPuestos.tsx:1743:                            <div className="flex items-center gap-2 opacity-80">
+pages\GestionPuestos.tsx:1744:                               <div className="size-2 rounded-full 
+shadow-[0_0_8px_currentColor]" style={{ backgroundColor: turno.color || '#6366f1', color: turno.color || '#6366f1' 
+}}></div>
+pages\GestionPuestos.tsx:1745:                               <span className="text-[9px] font-black text-slate-400 
+uppercase tracking-[0.15em]">{turno.nombre}</span>
+pages\GestionPuestos.tsx:1746:                            </div>
+pages\GestionPuestos.tsx:1747:                          </div>
+pages\GestionPuestos.tsx:1748:                       </div>
+pages\GestionPuestos.tsx:1749:                       
+pages\GestionPuestos.tsx:1750:                       {assignedVig ? (
+pages\GestionPuestos.tsx:1751:                          <div className="flex items-center gap-3 px-4 py-2.5 
+rounded-2xl border-2 bg-emerald-500/[0.08] border-emerald-500/40 shadow-[0_5px_15px_rgba(16,185,129,0.15)] 
+group-hover/row:border-emerald-500/70 transition-all transform group-hover/row:scale-[1.02]">
+pages\GestionPuestos.tsx:1752:                             <div className="size-8 rounded-xl bg-emerald-500/30 flex 
+items-center justify-center text-emerald-400 border border-emerald-500/40 shadow-inner">
+pages\GestionPuestos.tsx:1753:                                <span className="material-symbols-outlined text-[16px] 
+font-black">verified_user</span>
+pages\GestionPuestos.tsx:1754:                             </div>
+pages\GestionPuestos.tsx:1755:                             <div className="min-w-0">
+pages\GestionPuestos.tsx:1756:                                <span className="text-[11px] font-black uppercase 
+truncate block text-white tracking-wide">
+pages\GestionPuestos.tsx:1757:                                  {typeof assignedVig === 'string' ? assignedVig : 
+assignedVig.nombre}
+pages\GestionPuestos.tsx:1758:                                </span>
+pages\GestionPuestos.tsx:1759:                                <span className="text-[8px] font-black 
+text-emerald-400/70 uppercase tracking-widest">Personal Activo</span>
+pages\GestionPuestos.tsx:1760:                             </div>
+pages\GestionPuestos.tsx:1761:                          </div>
+pages\GestionPuestos.tsx:1762:                       ) : (
+pages\GestionPuestos.tsx:1763:                          <div className="flex items-center gap-3 px-4 py-2.5 border-2 
+border-dashed border-slate-700 bg-slate-800/30 rounded-2xl opacity-50 group-hover/row:opacity-80 transition-opacity">
+pages\GestionPuestos.tsx:1764:                             <span className="material-symbols-outlined text-slate-500 
+text-[20px]">person_add</span>
+pages\GestionPuestos.tsx:1765:                             <span className="text-[9px] font-black uppercase 
+text-slate-500 tracking-wider">Vacante Operativa</span>
+pages\GestionPuestos.tsx:1766:                          </div>
+pages\GestionPuestos.tsx:1767:                       )}
+pages\GestionPuestos.tsx:1768:                     </div>
+pages\GestionPuestos.tsx:1769:                   </td>
+pages\GestionPuestos.tsx:1770:
+pages\GestionPuestos.tsx:1771:                   {daysArr.map((d) => {
+pages\GestionPuestos.tsx:1772:                     const asig = (prog?.asignaciones || []).find(
+pages\GestionPuestos.tsx:1773:                       (a: AsignacionDia) => a.dia === d && a.rol === per.rol
+pages\GestionPuestos.tsx:1774:                     ) || { dia: d, turno: per.turnoId || 'AM', jornada: "sin_asignar", 
+rol: per.rol };
+pages\GestionPuestos.tsx:1775:
+pages\GestionPuestos.tsx:1776:                     const dow = new Date(anio, mes, d).getDay();
+pages\GestionPuestos.tsx:1777:                     const isWeekend = dow === 0 || dow === 6;
+pages\GestionPuestos.tsx:1778:
+pages\GestionPuestos.tsx:1779:                     // Detectar conflicto: mismo vigilante asignado en otro puesto ese 
+día
+pages\GestionPuestos.tsx:1780:                     const hasConflict = asig.vigilanteId && asig.jornada !== 
+'sin_asignar'
+pages\GestionPuestos.tsx:1781:                       ? conflictMap.has(`${asig.vigilanteId}-${d}`)
+pages\GestionPuestos.tsx:1782:                       : false;
+pages\GestionPuestos.tsx:1783:                     const conflictDetail = hasConflict 
+pages\GestionPuestos.tsx:1784:                       ? conflictMap.get(`${asig.vigilanteId}-${d}`) || ''
+pages\GestionPuestos.tsx:1785:                       : '';
+pages\GestionPuestos.tsx:1786:
+pages\GestionPuestos.tsx:1787:                     return (
+pages\GestionPuestos.tsx:1788:                       <td key={d} style={{ padding: 10, width: 130 }} 
+className={`border-r border-white/5 transition-all outline-none ${isWeekend ? 'bg-white/[0.04]' : 
+'group-hover/row:bg-white/[0.08]'}`}>
+pages\GestionPuestos.tsx:1789:                         <CeldaCalendario
+pages\GestionPuestos.tsx:1790:                           asig={asig}
+pages\GestionPuestos.tsx:1791:                           vigilanteNombre={asig.vigilanteId ? 
+(vigilanteMap.get(asig.vigilanteId) || "Asignado") : undefined}
+pages\GestionPuestos.tsx:1792:                           onEdit={() => setEditCell({ asig, progId: prog?.id || '', 
+preSelectVigilanteId: per.vigilanteId || undefined })}
+pages\GestionPuestos.tsx:1793:                           turnosConfig={turnosConfig}
+pages\GestionPuestos.tsx:1794:                           jornadasCustom={jornadasCustom}
+pages\GestionPuestos.tsx:1795:                           hasConflict={hasConflict}
+pages\GestionPuestos.tsx:1796:                           conflictDetail={conflictDetail}
+pages\GestionPuestos.tsx:1798:                         />
+pages\GestionPuestos.tsx:1799:                       </td>
+pages\GestionPuestos.tsx:1800:                     );
+pages\GestionPuestos.tsx:1801:                   })}
+pages\GestionPuestos.tsx:1802:                 </tr>
+pages\GestionPuestos.tsx:1803:                );
+pages\GestionPuestos.tsx:1804:              })}
+pages\GestionPuestos.tsx:1805:            </tbody>
+pages\GestionPuestos.tsx:1806:          </table>
+pages\GestionPuestos.tsx:1807:        </div>
+pages\GestionPuestos.tsx:1808:      </div>
+pages\GestionPuestos.tsx:1809:
+pages\GestionPuestos.tsx:1810:      <CoordinationPanel
+pages\GestionPuestos.tsx:1811:        currentProg={freshCProg || null}
+pages\GestionPuestos.tsx:1812:        freshCProg={prog}
+pages\GestionPuestos.tsx:1813:        compareVigilanteId={compareVigilanteId}
+pages\GestionPuestos.tsx:1814:        setCompareVigilanteId={setCompareVigilanteId}
+pages\GestionPuestos.tsx:1815:        showEntireStaff={showEntireStaff}
+pages\GestionPuestos.tsx:1816:        setShowEntireStaff={setShowEntireStaff}
+pages\GestionPuestos.tsx:1817:        daysArr={daysArr}
+pages\GestionPuestos.tsx:1818:        onOpenEdit={(p) => setEditCell({ asig: p.asig, progId: p.progId, 
+preSelectVigilanteId: p.preSelectVigilanteId })}
+pages\GestionPuestos.tsx:1819:        hideBusyGuards={hideBusyGuards}
+pages\GestionPuestos.tsx:1820:        setHideBusyGuards={setHideBusyGuards}
+pages\GestionPuestos.tsx:1821:        compareProgId={compareProgId}
+pages\GestionPuestos.tsx:1822:        setCompareProgId={setCompareProgId}
+pages\GestionPuestos.tsx:1823:      />
+pages\GestionPuestos.tsx:1824:
+pages\GestionPuestos.tsx:1825:      {showPersonalModal && (
+pages\GestionPuestos.tsx:1826:        <GestionPersonalModal
+pages\GestionPuestos.tsx:1827:          prog={prog}
+pages\GestionPuestos.tsx:1828:          puestoNombre={nombrePuesto}
+pages\GestionPuestos.tsx:1829:          turnosConfig={turnosConfig}
+pages\GestionPuestos.tsx:1830:          onClose={() => setShowPersonalModal(false)}
+pages\GestionPuestos.tsx:1831:          onSave={handleSavePersonal}
+pages\GestionPuestos.tsx:1832:        />
+pages\GestionPuestos.tsx:1833:      )}
+pages\GestionPuestos.tsx:1834:      {editCell && (
+pages\GestionPuestos.tsx:1835:        <EditCeldaModal
+pages\GestionPuestos.tsx:1836:          asig={editCell.asig}
+pages\GestionPuestos.tsx:1837:          vigilantes={vigilantes}
+pages\GestionPuestos.tsx:1838:          titularesId={titularesId}
+pages\GestionPuestos.tsx:1839:          titulares={prog?.personal || []}
+pages\GestionPuestos.tsx:1840:          ocupados={ocupadosMap}
+pages\GestionPuestos.tsx:1841:          turnosConfig={turnosConfig}
+pages\GestionPuestos.tsx:1842:          jornadasCustom={jornadasCustom}
+pages\GestionPuestos.tsx:1843:          initialVigilanteId={editCell.preSelectVigilanteId}
+pages\GestionPuestos.tsx:1844:          diaLabel={(() => {
+pages\GestionPuestos.tsx:1845:            const d = new Date(anio, mes, editCell.asig.dia);
+pages\GestionPuestos.tsx:1846:            return d.toLocaleDateString('es', { weekday: 'long', day: 'numeric' });
+pages\GestionPuestos.tsx:1847:          })()}
+pages\GestionPuestos.tsx:1848:          onClose={() => setEditCell(null)}
+pages\GestionPuestos.tsx:1849:          onSave={(data) => {
+pages\GestionPuestos.tsx:1850:            const user = useAuthStore.getState().username || "Operador";
+pages\GestionPuestos.tsx:1851:            const result = (useProgramacionStore.getState() as any).actualizarAsignacion(
+pages\GestionPuestos.tsx:1852:              editCell.progId,
+pages\GestionPuestos.tsx:1853:              editCell.asig.dia,
+pages\GestionPuestos.tsx:1854:              data,
+pages\GestionPuestos.tsx:1855:              user
+pages\GestionPuestos.tsx:1856:            );
+pages\GestionPuestos.tsx:1857:            setEditCell(null);
+pages\GestionPuestos.tsx:1858:            if (result?.tipo === "bloqueo") {
+pages\GestionPuestos.tsx:1859:              showTacticalToast({
+pages\GestionPuestos.tsx:1860:                title: "⚠️ Conflicto",
+pages\GestionPuestos.tsx:1861:                message: result.mensaje,
+pages\GestionPuestos.tsx:1862:                type: "warning",
+pages\GestionPuestos.tsx:1863:                duration: 5000,
+pages\GestionPuestos.tsx:1864:              });
+pages\GestionPuestos.tsx:1865:            } else if (result?.tipo === "advertencia") {
+pages\GestionPuestos.tsx:1866:               showTacticalToast({
+pages\GestionPuestos.tsx:1867:                title: "✓ Doble Turno Registrado",
+pages\GestionPuestos.tsx:1868:                message: "Asignación confirmada con aviso de ocupación previa.",
+pages\GestionPuestos.tsx:1869:                type: "success",
+pages\GestionPuestos.tsx:1870:                duration: 4000,
+pages\GestionPuestos.tsx:1871:              });
+pages\GestionPuestos.tsx:1872:            } else {
+pages\GestionPuestos.tsx:1873:              showTacticalToast({
+pages\GestionPuestos.tsx:1874:                title: "✓ Despacho Exitoso",
+pages\GestionPuestos.tsx:1875:                message: "Asignación reflejada en el tablero táctico.",
+pages\GestionPuestos.tsx:1876:                type: "success",
+pages\GestionPuestos.tsx:1877:              });
+pages\GestionPuestos.tsx:1878:            }
+pages\GestionPuestos.tsx:1879:          }}
+pages\GestionPuestos.tsx:1880:        />
+pages\GestionPuestos.tsx:1881:      )}
+pages\GestionPuestos.tsx:1882:    </div>
+pages\GestionPuestos.tsx:1883:  );
+pages\GestionPuestos.tsx:1884:};
+pages\GestionPuestos.tsx:1885:
+pages\GestionPuestos.tsx:1886:const GestionPuestos = () => {
+pages\GestionPuestos.tsx:1887:  const [anio, setAnio] = useState(new Date().getFullYear());
+pages\GestionPuestos.tsx:1888:  const [mes, setMes] = useState(new Date().getMonth());
+pages\GestionPuestos.tsx:1889:  const [searchQuery, setSearchQuery] = useState("");
+pages\GestionPuestos.tsx:1890:  const [viewMode, setViewMode] = useState<'cards' | 'master_grid'>('cards');
+pages\GestionPuestos.tsx:1891:  const [isNewPuestoModalOpen, setIsNewPuestoModalOpen] = useState(false);
+pages\GestionPuestos.tsx:1892:  const [puestoToEdit, setPuestoToEdit] = useState<any>(null);
+pages\GestionPuestos.tsx:1893:  const [selectedPuesto, setSelectedPuesto] = useState<any>(null);
+pages\GestionPuestos.tsx:1894:
+pages\GestionPuestos.tsx:1895:  const { puestos, fetchPuestos, loaded: puestosLoaded } = usePuestoStore();
+pages\GestionPuestos.tsx:1896:  const { programaciones, fetchProgramaciones, loaded: progLoaded } = 
+useProgramacionStore();
+pages\GestionPuestos.tsx:1897:  const { vigilantes, fetchVigilantes } = useVigilanteStore();
+pages\GestionPuestos.tsx:1898:
+pages\GestionPuestos.tsx:1899:  const isInitialLoading = !puestosLoaded || !progLoaded;
+pages\GestionPuestos.tsx:1900:
+pages\GestionPuestos.tsx:1901:  useEffect(() => {
+pages\GestionPuestos.tsx:1902:    const bootstrap = async () => {
+pages\GestionPuestos.tsx:1903:      await fetchVigilantes();
+pages\GestionPuestos.tsx:1904:      await fetchPuestos();
+pages\GestionPuestos.tsx:1905:      await fetchProgramaciones();
+pages\GestionPuestos.tsx:1906:    };
+pages\GestionPuestos.tsx:1907:    bootstrap();
+pages\GestionPuestos.tsx:1908:  }, [fetchPuestos, fetchProgramaciones, fetchVigilantes]);
+pages\GestionPuestos.tsx:1909:
+pages\GestionPuestos.tsx:1910:  const [filterTab, setFilterTab] = useState<'todos' | 'alerta' | 'sin_personal' | 
+'publicados'>('todos');
+pages\GestionPuestos.tsx:1911:  const [visibleCount, setVisibleCount] = useState(60);
+pages\GestionPuestos.tsx:1912:  
+pages\GestionPuestos.tsx:1913:  const filteredPuestos = useMemo(() => {
+pages\GestionPuestos.tsx:1914:    const q = searchQuery.toLowerCase().trim();
+pages\GestionPuestos.tsx:1915:    const store = useProgramacionStore.getState();
+pages\GestionPuestos.tsx:1916:    let base = (puestos || []).filter(p => (p as any).estado !== 'inactivo');
+pages\GestionPuestos.tsx:1917:    if (q) {
+pages\GestionPuestos.tsx:1918:      base = base.filter(p => 
+pages\GestionPuestos.tsx:1919:        p.nombre?.toLowerCase().includes(q) ||
+pages\GestionPuestos.tsx:1920:        p.id?.toLowerCase().includes(q) ||
+pages\GestionPuestos.tsx:1921:        (p as any).direccion?.toLowerCase().includes(q)
+pages\GestionPuestos.tsx:1922:      );
+pages\GestionPuestos.tsx:1923:    }
+pages\GestionPuestos.tsx:1924:    if (filterTab === 'alerta') {
+pages\GestionPuestos.tsx:1925:      base = base.filter(p => {
+pages\GestionPuestos.tsx:1926:        const prog = store.getProgramacionRapid?.(p.id || p.dbId, anio, mes);
+pages\GestionPuestos.tsx:1927:        if (!prog?.id) return false;
+pages\GestionPuestos.tsx:1928:        return (store.getAlertas(prog.id) || []).length > 0;
+pages\GestionPuestos.tsx:1929:      });
+pages\GestionPuestos.tsx:1930:    } else if (filterTab === 'sin_personal') {
+pages\GestionPuestos.tsx:1931:      base = base.filter(p => {
+pages\GestionPuestos.tsx:1932:        const prog = store.getProgramacionRapid?.(p.id || p.dbId, anio, mes);
+pages\GestionPuestos.tsx:1933:        return !prog?.personal || prog.personal.filter((x: any) => x.vigilanteId).length 
+=== 0;
+pages\GestionPuestos.tsx:1934:      });
+pages\GestionPuestos.tsx:1935:    } else if (filterTab === 'publicados') {
+pages\GestionPuestos.tsx:1936:      base = base.filter(p => {
+pages\GestionPuestos.tsx:1937:        const prog = store.getProgramacionRapid?.(p.id || p.dbId, anio, mes);
+pages\GestionPuestos.tsx:1938:        return prog?.estado === 'publicado';
+pages\GestionPuestos.tsx:1939:      });
+pages\GestionPuestos.tsx:1940:    }
+pages\GestionPuestos.tsx:1941:    return base;
+pages\GestionPuestos.tsx:1942:  }, [puestos, searchQuery, filterTab, anio, mes]);
+pages\GestionPuestos.tsx:1943:
+pages\GestionPuestos.tsx:1944:  const pagedPuestos = useMemo(() => filteredPuestos.slice(0, visibleCount), 
+[filteredPuestos, visibleCount]);
+pages\GestionPuestos.tsx:1945:
+pages\GestionPuestos.tsx:1946:  if (selectedPuesto) {
+pages\GestionPuestos.tsx:1947:    return (
+pages\GestionPuestos.tsx:1948:      <PanelMensualPuesto
+pages\GestionPuestos.tsx:1949:        puestoId={selectedPuesto.dbId || selectedPuesto.id}
+pages\GestionPuestos.tsx:1950:        puestoNombre={selectedPuesto.nombre}
+pages\GestionPuestos.tsx:1951:        anio={anio}
+pages\GestionPuestos.tsx:1952:        mes={mes}
+pages\GestionPuestos.tsx:1953:        onClose={() => setSelectedPuesto(null)}
+pages\GestionPuestos.tsx:1954:      />
+pages\GestionPuestos.tsx:1955:    );
+pages\GestionPuestos.tsx:1956:  }
+pages\GestionPuestos.tsx:1957:
+pages\GestionPuestos.tsx:1958:  return (
+pages\GestionPuestos.tsx:1959:    <div className="h-screen flex flex-col bg-[#050b16]">
+pages\GestionPuestos.tsx:1960:      <header className="bg-[#0a1120] text-white px-10 py-6 border-b border-white/5 
+shrink-0 flex items-center justify-between shadow-2xl z-30 relative overflow-hidden">
+pages\GestionPuestos.tsx:1961:        <div className="absolute top-0 right-0 w-1/3 h-full bg-indigo-500/5 blur-[100px] 
+pointer-events-none"></div>
+pages\GestionPuestos.tsx:1962:        
+pages\GestionPuestos.tsx:1963:        <div className="flex items-center gap-8 flex-1">
+pages\GestionPuestos.tsx:1964:          <div className="flex flex-col">
+pages\GestionPuestos.tsx:1965:            <div className="flex items-center gap-2 mb-0.5">
+pages\GestionPuestos.tsx:1966:              <div className="size-2 bg-primary rounded-full animate-pulse 
+shadow-[0_0_8px_#4318ff]"></div>
+pages\GestionPuestos.tsx:1967:              <span className="text-[10px] font-black text-slate-500 uppercase 
+tracking-[0.4em]">SISTEMA DE CONTROL TÁCTICO</span>
+pages\GestionPuestos.tsx:1968:            </div>
+pages\GestionPuestos.tsx:1969:            <h1 className="text-3xl font-black text-white uppercase tracking-tighter 
+leading-none italic flex items-baseline gap-3">
+pages\GestionPuestos.tsx:1970:              GESTIÓN <span className="text-primary text-[28px] not-italic">DE</span> 
+<span className="bg-gradient-to-r from-white to-slate-500 bg-clip-text text-transparent not-italic">PUESTOS</span>
+pages\GestionPuestos.tsx:1971:            </h1>
+pages\GestionPuestos.tsx:1972:          </div>
+pages\GestionPuestos.tsx:1973:
+pages\GestionPuestos.tsx:1974:          <div className="flex items-center bg-black/50 border border-white/5 
+rounded-3xl p-1 ml-6 shadow-2xl backdrop-blur-xl">
+pages\GestionPuestos.tsx:1975:            <button 
+pages\GestionPuestos.tsx:1976:              onClick={() => { const d = new Date(anio, mes - 1); 
+setAnio(d.getFullYear()); setMes(d.getMonth()); }}
+pages\GestionPuestos.tsx:1977:              className="p-3 text-slate-500 hover:text-white transition-all transform 
+active:scale-90"
+pages\GestionPuestos.tsx:1978:            >
+pages\GestionPuestos.tsx:1979:              <span className="material-symbols-outlined 
+text-2xl">arrow_back_ios_new</span>
+pages\GestionPuestos.tsx:1980:            </button>
+pages\GestionPuestos.tsx:1981:            <div className="px-5 py-0.5 text-center min-w-[130px] border-x 
+border-white/5">
+pages\GestionPuestos.tsx:1982:              <p className="text-[9px] font-black text-primary uppercase 
+tracking-[0.4em] mb-0">{anio}</p>
+pages\GestionPuestos.tsx:1983:              <p className="text-[16px] font-black text-white uppercase tracking-[0.1em] 
+italic">{MONTH_NAMES[mes]}</p>
+pages\GestionPuestos.tsx:1984:            </div>
+pages\GestionPuestos.tsx:1985:            <button 
+pages\GestionPuestos.tsx:1986:              onClick={() => { const d = new Date(anio, mes + 1); 
+setAnio(d.getFullYear()); setMes(d.getMonth()); }}
+pages\GestionPuestos.tsx:1987:              className="p-3 text-slate-500 hover:text-white transition-all transform 
+active:scale-90"
+pages\GestionPuestos.tsx:1988:            >
+pages\GestionPuestos.tsx:1989:              <span className="material-symbols-outlined 
+text-2xl">arrow_forward_ios</span>
+pages\GestionPuestos.tsx:1990:            </button>
+pages\GestionPuestos.tsx:1991:          </div>
+pages\GestionPuestos.tsx:1992:        </div>
+pages\GestionPuestos.tsx:1993:
+pages\GestionPuestos.tsx:1994:        <div className="flex items-center gap-5">
+pages\GestionPuestos.tsx:1995:          <div className="flex bg-black/40 border border-white/5 rounded-3xl p-1.5 
+shadow-xl">
+pages\GestionPuestos.tsx:1996:            <button 
+pages\GestionPuestos.tsx:1997:              onClick={() => setViewMode('cards')}
+pages\GestionPuestos.tsx:1998:              className={`flex items-center gap-3 px-5 py-3 rounded-2xl text-[10px] 
+font-black uppercase tracking-widest transition-all ${viewMode === 'cards' ? 'bg-indigo-600 text-white shadow-lg 
+shadow-indigo-500/30' : 'text-slate-500 hover:text-white'}`}
+pages\GestionPuestos.tsx:1999:            >
+pages\GestionPuestos.tsx:2000:              <span className="material-symbols-outlined text-[18px]">grid_view</span>
+pages\GestionPuestos.tsx:2001:              <span>CARPETAS</span>
+pages\GestionPuestos.tsx:2002:            </button>
+pages\GestionPuestos.tsx:2003:            <button 
+pages\GestionPuestos.tsx:2004:              onClick={() => setViewMode('master_grid')}
+pages\GestionPuestos.tsx:2005:              className={`flex items-center gap-3 px-5 py-3 rounded-2xl text-[10px] 
+font-black uppercase tracking-widest transition-all ${viewMode === 'master_grid' ? 'bg-indigo-600 text-white shadow-lg 
+shadow-indigo-500/30' : 'text-slate-500 hover:text-white'}`}
+pages\GestionPuestos.tsx:2006:            >
+pages\GestionPuestos.tsx:2007:              <span className="material-symbols-outlined text-[18px]">table_chart</span>
+pages\GestionPuestos.tsx:2008:              <span>MAESTRO</span>
+pages\GestionPuestos.tsx:2009:            </button>
+pages\GestionPuestos.tsx:2010:          </div>
+pages\GestionPuestos.tsx:2011:
+pages\GestionPuestos.tsx:2012:          <button 
+pages\GestionPuestos.tsx:2013:            onClick={() => setIsNewPuestoModalOpen(true)}
+pages\GestionPuestos.tsx:2014:            className="flex items-center gap-3 bg-white text-black h-[54px] px-6 
+rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-primary hover:text-white transition-all 
+transform hover:-translate-y-1 active:scale-95 shadow-2xl relative overflow-hidden group"
+pages\GestionPuestos.tsx:2015:          >
+pages\GestionPuestos.tsx:2016:            <span className="material-symbols-outlined text-[20px]">add_location</span>
+pages\GestionPuestos.tsx:2017:            <span>Nuevo Objetivo</span>
+pages\GestionPuestos.tsx:2018:          </button>
+pages\GestionPuestos.tsx:2019:        </div>
+pages\GestionPuestos.tsx:2020:      </header>
+pages\GestionPuestos.tsx:2021:
+pages\GestionPuestos.tsx:2022:      <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 
+'#050b16' }}>
+pages\GestionPuestos.tsx:2023:        {viewMode === 'cards' ? (
+pages\GestionPuestos.tsx:2024:          <div className="flex-1 flex flex-col overflow-hidden px-10 pt-8 pb-8">
+pages\GestionPuestos.tsx:2025:            {/* ═══ STAT CARDS ═══ */}
+pages\GestionPuestos.tsx:2026:            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-10 shrink-0">
+pages\GestionPuestos.tsx:2027:               <KpiCard
+pages\GestionPuestos.tsx:2028:                  label="Total Puestos"
+pages\GestionPuestos.tsx:2029:                  value={(puestos||[]).filter(p=>(p as any).estado!=='inactivo').length}
+pages\GestionPuestos.tsx:2030:                  icon="shield"
+pages\GestionPuestos.tsx:2031:                  color="indigo"
+pages\GestionPuestos.tsx:2032:                  sub="Red Operativa Activa"
+pages\GestionPuestos.tsx:2033:                  trend="neutral"
+pages\GestionPuestos.tsx:2034:                  trendValue="0"
+pages\GestionPuestos.tsx:2035:                  detail="Capacidad total instalada"
+pages\GestionPuestos.tsx:2036:               />
+pages\GestionPuestos.tsx:2037:               <KpiCard
+pages\GestionPuestos.tsx:2038:                  label="Cubiertos"
+pages\GestionPuestos.tsx:2039:                  value={(puestos||[]).filter(p=>(p as any).estado==='cubierto').length}
+pages\GestionPuestos.tsx:2040:                  icon="verified_user"
+pages\GestionPuestos.tsx:2041:                  color="emerald"
+pages\GestionPuestos.tsx:2042:                  sub="Personal en Servicio"
+pages\GestionPuestos.tsx:2043:                  trend="up"
+pages\GestionPuestos.tsx:2044:                  trendValue="+2"
+pages\GestionPuestos.tsx:2045:                  detail="Personal con puesto asignado"
+pages\GestionPuestos.tsx:2046:               />
+pages\GestionPuestos.tsx:2047:               <KpiCard
+pages\GestionPuestos.tsx:2048:                  label="Con Alertas"
+pages\GestionPuestos.tsx:2049:                  value={programaciones.filter(pg => pg.anio===anio && pg.mes===mes && 
+((useProgramacionStore.getState() as any).getAlertas(pg.id)||[]).length>0).length}
+pages\GestionPuestos.tsx:2050:                  icon="priority_high"
+pages\GestionPuestos.tsx:2051:                  color="red"
+pages\GestionPuestos.tsx:2052:                  sub="Atención Crítica"
+pages\GestionPuestos.tsx:2053:                  trend="down"
+pages\GestionPuestos.tsx:2054:                  trendValue="-5"
+pages\GestionPuestos.tsx:2055:                  detail="Conflictos o vacantes críticas"
+pages\GestionPuestos.tsx:2056:               />
+pages\GestionPuestos.tsx:2057:               <KpiCard
+pages\GestionPuestos.tsx:2058:                  label="Sin Asignar"
+pages\GestionPuestos.tsx:2059:                  value={programaciones.filter(pg => pg.anio===anio && pg.mes===mes && 
+pg.personal.filter((x:any)=>x.vigilanteId).length===0).length}
+pages\GestionPuestos.tsx:2060:                  icon="person_search"
+pages\GestionPuestos.tsx:2061:                  color="amber"
+pages\GestionPuestos.tsx:2062:                  sub="Pendiente Despacho"
+pages\GestionPuestos.tsx:2063:                  trend="neutral"
+pages\GestionPuestos.tsx:2064:                  trendValue="--"
+pages\GestionPuestos.tsx:2065:                  detail="Objetivos sin nómina asignada"
+pages\GestionPuestos.tsx:2066:               />
+pages\GestionPuestos.tsx:2067:            </div>
+pages\GestionPuestos.tsx:2068:
+pages\GestionPuestos.tsx:2069:            {/* ═══ SEARCH + FILTERS TOOLBAR ═══ */}
+pages\GestionPuestos.tsx:2070:            <div className="flex flex-col xl:flex-row gap-4 mb-8 shrink-0">
+pages\GestionPuestos.tsx:2071:
+pages\GestionPuestos.tsx:2072:              {/* Ultra Elite Tactical Search Bar */}
+pages\GestionPuestos.tsx:2073:              <div className="relative flex-1 group z-10 w-full max-w-3xl">
+pages\GestionPuestos.tsx:2074:                {/* Neon Back-Glow Effect */}
+pages\GestionPuestos.tsx:2075:                <div
+pages\GestionPuestos.tsx:2076:                  className="absolute -inset-1 rounded-[20px] bg-gradient-to-r 
+from-indigo-500/0 via-indigo-500/20 to-primary/0 opacity-0 group-focus-within:opacity-100 blur-xl transition-all 
+duration-700 pointer-events-none"
+pages\GestionPuestos.tsx:2077:                />
+pages\GestionPuestos.tsx:2078:                
+pages\GestionPuestos.tsx:2079:                {/* Tech Frame Base */}
+pages\GestionPuestos.tsx:2080:                <div className="relative flex items-center h-[60px] rounded-[18px] 
+bg-black/40 backdrop-blur-2xl border border-white/5 
+shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_8px_32px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-500 
+group-focus-within:border-indigo-500/50 group-focus-within:bg-indigo-950/20 group-hover:border-white/10 
+group-focus-within:shadow-[0_0_30px_rgba(99,102,241,0.2),inset_0_0_20px_rgba(99,102,241,0.1)]">
+pages\GestionPuestos.tsx:2081:                  
+pages\GestionPuestos.tsx:2082:                  {/* Left Icon Area - Tactical HUD style */}
+pages\GestionPuestos.tsx:2083:                  <div className="relative flex items-center justify-center w-16 h-full 
+border-r border-white/5 bg-white/[0.02] group-focus-within:bg-indigo-500/10 group-focus-within:border-indigo-500/30 
+transition-all duration-500 shrink-0">
+pages\GestionPuestos.tsx:2084:                    <span className="material-symbols-outlined text-[24px] 
+text-slate-500 group-focus-within:text-indigo-400 group-focus-within:drop-shadow-[0_0_8px_rgba(129,140,248,0.8)] 
+transition-all duration-500">
+pages\GestionPuestos.tsx:2085:                      radar
+pages\GestionPuestos.tsx:2086:                    </span>
+pages\GestionPuestos.tsx:2087:                    {/* Animated scanning line on focus */}
+pages\GestionPuestos.tsx:2088:                    <div className="absolute top-0 bottom-0 left-0 w-[2px] bg-indigo-500 
+opacity-0 group-focus-within:opacity-100 group-focus-within:shadow-[0_0_10px_#6366f1] transition-opacity duration-300" 
+/>
+pages\GestionPuestos.tsx:2089:                  </div>
+pages\GestionPuestos.tsx:2090:
+pages\GestionPuestos.tsx:2091:                  {/* Input Field */}
+pages\GestionPuestos.tsx:2092:                  <input
+pages\GestionPuestos.tsx:2093:                    value={searchQuery}
+pages\GestionPuestos.tsx:2094:                    onChange={e => setSearchQuery(e.target.value)}
+pages\GestionPuestos.tsx:2095:                    placeholder="LOCALIZAR PUESTO O CÓDIGO TÁCTICO..."
+pages\GestionPuestos.tsx:2096:                    className="w-full h-full bg-transparent border-none outline-none 
+px-5 font-black text-white text-[13px] tracking-[0.15em] uppercase placeholder:text-slate-600 placeholder:font-bold 
+placeholder:tracking-widest transition-all duration-300"
+pages\GestionPuestos.tsx:2097:                  />
+pages\GestionPuestos.tsx:2098:                  
+pages\GestionPuestos.tsx:2099:                  {/* Status Indicator (Right side inside) */}
+pages\GestionPuestos.tsx:2100:                  {!searchQuery && (
+pages\GestionPuestos.tsx:2101:                    <div className="hidden sm:flex items-center gap-2 pr-5 
+pointer-events-none opacity-50 group-focus-within:opacity-100 transition-opacity">
+pages\GestionPuestos.tsx:2102:                      <div className="flex gap-1">
+pages\GestionPuestos.tsx:2103:                        <div className="w-1.5 h-1.5 rounded-sm bg-slate-600 
+group-focus-within:bg-indigo-500 group-focus-within:animate-pulse" />
+pages\GestionPuestos.tsx:2104:                        <div className="w-1.5 h-1.5 rounded-sm bg-slate-700 
+group-focus-within:bg-indigo-500/60 group-focus-within:animate-pulse delay-75" />
+pages\GestionPuestos.tsx:2105:                        <div className="w-1.5 h-1.5 rounded-sm bg-slate-800 
+group-focus-within:bg-indigo-500/30 group-focus-within:animate-pulse delay-150" />
+pages\GestionPuestos.tsx:2106:                      </div>
+pages\GestionPuestos.tsx:2107:                      <span className="text-[9px] font-black tracking-[0.3em] 
+text-slate-500 group-focus-within:text-indigo-400 uppercase">Input</span>
+pages\GestionPuestos.tsx:2108:                    </div>
+pages\GestionPuestos.tsx:2109:                  )}
+pages\GestionPuestos.tsx:2110:
+pages\GestionPuestos.tsx:2111:                  {/* Clear Button */}
+pages\GestionPuestos.tsx:2112:                  {searchQuery && (
+pages\GestionPuestos.tsx:2113:                    <button
+pages\GestionPuestos.tsx:2114:                      onClick={() => setSearchQuery('')}
+pages\GestionPuestos.tsx:2115:                      className="absolute right-3 top-1/2 -translate-y-1/2 size-9 flex 
+items-center justify-center rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all 
+duration-300 hover:shadow-[0_0_15px_rgba(244,63,94,0.5)] border border-rose-500/20 animate-in fade-in zoom-in"
+pages\GestionPuestos.tsx:2116:                    >
+pages\GestionPuestos.tsx:2117:                      <span className="material-symbols-outlined 
+text-[18px]">close</span>
+pages\GestionPuestos.tsx:2118:                    </button>
+pages\GestionPuestos.tsx:2119:                  )}
+pages\GestionPuestos.tsx:2120:                  
+pages\GestionPuestos.tsx:2121:                  {/* Bottom animated border line representing connection */}
+pages\GestionPuestos.tsx:2122:                  <div className="absolute bottom-0 left-0 h-[2px] bg-gradient-to-r 
+from-transparent via-indigo-500 to-transparent w-full opacity-0 group-focus-within:opacity-100 scale-x-0 
+group-focus-within:scale-x-100 transition-all duration-700 ease-out origin-left" />
+pages\GestionPuestos.tsx:2123:                </div>
+pages\GestionPuestos.tsx:2124:              </div>
+pages\GestionPuestos.tsx:2125:
+pages\GestionPuestos.tsx:2126:              {/* Filter Pills with Result Counter */}
+pages\GestionPuestos.tsx:2127:              <div
+pages\GestionPuestos.tsx:2128:                className="flex flex-col sm:flex-row gap-2 p-1.5"
+pages\GestionPuestos.tsx:2129:                style={{
+pages\GestionPuestos.tsx:2130:                  background: 'rgba(255,255,255,0.02)',
+pages\GestionPuestos.tsx:2131:                  border: '1px solid rgba(255,255,255,0.06)',
+pages\GestionPuestos.tsx:2132:                  borderRadius: '20px',
+pages\GestionPuestos.tsx:2133:                  backdropFilter: 'blur(30px)',
+pages\GestionPuestos.tsx:2134:                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)'
+pages\GestionPuestos.tsx:2135:                }}
+pages\GestionPuestos.tsx:2136:              >
+pages\GestionPuestos.tsx:2137:                {[
+pages\GestionPuestos.tsx:2138:                  { id: 'todos',        label: 'TODOS',      icon: 'apps',       accent: 
+'#5B6EE8' },
+pages\GestionPuestos.tsx:2139:                  { id: 'alerta',       label: 'ALERTAS',    icon: 'bolt',       accent: 
+'#FF4C4C' },
+pages\GestionPuestos.tsx:2140:                  { id: 'sin_personal', label: 'VACÍOS',     icon: 'person_off', accent: 
+'#F5A623' },
+pages\GestionPuestos.tsx:2141:                  { id: 'publicados',   label: 'OPERATIVOS', icon: 'verified',   accent: 
+'#00C97B' },
+pages\GestionPuestos.tsx:2142:                ].map(t => {
+pages\GestionPuestos.tsx:2143:                   const count = (t.id === 'todos') ? (puestos||[]).filter(p=>(p as 
+any).estado!=='inactivo').length : 
+pages\GestionPuestos.tsx:2144:                                 (t.id === 'alerta') ? filteredPuestos.filter(p => {
+pages\GestionPuestos.tsx:2145:                                   const store = useProgramacionStore.getState();
+pages\GestionPuestos.tsx:2146:                                   const prog = store.getProgramacionRapid?.(p.id || 
+p.dbId, anio, mes);
+pages\GestionPuestos.tsx:2147:                                   return prog?.id && (store.getAlertas(prog.id) || 
+[]).length > 0;
+pages\GestionPuestos.tsx:2148:                                 }).length :
+pages\GestionPuestos.tsx:2149:                                 (t.id === 'sin_personal') ? filteredPuestos.filter(p => 
+{
+pages\GestionPuestos.tsx:2150:                                   const store = useProgramacionStore.getState();
+pages\GestionPuestos.tsx:2151:                                   const prog = store.getProgramacionRapid?.(p.id || 
+p.dbId, anio, mes);
+pages\GestionPuestos.tsx:2152:                                   return !prog?.personal || prog.personal.filter((x: 
+any) => x.vigilanteId).length === 0;
+pages\GestionPuestos.tsx:2153:                                 }).length : 
+pages\GestionPuestos.tsx:2154:                                 filteredPuestos.filter(p => {
+pages\GestionPuestos.tsx:2155:                                   const store = useProgramacionStore.getState();
+pages\GestionPuestos.tsx:2156:                                   const prog = store.getProgramacionRapid?.(p.id || 
+p.dbId, anio, mes);
+pages\GestionPuestos.tsx:2157:                                   return prog?.estado === 'publicado';
+pages\GestionPuestos.tsx:2158:                                 }).length;
+pages\GestionPuestos.tsx:2159:
+pages\GestionPuestos.tsx:2160:                   return (
+pages\GestionPuestos.tsx:2161:                      <button
+pages\GestionPuestos.tsx:2162:                        key={t.id}
+pages\GestionPuestos.tsx:2163:                        onClick={() => setFilterTab(t.id as any)}
+pages\GestionPuestos.tsx:2164:                        className="relative flex items-center justify-between gap-3 px-5 
+py-3 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all duration-300"
+pages\GestionPuestos.tsx:2165:                        style={filterTab === t.id ? {
+pages\GestionPuestos.tsx:2166:                          background: `${t.accent}15`,
+pages\GestionPuestos.tsx:2167:                          border: `1px solid ${t.accent}40`,
+pages\GestionPuestos.tsx:2168:                          color: t.accent,
+pages\GestionPuestos.tsx:2169:                          boxShadow: `0 4px 16px ${t.accent}10`
+pages\GestionPuestos.tsx:2170:                        } : {
+pages\GestionPuestos.tsx:2171:                          color: '#64748b'
+pages\GestionPuestos.tsx:2172:                        }}
+pages\GestionPuestos.tsx:2173:                      >
+pages\GestionPuestos.tsx:2174:                        <div className="flex items-center gap-2">
+pages\GestionPuestos.tsx:2175:                          <span className="material-symbols-outlined 
+text-[16px]">{t.icon}</span>
+pages\GestionPuestos.tsx:2176:                          <span className="hidden lg:inline">{t.label}</span>
+pages\GestionPuestos.tsx:2177:                        </div>
+pages\GestionPuestos.tsx:2178:                        <span className={`px-2 py-0.5 rounded-md text-[8px] font-black 
+${filterTab === t.id ? 'bg-white text-black' : 'bg-white/5 text-slate-500'}`}>
+pages\GestionPuestos.tsx:2179:                          {count}
+pages\GestionPuestos.tsx:2180:                        </span>
+pages\GestionPuestos.tsx:2181:                      </button>
+pages\GestionPuestos.tsx:2182:                   );
+pages\GestionPuestos.tsx:2183:                })}
+pages\GestionPuestos.tsx:2184:              </div>
+pages\GestionPuestos.tsx:2185:
+pages\GestionPuestos.tsx:2186:              {/* Refresh Button */}
+pages\GestionPuestos.tsx:2187:              <button
+pages\GestionPuestos.tsx:2188:                onClick={() => useProgramacionStore.getState().forceSync()}
+pages\GestionPuestos.tsx:2189:                disabled={!progLoaded}
+pages\GestionPuestos.tsx:2190:                className="group relative flex items-center gap-3 px-6 py-2.5 
+text-[11px] font-black uppercase tracking-widest overflow-hidden transition-all duration-500 disabled:opacity-30"
+pages\GestionPuestos.tsx:2191:                style={{
+pages\GestionPuestos.tsx:2192:                  background: 'linear-gradient(135deg, rgba(255,255,255,0.04), 
+rgba(0,0,0,0.2))',
+pages\GestionPuestos.tsx:2193:                  border: '1px solid rgba(255,255,255,0.08)',
+pages\GestionPuestos.tsx:2194:                  borderRadius: '16px',
+pages\GestionPuestos.tsx:2195:                  backdropFilter: 'blur(20px)',
+pages\GestionPuestos.tsx:2196:                  color: '#475569'
+pages\GestionPuestos.tsx:2197:                }}
+pages\GestionPuestos.tsx:2198:                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 
+'#818cf8'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(99,102,241,0.35)'; }}
+pages\GestionPuestos.tsx:2199:                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 
+'#475569'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)'; }}
+pages\GestionPuestos.tsx:2200:              >
+pages\GestionPuestos.tsx:2201:                <span className="material-symbols-outlined text-[20px] 
+transition-transform duration-700 group-hover:rotate-180">sync</span>
+pages\GestionPuestos.tsx:2202:                <span className="hidden xl:inline">ACTUALIZAR</span>
+pages\GestionPuestos.tsx:2203:              </button>
+pages\GestionPuestos.tsx:2204:            </div>
+pages\GestionPuestos.tsx:2205:
+pages\GestionPuestos.tsx:2206:            <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
+pages\GestionPuestos.tsx:2207:              {isInitialLoading ? (
+pages\GestionPuestos.tsx:2208:                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 
+xl:grid-cols-4 gap-6 animate-pulse">
+pages\GestionPuestos.tsx:2209:                  {[1,2,3,4,5,6,7,8].map(i => (
+pages\GestionPuestos.tsx:2210:                    <div key={i} className="h-48 rounded-[35px] bg-white/[0.02]" />
+pages\GestionPuestos.tsx:2211:                  ))}
+pages\GestionPuestos.tsx:2212:                </div>
+pages\GestionPuestos.tsx:2213:              ) : pagedPuestos.length === 0 ? (
+pages\GestionPuestos.tsx:2214:                <div className="flex flex-col items-center justify-center py-24 border 
+border-white/5 rounded-[35px] bg-black/20 animate-in fade-in duration-1000">
+pages\GestionPuestos.tsx:2215:                  <div className="relative mb-8">
+pages\GestionPuestos.tsx:2216:                     <div className="absolute -inset-4 bg-indigo-500/10 blur-2xl 
+rounded-full animate-pulse" />
+pages\GestionPuestos.tsx:2217:                     <span className="material-symbols-outlined text-[64px] 
+text-slate-800 relative z-10 font-thin">scanning</span>
+pages\GestionPuestos.tsx:2218:                  </div>
+pages\GestionPuestos.tsx:2219:                  <h3 className="text-xl font-black text-white uppercase 
+tracking-tighter mb-2 italic">Señal Perdida</h3>
+pages\GestionPuestos.tsx:2220:                  <p className="text-[10px] font-black text-slate-500 uppercase 
+tracking-[0.3em] text-center max-w-[300px] leading-relaxed mb-8">
+pages\GestionPuestos.tsx:2221:                    El Centro de Mando no identifica objetivos activos con el filtro 
+actual.
+pages\GestionPuestos.tsx:2222:                  </p>
+pages\GestionPuestos.tsx:2223:                  <button 
+pages\GestionPuestos.tsx:2224:                    onClick={() => {
+pages\GestionPuestos.tsx:2225:                        showTacticalToast({ title: '🔄 Re-Escaneando Matrix', message: 
+'Intentando recuperar enlace con la base de datos...', type: 'info' });
+pages\GestionPuestos.tsx:2226:                        useProgramacionStore.getState().forceSync();
+pages\GestionPuestos.tsx:2227:                    }}
+pages\GestionPuestos.tsx:2228:                    className="flex items-center gap-3 px-8 py-4 bg-white/05 
+hover:bg-white/10 border border-white/10 rounded-2xl text-[10px] font-black text-white uppercase tracking-widest 
+transition-all group"
+pages\GestionPuestos.tsx:2229:                  >
+pages\GestionPuestos.tsx:2230:                    <span className="material-symbols-outlined text-[18px] 
+group-hover:rotate-180 transition-transform duration-500">terminal</span>
+pages\GestionPuestos.tsx:2231:                    RECONECTAR SISTEMA
+pages\GestionPuestos.tsx:2232:                  </button>
+pages\GestionPuestos.tsx:2233:                </div>
+pages\GestionPuestos.tsx:2234:              ) : (
+pages\GestionPuestos.tsx:2235:                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 
+xl:grid-cols-4 gap-6 pb-20">
+pages\GestionPuestos.tsx:2236:                  {pagedPuestos.map(p => (
+pages\GestionPuestos.tsx:2237:                    <PuestoCard 
+pages\GestionPuestos.tsx:2238:                      key={p.id} 
+pages\GestionPuestos.tsx:2239:                      puesto={p} 
+pages\GestionPuestos.tsx:2240:                      anio={anio} 
+pages\GestionPuestos.tsx:2241:                      mes={mes} 
+pages\GestionPuestos.tsx:2242:                      onClick={() => {
+pages\GestionPuestos.tsx:2243:                        try {
+pages\GestionPuestos.tsx:2244:                          setSelectedPuesto({ dbId: p.dbId || p.id, nombre: p.nombre });
+pages\GestionPuestos.tsx:2245:                        } catch (err) {
+pages\GestionPuestos.tsx:2246:                          console.error('Click Error:', err);
+pages\GestionPuestos.tsx:2247:                          showTacticalToast({ title: 'Error de Enlace', message: 'No se 
+pudo abrir el panel del puesto.', type: 'error' });
+pages\GestionPuestos.tsx:2248:                        }
+pages\GestionPuestos.tsx:2249:                      }} 
+pages\GestionPuestos.tsx:2250:                    />
+pages\GestionPuestos.tsx:2251:                  ))}
+pages\GestionPuestos.tsx:2252:                </div>
+pages\GestionPuestos.tsx:2253:              )}
+pages\GestionPuestos.tsx:2254:              {visibleCount < filteredPuestos.length && (
+pages\GestionPuestos.tsx:2255:                <div className="flex justify-center pt-8 pb-12">
+pages\GestionPuestos.tsx:2256:                  <button onClick={() => setVisibleCount(v => v + 60)} className="px-12 
+py-4 bg-primary hover:bg-indigo-500 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest 
+transition-all shadow-2xl">
+pages\GestionPuestos.tsx:2257:                    Expandir Red
+pages\GestionPuestos.tsx:2258:                  </button>
+pages\GestionPuestos.tsx:2259:                </div>
+pages\GestionPuestos.tsx:2260:              )}
+pages\GestionPuestos.tsx:2261:            </div>
+pages\GestionPuestos.tsx:2262:          </div>
+pages\GestionPuestos.tsx:2263:        ) : (
+pages\GestionPuestos.tsx:2264:          <MasterGrid
+pages\GestionPuestos.tsx:2265:            anio={anio}
+pages\GestionPuestos.tsx:2266:            mes={mes}
+pages\GestionPuestos.tsx:2267:            filteredPuestos={filteredPuestos}
+pages\GestionPuestos.tsx:2268:            programaciones={programaciones}
+pages\GestionPuestos.tsx:2269:            isInitialLoading={isInitialLoading}
+pages\GestionPuestos.tsx:2270:            onSelectPuesto={setSelectedPuesto}
+pages\GestionPuestos.tsx:2271:            onEditPuesto={(p) => { setPuestoToEdit(p); setIsNewPuestoModalOpen(true); }}
+pages\GestionPuestos.tsx:2272:          />
+pages\GestionPuestos.tsx:2273:        )}
+pages\GestionPuestos.tsx:2274:      </main>
+pages\GestionPuestos.tsx:2275:
+pages\GestionPuestos.tsx:2276:      <PuestoModal isOpen={isNewPuestoModalOpen} puestoId={puestoToEdit?.id} onClose={() 
+=> { setIsNewPuestoModalOpen(false); setPuestoToEdit(null); }} onCreated={() => fetchPuestos()} />
+pages\GestionPuestos.tsx:2277:    </div>
+pages\GestionPuestos.tsx:2278:  );
+pages\GestionPuestos.tsx:2279:};
+pages\GestionPuestos.tsx:2280:
+pages\GestionPuestos.tsx:2281:export default GestionPuestos;
+pages\GestionPuestos.tsx:2282:
+pages\GestionPuestos.tsx:2283:
+
+

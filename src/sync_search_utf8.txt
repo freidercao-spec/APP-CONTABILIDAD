@@ -1,0 +1,42 @@
+﻿App.tsx:117:        s.programaciones.filter(p => p.syncStatus === 'pending' || p.syncStatus === 'error').length
+components\puestos\CeldaCalendario.tsx:13:  syncStatus?: 'synced' | 'pending' | 'error';
+components\puestos\CeldaCalendario.tsx:119:  syncStatus,
+components\puestos\CeldaCalendario.tsx:190:      {syncStatus === 'pending' && (
+components\puestos\CeldaCalendario.tsx:196:      {syncStatus === 'error' && (
+components\puestos\CoordinationPanel.tsx:628:  syncStatus?: 'synced' | 'pending' | 'error';
+components\puestos\CoordinationPanel.tsx:631:export const PuestoMensualOverlay = ({ puestoId, puestoNombre, anio, mes, onClose, syncStatus }: PanelMensualPuestoProps) => {
+components\puestos\CoordinationPanel.tsx:661:      {syncStatus === 'pending' && (
+components\puestos\CoordinationPanel.tsx:667:      {syncStatus === 'error' && (
+pages\GestionPuestos.tsx:1313:            prog?.syncStatus === 'error' ? 'bg-rose-50 border-rose-200' : 'bg-slate-100 border-slate-200'
+pages\GestionPuestos.tsx:1320:            ) : prog?.syncStatus === 'error' ? (
+pages\GestionPuestos.tsx:1331:            ) : prog?.syncStatus === 'pending' ? (
+pages\GestionPuestos.tsx:1610:          {prog?.syncStatus === "synced" && (
+pages\GestionPuestos.tsx:1618:          {prog?.syncStatus === "pending" && (
+pages\GestionPuestos.tsx:1796:                           syncStatus={prog?.syncStatus}
+store\programacionStore.ts:131:    syncStatus?: 'synced' | 'pending' | 'error';
+store\programacionStore.ts:367:                        p.id === prog.id ? { ...p, id: dbProgId, syncStatus: 'synced' as const } : p
+store\programacionStore.ts:375:                        p.id === prog.id ? { ...p, syncStatus: 'synced' as const } : p
+store\programacionStore.ts:419:                    p.id === progId ? { ...p, syncStatus: 'synced' as const, version: res.serverVersion } : p
+store\programacionStore.ts:421:                isSyncing: get().programaciones.some((p: any) => p.syncStatus === 'pending') || pendingSyncs.size > 0
+store\programacionStore.ts:451:                        p.id === progId ? { ...p, syncStatus: 'error' as const } : p
+store\programacionStore.ts:469:            p.id === progId ? { ...p, syncStatus: 'pending' as const } : p
+store\programacionStore.ts:494:                return s.programaciones.some(p => p.syncStatus === 'pending') || pendingSyncs.size > 0;
+store\programacionStore.ts:560:                            syncStatus: 'synced' as const,
+store\programacionStore.ts:581:                                    if (existing.syncStatus === 'pending' || existing.syncStatus === 'error') {
+store\programacionStore.ts:697:                            const localIsPending = p.syncStatus === 'pending';
+store\programacionStore.ts:701:                            if (localIsPending || p.syncStatus === 'error') {
+store\programacionStore.ts:826:                            version: row.version || 1, historialCambios: row.historialCambios || [], syncStatus: 'synced' as const
+store\programacionStore.ts:846:                                if (existing.syncStatus === 'pending') {
+store\programacionStore.ts:952:                    version: 1, historialCambios: [], syncStatus: 'pending',
+store\programacionStore.ts:963:                    if (latest && latest.id === newProg.id && latest.syncStatus === 'pending') {
+store\programacionStore.ts:1006:                        ...p, personal, actualizadoEn: new Date().toISOString(), syncStatus: 'pending' as const
+store\programacionStore.ts:1089:                        syncStatus: 'pending' as const,
+store\programacionStore.ts:1232:                            ? { ...p, personal, asignaciones: newAsignaciones, actualizadoEn: new Date().toISOString(), syncStatus: 'pending' as const }
+store\programacionStore.ts:1259:                    programaciones: s.programaciones.map(p => p.id !== progId ? p : { ...p, estado: 'publicado', syncStatus: 'pending' })
+store\programacionStore.ts:1266:                    programaciones: s.programaciones.map(p => p.id !== progId ? p : { ...p, estado: 'borrador', syncStatus: 'pending' })
+store\programacionStore.ts:1339:                            syncStatus: 'pending', 
+store\programacionStore.ts:1623:                const pending = s.programaciones.filter(p => p.syncStatus === 'pending' || p.syncStatus === 'error');
+store\programacionStore.ts:1635:                        if (prog && prog.syncStatus !== 'synced') {
+store\programacionStore.ts:1649:                const pending = s.programaciones.filter(p => p.syncStatus === 'pending' || p.syncStatus === 'error');
+store\programacionStore.ts:1678:                    syncStatus: p.syncStatus === 'pending' ? 'pending' : 'synced' // Preservar pendientes
+store\programacionTypes.ts:45:    syncStatus?: 'synced' | 'pending' | 'error';

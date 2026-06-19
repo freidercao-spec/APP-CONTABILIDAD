@@ -1,0 +1,218 @@
+﻿node.exe : Retrieving 
+projectÔÇª
+En línea: 1 Carácter: 1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (R  
+  etrieving projectÔÇª:   
+ String) [], RemoteExc    
+eption
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+Fetching deployments in 
+freidercao-specs-projects
+> Production deployments 
+for freidercao-specs-proje
+cts/coraza-cta-app [209ms]
+
+  Age     Project         
+                          
+   Deployment             
+                          
+                     
+Status      Environment   
+  Duration     Username   
+         
+  2m      freidercao-specs
+-projects/coraza-cta-app  
+   https://coraza-cta-mwck
+qieqa-freidercao-specs-pro
+jects.vercel.app     ÔùÅ 
+Ready     Production      
+11s          
+freidercao-spec     
+  1h      freidercao-specs
+-projects/coraza-cta-app  
+   https://coraza-cta-clwt
+zw1gx-freidercao-specs-pro
+jects.vercel.app     ÔùÅ 
+Ready     Production      
+12s          
+freidercao-spec     
+  1h      freidercao-specs
+-projects/coraza-cta-app  
+   https://coraza-cta-rjjf
+vq5oz-freidercao-specs-pro
+jects.vercel.app     ÔùÅ 
+Ready     Production      
+11s          
+freidercao-spec     
+  1h      freidercao-specs
+-projects/coraza-cta-app  
+   https://coraza-cta-rawu
+eogb1-freidercao-specs-pro
+jects.vercel.app     ÔùÅ 
+Ready     Production      
+11s          
+freidercao-spec     
+  3h      freidercao-specs
+-projects/coraza-cta-app  
+   https://coraza-cta-bofq
+815x9-freidercao-specs-pro
+jects.vercel.app     ÔùÅ 
+Ready     Production      
+10s          
+freidercao-spec     
+https://coraza-cta-mwckqieqa-freidercao-specs-projects.vercel.app
+https://coraza-cta-clwtzw1gx-freidercao-specs-projects.vercel.app
+https://coraza-cta-rjjfvq5oz-freidercao-specs-projects.vercel.app
+https://coraza-cta-rawueogb1-freidercao-specs-projects.vercel.app
+https://coraza-cta-bofq815x9-freidercao-specs-projects.vercel.app
+https://coraza-cta-p6f4juugr-freidercao-specs-projects.vercel.app
+https://coraza-cta-eisnmmt4w-freidercao-specs-projects.vercel.app
+https://coraza-cta-hontu9b6o-freidercao-specs-projects.vercel.app
+https://coraza-cta-py11at0b0-freidercao-specs-projects.vercel.app
+https://coraza-cta-797f2ne74-freidercao-specs-projects.vercel.app
+https://coraza-cta-kzzrjsrm2-freidercao-specs-projects.vercel.app
+https://coraza-cta-1xe8vvpwi-freidercao-specs-projects.vercel.app
+https://coraza-cta-jfykvp9pa-freidercao-specs-projects.vercel.app
+https://coraza-cta-8kr3o8yhx-freidercao-specs-projects.vercel.app
+https://coraza-cta-7o4x6l11t-freidercao-specs-projects.vercel.app
+https://coraza-cta-94g9zpzur-freidercao-specs-projects.vercel.app
+https://coraza-cta-3iyh7gkkx-freidercao-specs-projects.vercel.app
+https://coraza-cta-8meofj2u3-freidercao-specs-projects.vercel.app
+https://coraza-cta-3tm25lffp-freidercao-specs-projects.vercel.app
+  4h      freidercao-specs
+-projects/coraza-cta-app  
+   https://coraza-cta-p6f4
+juugr-freidercao-specs-pro
+jects.vercel.app     ÔùÅ 
+Ready     Production      
+11s          
+freidercao-spec     
+  4h      freidercao-specs
+-projects/coraza-cta-app  
+   https://coraza-cta-eisn
+mmt4w-freidercao-specs-pro
+jects.vercel.app     ÔùÅ 
+Ready     Production      
+11s          
+freidercao-spec     
+  4h      freidercao-specs
+-projects/coraza-cta-app  
+   https://coraza-cta-hont
+u9b6o-freidercao-specs-pro
+jects.vercel.app     ÔùÅ 
+Ready     Production      
+10s          
+freidercao-spec     
+https://coraza-cta-5f195w8dq-freidercao-specs-projects.vercel.app
+  4h      freidercao-specs
+-projects/coraza-cta-app  
+   https://coraza-cta-py11
+at0b0-freidercao-specs-pro
+jects.vercel.app     ÔùÅ 
+Ready     Production      
+11s          
+freidercao-spec     
+  4h      freidercao-specs
+-projects/coraza-cta-app  
+   https://coraza-cta-797f
+2ne74-freidercao-specs-pro
+jects.vercel.app     ÔùÅ 
+Ready     Production      
+11s          
+freidercao-spec     
+  4h      freidercao-specs
+-projects/coraza-cta-app  
+   https://coraza-cta-kzzr
+jsrm2-freidercao-specs-pro
+jects.vercel.app     ÔùÅ 
+Ready     Production      
+12s          
+freidercao-spec     
+  4h      freidercao-specs
+-projects/coraza-cta-app  
+   https://coraza-cta-1xe8
+vvpwi-freidercao-specs-pro
+jects.vercel.app     ÔùÅ 
+Ready     Production      
+10s          
+freidercao-spec     
+  5h      freidercao-specs
+-projects/coraza-cta-app  
+   https://coraza-cta-jfyk
+vp9pa-freidercao-specs-pro
+jects.vercel.app     ÔùÅ 
+Error     Production      
+6s           
+freidercao-spec     
+  5h      freidercao-specs
+-projects/coraza-cta-app  
+   https://coraza-cta-8kr3
+o8yhx-freidercao-specs-pro
+jects.vercel.app     ÔùÅ 
+Error     Production      
+6s           
+freidercao-spec     
+  5h      freidercao-specs
+-projects/coraza-cta-app  
+   https://coraza-cta-7o4x
+6l11t-freidercao-specs-pro
+jects.vercel.app     ÔùÅ 
+Error     Production      
+6s           
+freidercao-spec     
+  5h      freidercao-specs
+-projects/coraza-cta-app  
+   https://coraza-cta-94g9
+zpzur-freidercao-specs-pro
+jects.vercel.app     ÔùÅ 
+Error     Production      
+6s           
+freidercao-spec     
+  5h      freidercao-specs
+-projects/coraza-cta-app  
+   https://coraza-cta-3iyh
+7gkkx-freidercao-specs-pro
+jects.vercel.app     ÔùÅ 
+Error     Production      
+6s           
+freidercao-spec     
+  5h      freidercao-specs
+-projects/coraza-cta-app  
+   https://coraza-cta-8meo
+fj2u3-freidercao-specs-pro
+jects.vercel.app     ÔùÅ 
+Error     Production      
+6s           
+freidercao-spec     
+  5h      freidercao-specs
+-projects/coraza-cta-app  
+   https://coraza-cta-3tm2
+5lffp-freidercao-specs-pro
+jects.vercel.app     ÔùÅ 
+Error     Production      
+6s           
+freidercao-spec     
+  5h      freidercao-specs
+-projects/coraza-cta-app  
+   https://coraza-cta-5f19
+5w8dq-freidercao-specs-pro
+jects.vercel.app     ÔùÅ 
+Error     Production      
+6s           
+freidercao-spec     
+
+> To display the next 
+page, run `vercel ls 
+--prod --next 
+1774623449327`

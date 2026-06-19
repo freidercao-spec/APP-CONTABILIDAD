@@ -1,0 +1,85 @@
+﻿
+> coraza-cta-app@1.3.6 build
+> vite build
+
+[36mvite v7.3.1 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32mÔ£ô[39m 32 modules transformed.
+node.exe : [31mÔ£ù[39m Build 
+failed in 983ms
+En línea: 1 Carácter: 1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~
+    + CategoryInfo          :  
+   NotSpecified: ([31mÔ£ù[3  
+  9m Build failed in 983ms:S   
+ tring) [], RemoteException
+    + FullyQualifiedErrorId :  
+   NativeCommandError
+ 
+[31merror during build:
+[31m[vite:esbuild] Transform 
+failed with 1 error:
+C:/Users/Mirley/Downloads/APP 
+- PORGRAMACION/coraza-cta-app/s
+rc/pages/GestionPuestos.tsx:357
+7:16: ERROR: Expected "}" but 
+found ")"[31m
+file: [36mC:/Users/Mirley/Down
+loads/APP - PORGRAMACION/coraza
+-cta-app/src/pages/GestionPuest
+os.tsx:3577:16[31m
+[33m
+[33mExpected "}" but found 
+")"[33m
+3575 |                      );
+3576 |                    })()
+3577 |                  )
+     |                  ^
+3578 |                </div>
+3579 |              ) : (
+[31m
+    at failureErrorWithLog 
+(C:\Users\Mirley\Downloads\APP 
+- PORGRAMACION\coraza-cta-app\n
+ode_modules\esbuild\lib\main.js
+:1467:15)
+    at 
+C:\Users\Mirley\Downloads\APP 
+- PORGRAMACION\coraza-cta-app\n
+ode_modules\esbuild\lib\main.js
+:736:50
+    at 
+responseCallbacks.<computed> 
+(C:\Users\Mirley\Downloads\APP 
+- PORGRAMACION\coraza-cta-app\n
+ode_modules\esbuild\lib\main.js
+:603:9)
+    at handleIncomingPacket 
+(C:\Users\Mirley\Downloads\APP 
+- PORGRAMACION\coraza-cta-app\n
+ode_modules\esbuild\lib\main.js
+:658:12)
+    at Socket.readFromStdout 
+(C:\Users\Mirley\Downloads\APP 
+- PORGRAMACION\coraza-cta-app\n
+ode_modules\esbuild\lib\main.js
+:581:7)
+    at Socket.emit 
+(node:events:508:28)
+    at addChunk (node:internal/
+streams/readable:563:12)
+    at 
+readableAddChunkPushByteMode (n
+ode:internal/streams/readable:5
+14:3)
+    at Readable.push (node:inte
+rnal/streams/readable:394:5)
+    at Pipe.onStreamRead (node:
+internal/stream_base_commons:18
+9:23)[39m

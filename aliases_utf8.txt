@@ -1,0 +1,10 @@
+﻿  source                                                             url                                                                    age    
+  coraza-cta-6ei72joby-freidercao-specs-projects.vercel.app          coraza-cta-app-git-main-freidercao-specs-projects.vercel.app            1d    
+  coraza-cta-h80rjkrum-freidercao-specs-projects.vercel.app          coraza-cta-app-freidercao-spec-freidercao-specs-projects.vercel.app     5d    
+  coraza-cta-h80rjkrum-freidercao-specs-projects.vercel.app          coraza-cta-app-freidercao-specs-projects.vercel.app                     5d    
+  coraza-cta-h80rjkrum-freidercao-specs-projects.vercel.app          coraza-cta-app.vercel.app                                               5d    
+  app-contabilidad-1orjo3ibh-freidercao-specs-projects.vercel.app    app-contabilidad-git-principal-freidercao-specs-projects.vercel.app     5d    
+  app-contabilidad-1fexvpur4-freidercao-specs-projects.vercel.app    app-contabilidad-freidercao-specs-projects.vercel.app                   5d    
+  app-contabilidad-1fexvpur4-freidercao-specs-projects.vercel.app    app-contabilidad-eta.vercel.app                                         5d    
+  app-contabilidad-1fexvpur4-freidercao-specs-projects.vercel.app    app-contabilidad-git-main-freidercao-specs-projects.vercel.app          5d    
+
