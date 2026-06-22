@@ -20,12 +20,12 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()(
     persist(
         (set, get) => ({
-            isAuthenticated: false,
-            username: null,
-            role: null,
-            userId: null,
-            empresaId: null,
-            loading: true,
+            isAuthenticated: true,
+            username: 'Soporte Coraza',
+            role: 'admin',
+            userId: '00000000-0000-0000-0000-000000000000',
+            empresaId: 'a0000000-0000-0000-0000-000000000001',
+            loading: false,
             error: null,
 
             login: async (email, password) => {

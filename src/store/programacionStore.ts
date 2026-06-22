@@ -664,20 +664,21 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
 
             fetchProgramacionDetalles: async (progId: string, force = false) => {
+                const state = get();
+                const prog = state.programaciones.find(p => p.id === progId);
+                
+                if (!prog || prog.isFetching) return;
+
+                if (prog.isDetailLoaded && !force) {
+                    return; 
+                }
+
+                set((s: any) => ({
+                    programaciones: s.programaciones.map((p: any) => p.id === progId ? { ...p, isFetching: true } : p)
+                }));
+                get()._updateMap();
+
                 try {
-                    const state = get();
-                    const prog = state.programaciones.find(p => p.id === progId);
-                    
-                    if (!prog || prog.isFetching) return;
-
-                    if (prog.isDetailLoaded && !force) {
-                        return; 
-                    }
-
-                    set((s: any) => ({
-                        programaciones: s.programaciones.map((p: any) => p.id === progId ? { ...p, isFetching: true } : p)
-                    }));
-
                     const [persRes, asigsRes] = await Promise.all([
                         supabase.from('personal_puesto').select('*').eq('programacion_id', progId),
                         supabase.from('asignaciones_dia').select('*').eq('programacion_id', progId).limit(1500)
@@ -685,7 +686,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                     if (persRes.error || asigsRes.error) {
                         console.error('[Laser Loading] ❌ Fallo en red:', persRes.error || asigsRes.error);
-                        return; 
+                        throw persRes.error || asigsRes.error;
                     }
 
                     const personal = (persRes.data || []).map((p: any) => ({ 
@@ -755,8 +756,6 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                     console.log(`[Laser Loading] ✅ Datos reconstruidos para ${progId}: ${asignaciones.length} turnos.`);
 
-                    const incomingHasData = asignaciones.some(a => a.vigilanteId !== null);
-                    
                     set((state: ProgramacionState) => {
                         const updatedProgs = state.programaciones.map((p) => {
                             if (p.id !== progId) return p;
@@ -781,24 +780,17 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             };
                         });
 
-                        const nextMap = new Map<string, ProgramacionMensual>(state._progMap || []);
-                        const updatedProg = updatedProgs.find((px) => px.id === progId);
-                        if (updatedProg) {
-                            nextMap.set(progId, updatedProg);
-                            nextMap.set(`${updatedProg.puestoId}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
-                            const dbUuid = translatePuestoToUuid(updatedProg.puestoId);
-                            if (dbUuid && dbUuid !== updatedProg.puestoId) {
-                                nextMap.set(`${dbUuid}-${updatedProg.anio}-${updatedProg.mes}`, updatedProg);
-                            }
-                        }
-                        
                         return { 
-                            programaciones: updatedProgs as ProgramacionMensual[], 
-                            _progMap: nextMap 
+                            programaciones: updatedProgs as ProgramacionMensual[]
                         } as Partial<ProgramacionState>;
                     });
+                    get()._updateMap();
                 } catch (err) {
                     console.error('fetchProgramacionDetalles Error:', err);
+                    set((s: any) => ({
+                        programaciones: s.programaciones.map((p: any) => p.id === progId ? { ...p, isFetching: false, isDetailLoaded: true } : p)
+                    }));
+                    get()._updateMap();
                 }
             },
 

@@ -233,7 +233,7 @@ END $$;
 `;
 
 const SQL_002 = `
-CREATE TABLE IF NOT EXISTS public.programaciones_mensuales (
+CREATE TABLE IF NOT EXISTS public.programacion_mensual (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     empresa_id UUID REFERENCES public.empresas(id) ON DELETE CASCADE,
     puesto_id UUID REFERENCES public.puestos(id) ON DELETE CASCADE,
@@ -248,9 +248,23 @@ CREATE TABLE IF NOT EXISTS public.programaciones_mensuales (
     UNIQUE(empresa_id, puesto_id, anio, mes)
 );
 
-CREATE TABLE IF NOT EXISTS public.asignaciones_programacion (
+
+CREATE TABLE IF NOT EXISTS public.plantillas_programacion (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    programacion_id UUID REFERENCES public.programaciones_mensuales(id) ON DELETE CASCADE,
+    empresa_id UUID REFERENCES public.empresas(id) ON DELETE CASCADE,
+    nombre TEXT NOT NULL,
+    puesto_id UUID REFERENCES public.puestos(id) ON DELETE CASCADE,
+    puesto_nombre TEXT,
+    personal JSONB DEFAULT '[]',
+    patron JSONB DEFAULT '[]',
+    creado_por TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.asignaciones_dia (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    programacion_id UUID REFERENCES public.programacion_mensual(id) ON DELETE CASCADE,
     empresa_id UUID REFERENCES public.empresas(id),
     dia INTEGER NOT NULL CHECK (dia >= 1 AND dia <= 31),
     vigilante_id UUID REFERENCES public.vigilantes(id) ON DELETE SET NULL,
@@ -272,8 +286,10 @@ ALTER TABLE public.puestos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.vigilantes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.turnos_puesto ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.historial_puesto ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.programaciones_mensuales ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.asignaciones_programacion ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.programacion_mensual ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.asignaciones_dia ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.plantillas_programacion ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.plantillas_programacion ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "allow_all_empresas" ON public.empresas;
 CREATE POLICY "allow_all_empresas" ON public.empresas FOR ALL USING (true) WITH CHECK (true);
@@ -285,18 +301,21 @@ DROP POLICY IF EXISTS "allow_all_turnos" ON public.turnos_puesto;
 CREATE POLICY "allow_all_turnos" ON public.turnos_puesto FOR ALL USING (true) WITH CHECK (true);
 DROP POLICY IF EXISTS "allow_all_historial" ON public.historial_puesto;
 CREATE POLICY "allow_all_historial" ON public.historial_puesto FOR ALL USING (true) WITH CHECK (true);
-DROP POLICY IF EXISTS "allow_all_prog" ON public.programaciones_mensuales;
-CREATE POLICY "allow_all_prog" ON public.programaciones_mensuales FOR ALL USING (true) WITH CHECK (true);
-DROP POLICY IF EXISTS "allow_all_asig" ON public.asignaciones_programacion;
-CREATE POLICY "allow_all_asig" ON public.asignaciones_programacion FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "allow_all_prog" ON public.programacion_mensual;
+CREATE POLICY "allow_all_prog" ON public.programacion_mensual FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "allow_all_asig" ON public.asignaciones_dia;
+DROP POLICY IF EXISTS "allow_all_plantilla" ON public.plantillas_programacion;
+CREATE POLICY "allow_all_asig" ON public.asignaciones_dia FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "allow_all_plantilla" ON public.plantillas_programacion FOR ALL USING (true) WITH CHECK (true);
 
 GRANT ALL ON public.empresas TO anon, authenticated, service_role;
 GRANT ALL ON public.puestos TO anon, authenticated, service_role;
 GRANT ALL ON public.vigilantes TO anon, authenticated, service_role;
 GRANT ALL ON public.turnos_puesto TO anon, authenticated, service_role;
 GRANT ALL ON public.historial_puesto TO anon, authenticated, service_role;
-GRANT ALL ON public.programaciones_mensuales TO anon, authenticated, service_role;
-GRANT ALL ON public.asignaciones_programacion TO anon, authenticated, service_role;
+GRANT ALL ON public.programacion_mensual TO anon, authenticated, service_role;
+GRANT ALL ON public.asignaciones_dia TO anon, authenticated, service_role;
+GRANT ALL ON public.plantillas_programacion TO anon, authenticated, service_role;
 `;
 
 const SQL_AUDIT = `
@@ -368,7 +387,7 @@ async function runSetup() {
   setProgress(5);
   log('\n<b>PASO 1 — Verificando estructura de BD</b>', 'info');
 
-  const tablas = ['empresas','puestos','vigilantes','turnos_puesto','historial_puesto','programaciones_mensuales','asignaciones_programacion','audit_logs'];
+  const tablas = ['empresas','puestos','vigilantes','turnos_puesto','historial_puesto','programacion_mensual','asignaciones_dia','plantillas_programacion','audit_logs'];
   let tablasOk = 0;
   let tablasFaltantes = [];
 
@@ -489,7 +508,7 @@ async function runSetup() {
   for (const puesto of puestosCreados) {
     if (!puesto.id) continue;
     try {
-      const progCheck = await fetch(`${URL_BASE}/rest/v1/programaciones_mensuales?puesto_id=eq.${puesto.id}&anio=eq.${ANIO}&mes=eq.${MES}&select=id&limit=1`, {
+      const progCheck = await fetch(`${URL_BASE}/rest/v1/programacion_mensual?puesto_id=eq.${puesto.id}&anio=eq.${ANIO}&mes=eq.${MES}&select=id&limit=1`, {
         headers: { 'apikey': SVC_KEY, 'Authorization': `Bearer ${SVC_KEY}` }
       });
       const progData = await progCheck.json();
@@ -499,7 +518,7 @@ async function runSetup() {
         progId = progData[0].id;
         log(`   ⚠️  Prog. ${puesto.nombre} ya existe`, 'warn');
       } else {
-        const newProg = await api('programaciones_mensuales', 'POST', {
+        const newProg = await api('programacion_mensual', 'POST', {
           puesto_id: puesto.id, empresa_id: EMPRESA_ID,
           anio: ANIO, mes: MES, estado: 'borrador',
           personal: [
@@ -516,7 +535,7 @@ async function runSetup() {
       }
 
       // Asignaciones 30 días
-      const asigCheck = await fetch(`${URL_BASE}/rest/v1/asignaciones_programacion?programacion_id=eq.${progId}&select=dia,rol`, {
+      const asigCheck = await fetch(`${URL_BASE}/rest/v1/asignaciones_dia?programacion_id=eq.${progId}&select=dia,rol`, {
         headers: { 'apikey': SVC_KEY, 'Authorization': `Bearer ${SVC_KEY}` }
       });
       const existAsigs = await asigCheck.json();
@@ -537,7 +556,7 @@ async function runSetup() {
 
       if (asigs.length > 0) {
         for (let i=0; i<asigs.length; i+=50) {
-          await api('asignaciones_programacion','POST',asigs.slice(i,i+50),true);
+          await api('asignaciones_dia','POST',asigs.slice(i,i+50),true);
         }
         log(`   ✅ ${asigs.length} asignaciones creadas (30 días × 3 roles)`, 'ok');
       }
@@ -659,7 +678,7 @@ CREATE TABLE IF NOT EXISTS public.historial_puesto (
 );
 
 -- PROGRAMACIONES MENSUALES
-CREATE TABLE IF NOT EXISTS public.programaciones_mensuales (
+CREATE TABLE IF NOT EXISTS public.programacion_mensual (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     empresa_id UUID REFERENCES public.empresas(id) ON DELETE CASCADE,
     puesto_id UUID REFERENCES public.puestos(id) ON DELETE CASCADE,
@@ -674,10 +693,24 @@ CREATE TABLE IF NOT EXISTS public.programaciones_mensuales (
     UNIQUE(empresa_id, puesto_id, anio, mes)
 );
 
--- ASIGNACIONES
-CREATE TABLE IF NOT EXISTS public.asignaciones_programacion (
+-- PLANTILLAS
+CREATE TABLE IF NOT EXISTS public.plantillas_programacion (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    programacion_id UUID REFERENCES public.programaciones_mensuales(id) ON DELETE CASCADE,
+    empresa_id UUID REFERENCES public.empresas(id) ON DELETE CASCADE,
+    nombre TEXT NOT NULL,
+    puesto_id UUID REFERENCES public.puestos(id) ON DELETE CASCADE,
+    puesto_nombre TEXT,
+    personal JSONB DEFAULT '[]',
+    patron JSONB DEFAULT '[]',
+    creado_por TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ASIGNACIONES
+CREATE TABLE IF NOT EXISTS public.asignaciones_dia (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    programacion_id UUID REFERENCES public.programacion_mensual(id) ON DELETE CASCADE,
     empresa_id UUID REFERENCES public.empresas(id),
     dia INTEGER NOT NULL CHECK (dia >= 1 AND dia <= 31),
     vigilante_id UUID REFERENCES public.vigilantes(id) ON DELETE SET NULL,
@@ -707,8 +740,8 @@ ALTER TABLE public.puestos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.vigilantes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.turnos_puesto ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.historial_puesto ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.programaciones_mensuales ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.asignaciones_programacion ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.programacion_mensual ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.asignaciones_dia ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "allow_all" ON public.empresas FOR ALL USING (true) WITH CHECK (true);
@@ -716,8 +749,9 @@ CREATE POLICY "allow_all" ON public.puestos FOR ALL USING (true) WITH CHECK (tru
 CREATE POLICY "allow_all" ON public.vigilantes FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "allow_all" ON public.turnos_puesto FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "allow_all" ON public.historial_puesto FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "allow_all" ON public.programaciones_mensuales FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "allow_all" ON public.asignaciones_programacion FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "allow_all" ON public.programacion_mensual FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "allow_all" ON public.asignaciones_dia FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "allow_all" ON public.plantillas_programacion FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "allow_all" ON public.audit_logs FOR ALL USING (true) WITH CHECK (true);
 
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;

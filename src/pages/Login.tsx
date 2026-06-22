@@ -88,7 +88,7 @@ const Login = () => {
                         {/* Glow blob */}
                         <div className="absolute size-28 bg-primary/15 rounded-full blur-2xl" />
                         {/* Logo */}
-                        <div className="relative size-24 rounded-[28px] bg-white p-2.5 shadow-[0_0_40px_rgba(79,70,229,0.4),0_20px_60px_rgba(0,0,0,0.6)] border border-white/20 z-10">
+                        <div className="relative size-16 rounded-[20px] bg-slate-950/60 border border-white/10 backdrop-blur-md p-2 shadow-[0_0_40px_rgba(79,70,229,0.25),0_20px_60px_rgba(0,0,0,0.6)] z-10">
                             <img src="./logo.png" alt="CORAZA CTA" className="w-full h-full object-contain" />
                         </div>
                     </div>

@@ -185,7 +185,7 @@ const Sidebar = () => {
                     {/* Logo Plate */}
                     <div className="relative group/logo">
                         <div className="absolute -inset-4 rounded-full bg-[#5B6EE815] blur-2xl opacity-0 group-hover/logo:opacity-100 transition-opacity duration-700" />
-                        <div className={`relative flex items-center justify-center bg-white shadow-2xl transition-all duration-700 group-hover/logo:scale-105 ${c ? 'size-12 rounded-2xl' : 'size-20 rounded-[30px]'}`}>
+                        <div className={`relative flex items-center justify-center bg-slate-950/60 border border-white/10 backdrop-blur-md shadow-2xl transition-all duration-700 group-hover/logo:scale-105 ${c ? 'size-10 rounded-xl' : 'size-14 rounded-2xl'}`}>
                             <img src="./logo.png" alt="Logo" className="w-[70%] h-[70%] object-contain" />
                         </div>
                     </div>
