@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useProgramacionStore } from "../../store/programacionStore";
 import { useVigilanteStore } from "../../store/vigilanteStore";
 
@@ -68,9 +68,9 @@ export const PuestoCard = React.memo(({ puesto, anio, mes, onClick, onAsignar, o
         <div className="shrink-0 size-9 rounded-xl flex items-center justify-center" style={{ background: `${tipo.color}18`, border: `1px solid ${tipo.color}35` }}>
           <span className="material-symbols-outlined text-[16px]" style={{ color: tipo.color }}>{tipo.icon}</span>
         </div>
-        <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
-          <div className="flex items-center gap-2">
-            <span className="text-[14px] font-black text-white uppercase tracking-wide truncate leading-none">{puesto.nombre}</span>
+        <div className="flex-1 min-w-[140px] md:min-w-[200px] flex flex-col justify-center gap-0.5">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[15px] font-black text-white uppercase tracking-wide truncate block leading-tight">{puesto.nombre}</span>
             {alertas.length > 0 && <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-rose-500/20 border border-rose-500/40 text-[8px] font-black text-rose-400 uppercase">{alertas.length} {alertas.length === 1 ? "ALERTA" : "ALERTAS"}</span>}
           </div>
           <div className="flex items-center gap-2 text-slate-600">
@@ -90,6 +90,16 @@ export const PuestoCard = React.memo(({ puesto, anio, mes, onClick, onAsignar, o
             <div className="size-1.5 rounded-full shrink-0 animate-pulse" style={{ backgroundColor: estado.color }} />{estado.label}
           </div>
           {stats.guards.length > 0 && <div className="hidden lg:flex -space-x-2 items-center ml-1">{stats.guards.slice(0,3).map((g: any, i: number) => (<div key={i} className="size-6 rounded-full border-2 border-[#070B14] overflow-hidden" title={g.nombre}><img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(g.nombre)}&background=1e293b&color=fff&bold=true&size=50`} alt={g.nombre} className="w-full h-full object-cover" /></div>))}{stats.guards.length > 3 && <div className="size-6 rounded-full border-2 border-[#070B14] bg-indigo-600 flex items-center justify-center text-[8px] font-black text-white">+{stats.guards.length - 3}</div>}</div>}
+          
+          <button 
+            onClick={e => { e.stopPropagation(); onClick(); }} 
+            className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[8px] font-black uppercase tracking-wider transition-all shadow-md shadow-indigo-600/20 active:scale-95 shrink-0"
+            title="Ingresar a gestionar el puesto"
+          >
+            <span className="material-symbols-outlined text-[11px]">terminal</span>
+            <span>Gestionar</span>
+          </button>
+
           <button onClick={e => { e.stopPropagation(); setShowMenu(!showMenu); }} className="ml-1 size-7 rounded-lg flex items-center justify-center text-slate-600 hover:text-white hover:bg-white/10 transition-all active:scale-90">
             <span className="material-symbols-outlined text-[16px]">more_vert</span>
           </button>

@@ -2461,28 +2461,28 @@ const GestionPuestos = () => {
         </div>
 
         {/* Controles derecha */}
-        <div className="flex items-center gap-4 relative z-10">
+        <div className="flex items-center gap-3 relative z-10">
           {/* Toggle de vista */}
           <div className="flex bg-white/[0.04] border border-white/[0.08] rounded-xl p-1">
             <button 
               onClick={() => setViewMode('cards')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'cards' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${viewMode === 'cards' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
             >
-              <span className="material-symbols-outlined text-[16px]">grid_view</span>
+              <span className="material-symbols-outlined text-[14px]">grid_view</span>
               <span className="hidden lg:inline">Carpetas</span>
             </button>
             <button 
               onClick={() => setViewMode('master_grid')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'master_grid' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${viewMode === 'master_grid' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
             >
-              <span className="material-symbols-outlined text-[16px]">table_chart</span>
+              <span className="material-symbols-outlined text-[14px]">table_chart</span>
               <span className="hidden lg:inline">Maestro</span>
             </button>
             <button 
               onClick={() => navigate('/auditoria?q=PROGRAMACION')}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-emerald-400 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-slate-500 hover:text-emerald-400 transition-all"
             >
-              <span className="material-symbols-outlined text-[16px]">history</span>
+              <span className="material-symbols-outlined text-[14px]">history</span>
               <span className="hidden xl:inline">Historial</span>
             </button>
           </div>
@@ -2490,11 +2490,11 @@ const GestionPuestos = () => {
           {/* Botón Nuevo Puesto */}
           <button 
             onClick={() => setIsNewPuestoModalOpen(true)}
-            className="group relative h-[44px] px-6 rounded-xl flex items-center gap-2.5 transition-all duration-300 overflow-hidden bg-indigo-600 hover:bg-indigo-500 border border-indigo-400/30 hover:shadow-[0_0_25px_rgba(99,102,241,0.4)] active:scale-95"
+            className="group relative h-[36px] px-4 rounded-xl flex items-center gap-2 transition-all duration-300 overflow-hidden bg-indigo-600 hover:bg-indigo-500 border border-indigo-400/30 hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] active:scale-95"
           >
             <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-[-20deg]"></div>
-            <span className="material-symbols-outlined text-[18px] text-white relative z-10 group-hover:rotate-12 transition-transform duration-300">add_location</span>
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white relative z-10 hidden lg:inline">Nuevo Puesto</span>
+            <span className="material-symbols-outlined text-[16px] text-white relative z-10 group-hover:rotate-12 transition-transform duration-300">add_location</span>
+            <span className="text-[9px] font-black uppercase tracking-wider text-white relative z-10 hidden lg:inline">Nuevo Puesto</span>
           </button>
 
         </div>
@@ -2552,21 +2552,21 @@ const GestionPuestos = () => {
             </div>
 
             {/* ═══ SEARCH + FILTERS TOOLBAR ═══ */}
-            <div className="flex flex-col xl:flex-row gap-4 mb-8 shrink-0">
+            <div className="flex flex-col xl:flex-row gap-3 mb-6 shrink-0">
 
               {/* Ultra Elite Tactical Search Bar */}
-              <div className="relative flex-1 group z-10 w-full max-w-3xl">
+              <div className="relative flex-1 group z-10 w-full max-w-2xl">
                 {/* Neon Back-Glow Effect */}
                 <div
-                  className="absolute -inset-1 rounded-[20px] bg-gradient-to-r from-indigo-500/0 via-indigo-500/20 to-primary/0 opacity-0 group-focus-within:opacity-100 blur-xl transition-all duration-700 pointer-events-none"
+                  className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500/0 via-indigo-500/20 to-primary/0 opacity-0 group-focus-within:opacity-100 blur-xl transition-all duration-700 pointer-events-none"
                 />
                 
                 {/* Tech Frame Base */}
-                <div className="relative flex items-center h-[60px] rounded-[18px] bg-black/40 backdrop-blur-2xl border border-white/5 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_8px_32px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-500 group-focus-within:border-indigo-500/50 group-focus-within:bg-indigo-950/20 group-hover:border-white/10 group-focus-within:shadow-[0_0_30px_rgba(99,102,241,0.2),inset_0_0_20px_rgba(99,102,241,0.1)]">
+                <div className="relative flex items-center h-[46px] rounded-2xl bg-black/40 backdrop-blur-2xl border border-white/5 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_8px_32px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-500 group-focus-within:border-indigo-500/50 group-focus-within:bg-indigo-950/20 group-hover:border-white/10 group-focus-within:shadow-[0_0_30px_rgba(99,102,241,0.2),inset_0_0_20px_rgba(99,102,241,0.1)]">
                   
                   {/* Left Icon Area - Tactical HUD style */}
-                  <div className="relative flex items-center justify-center w-16 h-full border-r border-white/5 bg-white/[0.02] group-focus-within:bg-indigo-500/10 group-focus-within:border-indigo-500/30 transition-all duration-500 shrink-0">
-                    <span className="material-symbols-outlined text-[24px] text-slate-500 group-focus-within:text-indigo-400 group-focus-within:drop-shadow-[0_0_8px_rgba(129,140,248,0.8)] transition-all duration-500">
+                  <div className="relative flex items-center justify-center w-12 h-full border-r border-white/5 bg-white/[0.02] group-focus-within:bg-indigo-500/10 group-focus-within:border-indigo-500/30 transition-all duration-500 shrink-0">
+                    <span className="material-symbols-outlined text-[18px] text-slate-500 group-focus-within:text-indigo-400 group-focus-within:drop-shadow-[0_0_8px_rgba(129,140,248,0.8)] transition-all duration-500">
                       radar
                     </span>
                     {/* Animated scanning line on focus */}
@@ -2578,19 +2578,18 @@ const GestionPuestos = () => {
                     type="text"
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
-                    placeholder="LOCALIZAR PUESTO O CÓDIGO TÁCTICO..."
-                    className="w-full h-full bg-transparent border-none outline-none px-5 font-black text-white text-[13px] tracking-[0.15em] uppercase placeholder:text-slate-600 placeholder:font-bold placeholder:tracking-widest transition-all duration-300"
+                    placeholder="LOCALIZAR PUESTO..."
+                    className="w-full h-full bg-transparent border-none outline-none px-4 font-black text-white text-[11px] tracking-[0.15em] uppercase placeholder:text-slate-600 placeholder:font-bold placeholder:tracking-widest transition-all duration-300"
                   />
                   
                   {/* Status Indicator (Right side inside) */}
                   {!searchQuery && (
-                    <div className="hidden sm:flex items-center gap-3 pr-6 pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
-                      <div className="flex gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-slate-600 group-focus-within:bg-indigo-500 group-focus-within:animate-pulse" />
-                        <div className="w-2 h-2 rounded-full bg-slate-700 group-focus-within:bg-indigo-400 group-focus-within:animate-pulse delay-75" />
-                        <div className="w-2 h-2 rounded-full bg-slate-800 group-focus-within:bg-indigo-300 group-focus-within:animate-pulse delay-150" />
+                    <div className="hidden sm:flex items-center gap-2.5 pr-4 pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
+                      <div className="flex gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-slate-600 group-focus-within:bg-indigo-500 group-focus-within:animate-pulse" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-slate-700 group-focus-within:bg-indigo-400 group-focus-within:animate-pulse delay-75" />
                       </div>
-                      <span className="text-[10px] font-black tracking-[0.4em] text-slate-500 group-focus-within:text-indigo-400 uppercase italic">Ready</span>
+                      <span className="text-[8px] font-black tracking-widest text-slate-500 group-focus-within:text-indigo-400 uppercase italic">Ready</span>
                     </div>
                   )}
 
@@ -2598,9 +2597,9 @@ const GestionPuestos = () => {
                   {searchQuery && (
                     <button
                       onClick={() => setSearchQuery('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 size-9 flex items-center justify-center rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all duration-300 hover:shadow-[0_0_15px_rgba(244,63,94,0.5)] border border-rose-500/20 animate-in fade-in zoom-in"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 size-7 flex items-center justify-center rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all duration-300 hover:shadow-[0_0_12px_rgba(244,63,94,0.5)] border border-rose-500/20 animate-in fade-in zoom-in"
                     >
-                      <span className="material-symbols-outlined text-[18px]">close</span>
+                      <span className="material-symbols-outlined text-[14px]">close</span>
                     </button>
                   )}
                   
@@ -2611,11 +2610,11 @@ const GestionPuestos = () => {
 
               {/* Filter Pills with Result Counter */}
               <div
-                className="flex flex-col sm:flex-row gap-3 p-2"
+                className="flex flex-col sm:flex-row gap-2 p-1.5"
                 style={{
                   background: 'rgba(10, 17, 32, 0.6)',
                   border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: '24px',
+                  borderRadius: '16px',
                   backdropFilter: 'blur(40px)',
                   boxShadow: 'inset 0 0 20px rgba(0,0,0,0.5), 0 10px 30px rgba(0,0,0,0.4)'
                 }}
@@ -2648,21 +2647,21 @@ const GestionPuestos = () => {
                       <button
                         key={t.id}
                         onClick={() => setFilterTab(t.id as any)}
-                        className={`relative flex items-center justify-between gap-4 px-6 py-3.5 rounded-[20px] text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 group/pill ${isActive ? 'scale-105' : 'hover:bg-white/05'}`}
+                        className={`relative flex items-center justify-between gap-2.5 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all duration-500 group/pill ${isActive ? 'scale-102' : 'hover:bg-white/05'}`}
                         style={isActive ? {
                           background: `linear-gradient(135deg, ${t.accent}20 0%, ${t.accent}05 100%)`,
                           border: `1px solid ${t.accent}40`,
                           color: t.accent,
-                          boxShadow: `0 0 25px ${t.accent}15, inset 0 0 10px ${t.accent}10`
+                          boxShadow: `0 0 15px ${t.accent}15, inset 0 0 10px ${t.accent}10`
                         } : {
                           color: '#475569'
                         }}
                       >
-                        <div className="flex items-center gap-3">
-                          <span className={`material-symbols-outlined text-[18px] transition-all duration-500 ${isActive ? 'scale-110 rotate-12' : 'group-hover/pill:text-slate-300'}`} style={isActive ? { filter: `drop-shadow(0 0 5px ${t.accent})` } : {}}>{t.icon}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`material-symbols-outlined text-[15px] transition-all duration-500 ${isActive ? 'scale-110 rotate-6' : 'group-hover/pill:text-slate-300'}`} style={isActive ? { filter: `drop-shadow(0 0 5px ${t.accent})` } : {}}>{t.icon}</span>
                           <span className="hidden lg:inline italic">{t.label}</span>
                         </div>
-                        <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black transition-all duration-500 ${isActive ? 'bg-white text-black shadow-[0_0_15px_white]' : 'bg-white/05 text-slate-600 group-hover/pill:text-slate-400'}`}>
+                        <span className={`px-2 py-0.5 rounded-md text-[8px] font-black transition-all duration-500 ${isActive ? 'bg-white text-black shadow-[0_0_10px_white]' : 'bg-white/05 text-slate-600 group-hover/pill:text-slate-400'}`}>
                           {count}
                         </span>
                         
@@ -2678,11 +2677,11 @@ const GestionPuestos = () => {
               <button
                 onClick={() => useProgramacionStore.getState().forceSync()}
                 disabled={!progLoaded}
-                className="group relative flex items-center gap-4 px-8 py-3.5 text-[12px] font-black uppercase tracking-[0.3em] overflow-hidden transition-all duration-700 disabled:opacity-20 active:scale-95"
+                className="group relative flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest overflow-hidden transition-all duration-700 disabled:opacity-20 active:scale-95 shrink-0"
                 style={{
                   background: 'rgba(15, 23, 42, 0.4)',
                   border: '1px solid rgba(255,255,255,0.06)',
-                  borderRadius: '24px',
+                  borderRadius: '16px',
                   backdropFilter: 'blur(30px)',
                   color: '#64748b',
                   boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
@@ -2690,7 +2689,7 @@ const GestionPuestos = () => {
                 onMouseEnter={e => { 
                   (e.currentTarget as HTMLElement).style.color = '#fff'; 
                   (e.currentTarget as HTMLElement).style.borderColor = 'rgba(99,102,241,0.4)'; 
-                  (e.currentTarget as HTMLElement).style.boxShadow = '0 0 30px rgba(99,102,241,0.2)';
+                  (e.currentTarget as HTMLElement).style.boxShadow = '0 0 20px rgba(99,102,241,0.2)';
                 }}
                 onMouseLeave={e => { 
                   (e.currentTarget as HTMLElement).style.color = '#64748b'; 
@@ -2699,7 +2698,7 @@ const GestionPuestos = () => {
                 }}
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/10 to-indigo-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-                <span className="material-symbols-outlined text-[22px] transition-all duration-1000 group-hover:rotate-[360deg] relative z-10 group-hover:text-indigo-400">refresh</span>
+                <span className="material-symbols-outlined text-[16px] transition-all duration-1000 group-hover:rotate-[360deg] relative z-10 group-hover:text-indigo-400">refresh</span>
                 <span className="hidden xl:inline relative z-10 italic">Actualizar</span>
               </button>
             </div>
