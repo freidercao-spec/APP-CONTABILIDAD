@@ -286,14 +286,23 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                 throw new Error("Identidad de empresa no detectada. Por favor re-inicie sesión.");
             }
 
+            const personalPayload = prog.personal
+                .filter(p => p.rol)
+                .map(p => {
+                    const mappedVid = p.vigilanteId ? translateToUuid(p.vigilanteId) : null;
+                    return { ...p, vigilanteId: mappedVid };
+                });
+
             const { data: realHeader, error: headerErr } = await supabase
-                .from('programacion_mensual')
+                .from('programaciones_mensuales')
                 .upsert({
                     empresa_id: currentEmpresaId,
                     puesto_id: dbPuestoId,
                     anio: prog.anio,
                     mes: prog.mes,
                     estado: prog.estado || 'borrador',
+                    personal: personalPayload,
+                    historial_cambios: prog.historialCambios || [],
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'empresa_id,puesto_id,anio,mes' })
                 .select('id')
@@ -325,23 +334,6 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                     }
                     return { programaciones: newProgs, _progMap: newMap };
                 });
-            }
-
-            // 2. Personal (Usamos el ID real de la DB)
-            const personalPayload = prog.personal
-                .filter(p => p.rol)
-                .map(p => {
-                    const mappedVid = p.vigilanteId ? translateToUuid(p.vigilanteId) : null;
-                    return { programacion_id: dbProgId, rol: p.rol, vigilante_id: mappedVid };
-                });
-            if (personalPayload.length > 0) {
-                const { error: persErr } = await supabase
-                    .from('personal_puesto')
-                    .upsert(personalPayload, { onConflict: 'programacion_id,rol' });
-                if (persErr) {
-                    console.error('[Coraza] ❌ Personal sync error:', persErr.message);
-                    // No lanzar error para no bloquear las asignaciones
-                }
             }
 
             // 3. Asignaciones en lotes de 100
@@ -386,6 +378,7 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                         rol: a.rol || 'titular_a',
                         inicio: inicioDb,
                         fin: a.fin || (a.turno === 'PM' ? '06:00' : '18:00'),
+                        codigo_personalizado: codigoPersonalizado,
                     };
                 });
 
@@ -395,7 +388,7 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
             for (let i = 0; i < asignacionesPayload.length; i += BATCH_SIZE) {
                 const chunk = asignacionesPayload.slice(i, i + BATCH_SIZE);
                 const { error: asigErr } = await supabase
-                    .from('asignaciones_dia')
+                    .from('asignaciones_programacion')
                     .upsert(chunk, { onConflict: 'programacion_id,dia,rol' });
                 
                 if (asigErr) {
@@ -580,7 +573,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     
                     while (true) {
                         const { data, error } = await supabase
-                            .from('programacion_mensual')
+                            .from('programaciones_mensuales')
                             .select('*')
                             .eq('empresa_id', currentEmpresaId)
                             .eq('anio', anio)
@@ -609,7 +602,12 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             actualizadoEn: row.updated_at,
                             version: row.version || 1,
                             syncStatus: 'synced' as const,
-                            personal: [],
+                            personal: (row.personal || []).map((p: any) => ({
+                                rol: p.rol,
+                                vigilanteId: translateFromDb(p.vigilanteId),
+                                turnoId: p.turnoId || undefined,
+                                displayName: p.displayName || undefined
+                            })),
                             asignaciones: [],
                             isDetailLoaded: false
                         }));
@@ -679,20 +677,22 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 get()._updateMap();
 
                 try {
-                    const [persRes, asigsRes] = await Promise.all([
-                        supabase.from('personal_puesto').select('*').eq('programacion_id', progId),
-                        supabase.from('asignaciones_dia').select('*').eq('programacion_id', progId).limit(1500)
+                    const [headerRes, asigsRes] = await Promise.all([
+                        supabase.from('programaciones_mensuales').select('personal, historial_cambios').eq('id', progId).single(),
+                        supabase.from('asignaciones_programacion').select('*').eq('programacion_id', progId).limit(1500)
                     ]);
 
-                    if (persRes.error || asigsRes.error) {
-                        console.error('[Laser Loading] ❌ Fallo en red:', persRes.error || asigsRes.error);
-                        throw persRes.error || asigsRes.error;
+                    if (headerRes.error || asigsRes.error) {
+                        console.error('[Laser Loading] ❌ Fallo en red:', headerRes.error || asigsRes.error);
+                        throw headerRes.error || asigsRes.error;
                     }
 
-                    const personal = (persRes.data || []).map((p: any) => ({ 
+                    const dbPersonal = headerRes.data?.personal || [];
+                    const personal = dbPersonal.map((p: any) => ({ 
                         rol: p.rol as RolPuesto, 
-                        vigilanteId: translateFromDb(p.vigilante_id),
-                        turnoId: p.turno_id || undefined
+                        vigilanteId: translateFromDb(p.vigilanteId),
+                        turnoId: p.turnoId || undefined,
+                        displayName: p.displayName || undefined
                     }));
 
                     // MULTI-TURNO: Solo agregar los 3 roles base si el puesto NO TIENE NINGÚN ROL configurado.
@@ -821,17 +821,13 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 for (let i = 0; i < progIds.length; i += CHUNK_SIZE) {
                     const chunk = progIds.slice(i, i + CHUNK_SIZE);
                     chunkPromises.push(
-                        Promise.all([
-                            supabase.from('personal_puesto').select('*').in('programacion_id', chunk),
-                            supabase.from('asignaciones_dia').select('*').in('programacion_id', chunk).limit(15000)
-                        ])
+                        supabase.from('asignaciones_programacion').select('*').in('programacion_id', chunk).limit(15000)
                     );
                 }
 
                 try {
                     const chunkResults = await Promise.all(chunkPromises);
-                    chunkResults.forEach(([persRes, asigsRes]) => {
-                        if (persRes.data) allPersonal = [...allPersonal, ...persRes.data];
+                    chunkResults.forEach((asigsRes) => {
                         if (asigsRes.data) allAsignaciones = [...allAsignaciones, ...asigsRes.data];
                     });
 
@@ -849,10 +845,11 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     });
 
                     const newProgramaciones: ProgramacionMensual[] = rows.map((row: any) => {
-                        const personal = allPersonal.filter((p: any) => p.programacion_id === row.id).map((p: any) => ({ 
+                        const personal = (row.personal || []).map((p: any) => ({ 
                             rol: p.rol as RolPuesto, 
-                            vigilanteId: p.vigilante_id ? (vigLookup.get(p.vigilante_id) || p.vigilante_id) : null,
-                            turnoId: p.turno_id || undefined
+                            vigilanteId: p.vigilanteId ? (vigLookup.get(p.vigilanteId) || p.vigilanteId) : null,
+                            turnoId: p.turnoId || undefined,
+                            displayName: p.displayName || undefined
                         }));
                         ['titular_a', 'titular_b', 'relevante'].forEach((rol: any) => {
                             if (!personal.find((p: any) => p.rol === rol)) personal.push({ rol: rol as RolPuesto, vigilanteId: null, turnoId: rol === 'titular_b' ? 'PM' : 'AM' });
@@ -1249,24 +1246,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 showTacticalToast({ title: '🔍 Escaneando DB...', message: 'Buscando rastro de datos operativos...', type: 'info' });
 
                 try {
-                    // Intento de recuperación profunda: buscar asignaciones de este puesto/mes ignorando el prog_id exacto (si falló mapping)
-                    const { data, error } = await supabase
-                        .from('asignaciones_dia')
-                        .select('*')
-                        .eq('puesto_id', dbPuestoId) // Si se guardó con puesto_id (redundancia)
-                        .eq('anio', anio)
-                        .eq('mes', mes);
-                    
-                    if (error || !data || data.length === 0) {
-                        // Plan B: Buscar por programacion_id antigua
-                        // Esto requiere cruce, pero intentamos al menos forzar un fetch limpio
-                        await get().fetchProgramacionesByMonth(anio, mes);
-                        return true;
-                    }
-
-                    showTacticalToast({ title: '✨ Datos Encontrados', message: `Recuperados ${data.length} turnos huérfanos. Aplicando al tablero...`, type: 'success' });
-                    // Hydrate localmente
-                    get().fetchProgramacionDetalles(prog.id);
+                    await get().fetchProgramacionesByMonth(anio, mes);
+                    await get().fetchProgramacionDetalles(prog.id, true);
                     return true;
                 } catch (e) {
                     return false;
@@ -1802,11 +1783,11 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         {
                             event: '*',
                             schema: 'public',
-                            table: 'programacion_mensual',
+                            table: 'programaciones_mensuales',
                             filter: `empresa_id=eq.${currentEmpresaId}`
                         },
                         async (payload) => {
-                            console.log('[Realtime] Cambio detectado en programacion_mensual:', payload.eventType);
+                            console.log('[Realtime] Cambio detectado en programaciones_mensuales:', payload.eventType);
                             // Simplemente refrescar todo el mes para simplificar (evita inconsistencias)
                             const now = new Date();
                             await get().fetchProgramacionesByMonth(now.getFullYear(), now.getMonth());
@@ -1817,12 +1798,12 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         {
                             event: '*',
                             schema: 'public',
-                            table: 'asignaciones_dia',
+                            table: 'asignaciones_programacion',
                         },
                         async (payload) => {
                             // Si se cambia una asignacion, refrescar los detalles de esa programacion
                             if (payload.new && (payload.new as any).programacion_id) {
-                                console.log('[Realtime] Cambio detectado en asignaciones_dia');
+                                console.log('[Realtime] Cambio detectado en asignaciones_programacion');
                                 await get().fetchProgramacionDetalles((payload.new as any).programacion_id, true);
                             }
                         }

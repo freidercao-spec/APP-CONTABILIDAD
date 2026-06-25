@@ -1,5 +1,5 @@
-import { supabase, EMPRESA_ID } from '../lib/supabase';
-import type { ProgramacionMensual, PersonalPuesto, AsignacionDia, EstadoProgramacion, SyncResult } from '../store/programacionTypes';
+import { supabase } from '../lib/supabase';
+import type { ProgramacionMensual } from '../store/programacionTypes';
 
 export const ProgramacionService = {
     async fetchHeaders(empresaId: string, anio: number, mes: number) {
@@ -9,7 +9,7 @@ export const ProgramacionService = {
         
         while (true) {
             const { data, error } = await supabase
-                .from('programacion_mensual')
+                .from('programaciones_mensuales')
                 .select('*')
                 .eq('empresa_id', empresaId)
                 .eq('anio', anio)
@@ -26,14 +26,25 @@ export const ProgramacionService = {
     },
 
     async upsertHeader(empresaId: string, prog: ProgramacionMensual) {
+        const personalPayload = (prog.personal || [])
+            .filter(p => p.rol)
+            .map(p => ({
+                rol: p.rol,
+                vigilanteId: p.vigilanteId || null,
+                turnoId: p.turnoId || null,
+                displayName: p.displayName || null
+            }));
+
         const { data, error } = await supabase
-            .from('programacion_mensual')
+            .from('programaciones_mensuales')
             .upsert({
                 empresa_id: empresaId,
                 puesto_id: prog.puestoId,
                 anio: prog.anio,
                 mes: prog.mes,
                 estado: prog.estado || 'borrador',
+                personal: personalPayload,
+                historial_cambios: (prog as any).historialCambios || [],
                 updated_at: new Date().toISOString()
             }, { onConflict: 'empresa_id,puesto_id,anio,mes' })
             .select('id')
@@ -44,10 +55,7 @@ export const ProgramacionService = {
     },
 
     async upsertPersonal(progId: string, personal: any[]) {
-        const { error } = await supabase
-            .from('personal_puesto')
-            .upsert(personal, { onConflict: 'programacion_id,rol' });
-        if (error) console.warn('[ProgramacionService] Personal warning:', error.message);
+        console.log('[ProgramacionService] upsertPersonal is no-op: managed directly in programaciones_mensuales');
     },
 
     async upsertAsignaciones(asignaciones: any[]) {
@@ -55,7 +63,7 @@ export const ProgramacionService = {
         for (let i = 0; i < asignaciones.length; i += BATCH_SIZE) {
             const chunk = asignaciones.slice(i, i + BATCH_SIZE);
             const { error } = await supabase
-                .from('asignaciones_dia')
+                .from('asignaciones_programacion')
                 .upsert(chunk, { onConflict: 'programacion_id,dia,rol' });
             if (error) throw error;
         }
