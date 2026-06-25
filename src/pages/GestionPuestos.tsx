@@ -1549,10 +1549,10 @@ const PanelMensualPuesto = ({
             onClick={handleAplicarCiclo}
             disabled={isApplyingCiclo}
             title="Aplica el ciclo continuo 6D → 2R+1NR → 6N → 2R+1NR. Hereda la posición del mes anterior automáticamente."
-            className="group relative px-6 py-2.5 bg-gradient-to-br from-indigo-600 to-violet-700 text-white border border-indigo-400/30 rounded-2xl text-[10px] font-black uppercase tracking-wider hover:from-indigo-500 hover:to-violet-600 transition-all flex items-center gap-2.5 shadow-[0_10px_30px_rgba(79,70,229,0.3)] hover:shadow-[0_15px_40px_rgba(79,70,229,0.5)] active:scale-95 disabled:opacity-60 overflow-hidden"
+            className="group relative px-3 py-1.5 bg-gradient-to-br from-indigo-600 to-violet-700 text-white border border-indigo-400/30 rounded-lg text-[10px] font-black uppercase tracking-wider hover:from-indigo-500 hover:to-violet-600 transition-all flex items-center gap-1.5 shadow-[0_4px_12px_rgba(79,70,229,0.3)] hover:shadow-[0_8px_20px_rgba(79,70,229,0.4)] active:scale-95 disabled:opacity-60 overflow-hidden"
           >
             <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-            <span className={`material-symbols-outlined text-[18px] relative z-10 ${isApplyingCiclo ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`}>
+            <span className={`material-symbols-outlined text-[14px] relative z-10 ${isApplyingCiclo ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`}>
               {isApplyingCiclo ? 'sync' : 'autorenew'}
             </span>
             <span className="relative z-10">{isApplyingCiclo ? 'Aplicando...' : 'Aplicar Ciclo D/N/R'}</span>
@@ -1560,9 +1560,9 @@ const PanelMensualPuesto = ({
 
           <button
             onClick={() => setShowPersonalModal(true)}
-            className="group px-6 py-2.5 bg-slate-800/80 backdrop-blur-md text-white border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-wider hover:bg-slate-700 hover:border-white/20 transition-all flex items-center gap-2.5 shadow-xl active:scale-95"
+            className="group px-3 py-1.5 bg-slate-800/80 backdrop-blur-md text-white border border-white/10 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-slate-700 hover:border-white/20 transition-all flex items-center gap-1.5 shadow-md active:scale-95"
           >
-            <span className="material-symbols-outlined text-[18px] text-slate-400 group-hover:text-white transition-colors">manage_accounts</span>
+            <span className="material-symbols-outlined text-[14px] text-slate-400 group-hover:text-white transition-colors">manage_accounts</span>
             <span>Personal</span>
             {staffAsignado.length > 0 && (
               <span className="px-2 py-0.5 bg-indigo-500 text-white rounded-full text-[8px] font-black shadow-[0_0_10px_rgba(99,102,241,0.5)]">
@@ -1573,10 +1573,10 @@ const PanelMensualPuesto = ({
 
           <button
             onClick={() => setShowRolesModal(true)}
-            className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white border border-violet-400/30 rounded-2xl text-[10px] font-black uppercase transition-all flex items-center gap-2 shadow-lg shadow-violet-900/40 relative"
+            className="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white border border-violet-400/30 rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-1.5 shadow-md shadow-violet-900/40 relative"
             title="Gestionar filas del tablero — agregar hasta 20+ vigilantes por puesto"
           >
-            <span className="material-symbols-outlined text-[18px]">add_row_above</span>
+            <span className="material-symbols-outlined text-[14px]">add_row_above</span>
             Gestionar Filas
             <span className="px-2 py-0.5 bg-violet-400/30 rounded-full text-[9px] font-black">
               {progPersonal.length}
@@ -1586,9 +1586,9 @@ const PanelMensualPuesto = ({
           <button
             onClick={() => setShowHistoryModal(true)}
             disabled={!prog}
-            className="px-5 py-2.5 bg-slate-800 text-indigo-400 border border-white/10 rounded-2xl text-[10px] font-black uppercase hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-2"
+            className="px-3 py-1.5 bg-slate-800 text-indigo-400 border border-white/10 rounded-lg text-[10px] font-black uppercase hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-1.5"
           >
-            <span className="material-symbols-outlined text-[18px]">history</span>
+            <span className="material-symbols-outlined text-[14px]">history</span>
             Registro Táctico
           </button>
 
@@ -1596,9 +1596,9 @@ const PanelMensualPuesto = ({
             <button
               onClick={handleGenerateExcel}
               disabled={isGeneratingPDF}
-              className="px-5 py-2.5 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-lg shadow-emerald-600/20 disabled:opacity-60"
+              className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-emerald-700 transition-all flex items-center gap-1.5 shadow-md shadow-emerald-600/20 disabled:opacity-60"
             >
-              <span className={`material-symbols-outlined text-[18px] ${isGeneratingPDF ? "animate-spin" : ""}`}>
+              <span className={`material-symbols-outlined text-[14px] ${isGeneratingPDF ? "animate-spin" : ""}`}>
                 {isGeneratingPDF ? "sync" : "table_view"}
               </span>
               {isGeneratingPDF ? "Generando..." : "Exportar Excel"}
@@ -1607,10 +1607,10 @@ const PanelMensualPuesto = ({
             <button
               onClick={handleGeneratePDF}
               disabled={isGeneratingPDF}
-              className="px-5 py-2.5 bg-rose-600 text-white rounded-2xl text-[10px] font-black uppercase hover:bg-rose-700 transition-all flex items-center gap-2 shadow-lg shadow-rose-600/20 disabled:opacity-60"
+              className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-rose-700 transition-all flex items-center gap-1.5 shadow-md shadow-rose-600/20 disabled:opacity-60"
             >
               <span
-                className={`material-symbols-outlined text-[18px] ${
+                className={`material-symbols-outlined text-[14px] ${
                   isGeneratingPDF ? "animate-spin" : ""
                 }`}
               >
@@ -1623,22 +1623,22 @@ const PanelMensualPuesto = ({
           <button
             onClick={() => prog?.id && guardarBorrador(prog.id, currentUser)}
             disabled={!prog?.id}
-            className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl text-[10px] font-black uppercase hover:bg-slate-50 transition-all flex items-center gap-2 disabled:opacity-50"
+            className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-[10px] font-black uppercase hover:bg-slate-50 transition-all flex items-center gap-1.5 disabled:opacity-50"
           >
-            <span className="material-symbols-outlined text-[18px]">save</span>{" "}
+            <span className="material-symbols-outlined text-[14px]">save</span>{" "}
             Borrador
           </button>
 
           <button
             onClick={() => prog?.id && publicarProgramacion(prog.id, currentUser)}
             disabled={!prog?.id}
-            className="px-6 py-2.5 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2 disabled:opacity-50"
+            className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-[10px] font-black uppercase hover:bg-emerald-600 transition-all shadow-md shadow-emerald-500/20 flex items-center gap-1.5 disabled:opacity-50"
           >
-            <span className="material-symbols-outlined text-[18px]">cloud_upload</span>{" "}
+            <span className="material-symbols-outlined text-[14px]">cloud_upload</span>{" "}
             Publicar
           </button>
 
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl border min-w-[120px] justify-center ${
+          <div className={`flex items-center gap-2 px-3 py-1 rounded-lg border min-w-[90px] justify-center ${
             syncStatus === 'error' ? 'bg-rose-50 border-rose-200' : 'bg-slate-100 border-slate-200'
           }`}>
             {isSyncing ? (
@@ -1783,9 +1783,9 @@ const PanelMensualPuesto = ({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-3 p-4 bg-slate-900 rounded-[30px] border border-white/5 shadow-2xl mb-8 animate-in slide-in-from-top-4 duration-500">
+      <div className="flex flex-wrap items-center gap-2 p-2.5 bg-slate-900 rounded-2xl border border-white/5 shadow-xl mb-6 animate-in slide-in-from-top-4 duration-500">
         <div className="flex items-center gap-2 px-4 border-r border-white/10 shrink-0">
-          <span className="material-symbols-outlined text-primary-light text-[20px]">magic_button</span>
+          <span className="material-symbols-outlined text-primary-light text-[15px]">magic_button</span>
           <span className="text-[10px] font-black text-white uppercase tracking-widest">
             Personalizar Tablero
           </span>
@@ -1794,13 +1794,13 @@ const PanelMensualPuesto = ({
         <div className="relative">
           <button
             onClick={() => setShowTurnosConfig(!showTurnosConfig)}
-            className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-2 border ${
+            className={`px-3 py-1 rounded-md text-[9px] font-black uppercase transition-all flex items-center gap-1.5 border ${
               showTurnosConfig
-                ? 'bg-violet-600 border-violet-500 text-white shadow-lg shadow-violet-500/20'
+                ? 'bg-violet-600 border-violet-500 text-white shadow-sm shadow-violet-500/20'
                 : 'bg-white/5 hover:bg-violet-500/30 text-white border-white/10'
             }`}
           >
-            <span className="material-symbols-outlined text-[16px]">tune</span>
+            <span className="material-symbols-outlined text-[13px]">tune</span>
             Configurar Turnos
             {turnosConfig.length > 0 && (
               <span className="px-1.5 py-0.5 bg-violet-400 rounded-full text-[7px]">{turnosConfig.length}</span>
@@ -1870,19 +1870,19 @@ const PanelMensualPuesto = ({
                 guardarComoPlantilla(prog.id, nombre, nombrePuesto, currentUser);
               }
             }}
-            className="px-4 py-2 bg-white/5 hover:bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-2 border border-white/5"
+            className="px-3 py-1 bg-white/5 hover:bg-indigo-500 text-white rounded-md text-[9px] font-black uppercase transition-all flex items-center gap-1.5 border border-white/5"
           >
-            <span className="material-symbols-outlined text-[16px]">save</span> Guardar Patrón
+            <span className="material-symbols-outlined text-[13px]">save</span> Guardar Patrón
           </button>
 
           <div className="relative">
             <button
               onClick={() => setShowTemplates(!showTemplates)}
-              className={`px-4 py-2 ${
+              className={`px-3 py-1 ${
                 showTemplates ? "bg-indigo-600" : "bg-white/5 hover:bg-white/10"
-              } text-white rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-2 border border-white/10`}
+              } text-white rounded-md text-[9px] font-black uppercase transition-all flex items-center gap-1.5 border border-white/10`}
             >
-              <span className="material-symbols-outlined text-[16px]">
+              <span className="material-symbols-outlined text-[13px]">
                 auto_awesome_motion
               </span>{" "}
               Cargar Plantilla
