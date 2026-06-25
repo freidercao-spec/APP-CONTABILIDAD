@@ -1850,7 +1850,23 @@ const PanelMensualPuesto = ({
                   onAdd={(nuevoTurno: TurnoConfig) => {
                     const newTurnos = [...turnosConfig, nuevoTurno];
                     usePuestoStore.getState().updatePuesto(puestoId, { turnosConfig: newTurnos });
-                    showTacticalToast({ title: '✅ Turno Añadido', message: nuevoTurno.nombre, type: 'success' });
+                    
+                    if (prog) {
+                      const user = useAuthStore.getState().username || 'Operador';
+                      const nuevoRolId = `turno_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+                      const nuevaFila = {
+                        rol: nuevoRolId,
+                        vigilanteId: null,
+                        turnoId: nuevoTurno.id,
+                        displayName: nuevoTurno.nombre
+                      };
+                      (useProgramacionStore.getState() as any).actualizarPersonalPuesto(
+                        prog.id,
+                        [...progPersonal, nuevaFila],
+                        user
+                      );
+                    }
+                    showTacticalToast({ title: '✅ Turno Inyectado', message: `${nuevoTurno.nombre} se inyectó como fila en el tablero.`, type: 'success' });
                   }}
                 />
               </div>
@@ -1861,6 +1877,14 @@ const PanelMensualPuesto = ({
             </div>
           )}
         </div>
+
+        <button
+          onClick={() => setShowRolesModal(true)}
+          className="px-3 py-1 bg-white/5 hover:bg-violet-500/30 text-white border border-white/10 rounded-md text-[9px] font-black uppercase transition-all flex items-center gap-1.5"
+        >
+          <span className="material-symbols-outlined text-[13px]">add_circle</span>
+          Añadir Fila / Rol
+        </button>
 
         <div className="flex gap-2.5">
           <button
@@ -2117,48 +2141,100 @@ const PanelMensualPuesto = ({
                      className="sticky left-0 z-30 transition-all border-r border-indigo-500/10 px-5 group-hover/row:bg-[#111827]"
                      style={{ width: 320, background: index % 2 === 0 ? '#0b1120' : '#0a0f1c', boxShadow: '8px 0 25px rgba(0,0,0,0.4)' }}
                    >
-                     <div className="flex flex-col gap-1.5">
-                        <div className="flex items-center gap-3">
-                           <div className={`flex items-center gap-1.5 px-3 py-1 rounded-xl border font-black text-[9px] tracking-[0.12em] uppercase ${
-                             isActuallyNight 
-                             ? 'bg-violet-500/10 border-violet-500/25 text-violet-400' 
-                             : 'bg-sky-500/10 border-sky-500/25 text-sky-400'
-                           }`}>
-                             <span className="material-symbols-outlined text-[14px]">
-                               {isActuallyNight ? 'dark_mode' : 'light_mode'}
-                             </span>
-                             {isActuallyNight ? 'Noche' : 'Día'}
-                           </div>
-                           
-                           <div className="flex flex-col min-w-0">
-                             <span className="text-[13px] font-black uppercase tracking-tight truncate text-white/90 group-hover/row:text-white transition-colors">
-                               {rolLabel}
-                             </span>
-                             <div className="flex items-center gap-1.5 mt-0.5">
-                                <div className="size-1.5 rounded-full" style={{ backgroundColor: turno.color || '#6366f1' }} />
-                                <span className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.12em]">{turno.nombre} · {turno.inicio}–{turno.fin}</span>
+                     <div className="flex items-center justify-between gap-3">
+                       <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+                          <div className="flex items-center gap-3">
+                             <div className={`flex items-center gap-1.5 px-3 py-1 rounded-xl border font-black text-[9px] tracking-[0.12em] uppercase ${
+                               isActuallyNight 
+                               ? 'bg-violet-500/10 border-violet-500/25 text-violet-400' 
+                               : 'bg-sky-500/10 border-sky-500/25 text-sky-400'
+                             }`}>
+                               <span className="material-symbols-outlined text-[14px]">
+                                 {isActuallyNight ? 'dark_mode' : 'light_mode'}
+                               </span>
+                               {isActuallyNight ? 'Noche' : 'Día'}
                              </div>
-                           </div>
-                        </div>
-                        
-                        {assignedVig ? (
-                           <div className="flex items-center gap-2.5 px-3 py-1 rounded-xl border bg-emerald-500/[0.06] border-emerald-500/20 group-hover/row:border-emerald-500/40 transition-all">
-                              <div className="size-7 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 border border-emerald-500/25">
-                                 <span className="material-symbols-outlined text-[14px]">verified_user</span>
-                              </div>
-                              <div className="min-w-0">
-                                 <span className="text-[10px] font-black uppercase truncate block text-emerald-100/90 tracking-wide">
-                                   {typeof assignedVig === 'string' ? assignedVig : assignedVig.nombre}
-                                 </span>
-                                 <span className="text-[7px] font-bold text-emerald-500/50 uppercase tracking-widest">Activo</span>
-                              </div>
-                           </div>
-                        ) : (
-                           <div className="flex items-center gap-2 px-3 py-1 border border-dashed border-slate-700/50 bg-slate-800/20 rounded-xl opacity-40 group-hover/row:opacity-70 transition-opacity">
-                              <span className="material-symbols-outlined text-slate-600 text-[16px]">person_add</span>
-                              <span className="text-[8px] font-black uppercase text-slate-600 tracking-wider">Vacante</span>
-                           </div>
-                        )}
+                             
+                             <div className="flex flex-col min-w-0">
+                               <span className="text-[13px] font-black uppercase tracking-tight truncate text-white/90 group-hover/row:text-white transition-colors">
+                                 {rolLabel}
+                               </span>
+                               <div className="flex items-center gap-1.5 mt-0.5">
+                                  <div className="size-1.5 rounded-full" style={{ backgroundColor: turno.color || '#6366f1' }} />
+                                  <span className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.12em]">{turno.nombre} · {turno.inicio}–{turno.fin}</span>
+                               </div>
+                             </div>
+                          </div>
+                          
+                          {assignedVig ? (
+                             <div className="flex items-center gap-2.5 px-3 py-1 rounded-xl border bg-emerald-500/[0.06] border-emerald-500/20 group-hover/row:border-emerald-500/40 transition-all">
+                                <div className="size-7 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 border border-emerald-500/25">
+                                   <span className="material-symbols-outlined text-[14px]">verified_user</span>
+                                </div>
+                                <div className="min-w-0">
+                                   <span className="text-[10px] font-black uppercase truncate block text-emerald-100/90 tracking-wide">
+                                     {typeof assignedVig === 'string' ? assignedVig : assignedVig.nombre}
+                                   </span>
+                                   <span className="text-[7px] font-bold text-emerald-500/50 uppercase tracking-widest">Activo</span>
+                                </div>
+                             </div>
+                          ) : (
+                             <div className="flex items-center gap-2 px-3 py-1 border border-dashed border-slate-700/50 bg-slate-800/20 rounded-xl opacity-40 group-hover/row:opacity-70 transition-opacity">
+                                <span className="material-symbols-outlined text-slate-600 text-[16px]">person_add</span>
+                                <span className="text-[8px] font-black uppercase text-slate-600 tracking-wider">Vacante</span>
+                             </div>
+                          )}
+                       </div>
+
+                       {/* Acciones de Fila (Duplicar / Eliminar) */}
+                       <div className="flex flex-col gap-1 shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                         <button
+                           onClick={() => {
+                             const user = useAuthStore.getState().username || 'Operador';
+                             const currentPersonal = [...progPersonal];
+                             const nuevoRolId = `turno_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+                             const nuevaFila = {
+                               rol: nuevoRolId,
+                               vigilanteId: null,
+                               turnoId: per.turnoId || 'AM',
+                               displayName: `${rolLabel} (Copia)`
+                             };
+                             (useProgramacionStore.getState() as any).actualizarPersonalPuesto(
+                               prog?.id || '',
+                               [...currentPersonal, nuevaFila],
+                               user
+                             );
+                             showTacticalToast({ title: 'Fila Duplicada', message: `Se creó la fila ${rolLabel} (Copia)`, type: 'success' });
+                           }}
+                           className="size-7 rounded-lg bg-white/5 hover:bg-violet-600/30 border border-white/10 hover:border-violet-500/50 flex items-center justify-center text-slate-400 hover:text-white transition-all"
+                           title="Duplicar esta fila"
+                         >
+                           <span className="material-symbols-outlined text-[13px]">content_copy</span>
+                         </button>
+                         
+                         <button
+                           onClick={() => {
+                             if (progPersonal.length <= 1) {
+                               showTacticalToast({ title: 'Mínimo 1 fila', message: 'El tablero requiere al menos una fila operativa.', type: 'warning' });
+                               return;
+                             }
+                             if (confirm(`¿Eliminar la fila "${rolLabel}"? Se perderán sus asignaciones en este tablero.`)) {
+                               const user = useAuthStore.getState().username || 'Operador';
+                               const filteredPersonal = progPersonal.filter((p: any) => p.rol !== per.rol);
+                               (useProgramacionStore.getState() as any).actualizarPersonalPuesto(
+                                 prog?.id || '',
+                                 filteredPersonal,
+                                 user
+                               );
+                               showTacticalToast({ title: 'Fila Eliminada', message: rolLabel, type: 'info' });
+                             }
+                           }}
+                           className="size-7 rounded-lg bg-white/5 hover:bg-rose-600/30 border border-white/10 hover:border-rose-500/50 flex items-center justify-center text-slate-400 hover:text-rose-400 transition-all"
+                           title="Eliminar esta fila"
+                         >
+                           <span className="material-symbols-outlined text-[13px]">delete</span>
+                         </button>
+                       </div>
                      </div>
                    </td>
 
