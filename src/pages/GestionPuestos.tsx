@@ -592,6 +592,9 @@ const AddTurnoForm = ({
   );
 };
 
+// Stable empty array to prevent infinite re-renders in Zustand selectors
+const _EMPTY_ARR: any[] = [];
+
 const PanelMensualPuesto = ({
   puestoId,
   puestoNombre,
@@ -680,14 +683,14 @@ const PanelMensualPuesto = ({
   // llaman a set() en Zustand - no dependen de useMemo intermedio
   const progId = prog?.id;
   const progAsignaciones = useProgramacionStore(s => {
-    if (!progId) return [];
+    if (!progId) return _EMPTY_ARR;
     const found = s.programaciones.find((p: any) => p.id === progId);
-    return found?.asignaciones || [];
+    return found?.asignaciones ?? _EMPTY_ARR;
   });
   const progPersonal = useProgramacionStore(s => {
-    if (!progId) return [];
+    if (!progId) return _EMPTY_ARR;
     const found = s.programaciones.find((p: any) => p.id === progId);
-    return found?.personal || [];
+    return found?.personal ?? _EMPTY_ARR;
   });
   const puesto = useMemo(
     () =>
