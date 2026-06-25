@@ -1990,13 +1990,13 @@ const PanelMensualPuesto = ({
       </div>
 
       <div className="bg-gradient-to-b from-[#0a0f1e] via-[#080d1a] to-[#060a14] rounded-[32px] border border-white/[0.06] shadow-[0_8px_60px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.03)] overflow-hidden mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        <div className="overflow-x-auto custom-scrollbar">
+        <div className="overflow-auto max-h-[68vh] custom-scrollbar">
           <table className="border-collapse select-none" style={{ width: 'max-content', tableLayout: 'fixed' }}>
             <thead>
-              <tr className="h-24 bg-gradient-to-r from-[#0c1425] via-[#0e1730] to-[#0c1425]" style={{ borderBottom: '2px solid rgba(99,102,241,0.25)' }}>
+              <tr className="h-24 bg-gradient-to-r from-[#0c1425] via-[#0e1730] to-[#0c1425]">
                 <th 
-                  className="sticky left-0 z-40 px-6 border-r border-indigo-500/15"
-                  style={{ width: 320, background: 'linear-gradient(135deg, #0c1225, #0a0f1e)', boxShadow: '8px 0 30px rgba(0,0,0,0.5)' }}
+                  className="sticky left-0 top-0 z-50 px-6 border-r border-indigo-500/15"
+                  style={{ width: 320, background: 'linear-gradient(135deg, #0c1225, #0a0f1e)', boxShadow: '8px 0 30px rgba(0,0,0,0.5)', borderBottom: '2px solid rgba(99,102,241,0.25)' }}
                 >
                   <div className="flex items-center gap-4">
                     <div className="size-14 rounded-2xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-700 flex items-center justify-center shadow-[0_4px_20px_rgba(99,102,241,0.35)] border border-indigo-400/20">
@@ -2018,18 +2018,19 @@ const PanelMensualPuesto = ({
                   return (
                     <th 
                       key={d} 
-                      className={`text-center border-r border-white/[0.04] px-1 relative transition-all duration-300`}
+                      className={`text-center border-r border-white/[0.04] px-1 relative transition-all duration-300 sticky top-0 z-40`}
                       style={{ 
                         width: 120,
+                        borderBottom: '2px solid rgba(99,102,241,0.25)',
                         background: isToday 
-                          ? 'linear-gradient(180deg, rgba(99,102,241,0.25), rgba(99,102,241,0.05))' 
+                          ? 'linear-gradient(180deg, rgba(99,102,241,0.25), rgba(99,102,241,0.05)), #0c1425' 
                           : holiday
-                            ? 'linear-gradient(180deg, rgba(239,68,68,0.25), rgba(239,68,68,0.05))'
+                            ? 'linear-gradient(180deg, rgba(239,68,68,0.25), rgba(239,68,68,0.05)), #0c1425'
                             : isSun 
-                              ? 'linear-gradient(180deg, rgba(239,68,68,0.15), rgba(239,68,68,0.02))' 
+                              ? 'linear-gradient(180deg, rgba(239,68,68,0.15), rgba(239,68,68,0.02)), #0c1425' 
                               : isSat
-                                ? 'linear-gradient(180deg, rgba(245,158,11,0.15), rgba(245,158,11,0.02))'
-                                : 'transparent'
+                                ? 'linear-gradient(180deg, rgba(245,158,11,0.15), rgba(245,158,11,0.02)), #0c1425'
+                                : '#0c1425'
                       }}
                       title={holiday?.name}
                     >
@@ -2107,7 +2108,7 @@ const PanelMensualPuesto = ({
                     key={`${per.rol}-${index}`} 
                     className="group/row transition-all duration-200"
                     style={{ 
-                      height: 110, 
+                      height: 96, 
                       borderBottom: '1px solid rgba(255,255,255,0.04)',
                       background: index % 2 === 0 ? 'rgba(15,23,42,0.3)' : 'rgba(15,23,42,0.15)'
                     }}
@@ -2116,9 +2117,9 @@ const PanelMensualPuesto = ({
                      className="sticky left-0 z-30 transition-all border-r border-indigo-500/10 px-5 group-hover/row:bg-[#111827]"
                      style={{ width: 320, background: index % 2 === 0 ? '#0b1120' : '#0a0f1c', boxShadow: '8px 0 25px rgba(0,0,0,0.4)' }}
                    >
-                     <div className="flex flex-col gap-2.5">
+                     <div className="flex flex-col gap-1.5">
                         <div className="flex items-center gap-3">
-                           <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-black text-[9px] tracking-[0.12em] uppercase ${
+                           <div className={`flex items-center gap-1.5 px-3 py-1 rounded-xl border font-black text-[9px] tracking-[0.12em] uppercase ${
                              isActuallyNight 
                              ? 'bg-violet-500/10 border-violet-500/25 text-violet-400' 
                              : 'bg-sky-500/10 border-sky-500/25 text-sky-400'
@@ -2141,7 +2142,7 @@ const PanelMensualPuesto = ({
                         </div>
                         
                         {assignedVig ? (
-                           <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl border bg-emerald-500/[0.06] border-emerald-500/20 group-hover/row:border-emerald-500/40 transition-all">
+                           <div className="flex items-center gap-2.5 px-3 py-1 rounded-xl border bg-emerald-500/[0.06] border-emerald-500/20 group-hover/row:border-emerald-500/40 transition-all">
                               <div className="size-7 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 border border-emerald-500/25">
                                  <span className="material-symbols-outlined text-[14px]">verified_user</span>
                               </div>
@@ -2153,7 +2154,7 @@ const PanelMensualPuesto = ({
                               </div>
                            </div>
                         ) : (
-                           <div className="flex items-center gap-2 px-3 py-2 border border-dashed border-slate-700/50 bg-slate-800/20 rounded-xl opacity-40 group-hover/row:opacity-70 transition-opacity">
+                           <div className="flex items-center gap-2 px-3 py-1 border border-dashed border-slate-700/50 bg-slate-800/20 rounded-xl opacity-40 group-hover/row:opacity-70 transition-opacity">
                               <span className="material-symbols-outlined text-slate-600 text-[16px]">person_add</span>
                               <span className="text-[8px] font-black uppercase text-slate-600 tracking-wider">Vacante</span>
                            </div>

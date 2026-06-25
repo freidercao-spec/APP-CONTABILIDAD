@@ -201,8 +201,8 @@ export const CeldaCalendario = React.memo(({
       <button
         onClick={onEdit}
         title={`Día ${asig.dia} · Clic para asignar`}
-        className="celda-vacia w-full h-full flex flex-col items-center justify-center gap-2 rounded-[18px] border border-dashed border-white/[0.07] hover:border-sky-500/40 transition-all duration-300 group relative overflow-hidden"
-        style={{ minHeight: 90, background: 'rgba(15,23,42,0.4)' }}
+        className="celda-vacia w-full h-full flex flex-col items-center justify-center gap-1.5 rounded-[18px] border border-dashed border-white/[0.07] hover:border-sky-500/40 transition-all duration-300 group relative overflow-hidden"
+        style={{ minHeight: 82, background: 'rgba(15,23,42,0.4)' }}
       >
         {/* Subtle grid pattern */}
         <div className="absolute inset-0 opacity-[0.03]" style={{
@@ -211,10 +211,10 @@ export const CeldaCalendario = React.memo(({
         }} />
         
         <div
-          className="size-10 rounded-[14px] flex items-center justify-center text-slate-600 group-hover:text-sky-400 group-hover:scale-110 group-hover:rotate-90 transition-all duration-500 relative z-10"
+          className="size-8 rounded-[12px] flex items-center justify-center text-slate-600 group-hover:text-sky-400 group-hover:scale-110 group-hover:rotate-90 transition-all duration-500 relative z-10"
           style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
         >
-          <span className="material-symbols-outlined text-[22px]">add</span>
+          <span className="material-symbols-outlined text-[18px]">add</span>
         </div>
         <span className="text-[7px] font-black text-slate-700 group-hover:text-sky-400/80 uppercase tracking-[0.25em] transition-colors relative z-10">
           ASIGNAR
@@ -258,7 +258,7 @@ export const CeldaCalendario = React.memo(({
       title={hasConflict ? `⚠️ DOBLE ASIGNACIÓN: ${conflictDetail}` : `${rawName} · ${s.label}`}
       className={`celda-asignada w-full h-full flex flex-col rounded-[18px] border-[1.5px] hover:scale-[1.04] hover:z-50 transition-all duration-300 group overflow-hidden relative ${hasConflict ? 'animate-pulse' : ''}`}
       style={{
-        minHeight: 90,
+        minHeight: 82,
         background: s.bg,
         borderColor: s.border,
         boxShadow: `0 4px 24px -6px ${s.glow}, inset 0 1px 0 rgba(255,255,255,0.04)`,
@@ -290,34 +290,34 @@ export const CeldaCalendario = React.memo(({
       )}
 
       {/* ── TOP BAR: badge + icon ── */}
-      <div className="flex items-center justify-between px-2.5 pt-2 pb-1 relative z-10">
+      <div className="flex items-center justify-between px-2.5 pt-1.5 pb-0.5 relative z-10">
         <div
-          className="flex items-center gap-1 px-2 py-[3px] rounded-lg"
+          className="flex items-center gap-1 px-2 py-[2px] rounded-lg"
           style={{ background: `${s.badge}22`, border: `1px solid ${s.badge}44` }}
         >
-          <span className="material-symbols-outlined text-[12px]" style={{ color: s.badgeText }}>
+          <span className="material-symbols-outlined text-[11px]" style={{ color: s.badgeText }}>
             {s.icon}
           </span>
-          <span className="text-[9px] font-black uppercase tracking-wider" style={{ color: s.badgeText }}>
+          <span className="text-[8px] font-black uppercase tracking-wider" style={{ color: s.badgeText }}>
             {s.label}
           </span>
         </div>
         
         {/* Estado punto */}
-        <div className="size-2 rounded-full animate-pulse" style={{ backgroundColor: s.accentLine, boxShadow: `0 0 8px ${s.accentLine}` }} />
+        <div className="size-1.5 rounded-full animate-pulse" style={{ backgroundColor: s.accentLine, boxShadow: `0 0 8px ${s.accentLine}` }} />
       </div>
 
       {/* ── GUARD NAME (centro) ── */}
       <div className="flex-1 flex flex-col items-center justify-center px-2 relative z-10 min-h-0">
         <span
-          className="text-[13px] font-black leading-tight text-center w-full truncate uppercase tracking-wide"
+          className="text-[12px] font-black leading-tight text-center w-full truncate uppercase tracking-wide"
           style={{ color: s.nameColor, textShadow: `0 1px 8px ${s.glow}` }}
         >
           {firstName}
         </span>
         {lastName && (
           <span
-            className="text-[9px] font-bold leading-none text-center w-full truncate uppercase opacity-60 mt-0.5"
+            className="text-[8px] font-bold leading-none text-center w-full truncate uppercase opacity-60 mt-0.5"
             style={{ color: s.nameColor }}
           >
             {lastName}
