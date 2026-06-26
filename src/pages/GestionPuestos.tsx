@@ -712,9 +712,26 @@ const PanelMensualPuesto = ({
 
     if (!prog) {
       // Esperar a que el fetch del mes termine antes de crear
-      const timer = setTimeout(() => {
+      const timer = setTimeout(async () => {
         const recheck = getProgramacion(puestoId, anio, mes);
         if (!recheck) {
+          // Cargar el mes anterior de forma proactiva para que el creador herede el ciclo
+          const mesAnterior = mes === 0 ? 11 : mes - 1;
+          const anioAnterior = mes === 0 ? anio - 1 : anio;
+          let progAnterior = getProgramacion(puestoId, anioAnterior, mesAnterior);
+
+          if (!progAnterior) {
+            // Cargar cabecera del mes anterior desde Supabase
+            await useProgramacionStore.getState().fetchProgramacionesByMonth(anioAnterior, mesAnterior);
+            progAnterior = getProgramacion(puestoId, anioAnterior, mesAnterior);
+          }
+
+          if (progAnterior && !progAnterior.isDetailLoaded && !progAnterior.isFetching) {
+            // Cargar las asignaciones del mes anterior
+            await fetchProgramacionDetalles(progAnterior.id);
+          }
+
+          // Crear la programación del nuevo mes (ahora heredará automáticamente el ciclo)
           crearOObtenerProgramacion(puestoId, anio, mes, currentUser);
         }
       }, 800);
