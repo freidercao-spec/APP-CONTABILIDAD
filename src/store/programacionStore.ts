@@ -179,7 +179,8 @@ interface ProgramacionState {
     getAlertas: (progId: string) => string[];
     getBusyDays: (vigilanteId: string, anio: number, mes: number) => Set<number>;
     getAssignmentsForVigilante: (vigilanteId: string, anio: number, mes: number) => AsignacionDia[];
-    checkConflict: (progId: string, dia: number, vigilanteId: string, turno: string) => string | null;
+    getAlertasMotor: (progId: string) => AlertaMotor[];
+    checkConflict: (progId: string, dia: number, vigilanteId: string, turno: string, jornada?: string) => string | null;
     recuperarDatosHuerfanos: (puestoId: string, anio: number, mes: number) => Promise<boolean>;
     getProgramacionRapid: (puestoId: string, anio: number, mes: number) => ProgramacionMensual | undefined;
     flushPendingSyncs: () => Promise<void>;
@@ -383,6 +384,18 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
                 });
 
             const BATCH_SIZE = 100;
+            
+            // Borrar todas las asignaciones existentes para esta programación en la base de datos antes de re-guardar
+            const { error: deleteErr } = await supabase
+                .from('asignaciones_programacion')
+                .delete()
+                .eq('programacion_id', dbProgId);
+
+            if (deleteErr) {
+                console.error('[Coraza] ❌ Fallo al limpiar asignaciones previas:', deleteErr);
+                throw new Error(`DB Limpiar Asignaciones: ${deleteErr.message}`);
+            }
+
             console.log(`[Coraza] 🛰️ Desplegando ${asignacionesPayload.length} asignaciones en lotes de ${BATCH_SIZE}...`);
             
             for (let i = 0; i < asignacionesPayload.length; i += BATCH_SIZE) {
@@ -1339,7 +1352,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 get()._updateMap();
                 queueSync(realId, set, get, true);
 
-                const conflictMsg = get().checkConflict(progId, dia, data.vigilanteId || '', data.turno || 'AM');
+                const conflictMsg = get().checkConflict(progId, dia, data.vigilanteId || '', data.turno || 'AM', data.jornada);
                 const latestProg = get()._progMap?.get(realId);
                 
                 return { 
@@ -1586,7 +1599,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 const allProgs = get().programaciones.filter(p => p.anio === prog.anio && p.mes === prog.mes);
                 allProgs.forEach(p => {
                     (p.asignaciones || []).forEach(a => {
-                        if (a.vigilanteId && a.jornada !== 'sin_asignar') {
+                        if (a.vigilanteId && a.jornada === 'normal') {
                             const key = `${a.vigilanteId}-${a.dia}`;
                             vidDiaMap.set(key, (vidDiaMap.get(key) || 0) + 1);
                         }
@@ -1623,8 +1636,9 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
 
             // ── VERIFICACIÓN DE CONFLICTOS (Implementación que faltaba) ────
-            checkConflict: (progId: string, dia: number, vigilanteId: string, turno: string): string | null => {
+            checkConflict: (progId: string, dia: number, vigilanteId: string, turno: string, jornada?: string): string | null => {
                 if (!vigilanteId) return null;
+                if (jornada && jornada !== 'normal') return null; // descansos/vacaciones no generan conflicto
                 const state = get();
                 const prog = state.programaciones.find(p => p.id === progId);
                 if (!prog) return null;
@@ -1639,7 +1653,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
                     const match = (otherProg.asignaciones || []).find(a => {
                         if (a.dia !== dia) return false;
-                        if (a.jornada === 'sin_asignar' || !a.vigilanteId) return false;
+                        if (a.jornada !== 'normal' || !a.vigilanteId) return false;
                         const otherNorm = translateToUuid(a.vigilanteId);
                         if (normVid !== otherNorm) return false;
                         

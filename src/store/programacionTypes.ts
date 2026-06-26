@@ -71,6 +71,7 @@ export interface AsignacionDia {
     fin?: string;
     confirmado_por?: string;           // Usuario que confirmó
     timestamp_confirmacion?: string;   // ISO8601
+    posicionCiclo?: number;            // Posición en el ciclo de 18 días (del motor de turnos)
 }
 
 export interface PersonalPuesto {

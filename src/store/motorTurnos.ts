@@ -214,6 +214,7 @@ export function celdaToAsignacion(
     turno: celda.turno === 'descanso' ? (rol === 'titular_b' ? 'PM' : 'AM') : celda.turno,
     jornada: celda.jornada,
     rol,
+    posicionCiclo: celda.posicionCiclo,
   };
 }
 
@@ -295,14 +296,52 @@ export function extraerEstadosFinMes(
  * Reconstruye la posición en ciclo del último día del mes,
  * analizando el historial completo de asignaciones del vigilante.
  *
- * Si hay datos suficientes (>= 2 celdas), se puede determinar la posición
- * vía diferencia de días. Si no, se hace una estimación desde el valor final.
+ * Busca transiciones de estado conocidas en la secuencia para anclar la posición
+ * exacta del ciclo. Si no hay suficientes datos, hace una estimación desde el valor final.
  */
 function reconstruirPosicionDesdeHistorial(
   asigs: AsignacionDia[],
   diasMes: number,
 ): number {
   const sorted = [...asigs].sort((a, b) => a.dia - b.dia);
+  if (sorted.length === 0) return 0;
+
+  // Creamos un mapa indexado por día para buscar transiciones rápidamente
+  const valores = new Array<ValorCelda | null>(diasMes + 1).fill(null);
+  sorted.forEach(a => {
+    if (a.dia >= 1 && a.dia <= diasMes) {
+      valores[a.dia] = asignacionToValorCelda(a);
+    }
+  });
+
+  // Escanear la secuencia buscando transiciones conocidas
+  // Transiciones:
+  // - D -> R: D es pos 5, R es pos 6
+  // - N -> R: N es pos 14, R es pos 15
+  // - R -> N: R es pos 8, N es pos 9
+  // - R -> D: R es pos 17, D es pos 0
+  for (let d = 1; d < diasMes; d++) {
+    const v1 = valores[d];
+    const v2 = valores[d + 1];
+    if (!v1 || !v2) continue;
+
+    if (v1 === 'D' && (v2 === 'R' || v2 === 'NR')) {
+      const posLast = 5 + (diasMes - d);
+      return normalizarPosicion(posLast);
+    }
+    if (v1 === 'N' && (v2 === 'R' || v2 === 'NR')) {
+      const posLast = 14 + (diasMes - d);
+      return normalizarPosicion(posLast);
+    }
+    if ((v1 === 'R' || v1 === 'NR') && v2 === 'N') {
+      const posLast = 8 + (diasMes - d);
+      return normalizarPosicion(posLast);
+    }
+    if ((v1 === 'R' || v1 === 'NR') && v2 === 'D') {
+      const posLast = 17 + (diasMes - d);
+      return normalizarPosicion(posLast);
+    }
+  }
 
   // Buscar la primera celda con un valor reconocible de jornada
   const primera = sorted.find(
