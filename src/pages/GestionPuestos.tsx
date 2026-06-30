@@ -992,7 +992,7 @@ const PanelMensualPuesto = ({
         
         if (v && per.vigilanteId) {
             vigEntries.set(per.vigilanteId, { 
-                cedula: v.documento || "—", 
+                cedula: v.cedula || "—", 
                 nombre: v.nombre 
             });
         }
@@ -1301,7 +1301,7 @@ const PanelMensualPuesto = ({
           rowsToExport.set(per.rol, {
             rol: per.rol,
             displayName: per.displayName,
-            cedula: v?.documento || "—",
+            cedula: v?.cedula || "—",
             nombre: (v?.nombre || "SIN ASIGNAR").toUpperCase(),
             asigs: asigsMap
           });
