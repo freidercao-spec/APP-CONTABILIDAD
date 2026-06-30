@@ -1274,12 +1274,19 @@ const PanelMensualPuesto = ({
         
         progPersonal.forEach((per: any) => {
           const v = vigilantes.find(vx => vx.id === per.vigilanteId || vx.dbId === per.vigilanteId);
+          const asigsMap = new Map();
+          
+          daysArr.forEach(d => {
+            const asig = progAsignaciones.find(a => a.dia === d && a.rol === per.rol);
+            asigsMap.set(d, getTacticalCode(asig));
+          });
+
           rowsToExport.set(per.rol, {
             rol: per.rol,
             displayName: per.displayName,
             cedula: v?.documento || "—",
             nombre: (v?.nombre || "SIN ASIGNAR").toUpperCase(),
-            asigs: new Map()
+            asigs: asigsMap
           });
         });
 
@@ -1468,7 +1475,7 @@ const PanelMensualPuesto = ({
       } finally {
         setIsGeneratingPDF(false);
       }
-    }, [prog, puestoNombre, mes, anio, daysArr, vigilantes, logAction]);
+    }, [prog, puestoNombre, mes, anio, daysArr, vigilantes, logAction, progPersonal, progAsignaciones, daysInMonth, puesto]);
 
   const nombrePuesto = puestoNombre || getPuestoNombre(prog, allPuestos);
   const titularesId = useMemo(() => {
