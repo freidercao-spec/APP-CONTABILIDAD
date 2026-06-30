@@ -92,6 +92,7 @@ const Resumen = () => {
                     nombre: (vig?.nombres ? `${vig.nombres} ${vig.apellidos}` : (vig?.nombre || 'Sin Asignar')).toUpperCase(),
                     cedula: vig?.cedula || '-',
                     asigs,
+                    turnoId: per?.turnoId || null,
                 };
             });
 
@@ -374,8 +375,27 @@ const Resumen = () => {
                 headPuesto.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' } };
 
                 // Row 5: Green Month Bar
-                const lastColLetter = getColumnLetter(3 + daysInMonth + 4);
-                ws.mergeCells(`A5:${lastColLetter}5`);
+                const lastColIdx = 4 + daysInMonth;
+                const totalColumns = lastColIdx + 4; // lastColIdx + 4 is OBSERVACIONES
+                const obsColLetter = getColumnLetter(totalColumns);
+
+                // METADATOS CALIDAD EN OBSERVACIONES (Superior Derecha)
+                const cellCod = ws.getCell(`${obsColLetter}1`);
+                cellCod.value = 'COD: PGO-F-55';
+                cellCod.font = { name: 'Arial Narrow', size: 8, bold: true };
+                cellCod.border = borderThin;
+                
+                const cellVer = ws.getCell(`${obsColLetter}2`);
+                cellVer.value = 'VERSIÓN: 02';
+                cellVer.font = { name: 'Arial Narrow', size: 8, bold: true };
+                cellVer.border = borderThin;
+                
+                const cellFec = ws.getCell(`${obsColLetter}3`);
+                cellFec.value = '06/06/2017';
+                cellFec.font = { name: 'Arial Narrow', size: 8, bold: true };
+                cellFec.border = borderThin;
+
+                ws.mergeCells(`A5:${obsColLetter}5`);
                 const mc = ws.getCell('A5');
                 mc.value = MONTH_NAMES[scheduleMonth].toUpperCase();
                 mc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CLR_VERDE_MES } };
@@ -416,7 +436,6 @@ const Resumen = () => {
                 });
 
                 // Summary Headers (al final de los días)
-                const lastColIdx = 4 + daysInMonth;
                 ['TRAB', 'DESC', 'NR', 'VAC'].forEach((v, i) => {
                     const cell = ws.getRow(8).getCell(lastColIdx + i);
                     cell.value = v;
@@ -425,6 +444,14 @@ const Resumen = () => {
                     cell.border = borderThin;
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'E2E8F0' } };
                 });
+
+                // Observación Header
+                const cellObsHeader = ws.getRow(8).getCell(totalColumns);
+                cellObsHeader.value = 'OBSERVACIONES';
+                cellObsHeader.font = { name: 'Arial Narrow', size: 9, bold: true };
+                cellObsHeader.alignment = { horizontal: 'center', vertical: 'middle' };
+                cellObsHeader.border = borderThin;
+                cellObsHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'E2E8F0' } };
 
                 ws.getRow(8).height = 18;
 
@@ -486,6 +513,16 @@ const Resumen = () => {
                         tCell.alignment = { horizontal: 'center' };
                         tCell.border = borderThin;
                     });
+
+                    // OBSERVACIONES
+                    const cellObs = exRow.getCell(totalColumns);
+                    const isNocturno = row.rol?.includes('b') || row.rol?.toLowerCase().includes('nocturno');
+                    const hasNocturnoShift = String(row.turnoId || "").toUpperCase().includes('PM') || String(row.turnoId || "").toUpperCase().includes('N') || isNocturno;
+                    
+                    cellObs.value = hasNocturnoShift ? "PORTERIA: N12 :18-06 AM" : "PORTERIA: D12: 06-18 PM";
+                    cellObs.font = { name: 'Arial Narrow', size: 8 };
+                    cellObs.alignment = { horizontal: 'left', vertical: 'middle' };
+                    cellObs.border = borderThin;
                 });
 
                 // Widths
@@ -494,6 +531,7 @@ const Resumen = () => {
                 ws.getColumn(3).width = 40;
                 dayNumbers.forEach((_, i) => { ws.getColumn(4 + i).width = 3.5; });
                 [1,2,3,4].forEach((_, i) => { ws.getColumn(lastColIdx + i).width = 6; });
+                ws.getColumn(totalColumns).width = 30;
             });
 
             const buffer = await wb.xlsx.writeBuffer();

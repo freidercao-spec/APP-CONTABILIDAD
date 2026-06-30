@@ -1019,6 +1019,10 @@ const PanelMensualPuesto = ({
         rowData.push(tDR);
         rowData.push(tVAC);
 
+        // MEJORA: Agregar Observación (Portería D12 o N12)
+        const isNocturno = per.turnoId?.includes('PM') || per.rol?.includes('b') || per.rol?.toLowerCase().includes('nocturno');
+        rowData.push(isNocturno ? "PORTERIA: N12 :18-06 AM" : "PORTERIA: D12: 06-18 PM");
+
         rowsToRender.push(rowData);
       });
 
@@ -1036,13 +1040,14 @@ const PanelMensualPuesto = ({
       const headRow = [
         "ROL", "C.C.", "APELLIDOS Y NOMBRES",
         ...days.map(d => { const dow=new Date(anio,mes,d).getDay(); return `${DAY_NAMES[dow]}\n${String(d).padStart(2,"0")}`; }),
-        "TRAB.","DESC.","VAC."
+        "TRAB.","DESC.","VAC.",
+        "OBSERVACIONES"
       ];
 
       const bodyRows = tableData;
 
       if (bodyRows.length===0) {
-        bodyRows.push(["—","—","SIN PERSONAL ASIGNADO ESTE MES",...days.map(()=>""),"0","0","0"]);
+        bodyRows.push(["—","—","SIN PERSONAL ASIGNADO ESTE MES",...days.map(()=>""),"0","0","0","—"]);
       }
 
       autoTable(doc, {
@@ -1074,9 +1079,10 @@ const PanelMensualPuesto = ({
           0: { cellWidth:13, fontStyle:"bold", fillColor:[241,245,249], fontSize:4.8, textColor:[30,64,175] },
           1: { cellWidth:18, fontSize:5 },
           2: { cellWidth:40, halign:"left", fontStyle:"bold", fontSize:5.8, textColor:[15,23,42] },
-          [tN-3]: { cellWidth:8, fontStyle:"bold", fillColor:[219,234,254], textColor:[29,78,216] },
-          [tN-2]: { cellWidth:8, fontStyle:"bold", fillColor:[209,250,229], textColor:[4,120,87] },
-          [tN-1]: { cellWidth:8, fontStyle:"bold", fillColor:[237,233,254], textColor:[109,40,217] },
+          [tN-4]: { cellWidth:8, fontStyle:"bold", fillColor:[219,234,254], textColor:[29,78,216] },
+          [tN-3]: { cellWidth:8, fontStyle:"bold", fillColor:[209,250,229], textColor:[4,120,87] },
+          [tN-2]: { cellWidth:8, fontStyle:"bold", fillColor:[237,233,254], textColor:[109,40,217] },
+          [tN-1]: { cellWidth:25, fontStyle:"normal", halign:"left", fontSize:4.2 }
         },
         didParseCell: (data: any) => {
           if (data.row.section==="head") {
@@ -1090,7 +1096,7 @@ const PanelMensualPuesto = ({
             }
             return;
           }
-          if (data.row.section === "body" && data.column.index >= 3 && data.column.index < tN - 3) {
+          if (data.row.section === "body" && data.column.index >= 3 && data.column.index < tN - 4) {
             const raw = (data.cell.text[0] || "").trim();
             const val = raw.split("\n")[0];
             
@@ -1255,6 +1261,17 @@ const PanelMensualPuesto = ({
           right: { style: 'thin' as const, color: { argb: '000000' } }
         };
 
+        const getColumnLetter = (col: number): string => {
+            let letter = '';
+            let temp = col;
+            while (temp > 0) {
+                let modulo = (temp - 1) % 26;
+                letter = String.fromCharCode(65 + modulo) + letter;
+                temp = Math.floor((temp - modulo) / 26);
+            }
+            return letter;
+        };
+
         const getCodeColor = (code: string): string | null => {
           if (code === '-') return 'CBD5E1';    // gris vacío
           if (code === 'D')  return 'BAE6FD';   // azul cielo diurno
@@ -1296,6 +1313,9 @@ const PanelMensualPuesto = ({
         });
 
         // --- CONSTRUCCIÓN EXCEL ---
+        const lastColIdx = 4 + daysInMonth;
+        const totalColumns = lastColIdx + 4; // obsColIdx is lastColIdx + 4
+        const obsColLetter = getColumnLetter(totalColumns);
         
         // --- ENCABEZADO CORPORATIVO ---
         ws.mergeCells('A1', 'C1');
@@ -1319,8 +1339,24 @@ const PanelMensualPuesto = ({
         headPuesto.font = { name: 'Arial Narrow', size: 11, bold: true };
         headPuesto.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' } };
 
-        // Fila 5: Barra Mes
-        ws.mergeCells(`A5:${String.fromCharCode(65 + 3 + daysInMonth + 4)}5`);
+        // METADATOS CALIDAD EN OBSERVACIONES (Superior Derecha)
+        const cellCod = ws.getCell(`${obsColLetter}1`);
+        cellCod.value = 'COD: PGO-F-55';
+        cellCod.font = { name: 'Arial Narrow', size: 8, bold: true };
+        cellCod.border = borderThin;
+        
+        const cellVer = ws.getCell(`${obsColLetter}2`);
+        cellVer.value = 'VERSIÓN: 02';
+        cellVer.font = { name: 'Arial Narrow', size: 8, bold: true };
+        cellVer.border = borderThin;
+        
+        const cellFec = ws.getCell(`${obsColLetter}3`);
+        cellFec.value = '06/06/2017';
+        cellFec.font = { name: 'Arial Narrow', size: 8, bold: true };
+        cellFec.border = borderThin;
+
+        // Fila 5: Barra Mes (Combinada hasta la columna de observaciones)
+        ws.mergeCells(`A5:${obsColLetter}5`);
         const monthCell = ws.getCell('A5');
         monthCell.value = MONTH_NAMES[mes].toUpperCase();
         monthCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CLR_VERDE_MES } };
@@ -1376,7 +1412,6 @@ const PanelMensualPuesto = ({
         });
 
         // Totales Headers
-        const lastColIdx = 4 + daysInMonth;
         ['TRAB', 'DESC', 'NR', 'VAC'].forEach((v, i) => {
             const cell = hRow.getCell(lastColIdx + i);
             cell.value = v;
@@ -1385,6 +1420,14 @@ const PanelMensualPuesto = ({
             cell.border = borderThin;
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'E2E8F0' } };
         });
+
+        // Observación Header
+        const cellObsHeader = hRow.getCell(totalColumns);
+        cellObsHeader.value = 'OBSERVACIONES';
+        cellObsHeader.font = { name: 'Arial Narrow', size: 9, bold: true };
+        cellObsHeader.alignment = { horizontal: 'center', vertical: 'middle' };
+        cellObsHeader.border = borderThin;
+        cellObsHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'E2E8F0' } };
 
         const ROL_LABELS: Record<string, string> = {
             'titular_a': 'TIT-A',
@@ -1451,6 +1494,18 @@ const PanelMensualPuesto = ({
               cell.alignment = { horizontal: 'center' };
               cell.border = borderThin;
           });
+
+          // Observaciones de cada guarda
+          const cellObs = exRow.getCell(totalColumns);
+          const isNocturno = row.rol?.includes('b') || row.rol?.toLowerCase().includes('nocturno');
+          const perConfig = progPersonal?.find((p: any) => p.rol === row.rol);
+          const tId = perConfig ? String(perConfig.turnoId || "").toUpperCase() : "";
+          const hasNocturnoShift = tId.includes('PM') || tId.includes('N') || isNocturno;
+          
+          cellObs.value = hasNocturnoShift ? "PORTERIA: N12 :18-06 AM" : "PORTERIA: D12: 06-18 PM";
+          cellObs.font = { name: 'Arial Narrow', size: 8 };
+          cellObs.alignment = { horizontal: 'left', vertical: 'middle' };
+          cellObs.border = borderThin;
         });
 
         ws.getColumn(1).width = 10;
@@ -1458,6 +1513,7 @@ const PanelMensualPuesto = ({
         ws.getColumn(3).width = 40;
         daysArr.forEach((_, i) => { ws.getColumn(4 + i).width = 3.5; });
         [0,1,2,3].forEach((i) => ws.getColumn(lastColIdx + i).width = 6);
+        ws.getColumn(totalColumns).width = 30;
 
         const buffer = await wb.xlsx.writeBuffer();
         const blob = new Blob([buffer], { type: 'application/octet-stream' });
