@@ -214,7 +214,6 @@ const Sidebar = () => {
                         <NavItem to="/"                icon="dashboard"      label="Estadísticas"       collapsed={c} onClick={closeSidebar} />
                         <NavItem to="/vigilantes"       icon="shield_person"  label="Vigilantes"         collapsed={c} onClick={closeSidebar} badge={BADGE_ACTIVOS} />
                         <NavItem to="/disponibles"      icon="group_add"      label="Disponibles"        collapsed={c} onClick={closeSidebar} badge={BADGE_DISP} />
-                        <NavItem to="/puestos"          icon="hub"            label="Mapa de Puestos"    collapsed={c} onClick={closeSidebar} />
                         <NavItem to="/gestion-puestos"  icon="clinical_notes" label="Puestos Activos"    collapsed={c} onClick={closeSidebar} />
                         <NavItem to="/resumen"          icon="picture_as_pdf" label="Resumen / PDF"      collapsed={c} onClick={closeSidebar} />
                     </NavSection>

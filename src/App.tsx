@@ -85,7 +85,7 @@ const AppRouter = () => {
             {/* Cuadro Operativo */}
             <Route path="/vigilantes" element={<Vigilantes />} />
             <Route path="/disponibles" element={<Vigilantes defaultTab="reserva" />} />
-            <Route path="/puestos" element={<Puestos />} />
+            <Route path="/puestos" element={<Navigate to="/gestion-puestos" replace />} />
             <Route path="/gestion-puestos" element={<GestionPuestos />} />
             <Route path="/gestion" element={<Navigate to="/gestion-puestos" replace />} />
             <Route path="/puestos-activos" element={<Navigate to="/gestion-puestos" replace />} />
