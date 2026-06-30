@@ -732,7 +732,10 @@ const PanelMensualPuesto = ({
           }
 
           // Crear la programación del nuevo mes (ahora heredará automáticamente el ciclo)
-          crearOObtenerProgramacion(puestoId, anio, mes, currentUser);
+          const newProg = crearOObtenerProgramacion(puestoId, anio, mes, currentUser);
+          if (newProg && newProg.id) {
+            useProgramacionStore.getState().guardarBorrador(newProg.id, currentUser);
+          }
         }
       }, 800);
       return () => clearTimeout(timer);
@@ -870,6 +873,8 @@ const PanelMensualPuesto = ({
       const result = generarMesConMotor(puestoId, anio, mes, currentUser);
       if (result) {
         logAction('PROGRAMACION', 'Ciclo D/N/R Aplicado', `Puesto: ${puestoNombre} | ${MONTH_NAMES[mes]} ${anio}`, 'success');
+        // Auto-guardar borrador tras aplicar el ciclo
+        useProgramacionStore.getState().guardarBorrador(result.id, currentUser);
       } else {
         showTacticalToast({
           title: '⚠️ Sin datos suficientes',
