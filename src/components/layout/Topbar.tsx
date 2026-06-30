@@ -27,6 +27,7 @@ const Topbar = () => {
     const [searchQuery, setSearchQuery] = React.useState('');
     const [isTimeMenuOpen, setIsTimeMenuOpen] = React.useState(false);
     const [selectedTZ, setSelectedTZ] = React.useState({ label: 'CO', zone: 'America/Bogota' });
+    const [isOnline, setIsOnline] = React.useState(navigator.onLine);
 
     const location = useLocation();
     const navigate = useNavigate();
@@ -38,6 +39,20 @@ const Topbar = () => {
     const menuRef = React.useRef<HTMLDivElement>(null);
 
     const alertCount = vigilantes.filter(v => v.estado === 'ausente').length + unreadNotifications;
+
+    // Online/Offline status listeners
+    React.useEffect(() => {
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
 
     // Clock
     React.useEffect(() => {
@@ -160,6 +175,18 @@ const Topbar = () => {
                             <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 rounded-md text-[8px] font-black uppercase tracking-widest border border-indigo-500/30">
                                 v1.5.6-LIVE
                             </span>
+                        </div>
+                        <div className="w-[1px] h-3 bg-white/10" />
+                        <div className="flex items-center gap-1.5">
+                            {isOnline ? (
+                                <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-md text-[8px] font-black uppercase tracking-widest border border-emerald-500/20">
+                                    CONECTADO
+                                </span>
+                            ) : (
+                                <span className="px-2 py-0.5 bg-rose-500/20 text-rose-400 rounded-md text-[8px] font-black uppercase tracking-widest border border-rose-500/30 animate-pulse">
+                                    SIN CONEXIÓN
+                                </span>
+                            )}
                         </div>
                     </div>
 
