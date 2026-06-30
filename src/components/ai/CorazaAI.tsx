@@ -48,6 +48,18 @@ export const CorazaAI = () => {
         return () => clearInterval(interval);
     }, [isOpen]);
 
+    const triggerQuickAction = async (text: string) => {
+        if (isAnalyzing) return;
+        setInput('');
+        addAction({ text, type: 'chat', sender: 'user' });
+        setAnalyzing(true);
+
+        const aiResponse = await analyzeSystemState(vigilantes, puestos, text);
+
+        addAction({ text: aiResponse, type: 'chat', sender: 'ai' });
+        setAnalyzing(false);
+    };
+
     const handleSend = async (e?: React.FormEvent) => {
         e?.preventDefault();
         if (!input.trim() || isAnalyzing) return;
@@ -244,6 +256,34 @@ export const CorazaAI = () => {
                 <form onSubmit={handleSend} className="p-6 bg-[#0D1117] border-t border-white/10 flex flex-col gap-4 relative">
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full w-24 h-5 bg-gradient-to-t from-[#0D1117] to-transparent pointer-events-none"></div>
                     
+                    {/* Botones de Comando Rápido */}
+                    <div className="flex gap-2 overflow-x-auto pb-1 custom-scrollbar scrollbar-thin">
+                        <button
+                            type="button"
+                            onClick={() => triggerQuickAction("Analizar conflictos de la programación de este mes")}
+                            disabled={isAnalyzing}
+                            className="shrink-0 px-3.5 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-indigo-500/50 text-[10px] font-black text-slate-300 hover:text-white uppercase tracking-wider transition-all disabled:opacity-50"
+                        >
+                            ⚠️ Analizar Conflictos
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => triggerQuickAction("¿Quiénes están en vacaciones o ausentes hoy?")}
+                            disabled={isAnalyzing}
+                            className="shrink-0 px-3.5 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-indigo-500/50 text-[10px] font-black text-slate-300 hover:text-white uppercase tracking-wider transition-all disabled:opacity-50"
+                        >
+                            📅 Personal Novedad
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => triggerQuickAction("Dame sugerencias de cobertura para puestos críticos")}
+                            disabled={isAnalyzing}
+                            className="shrink-0 px-3.5 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-indigo-500/50 text-[10px] font-black text-slate-300 hover:text-white uppercase tracking-wider transition-all disabled:opacity-50"
+                        >
+                            🚨 Sugerir Cobertura
+                        </button>
+                    </div>
+
                     <div className="flex gap-2">
                         <div className="flex-1 relative group/input">
                             <input
@@ -275,7 +315,7 @@ export const CorazaAI = () => {
                 <button
                     onClick={toggleOpen}
                     className={`
-                        size-16 rounded-[24px] flex items-center justify-center transition-all duration-700 outline-none relative group overflow-visible
+                        size-20 rounded-[28px] flex items-center justify-center transition-all duration-700 outline-none relative group overflow-visible
                         ${isOpen 
                             ? 'bg-slate-900 shadow-[0_20px_50px_rgba(0,0,0,0.5)] rotate-90 scale-90 border border-white/20' 
                             : 'bg-primary shadow-[0_10px_40px_rgba(67,24,255,0.4)] hover:shadow-[0_20px_70px_rgba(67,24,255,0.7)] hover:scale-110 hover:-rotate-3 border-2 border-white/20'}
@@ -285,20 +325,20 @@ export const CorazaAI = () => {
                     {!isOpen && (
                         <div className="absolute inset-0 pointer-events-none">
                             {/* Anillo Exterior Pulsante */}
-                            <div className="absolute -inset-4 border border-primary/20 rounded-[30px] animate-spin-slower opacity-40 group-hover:opacity-100 group-hover:border-primary/40 group-hover:scale-110 transition-all duration-700"></div>
+                            <div className="absolute -inset-5 border border-primary/20 rounded-[34px] animate-spin-slower opacity-40 group-hover:opacity-100 group-hover:border-primary/40 group-hover:scale-110 transition-all duration-700"></div>
                             {/* Anillo Medio con Efecto de Radar */}
-                            <div className="absolute -inset-2 border border-primary-light/10 rounded-[26px] animate-spin-reverse opacity-30 group-hover:opacity-60 transition-all duration-500">
-                                <div className="absolute top-0 left-1/2 -translate-x-1/2 size-2 bg-primary-light rounded-full blur-[2px] shadow-[0_0_10px_#818cf8]"></div>
+                            <div className="absolute -inset-3 border border-primary-light/10 rounded-[30px] animate-spin-reverse opacity-30 group-hover:opacity-60 transition-all duration-500">
+                                <div className="absolute top-0 left-1/2 -translate-x-1/2 size-2.5 bg-primary-light rounded-full blur-[2px] shadow-[0_0_10px_#818cf8]"></div>
                             </div>
                             {/* Destello de Escaneo */}
-                            <div className="absolute inset-0 rounded-[24px] overflow-hidden opacity-0 group-hover:opacity-20 transition-opacity duration-500">
+                            <div className="absolute inset-0 rounded-[28px] overflow-hidden opacity-0 group-hover:opacity-20 transition-opacity duration-500">
                                 <div className="absolute top-0 left-0 w-full h-[2px] bg-white animate-scanline"></div>
                             </div>
                         </div>
                     )}
 
                     {/* Contenedor del Avatar / Icono */}
-                    <div className="absolute inset-1 rounded-[20px] overflow-hidden">
+                    <div className="absolute inset-1.5 rounded-[22px] overflow-hidden">
                         {/* Capa de Fondo Tecnológico con Degradado */}
                         <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary-dark to-[#0b1120] transition-transform duration-700 group-hover:scale-110"></div>
                         
@@ -310,7 +350,7 @@ export const CorazaAI = () => {
 
                         {isOpen ? (
                             <div className="w-full h-full flex items-center justify-center relative z-10 transition-all duration-500">
-                                <span className="material-symbols-outlined text-[28px] text-white -rotate-90">close</span>
+                                <span className="material-symbols-outlined text-[36px] text-white -rotate-90">close</span>
                             </div>
                         ) : (
                             <div className="relative z-10 w-full h-full flex items-center justify-center">
@@ -336,9 +376,9 @@ export const CorazaAI = () => {
                     </div>
 
                     {/* Indicador de Estado (Online) Refinado */}
-                    <div className="absolute -top-1 -right-1 z-20 flex items-center justify-center">
-                        <span className="absolute size-4 bg-success rounded-full animate-ping opacity-30 scale-150"></span>
-                        <div className="size-3.5 rounded-full bg-success ring-4 ring-[#0D1117] shadow-[0_0_15px_rgba(48,209,88,0.8)] border border-white/20"></div>
+                    <div className="absolute -top-1.5 -right-1.5 z-20 flex items-center justify-center">
+                        <span className="absolute size-5 bg-success rounded-full animate-ping opacity-30 scale-150"></span>
+                        <div className="size-4.5 rounded-full bg-success ring-4 ring-[#0D1117] shadow-[0_0_15px_rgba(48,209,88,0.8)] border border-white/20"></div>
                     </div>
                 </button>
             </div>
