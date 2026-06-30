@@ -714,3 +714,13 @@ textarea:focus {
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
 }
+
+/* Dark Time Input Styling */
+.dark-time-input {
+  color-scheme: dark;
+}
+
+.dark-time-input::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(0.9);
+  cursor: pointer;
+}

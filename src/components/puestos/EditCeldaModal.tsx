@@ -313,38 +313,26 @@ export const EditCeldaModal = ({
                 <div className="space-y-1.5">
                   <label className="text-[9px] font-black text-slate-600 uppercase tracking-widest ml-1">Entrada</label>
                   <div className="relative group">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500/60 z-10 text-[16px]">schedule</span>
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500/60 z-10 text-[16px] pointer-events-none">schedule</span>
                     <input 
                       list="horas-comunes"
-                      type="text"
+                      type="time"
                       value={tempAsig.inicio}
-                      onChange={e => {
-                        const val = e.target.value;
-                        if (val.length === 4 && val.includes(':') && !val.endsWith(':')) setTempAsig({ ...tempAsig, inicio: formatTime(val) });
-                        else setTempAsig({ ...tempAsig, inicio: val });
-                      }}
-                      onBlur={() => setTempAsig({ ...tempAsig, inicio: formatTime(tempAsig.inicio || '') })}
-                      placeholder="00:00"
-                      className="w-full h-10 bg-white/[0.03] border border-white/10 rounded-xl pl-9 pr-2 text-[14px] font-black text-white focus:border-emerald-500/40 transition-all outline-none text-center tabular-nums cursor-pointer"
+                      onChange={e => setTempAsig({ ...tempAsig, inicio: e.target.value })}
+                      className="w-full h-10 bg-white/[0.03] border border-white/10 rounded-xl pl-9 pr-3 text-[14px] font-black text-white focus:border-emerald-500/40 transition-all outline-none text-center tabular-nums cursor-pointer dark-time-input"
                     />
                   </div>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[9px] font-black text-slate-600 uppercase tracking-widest ml-1">Salida</label>
                   <div className="relative group">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-rose-500/60 z-10 text-[16px]">history</span>
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-rose-500/60 z-10 text-[16px] pointer-events-none">history</span>
                     <input 
                       list="horas-comunes"
-                      type="text"
+                      type="time"
                       value={tempAsig.fin}
-                      onChange={e => {
-                        const val = e.target.value;
-                        if (val.length === 4 && val.includes(':') && !val.endsWith(':')) setTempAsig({ ...tempAsig, fin: formatTime(val) });
-                        else setTempAsig({ ...tempAsig, fin: val });
-                      }}
-                      onBlur={() => setTempAsig({ ...tempAsig, fin: formatTime(tempAsig.fin || '') })}
-                      placeholder="00:00"
-                      className="w-full h-10 bg-white/[0.03] border border-white/10 rounded-xl pl-9 pr-2 text-[14px] font-black text-white focus:border-rose-500/40 transition-all outline-none text-center tabular-nums cursor-pointer"
+                      onChange={e => setTempAsig({ ...tempAsig, fin: e.target.value })}
+                      className="w-full h-10 bg-white/[0.03] border border-white/10 rounded-xl pl-9 pr-3 text-[14px] font-black text-white focus:border-rose-500/40 transition-all outline-none text-center tabular-nums cursor-pointer dark-time-input"
                     />
                   </div>
                 </div>
