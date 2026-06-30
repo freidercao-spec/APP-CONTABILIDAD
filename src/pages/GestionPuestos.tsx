@@ -844,37 +844,56 @@ const PanelMensualPuesto = ({
     if (isApplyingCiclo) return;
     setIsApplyingCiclo(true);
     try {
-      // 1. Cargar detalles del mes anterior si no están cargados
-      const mesAnterior = mes === 0 ? 11 : mes - 1;
-      const anioAnterior = mes === 0 ? anio - 1 : anio;
-      const progAnterior = getProgramacion(puestoId, anioAnterior, mesAnterior);
+      // El mes actual (donde está el usuario) es la base/semilla
+      const mesBase = mes;
+      const anioBase = anio;
+      
+      // El mes destino donde aplicaremos el ciclo continuo es el mes siguiente
+      const dSiguiente = new Date(anioBase, mesBase + 1);
+      const mesDestino = dSiguiente.getMonth();
+      const anioDestino = dSiguiente.getFullYear();
 
-      if (progAnterior && !progAnterior.isDetailLoaded && !progAnterior.isFetching) {
+      const progBase = getProgramacion(puestoId, anioBase, mesBase);
+
+      // 1. Asegurar que los detalles del mes actual (base) estén cargados
+      if (progBase && !progBase.isDetailLoaded && !progBase.isFetching) {
         showTacticalToast({
-          title: '⏳ Cargando datos del mes anterior...',
-          message: 'Recuperando posición del ciclo para continuar la secuencia.',
+          title: '⏳ Cargando datos de este mes...',
+          message: 'Recuperando posición final para el siguiente mes.',
           type: 'info',
         });
-        await fetchProgramacionDetalles(progAnterior.id);
-        // Aguardar que el estado de Zustand se propague
+        await fetchProgramacionDetalles(progBase.id);
+        // Aguardar a que el estado se propague
         await new Promise(r => setTimeout(r, 700));
-      } else if (!progAnterior) {
-        // Intentar fetch del mes anterior desde Supabase
-        await useProgramacionStore.getState().fetchProgramacionesByMonth(anioAnterior, mesAnterior);
+      } else if (!progBase) {
+        // Cargar desde la base de datos si no está en memoria
+        await useProgramacionStore.getState().fetchProgramacionesByMonth(anioBase, mesBase);
         await new Promise(r => setTimeout(r, 500));
-        const progAnteriorRefetched = getProgramacion(puestoId, anioAnterior, mesAnterior);
-        if (progAnteriorRefetched && !progAnteriorRefetched.isDetailLoaded) {
-          await fetchProgramacionDetalles(progAnteriorRefetched.id);
+        const progBaseRefetched = getProgramacion(puestoId, anioBase, mesBase);
+        if (progBaseRefetched && !progBaseRefetched.isDetailLoaded) {
+          await fetchProgramacionDetalles(progBaseRefetched.id);
           await new Promise(r => setTimeout(r, 700));
         }
       }
 
-      // 2. Aplicar el motor de ciclos (hereda posición del mes anterior automáticamente)
-      const result = generarMesConMotor(puestoId, anio, mes, currentUser);
+      // 2. Aplicar el motor de ciclos para el mes siguiente
+      const result = generarMesConMotor(puestoId, anioDestino, mesDestino, currentUser);
       if (result) {
-        logAction('PROGRAMACION', 'Ciclo D/N/R Aplicado', `Puesto: ${puestoNombre} | ${MONTH_NAMES[mes]} ${anio}`, 'success');
-        // Auto-guardar borrador tras aplicar el ciclo
-        useProgramacionStore.getState().guardarBorrador(result.id, currentUser);
+        logAction('PROGRAMACION', 'Ciclo D/N/R Aplicado', `Puesto: ${puestoNombre} | ${MONTH_NAMES[mesDestino]} ${anioDestino}`, 'success');
+        
+        // Guardar borrador en Supabase automáticamente
+        await useProgramacionStore.getState().guardarBorrador(result.id, currentUser);
+        
+        showTacticalToast({
+          title: '✅ Ciclo Aplicado con Éxito',
+          message: `La programación de ${MONTH_NAMES[mesDestino]} fue generada y guardada.`,
+          type: 'success',
+        });
+
+        // 3. Navegar automáticamente al siguiente mes en el tablero para mostrar el resultado
+        setAnioLocal(anioDestino);
+        setMesLocal(mesDestino);
+        onMesChange?.(anioDestino, mesDestino);
       } else {
         showTacticalToast({
           title: '⚠️ Sin datos suficientes',
@@ -888,7 +907,7 @@ const PanelMensualPuesto = ({
     } finally {
       setIsApplyingCiclo(false);
     }
-  }, [puestoId, anio, mes, currentUser, puestoNombre, getProgramacion, fetchProgramacionDetalles, generarMesConMotor, logAction, isApplyingCiclo]);
+  }, [puestoId, anio, mes, currentUser, puestoNombre, getProgramacion, fetchProgramacionDetalles, generarMesConMotor, logAction, isApplyingCiclo, onMesChange, setAnioLocal, setMesLocal]);
 
   const handleGeneratePDF = useCallback(async () => {
     if (!prog) return;
