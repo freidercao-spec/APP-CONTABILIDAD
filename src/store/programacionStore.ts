@@ -1020,7 +1020,12 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 
                 const daysInMonth = new Date(anio, mes + 1, 0).getDate();
                 
-                // MEJORA TÁCTICA: Heredar el personal configurado en el Puesto para que el tablero coincida
+                // ── MOTOR DE TURNOS: Intentar calcular ciclo desde mes anterior ──
+                const mesAnterior = mes === 0 ? 11 : mes - 1;
+                const anioAnterior = mes === 0 ? anio - 1 : anio;
+                const progAnterior = s.getProgramacion(puestoId, anioAnterior, mesAnterior);
+
+                // MEJORA TÁCTICA: Heredar el personal del mes anterior si existe; si no, del puesto; si no, roles base
                 const pStore = usePuestoStore.getState();
                 const targetPuesto = pStore.puestos?.find(px => px.id === puestoId || px.dbId === puestoId);
                 
@@ -1030,16 +1035,13 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     { rol: 'relevante', vigilanteId: null, turnoId: 'AM' }
                 ];
                 
-                // Si el puesto tiene personal ya definido, lo usamos como base superior
-                const personalFinal = ((targetPuesto as any)?.personal && (targetPuesto as any).personal.length > 0)
-                    ? (targetPuesto as any).personal.map((p: any) => ({ ...p }))
-                    : rolesBase;
+                const personalFinal = (progAnterior && progAnterior.personal && progAnterior.personal.length > 0)
+                    ? progAnterior.personal.map((p: any) => ({ ...p }))
+                    : ((targetPuesto as any)?.personal && (targetPuesto as any).personal.length > 0)
+                        ? (targetPuesto as any).personal.map((p: any) => ({ ...p }))
+                        : rolesBase;
 
-                // ── MOTOR DE TURNOS: Intentar calcular ciclo desde mes anterior ──
                 let asignaciones: AsignacionDia[] = [];
-                const mesAnterior = mes === 0 ? 11 : mes - 1;
-                const anioAnterior = mes === 0 ? anio - 1 : anio;
-                const progAnterior = s.getProgramacion(puestoId, anioAnterior, mesAnterior);
 
                 if (progAnterior && progAnterior.asignaciones && progAnterior.asignaciones.length > 0) {
                     // Mes anterior disponible: aplicar motor de ciclos continuo
@@ -1115,24 +1117,29 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 const dbPuestoId = translatePuestoToUuid(puestoId) || puestoId;
                 const daysInMonth = new Date(anio, mes + 1, 0).getDate();
 
-                // Determinar personal del puesto
-                const pStore = usePuestoStore.getState();
-                const targetPuesto = pStore.puestos?.find(px => px.id === puestoId || px.dbId === puestoId);
-                const personalBase: PersonalPuesto[] = prog?.personal?.length
-                    ? prog.personal
-                    : (targetPuesto as any)?.personal?.length
-                        ? (targetPuesto as any).personal.map((p: any) => ({ ...p }))
-                        : [
-                            { rol: 'titular_a', vigilanteId: null, turnoId: 'AM' },
-                            { rol: 'titular_b', vigilanteId: null, turnoId: 'PM' },
-                            { rol: 'relevante', vigilanteId: null, turnoId: 'AM' }
-                          ];
-
-                // Obtener asignaciones del mes anterior
+                // Obtener datos del mes anterior
                 const mesAnterior = mes === 0 ? 11 : mes - 1;
                 const anioAnterior = mes === 0 ? anio - 1 : anio;
                 const progAnterior = s.getProgramacion(puestoId, anioAnterior, mesAnterior);
                 const asigAnterior = progAnterior?.asignaciones ?? [];
+
+                // Determinar personal base (priorizar el del mes anterior para propagar el ciclo)
+                const pStore = usePuestoStore.getState();
+                const targetPuesto = pStore.puestos?.find(px => px.id === puestoId || px.dbId === puestoId);
+                
+                const hasVigilantes = (pList: any[]) => pList && pList.some(p => p.vigilanteId);
+                
+                const personalBase: PersonalPuesto[] = (progAnterior && hasVigilantes(progAnterior.personal))
+                    ? progAnterior.personal.map((p: any) => ({ ...p }))
+                    : (prog && hasVigilantes(prog.personal))
+                        ? prog.personal.map((p: any) => ({ ...p }))
+                        : (targetPuesto as any)?.personal?.length
+                            ? (targetPuesto as any).personal.map((p: any) => ({ ...p }))
+                            : [
+                                { rol: 'titular_a', vigilanteId: null, turnoId: 'AM' },
+                                { rol: 'titular_b', vigilanteId: null, turnoId: 'PM' },
+                                { rol: 'relevante', vigilanteId: null, turnoId: 'AM' }
+                              ];
 
                 // Aplicar motor de turnos
                 let nuevasAsignaciones = aplicarMotorTurnos(
