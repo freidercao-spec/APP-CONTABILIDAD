@@ -578,6 +578,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
 
             fetchProgramacionesByMonth: async (anio: number, mes: number) => {
                 try {
+                    set({ loaded: false });
                     let allRows: any[] = [];
                     let from = 0;
                     const BATCH = 1000;
@@ -951,7 +952,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     console.error('[Coraza] ❌ ERROR EN FETCH DETAILS:', err);
                     set((s: any) => ({
                         programaciones: s.programaciones.map((p: any) => 
-                            progIds.includes(p.id) ? { ...p, isFetching: false, isDetailLoaded: true } : p
+                            progIds.includes(p.id) ? { ...p, isFetching: false, isDetailLoaded: false } : p
                         ),
                         loaded: true
                     }));

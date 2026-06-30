@@ -708,7 +708,7 @@ const PanelMensualPuesto = ({
   }, [anio, mes]);
 
   useEffect(() => {
-    if (!isPuestosLoaded) return;
+    if (!isPuestosLoaded || isInitialLoading) return;
 
     if (!prog) {
       // Esperar a que el fetch del mes termine antes de crear
@@ -742,7 +742,7 @@ const PanelMensualPuesto = ({
     } else if (!prog.isDetailLoaded && !prog.isFetching) {
       fetchProgramacionDetalles(prog.id);
     }
-  }, [prog?.id, puestoId, anio, mes, isPuestosLoaded]);
+  }, [prog?.id, puestoId, anio, mes, isPuestosLoaded, isInitialLoading]);
 
   const daysInMonth = new Date(anio, mes + 1, 0).getDate();
   const daysArr = useMemo(
