@@ -20,6 +20,11 @@ const JORNADA_SHORT: Record<string, string> = {
     'descanso_remunerado':   'DR',
     'descanso_no_remunerado':'DNR',
     'vacacion':              'VAC',
+    'vacaciones':            'VAC',
+    'incapacidad':           'INC',
+    'capacitacion':          'CZ',
+    'permiso':               'SUP',
+    'disponible':            'DIS',
     'sin_asignar':           '-',
     'AM':                    'D',
     'PM':                    'N',
@@ -194,7 +199,7 @@ const Resumen = () => {
                     ];
                     dayNumbers.forEach(d => {
                         const asig = row.asigs.find(a => a.dia === d);
-                        const label = (asig?.jornada && JORNADA_SHORT[asig.jornada]) || (asig?.turno && JORNADA_SHORT[asig.turno]) || '-';
+                        const label = asig?.codigo_personalizado || (asig?.jornada && JORNADA_SHORT[asig.jornada]) || (asig?.turno && JORNADA_SHORT[asig.turno]) || '-';
                         rowData.push(label === 'sin_asignar' ? '-' : label);
                     });
                     return rowData;
@@ -228,11 +233,15 @@ const Resumen = () => {
                         // Color coding per day cell content
                         if (data.section === 'body' && data.column.index >= 3) {
                             const val = data.cell.text[0];
-                            if (val === 'D') data.cell.styles.fillColor = [240, 246, 255];
-                            if (val === 'N') data.cell.styles.fillColor = [245, 245, 255];
-                            if (val === 'DR') data.cell.styles.fillColor = [236, 253, 245];
-                            if (val === 'DNR') data.cell.styles.fillColor = [255, 251, 235];
-                            if (val === 'VAC') data.cell.styles.fillColor = [245, 243, 255];
+                            if (val === 'D' || val === 'D12') data.cell.styles.fillColor = [254, 243, 199]; // Light amber
+                            if (val === 'N' || val === 'N12') data.cell.styles.fillColor = [219, 234, 254]; // Light blue
+                            if (val === 'DR' || val === 'X') data.cell.styles.fillColor = [209, 250, 229]; // Light emerald
+                            if (val === 'DNR' || val === 'NR') data.cell.styles.fillColor = [254, 226, 226]; // Light red
+                            if (val === 'VAC') data.cell.styles.fillColor = [251, 207, 232]; // Light pink
+                            if (val === 'INC') data.cell.styles.fillColor = [252, 165, 165]; // Incapacity red-soft
+                            if (val === 'CZ') data.cell.styles.fillColor = [233, 213, 255]; // Purple for capacitacion
+                            if (val === 'SUP') data.cell.styles.fillColor = [254, 215, 170]; // Orange for permiso
+                            if (val === 'DIS') data.cell.styles.fillColor = [224, 242, 254]; // Cyan for disponible
                             if (val === '-') data.cell.styles.textColor = [200, 200, 200];
                         }
                     },
@@ -271,6 +280,10 @@ const Resumen = () => {
             const CLR_NR  = 'EF4444';     
             const CLR_X   = 'FACC15';     
             const CLR_VAC = 'F472B6';     
+            const CLR_INC = 'FDA4AF';     
+            const CLR_CZ  = 'C084FC';     
+            const CLR_SUP = 'FDBA74';     
+            const CLR_DIS = '7DD3FC';     
 
             const borderThin = {
                 top: { style: 'thin' as const, color: { argb: '000000' } },
@@ -285,7 +298,11 @@ const Resumen = () => {
                 const j = asig.jornada || asig.turno || '';
                 if (j === 'descanso_remunerado' || j === 'X' || j === 'DR') return 'X';
                 if (j === 'descanso_no_remunerado' || j === 'NR' || j === 'DNR') return 'NR';
-                if (j === 'vacacion' || j === 'VAC') return 'VAC';
+                if (j === 'vacacion' || j === 'VAC' || j === 'vacaciones') return 'VAC';
+                if (j === 'incapacidad' || j === 'INC') return 'INC';
+                if (j === 'capacitacion' || j === 'CZ') return 'CZ';
+                if (j === 'permiso' || j === 'SUP') return 'SUP';
+                if (j === 'disponible' || j === 'DIS') return 'DIS';
                 if (j === 'AM' || j === 'D' || (j === 'normal' && asig.turno !== 'PM')) return 'D12';
                 if (j === 'PM' || j === 'N' || (j === 'normal' && asig.turno === 'PM')) return 'N12';
                 if (j === '24H' || j === '24') return '24';
@@ -299,6 +316,10 @@ const Resumen = () => {
                 if (code === 'NR')  return CLR_NR;
                 if (code === 'X')   return CLR_X;
                 if (code === 'VAC') return CLR_VAC;
+                if (code === 'INC') return CLR_INC;
+                if (code === 'CZ')  return CLR_CZ;
+                if (code === 'SUP') return CLR_SUP;
+                if (code === 'DIS') return CLR_DIS;
                 return null;
             };
 
