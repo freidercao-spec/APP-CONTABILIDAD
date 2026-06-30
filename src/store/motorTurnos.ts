@@ -72,10 +72,10 @@ export interface AlertaMotor {
 // ── Constantes del ciclo ─────────────────────────────────────────────────────
 
 /** Longitud total del ciclo en días */
-export const CICLO_TOTAL = 18;
+export const CICLO_TOTAL = 15;
 
 /**
- * Mapa completo del ciclo de 18 posiciones.
+ * Mapa completo del ciclo de 15 posiciones.
  * Cada elemento define el valor visible y la jornada correspondiente.
  */
 const CICLO: ReadonlyArray<{ valor: ValorCelda; jornada: TipoJornada; turno: string }> = [
@@ -86,18 +86,14 @@ const CICLO: ReadonlyArray<{ valor: ValorCelda; jornada: TipoJornada; turno: str
   { valor: 'D', jornada: 'normal', turno: 'AM' },
   { valor: 'D', jornada: 'normal', turno: 'AM' },
   { valor: 'D', jornada: 'normal', turno: 'AM' },
-  // ─── 3 días DESCANSO diurno (pos 6-8): 2R + 1NR ─────────────────────────
-  { valor: 'R',  jornada: 'descanso_remunerado',     turno: 'descanso' },
-  { valor: 'R',  jornada: 'descanso_remunerado',     turno: 'descanso' },
-  { valor: 'NR', jornada: 'descanso_no_remunerado',  turno: 'descanso' },
-  // ─── 6 días NOCTURNOS (pos 9-14) ─────────────────────────────────────────
+  // ─── 6 días NOCTURNOS (pos 6-11) ─────────────────────────────────────────
   { valor: 'N', jornada: 'normal', turno: 'PM' },
   { valor: 'N', jornada: 'normal', turno: 'PM' },
   { valor: 'N', jornada: 'normal', turno: 'PM' },
   { valor: 'N', jornada: 'normal', turno: 'PM' },
   { valor: 'N', jornada: 'normal', turno: 'PM' },
   { valor: 'N', jornada: 'normal', turno: 'PM' },
-  // ─── 3 días DESCANSO nocturno (pos 15-17): 2R + 1NR ─────────────────────
+  // ─── 3 días DESCANSO (pos 12-14): 2R + 1NR ──────────────────────────────
   { valor: 'R',  jornada: 'descanso_remunerado',     turno: 'descanso' },
   { valor: 'R',  jornada: 'descanso_remunerado',     turno: 'descanso' },
   { valor: 'NR', jornada: 'descanso_no_remunerado',  turno: 'descanso' },
@@ -127,8 +123,7 @@ export function estadoCiclo(pos: number): (typeof CICLO)[number] {
 export function faseCiclo(pos: number): 'DIURNO' | 'DESCANSO_D' | 'NOCTURNO' | 'DESCANSO_N' {
   const p = normalizarPosicion(pos);
   if (p <= 5)  return 'DIURNO';
-  if (p <= 8)  return 'DESCANSO_D';
-  if (p <= 14) return 'NOCTURNO';
+  if (p <= 11) return 'NOCTURNO';
   return 'DESCANSO_N';
 }
 
@@ -229,10 +224,10 @@ export function celdaToAsignacion(
 export function inferirPosicionDesdeCelda(asig: AsignacionDia): number | null {
   const { jornada, turno } = asig;
 
-  if (jornada === 'normal' && turno === 'AM')            return 0; // D — comenzamos en pos 0 del bloque
-  if (jornada === 'normal' && turno === 'PM')            return 9; // N — comenzamos en pos 9 del bloque
-  if (jornada === 'descanso_remunerado')                return 6; // R
-  if (jornada === 'descanso_no_remunerado')             return 8; // NR
+  if (jornada === 'normal' && turno === 'AM')            return 0;  // D — comenzamos en pos 0 del bloque
+  if (jornada === 'normal' && turno === 'PM')            return 6;  // N — comenzamos en pos 6 del bloque
+  if (jornada === 'descanso_remunerado')                return 12; // R — pos 12
+  if (jornada === 'descanso_no_remunerado')             return 14; // NR — pos 14
   return null;
 }
 
@@ -315,30 +310,25 @@ function reconstruirPosicionDesdeHistorial(
   });
 
   // Escanear la secuencia buscando transiciones conocidas
-  // Transiciones:
-  // - D -> R: D es pos 5, R es pos 6
-  // - N -> R: N es pos 14, R es pos 15
-  // - R -> N: R es pos 8, N es pos 9
-  // - R -> D: R es pos 17, D es pos 0
+  // Transiciones del ciclo de 15 días:
+  // - D -> N: D es pos 5, N es pos 6
+  // - N -> R: N es pos 11, R es pos 12
+  // - R -> D: R es pos 14, D es pos 0
   for (let d = 1; d < diasMes; d++) {
     const v1 = valores[d];
     const v2 = valores[d + 1];
     if (!v1 || !v2) continue;
 
-    if (v1 === 'D' && (v2 === 'R' || v2 === 'NR')) {
+    if (v1 === 'D' && v2 === 'N') {
       const posLast = 5 + (diasMes - d);
       return normalizarPosicion(posLast);
     }
     if (v1 === 'N' && (v2 === 'R' || v2 === 'NR')) {
-      const posLast = 14 + (diasMes - d);
-      return normalizarPosicion(posLast);
-    }
-    if ((v1 === 'R' || v1 === 'NR') && v2 === 'N') {
-      const posLast = 8 + (diasMes - d);
+      const posLast = 11 + (diasMes - d);
       return normalizarPosicion(posLast);
     }
     if ((v1 === 'R' || v1 === 'NR') && v2 === 'D') {
-      const posLast = 17 + (diasMes - d);
+      const posLast = 14 + (diasMes - d);
       return normalizarPosicion(posLast);
     }
   }
