@@ -315,10 +315,10 @@ export const EditCeldaModal = ({
                   <div className="relative group">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500/60 z-10 text-[16px] pointer-events-none">schedule</span>
                     <input 
-                      list="horas-comunes"
                       type="time"
                       value={tempAsig.inicio}
                       onChange={e => setTempAsig({ ...tempAsig, inicio: e.target.value })}
+                      onClick={e => { try { (e.target as any).showPicker(); } catch {} }}
                       className="w-full h-10 bg-white/[0.03] border border-white/10 rounded-xl pl-9 pr-3 text-[14px] font-black text-white focus:border-emerald-500/40 transition-all outline-none text-center tabular-nums cursor-pointer dark-time-input"
                     />
                   </div>
@@ -328,23 +328,14 @@ export const EditCeldaModal = ({
                   <div className="relative group">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-rose-500/60 z-10 text-[16px] pointer-events-none">history</span>
                     <input 
-                      list="horas-comunes"
                       type="time"
                       value={tempAsig.fin}
                       onChange={e => setTempAsig({ ...tempAsig, fin: e.target.value })}
+                      onClick={e => { try { (e.target as any).showPicker(); } catch {} }}
                       className="w-full h-10 bg-white/[0.03] border border-white/10 rounded-xl pl-9 pr-3 text-[14px] font-black text-white focus:border-rose-500/40 transition-all outline-none text-center tabular-nums cursor-pointer dark-time-input"
                     />
                   </div>
                 </div>
-
-                <datalist id="horas-comunes">
-                  <option value="06:00" />
-                  <option value="07:00" />
-                  <option value="08:00" />
-                  <option value="18:00" />
-                  <option value="19:00" />
-                  <option value="20:00" />
-                </datalist>
 
                 <div className="col-span-full pt-4 border-t border-white/5 mt-1">
                   <div className="flex flex-wrap gap-1.5">
