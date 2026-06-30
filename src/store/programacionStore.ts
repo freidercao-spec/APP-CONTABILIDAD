@@ -414,24 +414,15 @@ async function syncProgramacionToDb(prog: ProgramacionMensual, set: any, get: an
             
             // SI EL ID DE LA DB ES DIFERENTE AL LOCAL (CASO DETERMINISTA VS UUID)
             // ACTUALIZAMOS EL ESTADO LOCAL PARA COINCIDIR CON LA VERSIÓN OFICIAL
-            if (dbProgId !== prog.id) {
-                set((state: any) => ({
-                    programaciones: state.programaciones.map((p: any) => 
-                        p.id === prog.id ? { ...p, id: dbProgId, syncStatus: 'synced' as const } : p
-                    ),
-                    isSyncing: false
-                }));
-                get()._updateMap();
-            } else {
-                set((state: any) => ({
-                    programaciones: state.programaciones.map((p: any) => 
-                        p.id === prog.id ? { ...p, syncStatus: 'synced' as const } : p
-                    ),
-                    isSyncing: false
-                }));
-            }
+            set((state: any) => ({
+                programaciones: state.programaciones.map((p: any) => 
+                    (p.id === prog.id || p.id === dbProgId) ? { ...p, id: dbProgId, syncStatus: 'synced' as const, isDirty: false } : p
+                ),
+                isSyncing: false
+            }));
+            get()._updateMap();
 
-            return { success: true, serverVersion: (prog.version || 0) + 1, serverUpdatedAt: new Date().toISOString() };
+            return { success: true, dbProgId, serverVersion: (prog.version || 0) + 1, serverUpdatedAt: new Date().toISOString() };
         } catch (err: any) {
             console.error('[Coraza] ❌ Error de Persistencia:', err);
             throw err;
@@ -469,7 +460,7 @@ const queueSync = (progId: string, set: any, get: any, immediate = false) => {
             retryCounters.delete(progId);
             set((state: any) => ({
                 programaciones: state.programaciones.map((p: any) => 
-                    p.id === progId ? { ...p, syncStatus: 'synced' as const, isDirty: false, version: res.serverVersion } : p
+                    (p.id === progId || p.id === res.dbProgId) ? { ...p, syncStatus: 'synced' as const, isDirty: false, version: res.serverVersion } : p
                 ),
                 isSyncing: get().programaciones.some((p: any) => p.syncStatus === 'pending') || pendingSyncs.size > 0
             }));
