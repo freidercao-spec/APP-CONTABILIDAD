@@ -323,8 +323,32 @@ const Resumen = () => {
                 return null;
             };
 
+            const getColumnLetter = (col: number): string => {
+                let letter = '';
+                let temp = col;
+                while (temp > 0) {
+                    let modulo = (temp - 1) % 26;
+                    letter = String.fromCharCode(65 + modulo) + letter;
+                    temp = Math.floor((temp - modulo) / 26);
+                }
+                return letter;
+            };
+
+            const usedSheetNames = new Set<string>();
+
             exportData.forEach((puesto, pIdx) => {
-                const sheetName = puesto.nombre.slice(0, 31).replace(/[[\]*/\\?:]/g, '').trim() || `Puesto ${pIdx + 1}`;
+                let sheetName = puesto.nombre.slice(0, 30).replace(/[[\]*/\\?:]/g, '').trim() || `Puesto ${pIdx + 1}`;
+                
+                // Garantizar que la pestaña tenga un nombre único de hasta 31 caracteres
+                let baseName = sheetName;
+                let counter = 1;
+                while (usedSheetNames.has(sheetName)) {
+                    counter++;
+                    const suffix = ` (${counter})`;
+                    sheetName = baseName.slice(0, 31 - suffix.length) + suffix;
+                }
+                usedSheetNames.add(sheetName);
+
                 const ws = wb.addWorksheet(sheetName);
 
                 // --- ENCABEZADO CORPORATIVO (Elegante) ---
@@ -350,7 +374,8 @@ const Resumen = () => {
                 headPuesto.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' } };
 
                 // Row 5: Green Month Bar
-                ws.mergeCells(`A5:${String.fromCharCode(65 + 3 + daysInMonth + 4)}5`);
+                const lastColLetter = getColumnLetter(3 + daysInMonth + 4);
+                ws.mergeCells(`A5:${lastColLetter}5`);
                 const mc = ws.getCell('A5');
                 mc.value = MONTH_NAMES[scheduleMonth].toUpperCase();
                 mc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CLR_VERDE_MES } };
