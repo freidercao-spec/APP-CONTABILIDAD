@@ -543,7 +543,10 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
 
             forceSync: async () => {
-                set({ loaded: false });
+                set((state: any) => ({
+                    programaciones: state.programaciones.map((p: any) => ({ ...p, isDetailLoaded: false })),
+                    loaded: false
+                }));
                 await get().fetchProgramaciones();
             },
 
