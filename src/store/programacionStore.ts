@@ -829,14 +829,28 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 for (let i = 0; i < progIds.length; i += CHUNK_SIZE) {
                     const chunk = progIds.slice(i, i + CHUNK_SIZE);
                     chunkPromises.push(
-                        supabase.from('asignaciones_programacion').select('*').in('programacion_id', chunk).limit(15000)
+                        supabase.from('asignaciones_programacion')
+                            .select('*')
+                            .in('programacion_id', chunk)
+                            .limit(15000)
+                            .then(res => {
+                                if (res.error) {
+                                    console.error('[Sync] ⚠️ Error en bloque de carga:', res.error);
+                                    return { data: [] };
+                                }
+                                return res;
+                            })
+                            .catch(err => {
+                                console.error('[Sync] ❌ Error crítico en bloque de red:', err);
+                                return { data: [] };
+                            })
                     );
                 }
 
                 try {
                     const chunkResults = await Promise.all(chunkPromises);
                     chunkResults.forEach((asigsRes) => {
-                        if (asigsRes.data) allAsignaciones = [...allAsignaciones, ...asigsRes.data];
+                        if (asigsRes && asigsRes.data) allAsignaciones = [...allAsignaciones, ...asigsRes.data];
                     });
 
                     const currentVigilantes = useVigilanteStore.getState().vigilantes;
