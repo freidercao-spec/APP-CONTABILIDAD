@@ -161,7 +161,7 @@ const Sidebar = () => {
                     bg-[#0B1120]
                     border-r border-white/5
                     shadow-[10px_0_60px_rgba(0,0,0,0.6)]
-                    transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]
+                    transition-all duration-250 ease-in-out
                     lg:relative lg:z-auto lg:flex-shrink-0 lg:translate-x-0
                     ${c ? 'lg:w-[84px]' : 'lg:w-[280px]'}
                     ${isSidebarOpen ? 'translate-x-0 w-[280px]' : '-translate-x-full w-[280px]'}
@@ -171,29 +171,29 @@ const Sidebar = () => {
                 <div className="absolute top-0 left-0 w-full h-[100px] bg-gradient-to-b from-[#5B6EE810] to-transparent pointer-events-none" />
 
                 {/* ── LOGO ────────────────────────────────────── */}
-                <div className={`relative flex flex-col items-center border-b border-white/5 ${c ? 'pt-6 pb-6 px-2' : 'pt-10 pb-8 px-8'}`}>
+                <div className={`relative flex flex-col items-center border-b border-white/5 ${c ? 'pt-3 pb-3 px-2' : 'pt-5 pb-4 px-6'}`}>
                     {/* Brand text */}
                     {!c && (
-                        <div className="flex flex-col items-center mb-6">
-                            <h1 className="text-[22px] font-black text-white tracking-[0.25em] italic">
+                        <div className="flex flex-col items-center mb-3">
+                            <h1 className="text-[18px] font-black text-white tracking-[0.2em] italic">
                                 CORAZA<span className="text-[#5B6EE8]">CTA</span>
                             </h1>
-                            <div className="h-[2px] w-12 bg-[#5B6EE8] mt-1 shadow-[0_0_8px_#5B6EE8]" />
+                            <div className="h-[2px] w-8 bg-[#5B6EE8] mt-1" />
                         </div>
                     )}
 
                     {/* Logo Plate */}
                     <div className="relative group/logo">
                         <div className="absolute -inset-4 rounded-full bg-[#5B6EE815] blur-2xl opacity-0 group-hover/logo:opacity-100 transition-opacity duration-700" />
-                        <div className={`relative flex items-center justify-center bg-slate-950/60 border border-white/10 backdrop-blur-md shadow-2xl transition-all duration-700 group-hover/logo:scale-105 ${c ? 'size-10 rounded-xl' : 'size-14 rounded-2xl'}`}>
+                        <div className={`relative flex items-center justify-center bg-slate-950/60 border border-white/10 backdrop-blur-md shadow-lg transition-all duration-200 ${c ? 'size-9 rounded-lg' : 'size-12 rounded-xl'}`}>
                             <img src="./logo.png" alt="Logo" className="w-[70%] h-[70%] object-contain" />
                         </div>
                     </div>
 
                     {!c && (
-                        <div className="mt-5 flex items-center gap-2.5 px-4 py-2 bg-emerald-500/5 border border-emerald-500/20 rounded-full">
-                            <div className="size-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]" />
-                            <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Sistemas Óptimos</span>
+                        <div className="mt-3 flex items-center gap-2 px-3 py-1.5 bg-emerald-500/5 border border-emerald-500/15 rounded-full">
+                            <div className="size-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                            <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">En línea</span>
                         </div>
                     )}
 
@@ -209,7 +209,7 @@ const Sidebar = () => {
                 </div>
 
                 {/* ── NAV ─────────────────────────────────────── */}
-                <nav className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar py-8 space-y-10">
+                <nav className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar py-4 space-y-5">
                     <NavSection title="OPERACIONES" collapsed={c}>
                         <NavItem to="/"                icon="dashboard"      label="Estadísticas"       collapsed={c} onClick={closeSidebar} />
                         <NavItem to="/vigilantes"       icon="shield_person"  label="Vigilantes"         collapsed={c} onClick={closeSidebar} badge={BADGE_ACTIVOS} />

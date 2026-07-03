@@ -1576,275 +1576,127 @@ const PanelMensualPuesto = ({
   }
 
   return (
-    <div className="page-container animate-fade-in bg-slate-50 min-h-screen pb-32">
-      <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-8">
-        <div>
-          <div className="flex items-center gap-2 mb-2 text-[10px] font-black text-primary uppercase tracking-[0.2em]">
-            <button onClick={onClose} className="hover:underline">
-              Puestos
-            </button>
-            <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-            <span>Tablero {nombrePuesto}</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-black text-slate-900 uppercase">{nombrePuesto}</h1>
-            {(puesto as any)?.zona && (
-              <div className="px-4 py-1 bg-primary/10 border border-primary/20 rounded-full flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-[14px]">location_on</span>
-                <span className="text-[12px] font-black text-primary uppercase tracking-widest">{(puesto as any).zona}</span>
-              </div>
-            )}
-          </div>
-          {/* ── Navegación de mes dentro del panel ── */}
-          <div className="flex items-center gap-2 mt-3">
-            {/* Botón Mes Anterior */}
-            <button
-              onClick={() => navegarMes(-1)}
-              title="Mes anterior"
-              className="group relative size-10 rounded-2xl bg-[#0f172a] border border-white/10 hover:border-indigo-500/60 flex items-center justify-center transition-all duration-300 hover:shadow-[0_0_18px_rgba(99,102,241,0.35)] active:scale-95 overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/0 to-indigo-600/0 group-hover:from-indigo-600/20 group-hover:to-violet-600/10 transition-all duration-300" />
-              <span className="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-indigo-300 transition-colors relative z-10">chevron_left</span>
-            </button>
-
-            {/* Bloque central: Año + Mes */}
-            <div className="relative flex flex-col items-center justify-center px-6 py-2.5 rounded-2xl bg-[#0f172a] border border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.4)] min-w-[150px] overflow-hidden cursor-default select-none">
-              {/* Fondo decorativo */}
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/5 via-transparent to-violet-600/5 pointer-events-none" />
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-[2px] bg-gradient-to-r from-transparent via-indigo-500/70 to-transparent" />
-
-              <span className="text-[9px] font-black text-indigo-400/80 tracking-[0.35em] uppercase leading-none mb-0.5 relative z-10">
-                {anio}
-              </span>
-              <span className="text-[18px] font-black text-white tracking-[0.15em] uppercase leading-none relative z-10"
-                style={{ textShadow: '0 0 30px rgba(99,102,241,0.4)' }}
-              >
-                {MONTH_NAMES[mes]}
-              </span>
-            </div>
-
-            {/* Botón Mes Siguiente */}
-            <button
-              onClick={() => navegarMes(1)}
-              title="Mes siguiente"
-              className="group relative size-10 rounded-2xl bg-[#0f172a] border border-white/10 hover:border-indigo-500/60 flex items-center justify-center transition-all duration-300 hover:shadow-[0_0_18px_rgba(99,102,241,0.35)] active:scale-95 overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/0 to-indigo-600/0 group-hover:from-indigo-600/20 group-hover:to-violet-600/10 transition-all duration-300" />
-              <span className="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-indigo-300 transition-colors relative z-10">chevron_right</span>
-            </button>
-          </div>
-          <p className="text-xs font-bold text-slate-500 mt-1">
-            <span
-              className={`${
-                staffAsignado.length > 0 ? "text-emerald-600" : "text-amber-500"
-              }`}
-            >
-              {staffAsignado.length} efectivos asignados
-            </span>
-            {isSyncing && (
-              <span className="ml-3 text-primary animate-pulse">⟳ Sincronizando...</span>
-            )}
-          </p>
+    <div className="animate-fade-in bg-slate-50 min-h-screen pb-16 px-3 pt-2">
+      {/* ── HEADER compacto ── */}
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <button onClick={onClose} className="text-[10px] font-black text-primary hover:underline uppercase">Puestos</button>
+          <span className="material-symbols-outlined text-[12px] text-slate-400">chevron_right</span>
+          <h1 className="text-[14px] font-black text-slate-900 uppercase truncate">{nombrePuesto}</h1>
+          {(puesto as any)?.zona && (
+            <span className="hidden sm:inline px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-full text-[9px] font-black text-primary uppercase">{(puesto as any).zona}</span>
+          )}
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {/* ── Motor Ciclo D/N/R ── */}
-          <button
-            onClick={handleAplicarCiclo}
-            disabled={isApplyingCiclo}
-            title="Aplica el ciclo continuo 6D → 2R+1NR → 6N → 2R+1NR. Hereda la posición del mes anterior automáticamente."
-            className="group relative px-3 py-1.5 bg-gradient-to-br from-indigo-600 to-violet-700 text-white border border-indigo-400/30 rounded-lg text-[10px] font-black uppercase tracking-wider hover:from-indigo-500 hover:to-violet-600 transition-all flex items-center gap-1.5 shadow-[0_4px_12px_rgba(79,70,229,0.3)] hover:shadow-[0_8px_20px_rgba(79,70,229,0.4)] active:scale-95 disabled:opacity-60 overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-            <span className={`material-symbols-outlined text-[14px] relative z-10 ${isApplyingCiclo ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`}>
-              {isApplyingCiclo ? 'sync' : 'autorenew'}
-            </span>
-            <span className="relative z-10">{isApplyingCiclo ? 'Aplicando...' : 'Aplicar Ciclo D/N/R'}</span>
+        {/* Navegación mes compacta */}
+        <div className="flex items-center gap-1">
+          <button onClick={() => navegarMes(-1)} className="size-7 rounded-lg bg-slate-800 border border-white/10 flex items-center justify-center hover:bg-slate-700 transition-colors">
+            <span className="material-symbols-outlined text-[16px] text-slate-300">chevron_left</span>
           </button>
-
-          <button
-            onClick={() => setShowPersonalModal(true)}
-            className="group px-3 py-1.5 bg-slate-800/80 backdrop-blur-md text-white border border-white/10 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-slate-700 hover:border-white/20 transition-all flex items-center gap-1.5 shadow-md active:scale-95"
-          >
-            <span className="material-symbols-outlined text-[14px] text-slate-400 group-hover:text-white transition-colors">manage_accounts</span>
-            <span>Personal</span>
-            {staffAsignado.length > 0 && (
-              <span className="px-2 py-0.5 bg-indigo-500 text-white rounded-full text-[8px] font-black shadow-[0_0_10px_rgba(99,102,241,0.5)]">
-                {staffAsignado.length}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => setShowRolesModal(true)}
-            className="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white border border-violet-400/30 rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-1.5 shadow-md shadow-violet-900/40 relative"
-            title="Gestionar filas del tablero — agregar hasta 20+ vigilantes por puesto"
-          >
-            <span className="material-symbols-outlined text-[14px]">add_row_above</span>
-            Gestionar Filas
-            <span className="px-2 py-0.5 bg-violet-400/30 rounded-full text-[9px] font-black">
-              {progPersonal.length}
-            </span>
-          </button>
-          
-          <button
-            onClick={() => setShowHistoryModal(true)}
-            disabled={!prog}
-            className="px-3 py-1.5 bg-slate-800 text-indigo-400 border border-white/10 rounded-lg text-[10px] font-black uppercase hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-1.5"
-          >
-            <span className="material-symbols-outlined text-[14px]">history</span>
-            Registro Táctico
-          </button>
-
-          <div className="flex gap-2">
-            <button
-              onClick={handleGenerateExcel}
-              disabled={isGeneratingPDF}
-              className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-emerald-700 transition-all flex items-center gap-1.5 shadow-md shadow-emerald-600/20 disabled:opacity-60"
-            >
-              <span className={`material-symbols-outlined text-[14px] ${isGeneratingPDF ? "animate-spin" : ""}`}>
-                {isGeneratingPDF ? "sync" : "table_view"}
-              </span>
-              {isGeneratingPDF ? "Generando..." : "Exportar Excel"}
-            </button>
-
-            <button
-              onClick={handleGeneratePDF}
-              disabled={isGeneratingPDF}
-              className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-rose-700 transition-all flex items-center gap-1.5 shadow-md shadow-rose-600/20 disabled:opacity-60"
-            >
-              <span
-                className={`material-symbols-outlined text-[14px] ${
-                  isGeneratingPDF ? "animate-spin" : ""
-                }`}
-              >
-                {isGeneratingPDF ? "sync" : "picture_as_pdf"}
-              </span>
-              {isGeneratingPDF ? "Generando..." : "Exportar PDF"}
-            </button>
+          <div className="px-3 py-1 rounded-lg bg-slate-800 border border-white/10 text-center select-none min-w-[110px]">
+            <span className="text-[13px] font-black text-white uppercase tracking-wide">{MONTH_NAMES[mes]} {anio}</span>
           </div>
+          <button onClick={() => navegarMes(1)} className="size-7 rounded-lg bg-slate-800 border border-white/10 flex items-center justify-center hover:bg-slate-700 transition-colors">
+            <span className="material-symbols-outlined text-[16px] text-slate-300">chevron_right</span>
+          </button>
+        </div>
 
-          <button
-            onClick={() => prog?.id && guardarBorrador(prog.id, currentUser)}
-            disabled={!prog?.id}
-            className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-[10px] font-black uppercase hover:bg-slate-50 transition-all flex items-center gap-1.5 disabled:opacity-50"
-          >
-            <span className="material-symbols-outlined text-[14px]">save</span>{" "}
+        {/* Botones de acción */}
+        <div className="flex flex-wrap gap-1.5">
+          <button onClick={handleAplicarCiclo} disabled={isApplyingCiclo}
+            className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wide transition-all flex items-center gap-1 disabled:opacity-60">
+            <span className={`material-symbols-outlined text-[12px] ${isApplyingCiclo ? 'animate-spin' : ''}`}>{isApplyingCiclo ? 'sync' : 'autorenew'}</span>
+            {isApplyingCiclo ? 'Aplicando...' : 'Ciclo D/N/R'}
+          </button>
+
+          <button onClick={() => setShowPersonalModal(true)}
+            className="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wide transition-all flex items-center gap-1">
+            <span className="material-symbols-outlined text-[12px]">manage_accounts</span>
+            Personal
+            {staffAsignado.length > 0 && <span className="px-1.5 py-0.5 bg-indigo-500 rounded-full text-[7px]">{staffAsignado.length}</span>}
+          </button>
+
+          <button onClick={() => setShowRolesModal(true)}
+            className="px-2.5 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wide transition-all flex items-center gap-1">
+            <span className="material-symbols-outlined text-[12px]">add_row_above</span>
+            Filas <span className="opacity-70">({progPersonal.length})</span>
+          </button>
+
+          <button onClick={() => setShowHistoryModal(true)} disabled={!prog}
+            className="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-[9px] font-black uppercase tracking-wide transition-all flex items-center gap-1">
+            <span className="material-symbols-outlined text-[12px]">history</span>
+            Registro
+          </button>
+
+          <button onClick={handleGenerateExcel} disabled={isGeneratingPDF}
+            className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[9px] font-black uppercase tracking-wide transition-all flex items-center gap-1 disabled:opacity-60">
+            <span className={`material-symbols-outlined text-[12px] ${isGeneratingPDF ? 'animate-spin' : ''}`}>{isGeneratingPDF ? 'sync' : 'table_view'}</span>
+            Excel
+          </button>
+
+          <button onClick={handleGeneratePDF} disabled={isGeneratingPDF}
+            className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[9px] font-black uppercase tracking-wide transition-all flex items-center gap-1 disabled:opacity-60">
+            <span className={`material-symbols-outlined text-[12px] ${isGeneratingPDF ? 'animate-spin' : ''}`}>{isGeneratingPDF ? 'sync' : 'picture_as_pdf'}</span>
+            PDF
+          </button>
+
+          <button onClick={() => prog?.id && guardarBorrador(prog.id, currentUser)} disabled={!prog?.id}
+            className="px-2.5 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-wide transition-all flex items-center gap-1 disabled:opacity-50">
+            <span className="material-symbols-outlined text-[12px]">save</span>
             Borrador
           </button>
 
-          <button
-            onClick={() => prog?.id && publicarProgramacion(prog.id, currentUser)}
-            disabled={!prog?.id}
-            className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-[10px] font-black uppercase hover:bg-emerald-600 transition-all shadow-md shadow-emerald-500/20 flex items-center gap-1.5 disabled:opacity-50"
-          >
-            <span className="material-symbols-outlined text-[14px]">cloud_upload</span>{" "}
+          <button onClick={() => prog?.id && publicarProgramacion(prog.id, currentUser)} disabled={!prog?.id}
+            className="px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wide transition-all flex items-center gap-1 disabled:opacity-50">
+            <span className="material-symbols-outlined text-[12px]">cloud_upload</span>
             Publicar
           </button>
 
-          <div className={`flex items-center gap-2 px-3 py-1 rounded-lg border min-w-[90px] justify-center ${
-            syncStatus === 'error' ? 'bg-rose-50 border-rose-200' : 'bg-slate-100 border-slate-200'
+          {/* Estado sync compacto */}
+          <div className={`flex items-center gap-1 px-2 py-1.5 rounded-lg border text-[8px] font-black uppercase ${
+            syncStatus === 'error' ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-slate-100 border-slate-200 text-slate-500'
           }`}>
-            {isSyncing ? (
-              <>
-                <div className="size-2 bg-indigo-500 rounded-full animate-ping" />
-                <span className="text-[9px] font-black text-indigo-600 uppercase">Sincronizando...</span>
-              </>
-            ) : syncStatus === 'error' ? (
-              <>
-                <span className="material-symbols-outlined text-rose-500 text-[16px]">cloud_off</span>
-                <span className="text-[9px] font-black text-rose-600 uppercase">Error de Sync</span>
-                <button 
-                  onClick={() => useProgramacionStore.getState().resumePendingSyncs()}
-                  className="ml-1 px-2 py-0.5 bg-rose-100 hover:bg-rose-200 rounded-lg text-[8px] font-black text-rose-700 uppercase transition-all"
-                >
-                  Reintentar
-                </button>
-              </>
-            ) : syncStatus === 'pending' ? (
-              <>
-                <div className="size-2 bg-amber-500 rounded-full animate-pulse" />
-                <span className="text-[9px] font-black text-amber-600 uppercase">Pendiente...</span>
-              </>
-            ) : (
-              <>
-                <span className="material-symbols-outlined text-emerald-500 text-[16px]">cloud_done</span>
-                <span className="text-[9px] font-black text-emerald-600 uppercase">Todo Guardado</span>
-              </>
-            )}
+            {isSyncing ? <><div className="size-1.5 bg-indigo-500 rounded-full animate-ping"/><span className="text-indigo-600">Sync...</span></>
+            : syncStatus === 'error' ? <><span className="material-symbols-outlined text-[12px]">cloud_off</span><span>Error</span><button onClick={() => useProgramacionStore.getState().resumePendingSyncs()} className="underline ml-0.5">Reintentar</button></>
+            : syncStatus === 'pending' ? <><div className="size-1.5 bg-amber-500 rounded-full animate-pulse"/><span className="text-amber-600">Guardando</span></>
+            : <><span className="material-symbols-outlined text-emerald-500 text-[12px]">cloud_done</span><span className="text-emerald-600">Guardado</span></>}
           </div>
 
-          <button
-            onClick={() => {
-              const hasPending = useProgramacionStore.getState().hasPendingChanges();
-              if (isSyncing || hasPending) {
-                if (confirm('⚠️ Hay cambios sincronizando con la central. Si cierra ahora, los últimos movimientos podrían no guardarse. ¿Desea cerrar de todas formas?')) {
-                  onClose();
-                }
-              } else {
-                onClose();
-              }
-            }}
-            className="px-5 py-2.5 bg-slate-100 text-slate-600 rounded-2xl text-[10px] font-black uppercase hover:bg-slate-200 transition-all"
-          >
+          <button onClick={() => { const h = useProgramacionStore.getState().hasPendingChanges(); if (isSyncing || h) { if (confirm('Hay cambios sincronizando. ¿Cerrar de todas formas?')) onClose(); } else onClose(); }}
+            className="px-2.5 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase hover:bg-slate-200 transition-all">
             Cerrar
           </button>
         </div>
       </div>
 
       {staffAsignado.length === 0 && (
-        <div
-          onClick={() => setShowPersonalModal(true)}
-          className="mb-6 px-6 py-4 bg-amber-50 border border-amber-200 rounded-3xl flex items-center gap-4 cursor-pointer hover:bg-amber-100 transition-colors group"
-        >
-          <span className="material-symbols-outlined text-amber-500 text-[28px]">
-            warning
-          </span>
-          <div>
-            <p className="text-[11px] font-black text-amber-700 uppercase tracking-widest">
-              Sin Personal Asignado
-            </p>
-            <p className="text-[10px] font-bold text-amber-600 mt-0.5">
-              Haz clic aquí para configurar el personal titular del puesto (Titular A, Titular B, Relevante)
-            </p>
-          </div>
-          <span className="material-symbols-outlined text-amber-400 text-[20px] ml-auto group-hover:translate-x-1 transition-transform">
-            arrow_forward
-          </span>
+        <div onClick={() => setShowPersonalModal(true)}
+          className="mb-3 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-amber-100 transition-colors">
+          <span className="material-symbols-outlined text-amber-500 text-[18px]">warning</span>
+          <p className="text-[10px] font-black text-amber-700 uppercase tracking-wide">Sin Personal Asignado — Haz clic para configurar el personal titular</p>
+          <span className="material-symbols-outlined text-amber-400 text-[16px] ml-auto">arrow_forward</span>
         </div>
       )}
 
-      {/* ── PANEL DE ALERTAS DEL MES ── */}
+      {/* ── ALERTAS DEL MES compactas ── */}
       {alertas.length > 0 && (
-        <div className="mb-6 px-5 py-4 bg-gradient-to-r from-rose-50 to-amber-50 border border-rose-200 rounded-3xl shadow-sm animate-in slide-in-from-top-2 duration-500">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="size-8 rounded-xl bg-rose-100 flex items-center justify-center">
-              <span className="material-symbols-outlined text-rose-500 text-[20px]">notification_important</span>
-            </div>
-            <span className="text-[10px] font-black text-rose-700 uppercase tracking-[0.2em]">Alertas del Mes ({alertas.length})</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-            {alertas.map((a: string, i: number) => (
-              <div key={i} className="flex items-center gap-2 px-3 py-2 bg-white/80 rounded-xl border border-rose-100">
-                <span className={`material-symbols-outlined text-[14px] ${
-                  a.includes('conflicto') ? 'text-rose-500' : 
-                  a.includes('descanso') ? 'text-amber-500' : 'text-slate-400'
-                }`}>
-                  {a.includes('conflicto') ? 'warning' : 
-                   a.includes('descanso') ? 'event_busy' : 'info'}
-                </span>
-                <span className="text-[10px] font-bold text-slate-700">{a}</span>
-              </div>
+        <div className="mb-3 px-4 py-2 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2">
+          <span className="material-symbols-outlined text-rose-500 text-[14px] mt-0.5 shrink-0">warning</span>
+          <div className="flex flex-wrap gap-1.5 flex-1">
+            <span className="text-[9px] font-black text-rose-700 uppercase tracking-wide shrink-0">Alertas ({alertas.length}):</span>
+            {alertas.slice(0, 3).map((a: string, i: number) => (
+              <span key={i} className="text-[9px] font-bold text-slate-600 bg-white/80 px-1.5 py-0.5 rounded border border-rose-100">{a}</span>
             ))}
+            {alertas.length > 3 && <span className="text-[9px] text-rose-500 font-black">+{alertas.length - 3} más</span>}
           </div>
         </div>
       )}
 
       {staffAsignado.length > 0 && (
-        <div className="mb-6 flex flex-wrap gap-3">
+        <div className="mb-3 flex flex-wrap gap-1.5 items-center">
           {(prog?.personal || [])
             .filter((p: PersonalPuesto) => p.vigilanteId)
-            .map((per: PersonalPuesto) => {
+            .map((per: PersonalPuesto, rolIdx: number) => {
               const COLORS_ARRAY = [
                 "bg-primary/10 text-primary border-primary/20",
                 "bg-indigo-500/10 text-indigo-600 border-indigo-300/30",
@@ -1853,36 +1705,20 @@ const PanelMensualPuesto = ({
                 "bg-rose-500/10 text-rose-600 border-rose-300/30",
                 "bg-amber-500/10 text-amber-600 border-amber-300/30"
               ];
-              const rolIdx = progPersonal.findIndex((p: any) => p.rol === per.rol);
               const colorClass = COLORS_ARRAY[rolIdx % COLORS_ARRAY.length] || COLORS_ARRAY[0];
               const v = per.vigilanteId ? vigilanteMap.get(per.vigilanteId) : null;
               const vNombre = typeof v === 'string' ? v : (v as any)?.nombre || per.vigilanteId;
-              
               return (
-                <div
-                  key={per.rol}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-2xl border ${colorClass}`}
-                >
-                  <span className="material-symbols-outlined text-[16px]">
-                    {per.rol === "relevante" ? "groups" : "shield_person"}
-                  </span>
-                  <div>
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter block mb-1">
-                      {getRolLabel(per.rol, per.displayName)}
-                    </span>
-                    <p className="text-[11px] font-black leading-tight">
-                      {vNombre}
-                    </p>
-                  </div>
+                <div key={per.rol} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[9px] font-black uppercase ${colorClass}`}>
+                  <span className="material-symbols-outlined text-[12px]">{per.rol === 'relevante' ? 'groups' : 'shield_person'}</span>
+                  <span className="text-slate-400">{getRolLabel(per.rol, per.displayName)}:</span>
+                  <span>{vNombre}</span>
                 </div>
               );
             })}
-          <button
-            onClick={() => setShowPersonalModal(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-2xl border border-dashed border-slate-300 text-slate-400 hover:border-primary/40 hover:text-primary transition-colors text-[10px] font-black uppercase"
-          >
-            <span className="material-symbols-outlined text-[16px]">edit</span>
-            Editar Personal
+          <button onClick={() => setShowPersonalModal(true)}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-dashed border-slate-300 text-slate-400 hover:border-primary/40 hover:text-primary transition-colors text-[9px] font-black uppercase">
+            <span className="material-symbols-outlined text-[12px]">edit</span>Editar
           </button>
         </div>
       )}

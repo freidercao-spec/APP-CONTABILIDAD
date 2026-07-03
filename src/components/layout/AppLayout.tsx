@@ -1,4 +1,4 @@
-﻿import React, { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
@@ -36,7 +36,7 @@ const AppLayout = ({ children }: { children?: React.ReactNode }) => {
                     className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar"
                     style={{ scrollbarGutter: 'stable' }}
                 >
-                    <div className="px-4 pb-10 sm:px-6 lg:px-8 pt-2">
+                    <div className="px-3 pb-6 sm:px-4 lg:px-6 pt-1">
                         {children || <Outlet />}
                     </div>
                 </div>

@@ -83,14 +83,14 @@ const Topbar = () => {
 
     return (
         <header className="
-            h-[70px] lg:h-[80px]
+            h-[56px]
             flex items-center justify-between
-            px-4 sm:px-6 lg:px-8
+            px-3 sm:px-4 lg:px-6
             bg-[#0B1120]/80 backdrop-blur-xl
             border-b border-white/5
             sticky top-0 z-30
-            shadow-md shadow-black/20
-            transition-all duration-300
+            shadow-sm shadow-black/20
+            transition-all duration-200
         ">
             {/* ── LEFT: Breadcrumb + Title ────────────────────────── */}
             <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -117,19 +117,19 @@ const Topbar = () => {
                             {meta.icon}
                         </span>
                     </div>
-                    <div className="min-w-0">
+                <div className="min-w-0">
                         <div className="hidden sm:flex items-center gap-1.5 mb-0.5">
-                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] whitespace-nowrap">
+                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em] whitespace-nowrap">
                                 {topbarConfig.companyName || 'Coraza CTA'}
                             </span>
-                            <span className="material-symbols-outlined text-[11px] text-slate-600">chevron_right</span>
-                            <span className="text-[9px] font-black text-primary uppercase tracking-[0.3em] truncate">
+                            <span className="material-symbols-outlined text-[10px] text-slate-600">chevron_right</span>
+                            <span className="text-[8px] font-black text-primary uppercase tracking-[0.3em] truncate">
                                 {meta.section}
                             </span>
                         </div>
                         <h2
-                            className="text-[16px] sm:text-[19px] lg:text-[21px] font-black text-white tracking-tight leading-none uppercase truncate"
-                            style={{ borderLeft: `3px solid ${topbarConfig.accentColor || '#4f46e5'}`, paddingLeft: '10px' }}
+                            className="text-[14px] sm:text-[16px] lg:text-[17px] font-black text-white tracking-tight leading-none uppercase truncate"
+                            style={{ borderLeft: `2px solid ${topbarConfig.accentColor || '#4f46e5'}`, paddingLeft: '8px' }}
                         >
                             {meta.title}
                         </h2>
@@ -154,40 +154,28 @@ const Topbar = () => {
                 )}
 
                 <div className="flex items-center gap-1 px-1">
-                    {/* Data Status Indicator */}
-                    <div className="hidden md:flex items-center gap-3 px-4 py-1.5 bg-white/5 border border-white/10 rounded-full mr-2">
-                        <div className="flex items-center gap-1.5">
-                            <span className="size-1.5 bg-emerald-400 rounded-full shadow-[0_0_6px_#10b981] animate-pulse" />
-                            <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest tabular-nums">
-                                {vigilantes.length > 1000 
-                                    ? `${(vigilantes.length / 1000).toFixed(1)}k` 
-                                    : vigilantes.length} Vigilantes
+                    {/* Data Status Indicator - compact */}
+                    <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full mr-2">
+                        <div className="flex items-center gap-1">
+                            <span className="size-1.5 bg-emerald-400 rounded-full shadow-[0_0_4px_#10b981] animate-pulse" />
+                            <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest tabular-nums">
+                                {vigilantes.length} Vig.
                             </span>
                         </div>
                         <div className="w-[1px] h-3 bg-white/10" />
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-[9px] font-black text-primary-light uppercase tracking-widest tabular-nums">
-                                {puestos.length} Puestos
+                        <div className="flex items-center gap-1">
+                            <span className="text-[8px] font-black text-primary-light uppercase tracking-widest tabular-nums">
+                                {puestos.length} Ptos.
                             </span>
                         </div>
                         <div className="w-[1px] h-3 bg-white/10" />
-                        <div className="flex items-center gap-1.5">
-                            <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 rounded-md text-[8px] font-black uppercase tracking-widest border border-indigo-500/30">
-                                v1.5.6-LIVE
+                        {isOnline ? (
+                            <span className="size-1.5 bg-emerald-400 rounded-full" title="Conectado" />
+                        ) : (
+                            <span className="px-1.5 py-0.5 bg-rose-500/20 text-rose-400 rounded text-[7px] font-black uppercase border border-rose-500/30 animate-pulse">
+                                OFF
                             </span>
-                        </div>
-                        <div className="w-[1px] h-3 bg-white/10" />
-                        <div className="flex items-center gap-1.5">
-                            {isOnline ? (
-                                <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-md text-[8px] font-black uppercase tracking-widest border border-emerald-500/20">
-                                    CONECTADO
-                                </span>
-                            ) : (
-                                <span className="px-2 py-0.5 bg-rose-500/20 text-rose-400 rounded-md text-[8px] font-black uppercase tracking-widest border border-rose-500/30 animate-pulse">
-                                    SIN CONEXIÓN
-                                </span>
-                            )}
-                        </div>
+                        )}
                     </div>
 
                     {/* Clock */}
