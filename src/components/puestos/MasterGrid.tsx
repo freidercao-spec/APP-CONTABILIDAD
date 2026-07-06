@@ -20,6 +20,34 @@ export const MasterGrid = ({ anio, mes, filteredPuestos, programaciones, isIniti
   const totalDias = new Date(anio, mes + 1, 0).getDate();
   const colombiaHolidays = useMemo(() => getColombiaHolidays(anio), [anio]);
 
+  // Pre-indexar programaciones por puestoId y pre-agrupar sus asignaciones por día para acceso O(1)
+  const progMap = useMemo(() => {
+    const map = new Map<string, { prog: any; asigsByDay: Map<number, any[]> }>();
+    
+    programaciones.forEach(pg => {
+      if (pg.anio === anio && pg.mes === mes) {
+        const dayMap = new Map<number, any[]>();
+        if (pg.asignaciones) {
+          pg.asignaciones.forEach(a => {
+            if (a.dia && a.vigilanteId && a.jornada !== 'sin_asignar') {
+              if (!dayMap.has(a.dia)) {
+                dayMap.set(a.dia, []);
+              }
+              dayMap.get(a.dia)!.push(a);
+            }
+          });
+        }
+        
+        const entry = { prog: pg, asigsByDay: dayMap };
+        if (pg.puestoId) {
+          map.set(String(pg.puestoId).trim(), entry);
+        }
+      }
+    });
+    
+    return map;
+  }, [programaciones, anio, mes]);
+
   if (isInitialLoading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-[#020617] rounded-[45px] m-6 border border-white/5 animate-pulse">
@@ -108,80 +136,84 @@ export const MasterGrid = ({ anio, mes, filteredPuestos, programaciones, isIniti
             </tr>
           </thead>
           <tbody>
-            {filteredPuestos.map((p) => (
-              <tr key={p.id} className="group hover:bg-white/[0.04] transition-all border-b border-white/[0.05]">
-                <td className="sticky left-0 z-40 bg-[#070d19] group-hover:bg-[#0c152a] border-r border-white/10 px-8 py-7 transition-all">
-                  <div className="flex flex-col gap-2">
-                     <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-indigo-500/70 uppercase tracking-[0.3em] font-mono">{p.id}</span>
-                        <div className="flex items-center gap-2">
-                           <span className={`text-[8px] font-black px-2 py-0.5 rounded-lg border uppercase ${p.tipo ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-slate-800 text-slate-500 border-white/5'}`}>
-                             {p.tipo || 'Operativo'}
-                           </span>
-                           {onEditPuesto && (
-                             <button 
-                               onClick={() => onEditPuesto(p)}
-                               className="size-7 rounded-lg bg-white/5 hover:bg-indigo-600 text-slate-500 hover:text-white transition-all flex items-center justify-center border border-white/5"
-                             >
-                               <span className="material-symbols-outlined text-[15px]">edit_note</span>
-                             </button>
-                           )}
-                        </div>
-                     </div>
-                    <div className="flex items-center gap-3">
-                        <span 
-                          onClick={() => onSelectPuesto({ dbId: p.dbId || p.id, nombre: p.nombre })}
-                          className="text-[15px] font-black text-slate-100 tracking-tight truncate hover:text-indigo-400 cursor-pointer transition-all uppercase italic group-hover:translate-x-1"
-                        >
-                          {p.nombre}
-                        </span>
-                        {(() => {
-                            const prog = programaciones.find(pg => pg.puestoId === (p.dbId || p.id) && pg.anio === anio && pg.mes === mes);
-                            if (prog?.syncStatus === 'pending') return <span className="size-2 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_#f59e0b]" title="Sincronización pendiente" />;
-                            if (prog?.syncStatus === 'error') return <span className="size-2 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e]" title="Error de sincronización" />;
-                            return null;
-                        })()}
-                    </div>
-                  </div>
-                </td>
-                {Array.from({ length: totalDias }, (_, i) => i + 1).map(d => {
-                  const prog = programaciones.find(pg => pg.puestoId === (p.dbId || p.id) && pg.anio === anio && pg.mes === mes);
-                  const asigs = prog?.asignaciones?.filter(a => a.dia === d && a.vigilanteId && a.jornada !== 'sin_asignar');
-                  
-                  return (
-                    <td 
-                      key={d} 
-                      className="p-1 border-r border-white/5 cursor-pointer hover:bg-white/[0.03] transition-all group/cell"
-                      onClick={() => onSelectPuesto({ dbId: p.dbId || p.id, nombre: p.nombre })}
-                    >
-                      <div className="h-16 w-full flex flex-col gap-1 items-center justify-center p-1">
-                        {asigs && asigs.length > 0 ? (
-                          asigs.map((asig, idx) => {
-                            const tactical = getTacticalColor(asig.jornada);
-                            return (
-                              <div 
-                                key={idx}
-                                className={`w-full flex-1 rounded-lg flex items-center justify-center text-[10px] font-black border transition-all hover:scale-105 shadow-xl bg-gradient-to-br ${tactical.lg}`}
-                                style={{ 
-                                  backgroundColor: tactical.bg, 
-                                  borderColor: tactical.border, 
-                                  color: tactical.color,
-                                  boxShadow: `inset 0 0 12px ${tactical.border}33, 0 4px 12px rgba(0,0,0,0.5)`
-                                }}
-                              >
-                                {tactical.label}
-                              </div>
-                            );
-                          })
-                        ) : (
-                          <div className="size-2 rounded-full bg-white/[0.05] group-hover/cell:bg-indigo-500/30 transition-all"></div>
-                        )}
+            {filteredPuestos.map((p) => {
+              const entry = progMap.get(String(p.dbId || '').trim()) || progMap.get(String(p.id || '').trim());
+              const prog = entry?.prog;
+              const asigsByDay = entry?.asigsByDay;
+
+              return (
+                <tr key={p.id} className="group hover:bg-white/[0.04] transition-all border-b border-white/[0.05]">
+                  <td className="sticky left-0 z-40 bg-[#070d19] group-hover:bg-[#0c152a] border-r border-white/10 px-8 py-7 transition-all">
+                    <div className="flex flex-col gap-2">
+                       <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black text-indigo-500/70 uppercase tracking-[0.3em] font-mono">{p.id}</span>
+                          <div className="flex items-center gap-2">
+                             <span className={`text-[8px] font-black px-2 py-0.5 rounded-lg border uppercase ${p.tipo ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-slate-800 text-slate-500 border-white/5'}`}>
+                               {p.tipo || 'Operativo'}
+                             </span>
+                             {onEditPuesto && (
+                               <button 
+                                 onClick={() => onEditPuesto(p)}
+                                 className="size-7 rounded-lg bg-white/5 hover:bg-indigo-600 text-slate-500 hover:text-white transition-all flex items-center justify-center border border-white/5"
+                               >
+                                 <span className="material-symbols-outlined text-[15px]">edit_note</span>
+                               </button>
+                             )}
+                          </div>
+                       </div>
+                      <div className="flex items-center gap-3">
+                          <span 
+                            onClick={() => onSelectPuesto({ dbId: p.dbId || p.id, nombre: p.nombre })}
+                            className="text-[15px] font-black text-slate-100 tracking-tight truncate hover:text-indigo-400 cursor-pointer transition-all uppercase italic group-hover:translate-x-1"
+                          >
+                            {p.nombre}
+                          </span>
+                          {(() => {
+                              if (prog?.syncStatus === 'pending') return <span className="size-2 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_#f59e0b]" title="Sincronización pendiente" />;
+                              if (prog?.syncStatus === 'error') return <span className="size-2 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e]" title="Error de sincronización" />;
+                              return null;
+                          })()}
                       </div>
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+                    </div>
+                  </td>
+                  {Array.from({ length: totalDias }, (_, i) => i + 1).map(d => {
+                    const asigs = asigsByDay?.get(d) || [];
+                    
+                    return (
+                      <td 
+                        key={d} 
+                        className="p-1 border-r border-white/5 cursor-pointer hover:bg-white/[0.03] transition-all group/cell"
+                        onClick={() => onSelectPuesto({ dbId: p.dbId || p.id, nombre: p.nombre })}
+                      >
+                        <div className="h-16 w-full flex flex-col gap-1 items-center justify-center p-1">
+                          {asigs && asigs.length > 0 ? (
+                            asigs.map((asig, idx) => {
+                              const tactical = getTacticalColor(asig.jornada);
+                              return (
+                                <div 
+                                  key={idx}
+                                  className={`w-full flex-1 rounded-lg flex items-center justify-center text-[10px] font-black border transition-all hover:scale-105 shadow-xl bg-gradient-to-br ${tactical.lg}`}
+                                  style={{ 
+                                    backgroundColor: tactical.bg, 
+                                    borderColor: tactical.border, 
+                                    color: tactical.color,
+                                    boxShadow: `inset 0 0 12px ${tactical.border}33, 0 4px 12px rgba(0,0,0,0.5)`
+                                  }}
+                                >
+                                  {tactical.label}
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="size-2 rounded-full bg-white/[0.05] group-hover/cell:bg-indigo-500/30 transition-all"></div>
+                          )}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

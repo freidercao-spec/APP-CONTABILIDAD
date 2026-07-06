@@ -12,7 +12,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 const Dashboard       = React.lazy(() => import('./pages/Dashboard'));
 const GestionPuestos  = React.lazy(() => import('./pages/GestionPuestos'));
 const Vigilantes      = React.lazy(() => import('./pages/Vigilantes'));
-const Puestos         = React.lazy(() => import('./pages/Puestos'));
+
 const Inteligencia    = React.lazy(() => import('./pages/Inteligencia'));
 const Login           = React.lazy(() => import('./pages/Login'));
 const Novedades       = React.lazy(() => import('./pages/Novedades'));

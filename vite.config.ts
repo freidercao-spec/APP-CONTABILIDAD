@@ -35,7 +35,6 @@ export default defineConfig({
           supabase: ['@supabase/supabase-js'],
           zustand: ['zustand'],
           pdf: ['jspdf', 'jspdf-autotable'],
-          maps: ['maplibre-gl', '@deck.gl/react', '@deck.gl/layers', 'deck.gl'],
         }
       }
     }
@@ -44,10 +43,6 @@ export default defineConfig({
     include: [
       'jspdf',
       'jspdf-autotable',
-      'deck.gl',
-      '@deck.gl/react',
-      '@deck.gl/layers',
-      'maplibre-gl'
     ]
   }
 })

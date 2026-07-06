@@ -1718,6 +1718,60 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 const newBusyMap = new Map<string, Set<any>>();
                 get().conflictMap.clear();
 
+                // Precomputar mapas de lookup para evitar búsquedas lineales O(N) dentro del bucle de asignaciones
+                const vStore = useVigilanteStore.getState();
+                const vigilanteIdToUuidMap = new Map<string, string>();
+                if (vStore.vigilantes) {
+                    vStore.vigilantes.forEach(v => {
+                        const uuid = v.dbId || (isUuid(v.id) ? v.id : null);
+                        if (uuid) {
+                            vigilanteIdToUuidMap.set(v.id, uuid);
+                            vigilanteIdToUuidMap.set(uuid, uuid);
+                        }
+                    });
+                }
+                const quickTranslateToUuid = (id: string | null): string | null => {
+                    if (!id) return null;
+                    return vigilanteIdToUuidMap.get(id) || (isUuid(id) ? id : null);
+                };
+
+                const pStore = usePuestoStore.getState();
+                const puestoIdToNameMap = new Map<string, string>();
+                const puestoIdToUuidMap = new Map<string, string>();
+                const puestoUuidToReadableIdMap = new Map<string, string>();
+                if (pStore.puestos) {
+                    pStore.puestos.forEach(p => {
+                        const name = p.nombre || 'Otro Puesto';
+                        const uuid = p.dbId || (isUuid(p.id) ? p.id : null);
+                        
+                        puestoIdToNameMap.set(p.id, name);
+                        if (p.dbId) puestoIdToNameMap.set(p.dbId, name);
+
+                        if (uuid) {
+                            puestoIdToUuidMap.set(p.id, uuid);
+                            puestoIdToUuidMap.set(uuid, uuid);
+                        }
+                        
+                        if (p.id) {
+                            if (p.dbId) puestoUuidToReadableIdMap.set(p.dbId, p.id);
+                            puestoUuidToReadableIdMap.set(p.id, p.id);
+                        }
+                    });
+                }
+
+                const quickTranslatePuestoToUuid = (id: string | null): string | null => {
+                    if (!id) return null;
+                    return puestoIdToUuidMap.get(id) || (isUuid(id) ? id : null);
+                };
+
+                const quickTranslateToReadableId = (id: string): string => {
+                    return puestoUuidToReadableIdMap.get(id) || id;
+                };
+
+                const getPuestoNombreQuick = (id: string): string => {
+                    return puestoIdToNameMap.get(id) || 'Otro Puesto';
+                };
+
                 progs.forEach(p => {
                     // INDEXACIÓN MULTIDIMENSIONAL (Crítico para evitar 'Señal Perdida')
                     const keyBase = `${p.anio}-${p.mes}`;
@@ -1728,12 +1782,12 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     // 2. Por Puesto (UUID o Readable)
                     newMap.set(`${p.puestoId}-${keyBase}`, p);
                     
-                    const dbUuid = translatePuestoToUuid(p.puestoId);
+                    const dbUuid = quickTranslatePuestoToUuid(p.puestoId);
                     if (dbUuid && dbUuid !== p.puestoId) {
                         newMap.set(`${dbUuid}-${keyBase}`, p);
                     }
 
-                    const rid = translateToReadableId(p.puestoId);
+                    const rid = quickTranslateToReadableId(p.puestoId);
                     if (rid && rid !== p.puestoId) {
                         newMap.set(`${rid}-${keyBase}`, p);
                     }
@@ -1742,7 +1796,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     if (p.asignaciones) {
                         p.asignaciones.forEach(asig => {
                             if (asig.vigilanteId && asig.jornada !== 'sin_asignar') {
-                                const dbVid = translateToUuid(asig.vigilanteId);
+                                const dbVid = quickTranslateToUuid(asig.vigilanteId) || asig.vigilanteId;
                                 const key = `${dbVid}-${p.anio}-${p.mes}`;
                                 const jornada = (asig.jornada || (asig as any).turno || 'normal') as string;
 
@@ -1765,12 +1819,10 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                     busySet.add(`${asig.dia}-normal`);
                                 }
                                 
-                                // BÚSQUEDA DE CONFLICTOS RÁPIDA
+                                // BÚSQUEDA DE CONFLICTOS RÁPIDA (O(1) con el mapa precomputado)
                                 const conflictKey = `${dbVid}-${p.anio}-${p.mes}-${asig.dia}`;
                                 if (!get().conflictMap.has(conflictKey)) {
-                                    const pStore = usePuestoStore.getState();
-                                    const puesto = pStore.puestos?.find(px => px.id === p.puestoId || px.dbId === p.puestoId);
-                                    get().conflictMap.set(conflictKey, puesto?.nombre || 'Otro Puesto');
+                                    get().conflictMap.set(conflictKey, getPuestoNombreQuick(p.puestoId));
                                 }
                             }
                         });
