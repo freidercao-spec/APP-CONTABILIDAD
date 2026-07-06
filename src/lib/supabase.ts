@@ -1,11 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Nuevo Supabase: ykchpbqkjvmnddndkvno (olbk41228-arch's Project)
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://ykchpbqkjvmnddndkvno.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_OlEXiywU13_j1FlB4QZWLQ_kYI41a-E';
+const fallbackUrl = 'https://ykchpbqkjvmnddndkvno.supabase.co';
+const fallbackKey = 'sb_publishable_OlEXiywU13_j1FlB4QZWLQ_kYI41a-E';
 
-if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-    console.warn('⚠️ Usando credenciales de respaldo. Configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en Vercel.');
+let supabaseUrl = import.meta.env.VITE_SUPABASE_URL || fallbackUrl;
+let supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || fallbackKey;
+
+// Auto-bypass: si la URL en producción de Vercel apunta al proyecto antiguo inactivo (ylcpizjfwupfvffsbjmz), forzar el nuevo activo
+if (supabaseUrl.includes('ylcpizjfwupfvffsbjmz')) {
+    supabaseUrl = fallbackUrl;
+    supabaseAnonKey = fallbackKey;
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
