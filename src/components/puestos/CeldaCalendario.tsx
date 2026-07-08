@@ -332,11 +332,12 @@ export const CeldaCalendario = React.memo(({
         <span className="text-[8px] font-black uppercase tracking-wider" style={{ color: s.badgeText }}>
           {turnoConf?.nombre || s.label}
         </span>
-        {turnoConf?.inicio && (
+        {(asig.inicio || turnoConf?.inicio) && (
           <>
             <div className="w-px h-2.5 rounded-full" style={{ background: `${s.badge}66` }} />
-            <span className="text-[8px] font-bold tabular-nums" style={{ color: `${s.badgeText}cc` }}>
-              {turnoConf.inicio}
+            <span className="text-[7.5px] font-bold tabular-nums" style={{ color: `${s.badgeText}cc` }}>
+              {asig.inicio || turnoConf?.inicio}
+              {(asig.fin || turnoConf?.fin) ? `-${asig.fin || turnoConf?.fin}` : ''}
             </span>
           </>
         )}

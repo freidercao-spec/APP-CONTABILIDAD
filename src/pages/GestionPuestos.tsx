@@ -114,6 +114,16 @@ const getRolPdfLabel = (rol: string) => {
   return ROL_PDF_BASE[rol] || rol.replace(/_/g, " ").toUpperCase();
 };
 
+const calculateHours = (inicio?: string, fin?: string, defaultHours = 12): number => {
+  if (!inicio || !fin) return defaultHours;
+  const [h1, m1] = inicio.split(':').map(Number);
+  const [h2, m2] = fin.split(':').map(Number);
+  if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) return defaultHours;
+  let diff = (h2 + m2/60) - (h1 + m1/60);
+  if (diff < 0) diff += 24; // nocturnos que pasan la medianoche
+  return Math.round(diff * 10) / 10;
+};
+
 const getTacticalCode = (asig: any): string => {
   if (!asig || asig.jornada === 'sin_asignar' || !asig.jornada) return '-';
   if (asig.codigo_personalizado) return asig.codigo_personalizado;
@@ -127,9 +137,18 @@ const getTacticalCode = (asig: any): string => {
   if (j === 'suspension') return 'SP';
   if (j === 'accidente') return 'AC';
 
-  if (j === 'AM' || j === 'D' || (j === 'normal' && asig.turno !== 'PM')) return 'D12';
-  if (j === 'PM' || j === 'N' || (j === 'normal' && asig.turno === 'PM')) return 'N12';
-  if (j === '24H' || j === '24') return '24';
+  const duration = calculateHours(asig.inicio, asig.fin, j === '24H' || j === '24' ? 24 : 12);
+
+  if (j === '24H' || j === '24') {
+    return duration !== 24 ? `24H (${duration}h)` : '24';
+  }
+
+  if (j === 'AM' || j === 'D' || (j === 'normal' && asig.turno !== 'PM')) {
+    return `D${duration}`;
+  }
+  if (j === 'PM' || j === 'N' || (j === 'normal' && asig.turno === 'PM')) {
+    return `N${duration}`;
+  }
   return j;
 };
 
@@ -556,9 +575,17 @@ const PanelMensualPuesto = ({
         const tDR = asigsRol.filter(a => a.jornada === 'descanso_remunerado').length;
         const tVAC = asigsRol.filter(a => a.jornada === 'vacacion').length;
 
+        let totalHours = 0;
+        asigsRol.forEach(a => {
+          if (a.jornada === 'normal') {
+            totalHours += calculateHours(a.inicio, a.fin, a.turno === '24H' || a.turno === '24' ? 24 : 12);
+          }
+        });
+
         rowData.push(tD);
         rowData.push(tDR);
         rowData.push(tVAC);
+        rowData.push(totalHours);
 
         // MEJORA: Agregar Observación (Portería D12 o N12)
         const isNocturno = per.turnoId?.includes('PM') || per.rol?.includes('b') || per.rol?.toLowerCase().includes('nocturno');
@@ -581,14 +608,14 @@ const PanelMensualPuesto = ({
       const headRow = [
         "ROL", "C.C.", "APELLIDOS Y NOMBRES",
         ...days.map(d => { const dow=new Date(anio,mes,d).getDay(); return `${DAY_NAMES[dow]}\n${String(d).padStart(2,"0")}`; }),
-        "TRAB.","DESC.","VAC.",
+        "TRAB.","DESC.","VAC.","HORAS",
         "OBSERVACIONES"
       ];
 
       const bodyRows = tableData;
 
       if (bodyRows.length===0) {
-        bodyRows.push(["—","—","SIN PERSONAL ASIGNADO ESTE MES",...days.map(()=>""),"0","0","0","—"]);
+        bodyRows.push(["—","—","SIN PERSONAL ASIGNADO ESTE MES",...days.map(()=>""),"0","0","0","0","—"]);
       }
 
       autoTable(doc, {
@@ -815,15 +842,16 @@ const PanelMensualPuesto = ({
 
         const getCodeColor = (code: string): string | null => {
           if (code === '-') return 'CBD5E1';    // gris vacío
-          if (code === 'D')  return 'BAE6FD';   // azul cielo diurno
-          if (code === 'N')  return '6366F1';   // indigo nocturno
-          if (code === 'DR') return 'BBF7D0';   // verde descanso remun.
+          if (code.startsWith('D'))  return 'BAE6FD';   // azul cielo diurno
+          if (code.startsWith('N'))  return '6366F1';   // indigo nocturno
+          if (code === 'DR' || code === 'X') return 'BBF7D0';   // verde descanso remun.
           if (code === 'NR') return 'FED7AA';   // naranja desc. no remun.
           if (code === 'VAC')return 'D8B4FE';   // violeta vacaciones
           if (code === 'LC') return 'FEF08A';   // amarillo licencia
           if (code === 'SP') return 'FECACA';   // rojo suspensión
           if (code === 'IN') return 'E9D5FF';   // lila incapacidad
           if (code === 'AC') return 'FCA5A5';   // rosa accidente
+          if (code.startsWith('24')) return 'BBF7D0'; // verde para turnos 24h
           return null;
         };
 
@@ -855,7 +883,7 @@ const PanelMensualPuesto = ({
 
         // --- CONSTRUCCIÓN EXCEL ---
         const lastColIdx = 4 + daysInMonth;
-        const totalColumns = lastColIdx + 4; // obsColIdx is lastColIdx + 4
+        const totalColumns = lastColIdx + 5; // obsColIdx is lastColIdx + 5 (TRAB, DESC, NR, VAC, HORAS)
         const obsColLetter = getColumnLetter(totalColumns);
         
         // --- ENCABEZADO CORPORATIVO ---
@@ -952,8 +980,8 @@ const PanelMensualPuesto = ({
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F8FAFC' } };
         });
 
-        // Totales Headers
-        ['TRAB', 'DESC', 'NR', 'VAC'].forEach((v, i) => {
+        // Totales Headers (con HORAS)
+        ['TRAB', 'DESC', 'NR', 'VAC', 'HORAS'].forEach((v, i) => {
             const cell = hRow.getCell(lastColIdx + i);
             cell.value = v;
             cell.font = { name: 'Arial Narrow', size: 8, bold: true };
@@ -1002,10 +1030,11 @@ const PanelMensualPuesto = ({
           c3.border = borderThin;
 
           // Días & Totales
-          let tT = 0, tD = 0, tNR = 0, tV = 0;
+          let tT = 0, tD = 0, tNR = 0, tV = 0, totalHours = 0;
 
           daysArr.forEach((d, di) => {
             const cell = exRow.getCell(4 + di);
+            const asig = progAsignaciones.find(a => a.dia === d && a.rol === row.rol);
             const code = row.asigs.get(d) || "";
             cell.value = code;
             cell.font = { name: 'Arial Narrow', size: 7, bold: true };
@@ -1016,19 +1045,24 @@ const PanelMensualPuesto = ({
             if (color) {
               cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
               // Texto blanco para celdas oscuras (N = indigo)
-              if (code === 'N' || code === 'SP') {
+              if (code.startsWith('N') || code === 'SP') {
                 cell.font = { name: 'Arial Narrow', size: 7, bold: true, color: { argb: 'FFFFFF' } };
               }
             }
 
-            if (code === 'D' || code === 'N') tT++;
-            else if (code === 'DR') tD++;
-            else if (code === 'NR') tNR++;
-            else if (code === 'VAC') tV++;
+            if (asig) {
+              if (asig.jornada === 'normal') {
+                tT++;
+                totalHours += calculateHours(asig.inicio, asig.fin, asig.turno === '24H' || asig.turno === '24' ? 24 : 12);
+              }
+              else if (asig.jornada === 'descanso_remunerado') tD++;
+              else if (asig.jornada === 'descanso_no_remunerado') tNR++;
+              else if (asig.jornada === 'vacacion') tV++;
+            }
           });
 
-          // Summary cells
-          [tT, tD, tNR, tV].forEach((val, vi) => {
+          // Summary cells (con totalHours)
+          [tT, tD, tNR, tV, totalHours].forEach((val, vi) => {
               const cell = exRow.getCell(lastColIdx + vi);
               cell.value = val || '';
               cell.font = { name: 'Arial Narrow', size: 8, bold: true };
