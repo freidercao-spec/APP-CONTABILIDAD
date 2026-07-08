@@ -1,9 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { type AsignacionDia, type TipoJornada, type TurnoHora, ESTADOS_LABORALES, getEstadoLaboral } from '../../store/programacionStore';
+import { type AsignacionDia, type TipoJornada, type CodigoEstado, ESTADOS_LABORALES, getEstadoLaboral } from '../../store/programacionStore';
 import { type TurnoConfig, type JornadaCustom } from '../../store/puestoStore';
 import { useVigilanteStore, type Vigilante } from '../../store/vigilanteStore';
 import { DEFAULT_TURNOS } from '../../utils/puestosConstants';
-
 
 interface EditCeldaModalProps {
   asig: AsignacionDia;
@@ -28,6 +27,24 @@ const idsMatch = (id1: any, id2: any) => {
   return s1 === s2;
 };
 
+const getActiveCode = (asig: any): string => {
+  if (asig.codigo_personalizado) return asig.codigo_personalizado;
+  if (asig.jornada === 'normal') {
+    return asig.turno === 'PM' ? 'N' : 'D';
+  }
+  const map: Record<string, string> = {
+      descanso_remunerado:    'DR',
+      descanso_no_remunerado: 'NR',
+      vacacion:               'VAC',
+      licencia:               'LC',
+      suspension:             'SP',
+      incapacidad:            'IN',
+      accidente:              'AC',
+      sin_asignar:            '-',
+  };
+  return map[asig.jornada] || '-';
+};
+
 export const EditCeldaModal = ({ 
   asig, vigilantes, titularesId, titulares, puestoNombre, diaLabel, 
   turnosConfig = [], jornadasCustom = [], initialVigilanteId, onSave, onClose 
@@ -45,11 +62,8 @@ export const EditCeldaModal = ({
   });
 
   const [tempAsig, setTempAsig] = useState<AsignacionDia>(() => {
-    // Buscar configuración de turno predeterminada para este rol/turno
     const turnoId = asig.turno || 'AM';
     const config = effectiveTurnos.find(t => t.id === turnoId) || effectiveTurnos[0];
-    // Determinar jornada inicial: si ya tiene jornada real la preservamos,
-    // si estaba sin_asignar la marcamos como 'normal' para que el modal empiece activo
     const jornadaInicial = (asig.jornada && asig.jornada !== 'sin_asignar') ? asig.jornada : 'normal';
     return { 
       ...asig,
@@ -60,7 +74,6 @@ export const EditCeldaModal = ({
       fin: asig.fin || config?.fin || '18:00'
     };
   });
-
 
   const filteredVigilantes = useMemo(() => {
     if (!search) return [];
@@ -74,7 +87,6 @@ export const EditCeldaModal = ({
     return titularesId.map(id => {
       const found = vigilantes.find(v => idsMatch(v.id, id) || idsMatch(v.dbId, id));
       if (found) return found;
-      // RECUPERACIÓN SINTÉTICA: Si no está en el store global pero sí en el tablero, crear perfil temporal
       return { 
         id, 
         dbId: id, 
@@ -94,7 +106,6 @@ export const EditCeldaModal = ({
   };
 
   useEffect(() => {
-    // CORRECCIÓN ATÓMICA: Asegurar que las horas siempre tengan formato HH:mm para el input del navegador
     const fixTime = (t: string) => {
       if (!t || !t.includes(':')) return t;
       const [h, m] = t.split(':');
@@ -118,35 +129,32 @@ export const EditCeldaModal = ({
 
   const setTurnoPreset = (turnoId: string) => {
     const config = effectiveTurnos.find(t => t.id === turnoId) || DEFAULT_TURNOS.find(t => t.id === turnoId);
-    // FIX: al seleccionar un turno operativo, también forzar jornada = 'normal'
-    // para que la celda del tablero muestre el color correcto (azul/violeta/verde)
     setTempAsig(prev => ({
       ...prev,
       turno: turnoId as any,
-      jornada: 'normal' as any,          // ← CRÍTICO: fuerza estado laboral a "Día trabajado"
-      codigo_personalizado: undefined,    // ← Limpiar código especial si lo había
+      jornada: 'normal' as any,
+      codigo_personalizado: undefined,
       inicio: formatTime(config?.inicio || prev.inicio || '06:00'),
       fin: formatTime(config?.fin || prev.fin || '18:00')
     }));
   };
 
-  // FIX: al seleccionar un estado laboral (DR, NR, VAC, LC, etc.),
-  // sincronizar el turno para que el tablero sepa a qué color pintar la celda
   const setEstadoLaboral = (jornada: string, codigo: string) => {
-    // Los estados de descanso y novedad no tienen turno operativo propio;
-    // mantener el turno anterior o usar 'AM' por defecto para que la celda no quede sin turno.
-    setTempAsig(prev => ({
-      ...prev,
-      jornada: jornada as any,
-      codigo_personalizado: codigo,
-    }));
+    setTempAsig(prev => {
+      let nextTurno = prev.turno;
+      if (jornada === 'normal') {
+        nextTurno = codigo === 'N' ? 'PM' : 'AM';
+      }
+      return {
+        ...prev,
+        jornada: jornada as any,
+        codigo_personalizado: codigo,
+        turno: nextTurno as any
+      };
+    });
   };
 
   const handleSave = async () => {
-    // FIX: Garantizar coherencia turno ↔ jornada antes de persistir
-    // Si jornada es 'normal', el turno (AM/PM/24H) ya debe estar correcto.
-    // Si jornada es un estado especial (DR, NR, VAC…), mantener el turno
-    // tal como está (o usar 'AM' como fallback) para que el campo no quede vacío.
     const finalTurno = tempAsig.turno || 'AM';
     const updated: AsignacionDia = {
       ...tempAsig,
@@ -156,7 +164,6 @@ export const EditCeldaModal = ({
       timestamp_confirmacion: new Date().toISOString(),
     };
     await onSave(updated);
-    // onClose() is called by the parent after successful save
   };
 
   return (
@@ -197,7 +204,6 @@ export const EditCeldaModal = ({
         </div>
 
         <div className="px-6 py-4 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
-          
           {/* SELECCIÓN DE PERSONAL */}
           <div className="space-y-3">
             <div className="flex items-center justify-between px-1">
@@ -302,7 +308,7 @@ export const EditCeldaModal = ({
 
           {/* DOBLE COLUMNA: HORARIO Y JORNADA */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-            {/* CONFIGURACIÓN DE HORARIO CUSTOM (EL CORAZÓN) */}
+            {/* CONFIGURACIÓN DE HORARIO CUSTOM */}
             <div className="md:col-span-7 space-y-3">
               <div className="flex items-center justify-between px-1">
                 <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">Horario del Servicio</span>
@@ -365,7 +371,7 @@ export const EditCeldaModal = ({
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] px-1 block">Estado Laboral</span>
               <div className="bg-black/20 rounded-2xl p-1.5 border border-white/5 space-y-0.5 shadow-inner max-h-[190px] overflow-y-auto custom-scrollbar">
                 {ESTADOS_LABORALES.map(j => {
-                  const isActive = tempAsig.jornada === j.jornada;
+                  const isActive = getActiveCode(tempAsig) === j.codigo;
                   return (
                     <button 
                       key={j.jornada + j.codigo}
@@ -461,4 +467,3 @@ export const EditCeldaModal = ({
     </div>
   );
 };
-
