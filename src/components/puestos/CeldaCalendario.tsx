@@ -193,7 +193,7 @@ export const CeldaCalendario = React.memo(({
   syncStatus = 'synced',
 }: CeldaCalendarioProps) => {
 
-  const isSinAsignar = asig.jornada === 'sin_asignar' || !asig.vigilanteId;
+  const isSinAsignar = asig.jornada === 'sin_asignar';
 
   // ── CELDA VACÍA ─────────────────────────────────────────────────────────────
   if (isSinAsignar) {
@@ -232,10 +232,19 @@ export const CeldaCalendario = React.memo(({
   const turnoConf = turnosConfig?.find(t => t.id === asig.turno);
   const style = getStyle(asig, turnoConf);
 
-  const rawName = typeof vigilanteNombre === 'string' ? vigilanteNombre : (vigilanteNombre?.nombre || '');
-  const nameParts = rawName.trim().split(' ');
-  const firstName = nameParts[0] || '';
-  const lastName  = nameParts.slice(1).join(' ') || '';
+  let firstName = '';
+  let lastName = '';
+  const isVacant = !asig.vigilanteId;
+
+  if (isVacant) {
+    firstName = '⚠️ VACANTE';
+    lastName = 'Sin Vigilante';
+  } else {
+    const rawName = typeof vigilanteNombre === 'string' ? vigilanteNombre : (vigilanteNombre?.nombre || '');
+    const nameParts = rawName.trim().split(' ');
+    firstName = nameParts[0] || '';
+    lastName  = nameParts.slice(1).join(' ') || '';
+  }
 
   // Conflicto → override rojo
   const conflictStyle = {
@@ -255,12 +264,13 @@ export const CeldaCalendario = React.memo(({
   return (
     <button
       onClick={onEdit}
-      title={hasConflict ? `⚠️ DOBLE ASIGNACIÓN: ${conflictDetail}` : `${rawName} · ${s.label}`}
+      title={hasConflict ? `⚠️ DOBLE ASIGNACIÓN: ${conflictDetail}` : `${isVacant ? 'Turno Vacante' : firstName + ' ' + lastName} · ${s.label}`}
       className={`celda-asignada w-full h-full flex flex-col rounded-[18px] border-[1.5px] hover:scale-[1.04] hover:z-50 transition-all duration-300 group overflow-hidden relative ${hasConflict ? 'animate-pulse' : ''}`}
       style={{
         minHeight: 82,
         background: s.bg,
         borderColor: s.border,
+        borderStyle: isVacant ? 'dashed' : 'solid',
         boxShadow: `0 4px 24px -6px ${s.glow}, inset 0 1px 0 rgba(255,255,255,0.04)`,
       }}
       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = s.hoverBorder || s.border; }}
@@ -311,14 +321,14 @@ export const CeldaCalendario = React.memo(({
       <div className="flex-1 flex flex-col items-center justify-center px-2 relative z-10 min-h-0">
         <span
           className="text-[12px] font-black leading-tight text-center w-full truncate uppercase tracking-wide"
-          style={{ color: s.nameColor, textShadow: `0 1px 8px ${s.glow}` }}
+          style={{ color: isVacant ? '#e2e8f0' : s.nameColor, textShadow: `0 1px 8px ${s.glow}` }}
         >
           {firstName}
         </span>
         {lastName && (
           <span
             className="text-[8px] font-bold leading-none text-center w-full truncate uppercase opacity-60 mt-0.5"
-            style={{ color: s.nameColor }}
+            style={{ color: isVacant ? '#94a3b8' : s.nameColor }}
           >
             {lastName}
           </span>
