@@ -636,6 +636,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                 if (idx >= 0) {
                                     const existing = merged[idx];
                                     if (existing.syncStatus === 'pending' || existing.syncStatus === 'error') {
+                                        // Hay cambios locales pendientes: actualizar ID y estado pero preservar datos del usuario
                                         merged[idx] = { 
                                             ...existing,
                                             id: h.id, 
@@ -644,10 +645,13 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                             version: h.version
                                         };
                                     } else {
+                                        // Datos sincronizados: el personal de la DB siempre es la fuente de verdad
+                                        // Preservamos asignaciones locales hasta que fetchProgramacionDetalles las refresque
+                                        const freshPersonal = (h.personal && h.personal.length > 0) ? h.personal : (existing.personal || []);
                                         merged[idx] = { 
                                             ...h, 
                                             asignaciones: existing.asignaciones || [],
-                                            personal: existing.personal || [],
+                                            personal: freshPersonal,
                                             isDetailLoaded: existing.isDetailLoaded || false
                                         };
                                     }
@@ -769,27 +773,34 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             if (p.id !== progId) return p;
                             
                             const localIsPending = p.syncStatus === 'pending';
-                            const localHasData = p.asignaciones && p.asignaciones.some((a: AsignacionDia) => a.vigilanteId !== null);
                             const remoteHasData = asignaciones && asignaciones.some(a => a.vigilanteId !== null);
                             
+                            // Si hay cambios pendientes de guardar (el usuario acaba de hacer modificaciones),
+                            // preservamos los datos locales para no pisar lo que el usuario acaba de ingresar.
                             if (localIsPending || p.syncStatus === 'error') {
                                 return { ...p, isDetailLoaded: true, isFetching: false };
                             }
-                            if (localHasData && !remoteHasData) {
-                                return { ...p, isDetailLoaded: true, isFetching: false };
-                            }
+
+                            // Si la DB tiene datos reales, siempre usar los datos remotos (son la fuente de verdad).
+                            // Si la DB no tiene datos pero localmente hay algo, preservar los locales.
+                            const finalAsignaciones = remoteHasData
+                                ? asignaciones
+                                : (p.asignaciones && p.asignaciones.length > 0 ? p.asignaciones : asignaciones);
+
+                            const finalPersonal = (personal && personal.length > 0) ? personal : p.personal;
 
                             return {
                                 ...p,
-                                personal: (personal && personal.length > 0) ? personal : p.personal,
-                                asignaciones: (asignaciones && asignaciones.length > 0) ? asignaciones : p.asignaciones,
+                                personal: finalPersonal,
+                                asignaciones: finalAsignaciones,
                                 isDetailLoaded: true,
                                 isFetching: false
                             };
                         });
 
                         return { 
-                            programaciones: updatedProgs as ProgramacionMensual[]
+                            programaciones: updatedProgs as ProgramacionMensual[],
+                            version: ((state as any).version || 0) + 1  // ← Forzar re-render en componentes suscritos
                         } as Partial<ProgramacionState>;
                     });
                     get()._updateMap();
