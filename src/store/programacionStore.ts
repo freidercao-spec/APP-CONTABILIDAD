@@ -1830,10 +1830,26 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                     busySet.add(`${asig.dia}-normal`);
                                 }
                                 
-                                // BÚSQUEDA DE CONFLICTOS RÁPIDA (O(1) con el mapa precomputado)
+                                // CONFLICTO REAL: Solo cuando el MISMO vigilante aparece
+                                // en DOS PUESTOS DISTINTOS el mismo día.
+                                // Dentro del mismo puesto (múltiples filas/roles) NO es conflicto.
                                 const conflictKey = `${dbVid}-${p.anio}-${p.mes}-${asig.dia}`;
+                                const puestoUuid = quickTranslatePuestoToUuid(p.puestoId) || p.puestoId;
+
                                 if (!get().conflictMap.has(conflictKey)) {
-                                    get().conflictMap.set(conflictKey, getPuestoNombreQuick(p.puestoId));
+                                    // Primera vez: guardar el puestoId (no el nombre aún)
+                                    get().conflictMap.set(conflictKey, puestoUuid);
+                                } else {
+                                    const existing = get().conflictMap.get(conflictKey) || '';
+                                    // Ignorar si ya marcado como conflicto real
+                                    if (existing.startsWith('CONFLICT:')) return;
+                                    // Ignorar si es el MISMO puesto (múltiples filas del tablero)
+                                    if (existing === puestoUuid) return;
+                                    // Puesto diferente → conflicto real
+                                    get().conflictMap.set(
+                                        conflictKey,
+                                        `CONFLICT:${getPuestoNombreQuick(p.puestoId)}`
+                                    );
                                 }
                             }
                         });

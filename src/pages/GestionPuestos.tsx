@@ -1771,11 +1771,14 @@ const PanelMensualPuesto = ({
                      const isWeekend = dow === 0 || dow === 6;
 
                      const conflictKey = asig.vigilanteId ? `${asig.vigilanteId}-${anio}-${mes}-${d}` : '';
-                     const hasConflict = !!conflictKey && asig.jornada !== 'sin_asignar'
-                       ? conflictMap.has(conflictKey)
-                       : false;
-                     const conflictDetail = hasConflict 
+                     const conflictMapValue = conflictKey && asig.jornada !== 'sin_asignar'
                        ? conflictMap.get(conflictKey) || ''
+                       : '';
+                     // Solo es conflicto real cuando el valor tiene el prefijo 'CONFLICT:'
+                     // (el vigilante aparece en DOS puestos distintos ese día)
+                     const hasConflict = conflictMapValue.startsWith('CONFLICT:');
+                     const conflictDetail = hasConflict 
+                       ? conflictMapValue.replace('CONFLICT:', '')
                        : '';
 
                      return (
