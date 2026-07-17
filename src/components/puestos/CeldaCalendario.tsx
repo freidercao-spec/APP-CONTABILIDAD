@@ -20,124 +20,124 @@ const JORNADA_STYLES: Record<string, {
   accentLine: string; hoverBorder: string;
 }> = {
   normal: {
-    bg:          'linear-gradient(145deg, #1e3a5f 0%, #0f172a 100%)',
-    border:      'rgba(56,189,248,0.35)',
+    bg:          '#f0f9ff', // Light Sky
+    border:      '#bae6fd',
     badge:       '#0284c7',
-    badgeText:   '#e0f2fe',
-    nameColor:   '#e0f2fe',
-    glow:        'rgba(56,189,248,0.12)',
-    accentLine:  '#0ea5e9',
-    hoverBorder: 'rgba(56,189,248,0.6)',
+    badgeText:   '#0369a1',
+    nameColor:   '#0f172a',
+    glow:        'rgba(0,0,0,0.02)',
+    accentLine:  '#0284c7',
+    hoverBorder: '#38bdf8',
     label: 'D', icon: 'light_mode',
   },
   AM: {
-    bg:          'linear-gradient(145deg, #1e3a5f 0%, #0f172a 100%)',
-    border:      'rgba(56,189,248,0.35)',
+    bg:          '#f0f9ff', // Light Sky
+    border:      '#bae6fd',
     badge:       '#0284c7',
-    badgeText:   '#e0f2fe',
-    nameColor:   '#e0f2fe',
-    glow:        'rgba(56,189,248,0.12)',
-    accentLine:  '#0ea5e9',
-    hoverBorder: 'rgba(56,189,248,0.6)',
+    badgeText:   '#0369a1',
+    nameColor:   '#0f172a',
+    glow:        'rgba(0,0,0,0.02)',
+    accentLine:  '#0284c7',
+    hoverBorder: '#38bdf8',
     label: 'D', icon: 'light_mode',
   },
   PM: {
-    bg:          'linear-gradient(145deg, #2e1065 0%, #0c0a1a 100%)',
-    border:      'rgba(139,92,246,0.40)',
+    bg:          '#faf5ff', // Light Purple
+    border:      '#e9d5ff',
     badge:       '#7c3aed',
-    badgeText:   '#ede9fe',
-    nameColor:   '#e9d5ff',
-    glow:        'rgba(139,92,246,0.15)',
-    accentLine:  '#8b5cf6',
-    hoverBorder: 'rgba(139,92,246,0.7)',
+    badgeText:   '#6d28d9',
+    nameColor:   '#0f172a',
+    glow:        'rgba(0,0,0,0.02)',
+    accentLine:  '#7c3aed',
+    hoverBorder: '#c084fc',
     label: 'N', icon: 'dark_mode',
   },
   '24H': {
-    bg:          'linear-gradient(145deg, #052e16 0%, #0a0f0a 100%)',
-    border:      'rgba(34,197,94,0.40)',
+    bg:          '#f0fdf4', // Light Green
+    border:      '#bbf7d0',
     badge:       '#16a34a',
-    badgeText:   '#dcfce7',
-    nameColor:   '#bbf7d0',
-    glow:        'rgba(34,197,94,0.12)',
-    accentLine:  '#22c55e',
-    hoverBorder: 'rgba(34,197,94,0.6)',
+    badgeText:   '#15803d',
+    nameColor:   '#0f172a',
+    glow:        'rgba(0,0,0,0.02)',
+    accentLine:  '#16a34a',
+    hoverBorder: '#4ade80',
     label: '24H', icon: 'brightness_5',
   },
   descanso_remunerado: {
-    bg:          'linear-gradient(145deg, #064e3b 0%, #0a1610 100%)',
-    border:      'rgba(16,185,129,0.35)',
+    bg:          '#ecfdf5', // Light Emerald
+    border:      '#a7f3d0',
     badge:       '#059669',
-    badgeText:   '#d1fae5',
-    nameColor:   '#a7f3d0',
-    glow:        'rgba(16,185,129,0.10)',
-    accentLine:  '#10b981',
-    hoverBorder: 'rgba(16,185,129,0.6)',
+    badgeText:   '#047857',
+    nameColor:   '#064e3b',
+    glow:        'rgba(0,0,0,0.01)',
+    accentLine:  '#059669',
+    hoverBorder: '#34d399',
     label: 'DR', icon: 'event_available',
   },
   descanso_no_remunerado: {
-    bg:          'linear-gradient(145deg, #451a03 0%, #1a0e03 100%)',
-    border:      'rgba(245,158,11,0.35)',
+    bg:          '#fffbeb', // Light Amber
+    border:      '#fde68a',
     badge:       '#d97706',
-    badgeText:   '#fef3c7',
-    nameColor:   '#fde68a',
-    glow:        'rgba(245,158,11,0.10)',
-    accentLine:  '#f59e0b',
-    hoverBorder: 'rgba(245,158,11,0.6)',
+    badgeText:   '#b45309',
+    nameColor:   '#78350f',
+    glow:        'rgba(0,0,0,0.01)',
+    accentLine:  '#d97706',
+    hoverBorder: '#fbbf24',
     label: 'NR', icon: 'block',
   },
   vacacion: {
-    bg:          'linear-gradient(145deg, #065f46 0%, #051a0f 100%)',
-    border:      'rgba(52,211,153,0.40)',
-    badge:       '#059669',
-    badgeText:   '#d1fae5',
-    nameColor:   '#6ee7b7',
-    glow:        'rgba(52,211,153,0.12)',
-    accentLine:  '#34d399',
-    hoverBorder: 'rgba(52,211,153,0.65)',
+    bg:          '#eff6ff', // Light Blue
+    border:      '#bfdbfe',
+    badge:       '#2563eb',
+    badgeText:   '#1d4ed8',
+    nameColor:   '#1e3a8a',
+    glow:        'rgba(0,0,0,0.01)',
+    accentLine:  '#2563eb',
+    hoverBorder: '#60a5fa',
     label: 'VAC', icon: 'beach_access',
   },
   licencia: {
-    bg:          'linear-gradient(145deg, #713f12 0%, #1a0e00 100%)',
-    border:      'rgba(234,179,8,0.40)',
+    bg:          '#fefce8', // Light Yellow
+    border:      '#fef08a',
     badge:       '#ca8a04',
-    badgeText:   '#fef9c3',
-    nameColor:   '#fde047',
-    glow:        'rgba(234,179,8,0.12)',
-    accentLine:  '#eab308',
-    hoverBorder: 'rgba(234,179,8,0.6)',
+    badgeText:   '#a16207',
+    nameColor:   '#713f12',
+    glow:        'rgba(0,0,0,0.01)',
+    accentLine:  '#ca8a04',
+    hoverBorder: '#facc15',
     label: 'LC', icon: 'report',
   },
   suspension: {
-    bg:          'linear-gradient(145deg, #450a0a 0%, #0f0000 100%)',
-    border:      'rgba(239,68,68,0.45)',
+    bg:          '#fef2f2', // Light Red
+    border:      '#fecaca',
     badge:       '#dc2626',
-    badgeText:   '#fee2e2',
-    nameColor:   '#fca5a5',
-    glow:        'rgba(239,68,68,0.15)',
-    accentLine:  '#ef4444',
-    hoverBorder: 'rgba(239,68,68,0.7)',
+    badgeText:   '#b91c1c',
+    nameColor:   '#7f1d1d',
+    glow:        'rgba(0,0,0,0.01)',
+    accentLine:  '#dc2626',
+    hoverBorder: '#f87171',
     label: 'SP', icon: 'gavel',
   },
   incapacidad: {
-    bg:          'linear-gradient(145deg, #3b0764 0%, #0f0520 100%)',
-    border:      'rgba(167,139,250,0.40)',
-    badge:       '#7c3aed',
-    badgeText:   '#ede9fe',
-    nameColor:   '#c4b5fd',
-    glow:        'rgba(167,139,250,0.12)',
-    accentLine:  '#a78bfa',
-    hoverBorder: 'rgba(167,139,250,0.65)',
+    bg:          '#faf5ff', // Light Violet
+    border:      '#e9d5ff',
+    badge:       '#8b5cf6',
+    badgeText:   '#7c3aed',
+    nameColor:   '#5b21b6',
+    glow:        'rgba(0,0,0,0.01)',
+    accentLine:  '#8b5cf6',
+    hoverBorder: '#a78bfa',
     label: 'IN', icon: 'medical_services',
   },
   accidente: {
-    bg:          'linear-gradient(145deg, #881337 0%, #1a050a 100%)',
-    border:      'rgba(244,63,94,0.50)',
-    badge:       '#e11d48',
-    badgeText:   '#ffe4e6',
-    nameColor:   '#fda4af',
-    glow:        'rgba(244,63,94,0.18)',
+    bg:          '#fff1f2', // Light Rose
+    border:      '#fecdd3',
+    badge:       '#f43f5e',
+    badgeText:   '#e11d48',
+    nameColor:   '#881337',
+    glow:        'rgba(0,0,0,0.01)',
     accentLine:  '#f43f5e',
-    hoverBorder: 'rgba(244,63,94,0.7)',
+    hoverBorder: '#fb7185',
     label: 'AC', icon: 'emergency',
   },
 };
@@ -248,14 +248,14 @@ export const CeldaCalendario = React.memo(({
 
   // Conflicto → override rojo
   const conflictStyle = {
-    bg:          'linear-gradient(145deg, #7f1d1d 0%, #1a0505 100%)',
-    border:      'rgba(248,113,113,0.65)',
+    bg:          '#fee2e2', // Light Red
+    border:      '#fecaca',
     badge:       '#dc2626',
-    badgeText:   '#fee2e2',
-    nameColor:   '#fecaca',
-    glow:        'rgba(248,113,113,0.25)',
-    accentLine:  '#f87171',
-    hoverBorder: 'rgba(248,113,113,0.8)',
+    badgeText:   '#b91c1c',
+    nameColor:   '#7f1d1d',
+    glow:        'rgba(0,0,0,0.01)',
+    accentLine:  '#dc2626',
+    hoverBorder: '#ef4444',
     label: '!!', icon: 'priority_high',
   };
 
@@ -265,69 +265,66 @@ export const CeldaCalendario = React.memo(({
     <button
       onClick={onEdit}
       title={hasConflict ? `⚠️ DOBLE ASIGNACIÓN: ${conflictDetail}` : `${isVacant ? 'Turno Vacante' : firstName + ' ' + lastName} · ${s.label}`}
-      className={`celda-asignada w-full h-full flex flex-col rounded-[18px] border-[1.5px] hover:scale-[1.04] hover:z-50 transition-all duration-300 group overflow-hidden relative ${hasConflict ? 'animate-pulse' : ''}`}
+      className={`celda-asignada w-full h-full flex flex-col rounded-[12px] border hover:scale-[1.02] hover:z-50 transition-all duration-150 group overflow-hidden relative ${hasConflict ? 'animate-pulse' : ''}`}
       style={{
         minHeight: 82,
         background: s.bg,
         borderColor: s.border,
         borderStyle: isVacant ? 'dashed' : 'solid',
-        boxShadow: `0 4px 24px -6px ${s.glow}, inset 0 1px 0 rgba(255,255,255,0.04)`,
+        boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
       }}
       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = s.hoverBorder || s.border; }}
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = s.border; }}
     >
       {/* Conflicto badge */}
       {hasConflict && (
-        <>
-          <div className="absolute -top-1 -right-1 size-5 bg-rose-500 rounded-full animate-ping opacity-60 z-10" />
-          <div className="absolute top-0.5 right-0.5 size-4 bg-rose-500 rounded-full z-20 flex items-center justify-center shadow-[0_0_14px_rgba(244,63,94,0.9)] border border-white/20">
-            <span className="text-white text-[7px] font-black">!</span>
-          </div>
-        </>
+        <div className="absolute top-0.5 right-0.5 size-4 bg-red-600 rounded-full z-20 flex items-center justify-center border border-white">
+          <span className="text-white text-[7.5px] font-bold">!</span>
+        </div>
       )}
 
       {/* Sync state badge */}
       {syncStatus === 'pending' && (
-        <div className="absolute top-1.5 right-1.5 z-[60] flex items-center justify-center pointer-events-none">
-           <div className="size-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin shadow-[0_0_8px_rgba(129,140,248,0.5)]" />
+        <div className="absolute top-1 right-1 z-[60] flex items-center justify-center pointer-events-none">
+           <div className="size-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       )}
 
       {syncStatus === 'error' && (
-        <div className="absolute top-1.5 right-1.5 size-3.5 bg-rose-600 rounded-full z-20 flex items-center justify-center shadow-[0_0_8px_rgba(225,29,72,0.7)] animate-pulse border border-white/20">
-          <span className="text-white text-[7px] font-black">!</span>
+        <div className="absolute top-1 right-1 size-3 bg-red-600 rounded-full z-20 flex items-center justify-center border border-white">
+          <span className="text-white text-[7px] font-bold">!</span>
         </div>
       )}
 
       {/* ── TOP BAR: badge + icon ── */}
-      <div className="flex items-center justify-between px-2.5 pt-1.5 pb-0.5 relative z-10">
+      <div className="flex items-center justify-between px-2 pt-1.5 pb-0.5 relative z-10 w-full">
         <div
-          className="flex items-center gap-1 px-2 py-[2px] rounded-lg"
-          style={{ background: `${s.badge}22`, border: `1px solid ${s.badge}44` }}
+          className="flex items-center gap-0.5 px-1.5 py-[1px] rounded"
+          style={{ background: `${s.badge}15`, border: `1px solid ${s.badge}30` }}
         >
-          <span className="material-symbols-outlined text-[11px]" style={{ color: s.badgeText }}>
+          <span className="material-symbols-outlined text-[10px]" style={{ color: s.badgeText }}>
             {s.icon}
           </span>
-          <span className="text-[8px] font-black uppercase tracking-wider" style={{ color: s.badgeText }}>
+          <span className="text-[7.5px] font-bold uppercase tracking-wider" style={{ color: s.badgeText }}>
             {s.label}
           </span>
         </div>
         
         {/* Estado punto */}
-        <div className="size-1.5 rounded-full animate-pulse" style={{ backgroundColor: s.accentLine, boxShadow: `0 0 8px ${s.accentLine}` }} />
+        <div className="size-1.5 rounded-full" style={{ backgroundColor: s.accentLine }} />
       </div>
 
       {/* ── GUARD NAME (centro) ── */}
-      <div className="flex-1 flex flex-col items-center justify-center px-2 relative z-10 min-h-0">
+      <div className="flex-1 flex flex-col items-center justify-center px-1.5 relative z-10 min-h-0 w-full">
         <span
-          className="text-[12px] font-black leading-tight text-center w-full truncate uppercase tracking-wide"
-          style={{ color: isVacant ? '#e2e8f0' : s.nameColor, textShadow: `0 1px 8px ${s.glow}` }}
+          className="text-[11px] font-bold leading-tight text-center w-full truncate uppercase tracking-tight"
+          style={{ color: isVacant ? '#64748b' : s.nameColor }}
         >
           {firstName}
         </span>
         {lastName && (
           <span
-            className="text-[8px] font-bold leading-none text-center w-full truncate uppercase opacity-60 mt-0.5"
+            className="text-[8px] font-semibold leading-none text-center w-full truncate uppercase opacity-75 mt-0.5"
             style={{ color: isVacant ? '#94a3b8' : s.nameColor }}
           >
             {lastName}
@@ -336,33 +333,22 @@ export const CeldaCalendario = React.memo(({
       </div>
 
       {/* ── BOTTOM BAR: turno + hora ── */}
-      <div className="flex items-center justify-center gap-1.5 px-2 py-1.5 mx-2 mb-2 rounded-xl relative z-10"
-        style={{ background: 'rgba(0,0,0,0.35)', border: `1px solid ${s.border}` }}
+      <div className="flex items-center justify-center gap-1 px-1.5 py-1 mx-1.5 mb-1.5 rounded-md relative z-10 border w-[calc(100%-12px)]"
+        style={{ background: '#ffffff', borderColor: '#cbd5e1' }}
       >
-        <span className="text-[8px] font-black uppercase tracking-wider" style={{ color: s.badgeText }}>
+        <span className="text-[8px] font-bold uppercase tracking-wider text-slate-700">
           {turnoConf?.nombre || s.label}
         </span>
         {(asig.inicio || turnoConf?.inicio) && (
           <>
-            <div className="w-px h-2.5 rounded-full" style={{ background: `${s.badge}66` }} />
-            <span className="text-[7.5px] font-bold tabular-nums" style={{ color: `${s.badgeText}cc` }}>
+            <div className="w-px h-2 bg-slate-300" />
+            <span className="text-[7.5px] font-semibold text-slate-600 tabular-nums">
               {asig.inicio || turnoConf?.inicio}
               {(asig.fin || turnoConf?.fin) ? `-${asig.fin || turnoConf?.fin}` : ''}
             </span>
           </>
         )}
       </div>
-
-      {/* Bottom accent line */}
-      <div
-        className="absolute bottom-0 left-[10%] h-[2.5px] w-[80%] rounded-full"
-        style={{ background: `linear-gradient(90deg, transparent, ${s.accentLine}, transparent)`, opacity: 0.7 }}
-      />
-
-      {/* Hover overlay */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-[18px]"
-        style={{ background: `radial-gradient(ellipse at 50% 30%, ${s.glow}, transparent 70%)` }}
-      />
     </button>
   );
 });

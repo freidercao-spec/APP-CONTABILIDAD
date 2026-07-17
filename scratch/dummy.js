@@ -1,0 +1,1 @@
+-- View the end of the SQL file to get the full function body

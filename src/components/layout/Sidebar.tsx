@@ -13,11 +13,8 @@ interface NavItemProps {
     icon: string;
     label: string;
     badge?: React.ReactNode;
-    collapsed?: boolean;
-    onClick?: () => void;
 }
 
-// ─── NAV SECTION ──────────────────────────────────────────────────────────────
 const NavSection = ({
     title,
     children,
@@ -29,15 +26,15 @@ const NavSection = ({
 }) => (
     <div className={collapsed ? 'px-1' : 'px-4'}>
         {!collapsed && (
-            <div className="flex items-center gap-2 px-4 mb-3">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] select-none truncate">
+            <div className="flex items-center gap-2 px-4 mb-2">
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.15em] select-none truncate">
                     {title}
                 </span>
-                <div className="flex-1 h-[1px] bg-white/5 min-w-[10px]" />
+                <div className="flex-1 h-[1px] bg-slate-200 min-w-[10px]" />
             </div>
         )}
-        {collapsed && <div className="mx-2 my-4 h-[1px] bg-white/10" />}
-        <div className="space-y-1">{children}</div>
+        {collapsed && <div className="mx-2 my-3 h-[1px] bg-slate-200" />}
+        <div className="space-y-0.5">{children}</div>
     </div>
 );
 
@@ -49,35 +46,30 @@ const NavItem = ({ to, icon, label, badge, collapsed, onClick }: NavItemProps) =
         onClick={onClick}
         title={collapsed ? label : undefined}
         className={({ isActive }) =>
-            `group relative flex items-center overflow-hidden transition-all duration-300 rounded-[20px] ${
-                collapsed ? 'justify-center mx-1 px-0 py-3.5' : 'gap-3.5 px-5 py-3.5 mx-1'
+            `group relative flex items-center overflow-hidden transition-all duration-150 rounded-[12px] border ${
+                collapsed ? 'justify-center mx-1 px-0 py-3' : 'gap-3 px-4 py-2.5 mx-1'
             } ${
                 isActive
-                    ? 'bg-[#5B6EE8] shadow-[0_10px_30px_rgba(91,110,232,0.4)] text-white'
-                    : 'text-slate-500 hover:text-white hover:bg-white/[0.04] active:bg-white/08'
+                    ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+                    : 'bg-transparent border-transparent text-slate-700 hover:text-slate-900 hover:bg-slate-100'
             }`
         }
     >
         {({ isActive }) => (
             <>
-                {/* Active Indicator Pulse */}
+                {/* Active Indicator Bar */}
                 {isActive && !collapsed && (
-                    <div className="absolute left-0 top-3 bottom-3 w-[4px] bg-white rounded-r-full shadow-[0_0_12px_rgba(255,255,255,0.8)]" />
-                )}
-
-                {/* Hover Glow */}
-                {!isActive && (
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute left-0 top-2 bottom-2 w-[3px] bg-white rounded-r-full" />
                 )}
 
                 {/* Icon */}
                 <span
-                    className={`material-symbols-outlined shrink-0 relative z-10 transition-all duration-300 ${
-                        collapsed ? 'text-[24px]' : 'text-[22px]'
+                    className={`material-symbols-outlined shrink-0 relative z-10 transition-all duration-150 ${
+                        collapsed ? 'text-[22px]' : 'text-[20px]'
                     } ${
                         isActive
-                            ? 'text-white scale-110 drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]'
-                            : 'group-hover:scale-110'
+                            ? 'text-white scale-100'
+                            : 'text-slate-500 group-hover:text-slate-950'
                     }`}
                     translate="no"
                 >
@@ -87,24 +79,24 @@ const NavItem = ({ to, icon, label, badge, collapsed, onClick }: NavItemProps) =
                 {/* Label */}
                 {!collapsed && (
                     <span
-                        className={`text-[11px] font-black tracking-normal uppercase flex-1 relative z-10 transition-colors duration-300 truncate ${
-                            isActive ? 'text-white' : 'group-hover:text-white'
+                        className={`text-[11px] font-bold flex-1 relative z-10 truncate ${
+                            isActive ? 'text-white' : 'text-slate-700 group-hover:text-slate-950'
                         }`}
                     >
                         {label}
                     </span>
                 )}
 
-                {/* Badge (Solid Pill) */}
+                {/* Badge (Flat Pill) */}
                 {badge && !collapsed && (
                     <div className="relative z-10 shrink-0">{badge}</div>
                 )}
 
                 {/* Tooltip (collapsed) */}
                 {collapsed && (
-                    <div className="absolute left-full ml-4 px-3 py-2 bg-[#111827] border border-white/10 rounded-2xl text-[11px] font-black text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 translate-x-2 group-hover:translate-x-0 shadow-2xl z-50">
+                    <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-[10px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 translate-x-2 group-hover:translate-x-0 shadow-lg z-50">
                         {label}
-                        {badge && <span className="ml-2 text-rose-400">●</span>}
+                        {badge && <span className="ml-1.5 text-rose-400">●</span>}
                     </div>
                 )}
             </>
@@ -141,15 +133,15 @@ const Sidebar = () => {
     const handleLogout = () => { setShowLogoutModal(false); logout(); };
 
     const BADGE_ACTIVOS = counts.activos > 0
-        ? <span className="inline-flex items-center justify-center min-w-[22px] h-5 px-2 bg-indigo-500 text-white text-[9px] font-black rounded-full shadow-[0_0_10px_rgba(99,102,241,0.4)]">{counts.activos}</span>
+        ? <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-slate-100 text-slate-800 border border-slate-300 text-[9px] font-bold rounded-md">{counts.activos}</span>
         : undefined;
 
     const BADGE_DISP = counts.disponibles > 0
-        ? <span className="inline-flex items-center justify-center min-w-[22px] h-5 px-2 bg-emerald-500 text-white text-[9px] font-black rounded-full shadow-[0_0_10px_rgba(16,185,129,0.4)]">{counts.disponibles}</span>
+        ? <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-emerald-50 text-white text-[9px] font-bold rounded-md">{counts.disponibles}</span>
         : undefined;
 
     const BADGE_AI = alertasIA > 0
-        ? <span className="inline-flex items-center justify-center min-w-[22px] h-5 px-2 bg-rose-500 text-white text-[9px] font-black rounded-full shadow-[0_0_10px_rgba(244,63,94,0.5)] animate-pulse">{alertasIA}</span>
+        ? <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-rose-600 text-white text-[9px] font-bold rounded-md">{alertasIA}</span>
         : undefined;
 
     return (
@@ -158,58 +150,53 @@ const Sidebar = () => {
             <aside
                 className={`
                     fixed inset-y-0 left-0 z-50 flex flex-col
-                    bg-[#0B1120]
-                    border-r border-white/5
-                    shadow-[10px_0_60px_rgba(0,0,0,0.6)]
-                    transition-all duration-250 ease-in-out
+                    bg-white
+                    border-r border-slate-200
+                    shadow-sm
+                    transition-all duration-200 ease-in-out
                     lg:relative lg:z-auto lg:flex-shrink-0 lg:translate-x-0
-                    ${c ? 'lg:w-[84px]' : 'lg:w-[280px]'}
-                    ${isSidebarOpen ? 'translate-x-0 w-[280px]' : '-translate-x-full w-[280px]'}
+                    ${c ? 'lg:w-[80px]' : 'lg:w-[260px]'}
+                    ${isSidebarOpen ? 'translate-x-0 w-[260px]' : '-translate-x-full w-[260px]'}
                 `}
             >
-                {/* Visual accents */}
-                <div className="absolute top-0 left-0 w-full h-[100px] bg-gradient-to-b from-[#5B6EE810] to-transparent pointer-events-none" />
-
                 {/* ── LOGO ────────────────────────────────────── */}
-                <div className={`relative flex flex-col items-center border-b border-white/5 ${c ? 'pt-3 pb-3 px-2' : 'pt-5 pb-4 px-6'}`}>
+                <div className={`relative flex flex-col items-center border-b border-slate-200 ${c ? 'pt-3 pb-3 px-2' : 'pt-5 pb-4 px-5'}`}>
                     {/* Brand text */}
                     {!c && (
-                        <div className="flex flex-col items-center mb-3">
-                            <h1 className="text-[18px] font-black text-white tracking-[0.2em] italic">
-                                CORAZA<span className="text-[#5B6EE8]">CTA</span>
+                        <div className="flex flex-col items-center mb-2">
+                            <h1 className="text-[16px] font-black text-slate-900 tracking-[0.1em] uppercase">
+                                CORAZA<span className="text-primary">CTA</span>
                             </h1>
-                            <div className="h-[2px] w-8 bg-[#5B6EE8] mt-1" />
                         </div>
                     )}
 
                     {/* Logo Plate */}
                     <div className="relative group/logo">
-                        <div className="absolute -inset-4 rounded-full bg-[#5B6EE815] blur-2xl opacity-0 group-hover/logo:opacity-100 transition-opacity duration-700" />
-                        <div className={`relative flex items-center justify-center bg-slate-950/60 border border-white/10 backdrop-blur-md shadow-lg transition-all duration-200 ${c ? 'size-9 rounded-lg' : 'size-12 rounded-xl'}`}>
+                        <div className={`relative flex items-center justify-center bg-slate-50 border border-slate-200 shadow-sm transition-all duration-150 ${c ? 'size-9 rounded-lg' : 'size-11 rounded-xl'}`}>
                             <img src="./logo.png" alt="Logo" className="w-[70%] h-[70%] object-contain" />
                         </div>
                     </div>
 
                     {!c && (
-                        <div className="mt-3 flex items-center gap-2 px-3 py-1.5 bg-emerald-500/5 border border-emerald-500/15 rounded-full">
-                            <div className="size-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                            <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">En línea</span>
+                        <div className="mt-2.5 flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200 rounded-full">
+                            <div className="size-1.5 bg-emerald-600 rounded-full animate-pulse" />
+                            <span className="text-[8px] font-bold text-emerald-700 uppercase tracking-wider">En línea</span>
                         </div>
                     )}
 
                     {/* Collapse Button (Desktop) */}
                     <button
                         onClick={toggleSidebarCollapse}
-                        className="hidden lg:flex absolute bottom-0 right-0 translate-x-1/2 -translate-y-1/2 size-8 items-center justify-center rounded-xl bg-[#111827] border border-white/10 text-slate-400 hover:text-white transition-all z-20 shadow-xl"
+                        className="hidden lg:flex absolute bottom-0 right-0 translate-x-1/2 -translate-y-1/2 size-7 items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-slate-800 transition-all z-20 shadow-sm"
                     >
-                        <span className="material-symbols-outlined text-[16px]">
+                        <span className="material-symbols-outlined text-[14px]">
                             {c ? 'keyboard_double_arrow_right' : 'keyboard_double_arrow_left'}
                         </span>
                     </button>
                 </div>
 
                 {/* ── NAV ─────────────────────────────────────── */}
-                <nav className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar py-4 space-y-5">
+                <nav className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar py-3 space-y-4">
                     <NavSection title="OPERACIONES" collapsed={c}>
                         <NavItem to="/"                icon="dashboard"      label="Estadísticas"       collapsed={c} onClick={closeSidebar} />
                         <NavItem to="/vigilantes"       icon="shield_person"  label="Vigilantes"         collapsed={c} onClick={closeSidebar} badge={BADGE_ACTIVOS} />
@@ -230,32 +217,32 @@ const Sidebar = () => {
                 </nav>
 
                 {/* ── USER PANEL ───────────────────────────── */}
-                <div className={`border-t border-white/5 bg-black/20 ${c ? 'p-3' : 'p-5'}`}>
+                <div className={`border-t border-slate-200 bg-slate-50 ${c ? 'p-2' : 'p-4'}`}>
                     <div 
-                        className={`flex items-center gap-3 bg-white/03 p-1.5 rounded-[22px] border border-transparent transition-all group/user ${!c && 'hover:bg-white/05 hover:border-white/05'}`}
+                        className={`flex items-center gap-2.5 p-1 rounded-xl border border-transparent transition-all group/user ${!c && 'hover:bg-slate-100 hover:border-slate-200 cursor-pointer'}`}
                         onClick={() => !c && navigate('/configuracion')}
                     >
-                        <div className={`shrink-0 overflow-hidden border-2 border-[#5B6EE840] transition-all group-hover/user:border-[#5B6EE8] ${c ? 'size-10 rounded-xl' : 'size-11 rounded-2xl'}`}>
+                        <div className={`shrink-0 overflow-hidden border border-slate-200 transition-all ${c ? 'size-9 rounded-lg' : 'size-10 rounded-xl'}`}>
                             <img
-                                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(username || 'A')}&background=5B6EE8&color=fff&bold=true&size=80`}
+                                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(username || 'A')}&background=0d6efd&color=fff&bold=true&size=80`}
                                 alt="U"
                                 className="w-full h-full object-cover"
                             />
                         </div>
                         
                         {!c && (
-                            <div className="flex-1 min-w-0 pr-2">
-                                <p className="text-[12px] font-black text-white truncate uppercase leading-tight">{username || 'Operador'}</p>
-                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest truncate">{role || 'Elite'}</p>
+                            <div className="flex-1 min-w-0 pr-1">
+                                <p className="text-[11px] font-bold text-slate-900 truncate uppercase leading-tight">{username || 'Operador'}</p>
+                                <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider truncate">{role || 'Elite'}</p>
                             </div>
                         )}
 
                         {!c && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); setShowLogoutModal(true); }}
-                                className="size-9 rounded-xl bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white transition-all flex items-center justify-center shrink-0"
+                                className="size-8 rounded-lg bg-slate-200 hover:bg-rose-600 text-slate-600 hover:text-white transition-all flex items-center justify-center shrink-0 border border-slate-300 hover:border-rose-700"
                             >
-                                <span className="material-symbols-outlined text-[18px]">power_settings_new</span>
+                                <span className="material-symbols-outlined text-[16px]">power_settings_new</span>
                             </button>
                         )}
                     </div>
@@ -264,30 +251,28 @@ const Sidebar = () => {
 
             {/* ── LOGOUT MODAL ──────────────────────────────────── */}
             {showLogoutModal && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300">
-                    <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowLogoutModal(false)} />
-                    <div className="relative bg-[#0F172A] border border-white/10 rounded-[32px] p-10 w-full max-w-[380px] shadow-2xl overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 blur-[60px]" />
-                        
-                        <div className="size-16 rounded-[24px] bg-rose-500/20 flex items-center justify-center mx-auto mb-6 border border-rose-500/30">
-                            <span className="material-symbols-outlined text-[32px] text-rose-500">logout</span>
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-in fade-in duration-150">
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs" onClick={() => setShowLogoutModal(false)} />
+                    <div className="relative bg-white border border-slate-200 rounded-2xl p-6 w-full max-w-[360px] shadow-xl overflow-hidden text-slate-900">
+                        <div className="size-12 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center mx-auto mb-4">
+                            <span className="material-symbols-outlined text-[24px] text-rose-600">logout</span>
                         </div>
                         
-                        <h3 className="text-[22px] font-black text-white text-center uppercase tracking-tight mb-3 italic">¿Desconectar Enlace?</h3>
-                        <p className="text-slate-400 text-center text-[13px] font-medium mb-8 leading-relaxed">
-                            Finalizarás tu sesión actual en el Centro de Comando Tac. Todos los procesos activos quedarán en segundo plano.
+                        <h3 className="text-[16px] font-black text-slate-900 text-center uppercase tracking-wide mb-2">¿Desconectar Enlace?</h3>
+                        <p className="text-slate-600 text-center text-[12px] font-semibold mb-6 leading-normal">
+                            Finalizarás tu sesión actual. Todos los procesos activos quedarán en segundo plano.
                         </p>
                         
-                        <div className="flex gap-3">
+                        <div className="flex gap-2">
                             <button
                                 onClick={() => setShowLogoutModal(false)}
-                                className="flex-1 py-4 rounded-2xl bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-[0.2em] transition-all"
+                                className="flex-1 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold uppercase tracking-wider transition-all border border-slate-200"
                             >
-                                Abortar
+                                Cancelar
                             </button>
                             <button
                                 onClick={handleLogout}
-                                className="flex-1 py-4 rounded-2xl bg-[#FF4C4C] hover:bg-[#FF3030] text-white text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-rose-500/20"
+                                className="flex-1 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold uppercase tracking-wider transition-all shadow-sm"
                             >
                                 Confirmar
                             </button>

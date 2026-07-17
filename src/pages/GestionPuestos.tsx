@@ -1513,37 +1513,37 @@ const PanelMensualPuesto = ({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 mb-5 px-5 py-3 bg-gradient-to-r from-slate-900/60 via-slate-900/40 to-transparent rounded-2xl border border-white/[0.06] backdrop-blur-xl">
-        <div className="flex items-center gap-2 pr-4 border-r border-white/10">
-          <span className="material-symbols-outlined text-[16px] text-slate-500">schedule</span>
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Turnos</span>
+      <div className="flex flex-wrap items-center gap-3 mb-4 px-4 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <div className="flex items-center gap-2 pr-4 border-r border-slate-200">
+          <span className="material-symbols-outlined text-[15px] text-slate-500">schedule</span>
+          <span className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">Turnos</span>
         </div>
         {turnosConfig.map(t => (
-          <div key={t.id} className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-white/[0.06] hover:border-white/15 transition-all" style={{ background: `${t.color || '#6366f1'}12` }}>
-            <div className="size-2.5 rounded-full shadow-[0_0_8px_currentColor]" style={{ backgroundColor: t.color || '#6366f1', color: t.color || '#6366f1' }} />
-            <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: t.color || '#94a3b8' }}>{t.nombre}</span>
-            <span className="text-[9px] font-bold text-slate-500 tabular-nums">{t.inicio}–{t.fin}</span>
+          <div key={t.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-all" style={{ borderLeftColor: t.color || '#0284c7', borderLeftWidth: 3 }}>
+            <div className="size-2 rounded-full" style={{ backgroundColor: t.color || '#0284c7' }} />
+            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: t.color || '#0284c7' }}>{t.nombre}</span>
+            <span className="text-[9px] font-medium text-slate-500 tabular-nums">{t.inicio}–{t.fin}</span>
           </div>
         ))}
-        {turnosConfig.length === 0 && <span className="text-[9px] italic text-slate-600">Sin turnos configurados</span>}
+        {turnosConfig.length === 0 && <span className="text-[9px] italic text-slate-400">Sin turnos configurados</span>}
       </div>
 
-      <div className="bg-gradient-to-b from-[#0a0f1e] via-[#080d1a] to-[#060a14] rounded-[32px] border border-white/[0.06] shadow-[0_8px_60px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.03)] overflow-hidden mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
         <div className="overflow-auto max-h-[68vh] custom-scrollbar">
           <table className="border-collapse select-none" style={{ width: 'max-content', tableLayout: 'fixed' }}>
             <thead>
-              <tr className="h-24 bg-gradient-to-r from-[#0c1425] via-[#0e1730] to-[#0c1425]">
+              <tr className="h-20 bg-slate-50 border-b border-slate-200">
                 <th 
-                  className="sticky left-0 top-0 z-50 px-6 border-r border-indigo-500/15"
-                  style={{ width: 320, background: 'linear-gradient(135deg, #0c1225, #0a0f1e)', boxShadow: '8px 0 30px rgba(0,0,0,0.5)', borderBottom: '2px solid rgba(99,102,241,0.25)' }}
+                  className="sticky left-0 top-0 z-50 px-5 border-r border-slate-200"
+                  style={{ width: 320, background: '#ffffff', boxShadow: '4px 0 12px rgba(0,0,0,0.04)', borderBottom: '2px solid #e2e8f0' }}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="size-14 rounded-2xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-700 flex items-center justify-center shadow-[0_4px_20px_rgba(99,102,241,0.35)] border border-indigo-400/20">
-                      <span className="material-symbols-outlined text-white text-[28px]">security</span>
+                  <div className="flex items-center gap-3">
+                    <div className="size-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-primary text-[22px]">security</span>
                     </div>
                     <div className="text-left">
-                      <span className="text-[16px] font-black text-white uppercase tracking-tight block leading-tight">Mando Operativo</span>
-                      <span className="text-[9px] font-bold text-indigo-400/60 uppercase tracking-[0.3em] mt-1 block">Command Center v5.0</span>
+                      <span className="text-[14px] font-black text-slate-900 uppercase tracking-tight block leading-tight">Mando Operativo</span>
+                      <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-0.5 block">Command Center</span>
                     </div>
                   </div>
                 </th>
@@ -1557,44 +1557,44 @@ const PanelMensualPuesto = ({
                   return (
                     <th 
                       key={d} 
-                      className={`text-center border-r border-white/[0.04] px-1 relative transition-all duration-300 sticky top-0 z-40`}
+                      className={`text-center border-r border-slate-200 px-1 relative transition-all sticky top-0 z-40`}
                       style={{ 
                         width: 120,
-                        borderBottom: '2px solid rgba(99,102,241,0.25)',
+                        borderBottom: '2px solid #e2e8f0',
                         background: isToday 
-                          ? 'linear-gradient(180deg, rgba(99,102,241,0.25), rgba(99,102,241,0.05)), #0c1425' 
+                          ? '#eff6ff'
                           : holiday
-                            ? 'linear-gradient(180deg, rgba(239,68,68,0.25), rgba(239,68,68,0.05)), #0c1425'
+                            ? '#fff1f2'
                             : isSun 
-                              ? 'linear-gradient(180deg, rgba(239,68,68,0.15), rgba(239,68,68,0.02)), #0c1425' 
+                              ? '#fff5f5'
                               : isSat
-                                ? 'linear-gradient(180deg, rgba(245,158,11,0.15), rgba(245,158,11,0.02)), #0c1425'
-                                : '#0c1425'
+                                ? '#fffbeb'
+                                : '#ffffff'
                       }}
                       title={holiday?.name}
                     >
-                      {isToday && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] bg-indigo-500 rounded-b-full shadow-[0_0_12px_rgba(99,102,241,0.8)]" />}
-                      {(isSun || holiday) && <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-rose-500 via-rose-400 to-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.4)]" />}
-                      {isSat && !holiday && <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.4)]" />}
+                      {isToday && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[2px] bg-primary rounded-b" />}
+                      {(isSun || holiday) && <div className="absolute top-0 left-0 w-full h-[2px] bg-danger" />}
+                      {isSat && !holiday && <div className="absolute top-0 left-0 w-full h-[2px] bg-amber-400" />}
                       
-                      <div className="flex flex-col items-center justify-center h-full gap-0.5 py-3">
-                        <span className={`text-[10px] tracking-[0.2em] font-black ${
-                          isToday ? 'text-indigo-400' : (isSun || holiday) ? 'text-rose-400' : isSat ? 'text-amber-400' : 'text-slate-500/60'
+                      <div className="flex flex-col items-center justify-center h-full gap-0.5 py-2">
+                        <span className={`text-[9px] tracking-widest font-bold ${
+                          isToday ? 'text-primary' : (isSun || holiday) ? 'text-danger' : isSat ? 'text-amber-500' : 'text-slate-400'
                         }`}>
                           {dayDate.toLocaleDateString('es', {weekday: 'short'}).toUpperCase()}
                         </span>
-                        <span className={`text-[26px] font-black tabular-nums leading-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)] ${
-                          isToday ? 'text-white' : (isSun || holiday) ? 'text-rose-200' : isSat ? 'text-amber-100' : 'text-white/90'
+                        <span className={`text-[22px] font-black tabular-nums leading-none ${
+                          isToday ? 'text-primary' : (isSun || holiday) ? 'text-danger' : isSat ? 'text-amber-600' : 'text-slate-800'
                         }`}>{d}</span>
                         
                         {isToday ? (
-                          <span className="text-[7px] font-black text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-full uppercase tracking-[0.2em] mt-1 animate-pulse">HOY</span>
+                          <span className="text-[7px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full uppercase tracking-wide mt-0.5">HOY</span>
                         ) : holiday ? (
-                          <span className="text-[7px] font-black text-white bg-rose-600 px-2 py-0.5 rounded-full uppercase tracking-[0.1em] mt-1 truncate max-w-[90px] shadow-[0_2px_8px_rgba(225,29,72,0.4)]" title={holiday.name}>FESTIVO</span>
+                          <span className="text-[7px] font-bold text-white bg-danger px-2 py-0.5 rounded-full uppercase tracking-wide mt-0.5 truncate max-w-[90px]" title={holiday.name}>FESTIVO</span>
                         ) : isSun ? (
-                          <span className="text-[7px] font-black text-rose-400 uppercase tracking-[0.2em] mt-1">DOM</span>
+                          <span className="text-[7px] font-bold text-danger uppercase tracking-wide mt-0.5">DOM</span>
                         ) : isSat ? (
-                          <span className="text-[7px] font-black text-amber-400 uppercase tracking-[0.2em] mt-1">SÁB</span>
+                          <span className="text-[7px] font-bold text-amber-500 uppercase tracking-wide mt-0.5">SÁB</span>
                         ) : null}
                       </div>
                     </th>
@@ -1645,33 +1645,33 @@ const PanelMensualPuesto = ({
                 return (
                   <tr 
                     key={`${per.rol}-${index}`} 
-                    className="group/row transition-all duration-200"
+                    className="group/row transition-all duration-150"
                     style={{ 
                       height: 96, 
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      background: index % 2 === 0 ? 'rgba(15,23,42,0.3)' : 'rgba(15,23,42,0.15)'
+                      borderBottom: '1px solid #e2e8f0',
+                      background: index % 2 === 0 ? '#ffffff' : '#f8fafc'
                     }}
                   >
                    <td 
-                     className="sticky left-0 z-30 transition-all border-r border-indigo-500/10 px-5 group-hover/row:bg-[#111827]"
-                     style={{ width: 320, background: index % 2 === 0 ? '#0b1120' : '#0a0f1c', boxShadow: '8px 0 25px rgba(0,0,0,0.4)' }}
+                     className="sticky left-0 z-30 transition-all border-r border-slate-200 px-4 group-hover/row:bg-slate-50"
+                     style={{ width: 320, background: index % 2 === 0 ? '#ffffff' : '#f8fafc', boxShadow: '4px 0 8px rgba(0,0,0,0.04)' }}
                    >
                      <div className="flex items-center justify-between gap-3">
                        <div className="flex flex-col gap-1.5 min-w-0 flex-1">
                           <div className="flex items-center gap-3">
-                             <div className={`flex items-center gap-1.5 px-3 py-1 rounded-xl border font-black text-[9px] tracking-[0.12em] uppercase ${
-                               isActuallyNight 
-                               ? 'bg-violet-500/10 border-violet-500/25 text-violet-400' 
-                               : 'bg-sky-500/10 border-sky-500/25 text-sky-400'
-                             }`}>
-                               <span className="material-symbols-outlined text-[14px]">
+                             <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg border font-bold text-[8.5px] tracking-wide uppercase ${
+                                isActuallyNight 
+                                ? 'bg-violet-50 border-violet-200 text-violet-600' 
+                                : 'bg-sky-50 border-sky-200 text-sky-600'
+                              }`}>
+                               <span className="material-symbols-outlined text-[13px]">
                                  {isActuallyNight ? 'dark_mode' : 'light_mode'}
                                </span>
                                {isActuallyNight ? 'Noche' : 'Día'}
                              </div>
                              
                              <div className="flex flex-col min-w-0">
-                               <span className="text-[13px] font-black uppercase tracking-tight truncate text-white/90 group-hover/row:text-white transition-colors">
+                               <span className="text-[12px] font-bold uppercase tracking-tight truncate text-slate-900 group-hover/row:text-slate-950 transition-colors">
                                  {rolLabel}
                                </span>
                                <div className="flex items-center gap-1.5 mt-0.5">
@@ -1682,26 +1682,25 @@ const PanelMensualPuesto = ({
                           </div>
                           
                           {assignedVig ? (
-                             <div className="flex items-center gap-2.5 px-3 py-1 rounded-xl border bg-emerald-500/[0.06] border-emerald-500/20 group-hover/row:border-emerald-500/40 transition-all">
-                                <div className="size-7 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 border border-emerald-500/25">
-                                   <span className="material-symbols-outlined text-[14px]">verified_user</span>
-                                </div>
-                                <div className="min-w-0">
-                                   <span className="text-[10px] font-black uppercase truncate block text-emerald-100/90 tracking-wide">
-                                     {typeof assignedVig === 'string' ? assignedVig : assignedVig.nombre}
-                                   </span>
-                                   <span className="text-[7px] font-bold text-emerald-500/50 uppercase tracking-widest">Activo</span>
-                                </div>
-                             </div>
+                             <div className="flex items-center gap-2 px-3 py-1 rounded-lg border bg-emerald-50 border-emerald-200 group-hover/row:border-emerald-300 transition-all">
+                                 <div className="size-6 rounded bg-emerald-100 flex items-center justify-center text-emerald-600">
+                                    <span className="material-symbols-outlined text-[13px]">verified_user</span>
+                                 </div>
+                                 <div className="min-w-0">
+                                    <span className="text-[10px] font-bold uppercase truncate block text-slate-800 tracking-wide">
+                                      {typeof assignedVig === 'string' ? assignedVig : assignedVig.nombre}
+                                    </span>
+                                    <span className="text-[7px] font-bold text-emerald-600 uppercase tracking-wide">Activo</span>
+                                 </div>
+                              </div>
                           ) : (
-                             <div className="flex items-center gap-2 px-3 py-1 border border-dashed border-slate-700/50 bg-slate-800/20 rounded-xl opacity-40 group-hover/row:opacity-70 transition-opacity">
-                                <span className="material-symbols-outlined text-slate-600 text-[16px]">person_add</span>
-                                <span className="text-[8px] font-black uppercase text-slate-600 tracking-wider">Vacante</span>
-                             </div>
+                             <div className="flex items-center gap-2 px-3 py-1 border border-dashed border-slate-200 bg-slate-50 rounded-lg opacity-50 group-hover/row:opacity-80 transition-opacity">
+                                 <span className="material-symbols-outlined text-slate-400 text-[15px]">person_add</span>
+                                 <span className="text-[8px] font-bold uppercase text-slate-500 tracking-wider">Vacante</span>
+                              </div>
                           )}
                        </div>
 
-                       {/* Acciones de Fila (Duplicar / Eliminar) */}
                        <div className="flex flex-col gap-1 shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity">
                          <button
                            onClick={() => {
@@ -1721,7 +1720,7 @@ const PanelMensualPuesto = ({
                              );
                              showTacticalToast({ title: 'Fila Duplicada', message: `Se creó la fila ${rolLabel} (Copia)`, type: 'success' });
                            }}
-                           className="size-7 rounded-lg bg-white/5 hover:bg-violet-600/30 border border-white/10 hover:border-violet-500/50 flex items-center justify-center text-slate-400 hover:text-white transition-all"
+                           className="size-7 rounded bg-slate-100 hover:bg-violet-100 border border-slate-200 hover:border-violet-300 flex items-center justify-center text-slate-500 hover:text-violet-600 transition-all"
                            title="Duplicar esta fila"
                          >
                            <span className="material-symbols-outlined text-[13px]">content_copy</span>
@@ -1744,7 +1743,7 @@ const PanelMensualPuesto = ({
                                showTacticalToast({ title: 'Fila Eliminada', message: rolLabel, type: 'info' });
                              }
                            }}
-                           className="size-7 rounded-lg bg-white/5 hover:bg-rose-600/30 border border-white/10 hover:border-rose-500/50 flex items-center justify-center text-slate-400 hover:text-rose-400 transition-all"
+                           className="size-7 rounded bg-slate-100 hover:bg-red-50 border border-slate-200 hover:border-red-200 flex items-center justify-center text-slate-500 hover:text-danger transition-all"
                            title="Eliminar esta fila"
                          >
                            <span className="material-symbols-outlined text-[13px]">delete</span>
@@ -1754,8 +1753,6 @@ const PanelMensualPuesto = ({
                    </td>
 
                    {daysArr.map((d) => {
-                     // ── REACTIVIDAD CRÍTICA: Usar progAsignaciones (suscrito directamente al store) ──
-                     // En vez de prog?.asignaciones (que puede estar stale en el useMemo)
                      const asigFound = progAsignaciones.find(
                        (a: AsignacionDia) => a.dia === d && a.rol === per.rol
                      );
@@ -1773,7 +1770,6 @@ const PanelMensualPuesto = ({
                      const dow = new Date(anio, mes, d).getDay();
                      const isWeekend = dow === 0 || dow === 6;
 
-                     // Detectar conflicto: mismo vigilante asignado en otro puesto ese día
                      const conflictKey = asig.vigilanteId ? `${asig.vigilanteId}-${anio}-${mes}-${d}` : '';
                      const hasConflict = !!conflictKey && asig.jornada !== 'sin_asignar'
                        ? conflictMap.has(conflictKey)
@@ -1783,7 +1779,7 @@ const PanelMensualPuesto = ({
                        : '';
 
                      return (
-                       <td key={d} className={`border-r border-white/[0.03] transition-all p-1.5 ${isWeekend ? 'bg-white/[0.02]' : ''}`} style={{ width: 120 }}>
+                       <td key={d} className={`border-r border-slate-100 transition-all p-1.5 ${isWeekend ? 'bg-slate-50/60' : ''}`} style={{ width: 120 }}>
                          <CeldaCalendario
                            asig={asig}
                            vigilanteNombre={asig.vigilanteId ? (vigilanteMap.get(asig.vigilanteId) || "Asignado") : undefined}
@@ -1801,21 +1797,20 @@ const PanelMensualPuesto = ({
                 );
               })}
 
-              {/* ── FILA INLINE: Añadir nueva fila / vigilante ── */}
               <tr>
                 <td
                   colSpan={daysArr.length + 1}
-                  className="px-6 py-3 border-t border-dashed border-white/[0.05]"
+                  className="px-5 py-3 border-t border-dashed border-slate-200 bg-slate-50"
                 >
                   <button
                     onClick={() => setShowRolesModal(true)}
-                    className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl border border-dashed border-violet-500/25 hover:border-violet-400/60 bg-violet-500/[0.02] hover:bg-violet-500/10 text-violet-500/50 hover:text-violet-300 transition-all group"
+                    className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl border border-dashed border-slate-300 hover:border-primary bg-white hover:bg-primary/5 text-slate-500 hover:text-primary transition-all group"
                   >
-                    <span className="material-symbols-outlined text-[22px] group-hover:rotate-90 transition-transform duration-300">add_circle</span>
-                    <span className="text-[10px] font-black uppercase tracking-[0.25em]">
+                    <span className="material-symbols-outlined text-[20px] group-hover:rotate-90 transition-transform duration-200">add_circle</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest">
                       Añadir Fila / Vigilante al Tablero
                     </span>
-                    <span className="px-2 py-0.5 bg-violet-500/20 rounded-full text-[9px] font-black text-violet-400">
+                    <span className="px-2 py-0.5 bg-slate-200 rounded-full text-[9px] font-bold text-slate-600">
                       {progPersonal.length} fila{progPersonal.length !== 1 ? 's' : ''} activa{progPersonal.length !== 1 ? 's' : ''}
                     </span>
                   </button>
@@ -2005,47 +2000,40 @@ const GestionPuestos = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-[#050b16]">
-      <header className="bg-[#070B14] text-white px-10 py-6 border-b border-white/5 shrink-0 flex items-center justify-between shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-30 relative overflow-hidden">
-        {/* Animated Background Accent */}
-        <div className="absolute top-0 right-0 w-1/2 h-full bg-indigo-500/5 blur-[120px] pointer-events-none animate-pulse"></div>
-        <div className="absolute bottom-0 left-0 w-1/4 h-1/2 bg-emerald-500/5 blur-[80px] pointer-events-none"></div>
-        
-        <div className="flex items-center gap-10 flex-1 relative z-10">
+    <div className="h-screen flex flex-col bg-slate-100">
+      <header className="bg-white px-8 py-4 border-b border-slate-200 shrink-0 flex items-center justify-between shadow-sm z-30 relative">
+        <div className="flex items-center gap-8 flex-1">
           {/* Logo + Título */}
-          <div className="flex items-center gap-5">
-            <div className="relative">
-              <div className="absolute -inset-1.5 bg-indigo-500/20 rounded-[20px] blur-md"></div>
-              <div className="relative size-12 rounded-[16px] bg-white/5 border border-white/10 flex items-center justify-center">
-                <img src="./logo.png" alt="CORAZA" className="w-8 h-8 object-contain" />
-              </div>
+          <div className="flex items-center gap-4">
+            <div className="size-10 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center">
+              <img src="./logo.png" alt="CORAZA" className="w-7 h-7 object-contain" />
             </div>
             <div>
               <div className="flex items-center gap-2 mb-0.5">
-                <div className="size-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em]">Sistema Activo</span>
+                <div className="size-1.5 bg-emerald-500 rounded-full"></div>
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Sistema Activo</span>
               </div>
-              <h1 className="text-[22px] font-black text-white uppercase tracking-tight leading-none">
-                Centro de <span className="text-indigo-400">Mando</span>
+              <h1 className="text-[18px] font-black text-slate-900 uppercase tracking-tight leading-none">
+                Centro de <span className="text-primary">Mando</span>
               </h1>
             </div>
           </div>
 
-          {/* Navegación de Mes — centrada */}
-          <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-2xl overflow-hidden">
+          {/* Navegación de Mes */}
+          <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
             <button 
               onClick={() => { const d = new Date(anio, mes - 1); setAnio(d.getFullYear()); setMes(d.getMonth()); }}
-              className="px-4 py-3 text-slate-500 hover:text-white hover:bg-white/[0.06] transition-all"
+              className="px-3 py-2.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-all"
             >
               <span className="material-symbols-outlined text-xl">chevron_left</span>
             </button>
-            <div className="px-6 py-2 text-center border-x border-white/[0.08] min-w-[130px]">
-              <p className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.4em] mb-0.5">{anio}</p>
-              <p className="text-[15px] font-black text-white uppercase tracking-[0.15em]">{MONTH_NAMES[mes]}</p>
+            <div className="px-5 py-1.5 text-center border-x border-slate-200 min-w-[120px]">
+              <p className="text-[9px] font-bold text-primary uppercase tracking-widest mb-0.5">{anio}</p>
+              <p className="text-[14px] font-black text-slate-900 uppercase tracking-wide">{MONTH_NAMES[mes]}</p>
             </div>
             <button 
               onClick={() => { const d = new Date(anio, mes + 1); setAnio(d.getFullYear()); setMes(d.getMonth()); }}
-              className="px-4 py-3 text-slate-500 hover:text-white hover:bg-white/[0.06] transition-all"
+              className="px-3 py-2.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-all"
             >
               <span className="material-symbols-outlined text-xl">chevron_right</span>
             </button>
@@ -2053,26 +2041,26 @@ const GestionPuestos = () => {
         </div>
 
         {/* Controles derecha */}
-        <div className="flex items-center gap-3 relative z-10">
+        <div className="flex items-center gap-3">
           {/* Toggle de vista */}
-          <div className="flex bg-white/[0.04] border border-white/[0.08] rounded-xl p-1">
+          <div className="flex bg-slate-100 border border-slate-200 rounded-lg p-1 shadow-sm">
             <button 
               onClick={() => setViewMode('cards')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${viewMode === 'cards' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all ${viewMode === 'cards' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-600 hover:text-slate-900'}`}
             >
               <span className="material-symbols-outlined text-[14px]">grid_view</span>
               <span className="hidden lg:inline">Carpetas</span>
             </button>
             <button 
               onClick={() => setViewMode('master_grid')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${viewMode === 'master_grid' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all ${viewMode === 'master_grid' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-600 hover:text-slate-900'}`}
             >
               <span className="material-symbols-outlined text-[14px]">table_chart</span>
               <span className="hidden lg:inline">Maestro</span>
             </button>
             <button 
               onClick={() => navigate('/auditoria?q=PROGRAMACION')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-slate-500 hover:text-emerald-400 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider text-slate-600 hover:text-success transition-all"
             >
               <span className="material-symbols-outlined text-[14px]">history</span>
               <span className="hidden xl:inline">Historial</span>
@@ -2082,17 +2070,15 @@ const GestionPuestos = () => {
           {/* Botón Nuevo Puesto */}
           <button 
             onClick={() => setIsNewPuestoModalOpen(true)}
-            className="group relative h-[36px] px-4 rounded-xl flex items-center gap-2 transition-all duration-300 overflow-hidden bg-indigo-600 hover:bg-indigo-500 border border-indigo-400/30 hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] active:scale-95"
+            className="h-[36px] px-4 rounded-lg flex items-center gap-2 transition-all bg-primary hover:bg-primary-dark text-white border border-primary/80 shadow-sm active:scale-95"
           >
-            <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-[-20deg]"></div>
-            <span className="material-symbols-outlined text-[16px] text-white relative z-10 group-hover:rotate-12 transition-transform duration-300">add_location</span>
-            <span className="text-[9px] font-black uppercase tracking-wider text-white relative z-10 hidden lg:inline">Nuevo Puesto</span>
+            <span className="material-symbols-outlined text-[16px]">add_location</span>
+            <span className="text-[9px] font-bold uppercase tracking-wider hidden lg:inline">Nuevo Puesto</span>
           </button>
-
         </div>
       </header>
 
-      <main className="flex-1 overflow-hidden flex flex-col" style={{ background: '#050b16' }}>
+      <main className="flex-1 overflow-hidden flex flex-col bg-slate-100">
         {viewMode === 'cards' ? (
           <div className="flex-1 flex flex-col overflow-hidden px-10 pt-8 pb-8">
             {/* ═══ STAT CARDS ═══ */}
@@ -2154,15 +2140,12 @@ const GestionPuestos = () => {
                 />
                 
                 {/* Tech Frame Base */}
-                <div className="relative flex items-center h-[46px] rounded-2xl bg-black/40 backdrop-blur-2xl border border-white/5 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_8px_32px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-500 group-focus-within:border-indigo-500/50 group-focus-within:bg-indigo-950/20 group-hover:border-white/10 group-focus-within:shadow-[0_0_30px_rgba(99,102,241,0.2),inset_0_0_20px_rgba(99,102,241,0.1)]">
-                  
-                  {/* Left Icon Area - Tactical HUD style */}
-                  <div className="relative flex items-center justify-center w-12 h-full border-r border-white/5 bg-white/[0.02] group-focus-within:bg-indigo-500/10 group-focus-within:border-indigo-500/30 transition-all duration-500 shrink-0">
-                    <span className="material-symbols-outlined text-[18px] text-slate-500 group-focus-within:text-indigo-400 group-focus-within:drop-shadow-[0_0_8px_rgba(129,140,248,0.8)] transition-all duration-500">
-                      radar
+                <div className="relative flex items-center h-[42px] rounded-lg bg-white border border-slate-200 shadow-sm overflow-hidden transition-all group-focus-within:border-primary group-focus-within:ring-2 group-focus-within:ring-primary/20">
+                  {/* Left Icon */}
+                  <div className="flex items-center justify-center w-10 h-full border-r border-slate-200 bg-slate-50 shrink-0">
+                    <span className="material-symbols-outlined text-[17px] text-slate-500 group-focus-within:text-primary transition-colors">
+                      search
                     </span>
-                    {/* Animated scanning line on focus */}
-                    <div className="absolute top-0 bottom-0 left-0 w-[2px] bg-indigo-500 opacity-0 group-focus-within:opacity-100 group-focus-within:shadow-[0_0_10px_#6366f1] transition-opacity duration-300" />
                   </div>
 
                   {/* Input Field */}
@@ -2170,52 +2153,29 @@ const GestionPuestos = () => {
                     type="text"
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
-                    placeholder="LOCALIZAR PUESTO..."
-                    className="w-full h-full bg-transparent border-none outline-none px-4 font-black text-white text-[11px] tracking-[0.15em] uppercase placeholder:text-slate-600 placeholder:font-bold placeholder:tracking-widest transition-all duration-300"
+                    placeholder="Buscar puesto..."
+                    className="w-full h-full bg-transparent border-none outline-none px-3 font-semibold text-slate-900 text-[12px] tracking-wide placeholder:text-slate-400 placeholder:font-normal transition-all"
                   />
-                  
-                  {/* Status Indicator (Right side inside) */}
-                  {!searchQuery && (
-                    <div className="hidden sm:flex items-center gap-2.5 pr-4 pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
-                      <div className="flex gap-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-slate-600 group-focus-within:bg-indigo-500 group-focus-within:animate-pulse" />
-                        <div className="w-1.5 h-1.5 rounded-full bg-slate-700 group-focus-within:bg-indigo-400 group-focus-within:animate-pulse delay-75" />
-                      </div>
-                      <span className="text-[8px] font-black tracking-widest text-slate-500 group-focus-within:text-indigo-400 uppercase italic">Ready</span>
-                    </div>
-                  )}
 
                   {/* Clear Button */}
                   {searchQuery && (
                     <button
                       onClick={() => setSearchQuery('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 size-7 flex items-center justify-center rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all duration-300 hover:shadow-[0_0_12px_rgba(244,63,94,0.5)] border border-rose-500/20 animate-in fade-in zoom-in"
+                      className="mr-2 size-6 flex items-center justify-center rounded bg-slate-200 text-slate-600 hover:bg-danger hover:text-white transition-all"
                     >
-                      <span className="material-symbols-outlined text-[14px]">close</span>
+                      <span className="material-symbols-outlined text-[13px]">close</span>
                     </button>
                   )}
-                  
-                  {/* Bottom animated border line representing connection */}
-                  <div className="absolute bottom-0 left-0 h-[2px] bg-gradient-to-r from-transparent via-indigo-500 to-transparent w-full opacity-0 group-focus-within:opacity-100 scale-x-0 group-focus-within:scale-x-100 transition-all duration-700 ease-out origin-left" />
                 </div>
               </div>
 
               {/* Filter Pills with Result Counter */}
-              <div
-                className="flex flex-col sm:flex-row gap-2 p-1.5"
-                style={{
-                  background: 'rgba(10, 17, 32, 0.6)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: '16px',
-                  backdropFilter: 'blur(40px)',
-                  boxShadow: 'inset 0 0 20px rgba(0,0,0,0.5), 0 10px 30px rgba(0,0,0,0.4)'
-                }}
-              >
+              <div className="flex flex-row gap-1 p-1 bg-slate-100 border border-slate-200 rounded-lg shadow-sm">
                 {[
-                  { id: 'todos',        label: 'TODOS',      icon: 'grid_view',  accent: '#6366f1' },
-                  { id: 'alerta',       label: 'ALERTAS',    icon: 'notifications_active', accent: '#f43f5e' },
-                  { id: 'sin_personal', label: 'VACÍOS',     icon: 'person_off', accent: '#f59e0b' },
-                  { id: 'publicados',   label: 'OPERATIVOS', icon: 'verified',   accent: '#10b981' },
+                  { id: 'todos',        label: 'Todos',      icon: 'grid_view',            accent: '#0284c7' },
+                  { id: 'alerta',       label: 'Alertas',    icon: 'notifications_active', accent: '#dc2626' },
+                  { id: 'sin_personal', label: 'Vacíos',     icon: 'person_off',           accent: '#d97706' },
+                  { id: 'publicados',   label: 'Operativos', icon: 'verified',             accent: '#16a34a' },
                 ].map(t => {
                    const isActive = filterTab === t.id;
                    const count = (t.id === 'todos') ? (puestos||[]).filter(p=>(p as any).estado!=='inactivo').length : 
@@ -2239,27 +2199,20 @@ const GestionPuestos = () => {
                       <button
                         key={t.id}
                         onClick={() => setFilterTab(t.id as any)}
-                        className={`relative flex items-center justify-between gap-2.5 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all duration-500 group/pill ${isActive ? 'scale-102' : 'hover:bg-white/05'}`}
-                        style={isActive ? {
-                          background: `linear-gradient(135deg, ${t.accent}20 0%, ${t.accent}05 100%)`,
-                          border: `1px solid ${t.accent}40`,
-                          color: t.accent,
-                          boxShadow: `0 0 15px ${t.accent}15, inset 0 0 10px ${t.accent}10`
-                        } : {
-                          color: '#475569'
-                        }}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-wide transition-all ${
+                          isActive 
+                            ? 'bg-white text-slate-900 shadow-sm border border-slate-200' 
+                            : 'text-slate-600 hover:text-slate-900 border border-transparent'
+                        }`}
+                        style={isActive ? { color: t.accent } : {}}
                       >
-                        <div className="flex items-center gap-2">
-                          <span className={`material-symbols-outlined text-[15px] transition-all duration-500 ${isActive ? 'scale-110 rotate-6' : 'group-hover/pill:text-slate-300'}`} style={isActive ? { filter: `drop-shadow(0 0 5px ${t.accent})` } : {}}>{t.icon}</span>
-                          <span className="hidden lg:inline italic">{t.label}</span>
-                        </div>
-                        <span className={`px-2 py-0.5 rounded-md text-[8px] font-black transition-all duration-500 ${isActive ? 'bg-white text-black shadow-[0_0_10px_white]' : 'bg-white/05 text-slate-600 group-hover/pill:text-slate-400'}`}>
+                        <span className="material-symbols-outlined text-[14px]">{t.icon}</span>
+                        <span className="hidden lg:inline">{t.label}</span>
+                        <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${
+                          isActive ? 'text-white' : 'bg-slate-200 text-slate-600'
+                        }`} style={isActive ? { background: t.accent } : {}}>
                           {count}
                         </span>
-                        
-                        {isActive && (
-                          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1/2 h-[2px] rounded-full blur-[1px]" style={{ backgroundColor: t.accent }} />
-                        )}
                       </button>
                    );
                 })}
@@ -2269,58 +2222,36 @@ const GestionPuestos = () => {
               <button
                 onClick={() => useProgramacionStore.getState().forceSync()}
                 disabled={!progLoaded}
-                className="group relative flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest overflow-hidden transition-all duration-700 disabled:opacity-20 active:scale-95 shrink-0"
-                style={{
-                  background: 'rgba(15, 23, 42, 0.4)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  borderRadius: '16px',
-                  backdropFilter: 'blur(30px)',
-                  color: '#64748b',
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
-                }}
-                onMouseEnter={e => { 
-                  (e.currentTarget as HTMLElement).style.color = '#fff'; 
-                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(99,102,241,0.4)'; 
-                  (e.currentTarget as HTMLElement).style.boxShadow = '0 0 20px rgba(99,102,241,0.2)';
-                }}
-                onMouseLeave={e => { 
-                  (e.currentTarget as HTMLElement).style.color = '#64748b'; 
-                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.06)';
-                  (e.currentTarget as HTMLElement).style.boxShadow = '0 10px 30px rgba(0,0,0,0.3)';
-                }}
+                className="flex items-center gap-1.5 px-3 py-2 text-[9px] font-bold uppercase tracking-wide bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all disabled:opacity-30 active:scale-95 shadow-sm shrink-0"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/10 to-indigo-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-                <span className="material-symbols-outlined text-[16px] transition-all duration-1000 group-hover:rotate-[360deg] relative z-10 group-hover:text-indigo-400">refresh</span>
-                <span className="hidden xl:inline relative z-10 italic">Actualizar</span>
+                <span className="material-symbols-outlined text-[15px]">refresh</span>
+                <span className="hidden xl:inline">Actualizar</span>
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
               {isInitialLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-pulse">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 animate-pulse">
                   {[1,2,3,4,5,6,7,8].map(i => (
-                    <div key={i} className="h-48 rounded-[35px] bg-white/[0.02]" />
+                    <div key={i} className="h-44 rounded-xl bg-slate-200" />
                   ))}
                 </div>
               ) : pagedPuestos.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-24 border border-white/5 rounded-[35px] bg-black/20 animate-in fade-in duration-1000">
-                  <div className="relative mb-8">
-                     <div className="absolute -inset-4 bg-indigo-500/10 blur-2xl rounded-full animate-pulse" />
-                     <span className="material-symbols-outlined text-[64px] text-slate-800 relative z-10 font-thin">scanning</span>
-                  </div>
-                  <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-2 italic">Señal Perdida</h3>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-center max-w-[300px] leading-relaxed mb-8">
-                    El Centro de Mando no identifica objetivos activos con el filtro actual.
+                <div className="flex flex-col items-center justify-center py-20 border border-dashed border-slate-300 rounded-xl bg-white animate-in fade-in duration-300">
+                  <span className="material-symbols-outlined text-[56px] text-slate-300 mb-4">search_off</span>
+                  <h3 className="text-lg font-bold text-slate-700 uppercase tracking-tight mb-2">Sin Resultados</h3>
+                  <p className="text-[11px] font-medium text-slate-500 text-center max-w-[280px] leading-relaxed mb-6">
+                    No se encontraron puestos activos con el filtro actual.
                   </p>
                   <button 
                     onClick={() => {
-                        showTacticalToast({ title: '🔄 Re-Escaneando Matrix', message: 'Intentando recuperar enlace con la base de datos...', type: 'info' });
+                        showTacticalToast({ title: '🔄 Actualizando', message: 'Intentando recuperar datos...', type: 'info' });
                         useProgramacionStore.getState().forceSync();
                     }}
-                    className="flex items-center gap-3 px-8 py-4 bg-white/05 hover:bg-white/10 border border-white/10 rounded-2xl text-[10px] font-black text-white uppercase tracking-widest transition-all group"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white border border-primary/80 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all hover:bg-primary-dark shadow-sm"
                   >
-                    <span className="material-symbols-outlined text-[18px] group-hover:rotate-180 transition-transform duration-500">terminal</span>
-                    RECONECTAR SISTEMA
+                    <span className="material-symbols-outlined text-[16px]">refresh</span>
+                    Actualizar
                   </button>
                 </div>
               ) : (

@@ -1,65 +1,62 @@
-@import "tailwindcss";
-
 @theme {
-  /* Ultra-Premium Elite Tactical Design System */
+  /* Minimalist High-Contrast Light Design System */
   
-  /* Primary Actions & Branding - Electric Indigo */
-  --color-primary: #4f46e5;
-  --color-primary-light: #818cf8;
-  --color-primary-dark: #3730a3;
-  --color-primary-soft: rgba(79, 70, 229, 0.08);
+  /* Primary Actions & Branding - Flat Blue */
+  --color-primary: #0d6efd;
+  --color-primary-light: #3b82f6;
+  --color-primary-dark: #0b5ed7;
+  --color-primary-soft: rgba(13, 110, 253, 0.05);
   
-  /* Success - Emerald Glaze */
-  --color-success: #10b981;
-  --color-success-light: #34d399;
-  --color-success-dark: #065f46;
+  /* Success - Flat Green */
+  --color-success: #198754;
+  --color-success-light: #2ea44f;
+  --color-success-dark: #146c43;
   
-  /* Danger - Rose Tactical */
-  --color-danger: #f43f5e;
-  --color-danger-light: #fb7185;
-  --color-danger-dark: #9f1239;
+  /* Danger - Flat Red */
+  --color-danger: #dc3545;
+  --color-danger-light: #e35d6a;
+  --color-danger-dark: #b02a37;
   
-  /* Warning - Amber Alert */
-  --color-warning: #f59e0b;
-  --color-warning-light: #fbbf24;
-  --color-warning-dark: #b45309;
+  /* Warning - Flat Orange */
+  --color-warning: #fd7e14;
+  --color-warning-light: #ff9e43;
+  --color-warning-dark: #ca6510;
 
-  /* Neutrals - Sophisticated Slate & Pearl */
-  --color-slate-950: #020617;
-  --color-slate-900: #0f172a;
-  --color-slate-800: #1e293b;
-  --color-slate-700: #334155;
-  --color-slate-600: #475569;
-  --color-slate-500: #64748b;
-  --color-slate-400: #94a3b8;
-  --color-slate-300: #cbd5e1;
-  --color-slate-200: #e2e8f0;
-  --color-slate-100: #f1f5f9;
-  --color-slate-50: #f8fafc;
+  /* Neutrals - Slate & Grays */
+  --color-slate-950: #0f172a;
+  --color-slate-900: #1e293b;
+  --color-slate-800: #334155;
+  --color-slate-700: #475569;
+  --color-slate-600: #64748b;
+  --color-slate-500: #94a3b8;
+  --color-slate-400: #cbd5e1;
+  --color-slate-300: #e2e8f0;
+  --color-slate-200: #f1f5f9;
+  --color-slate-100: #f8fafc;
+  --color-slate-50: #ffffff;
 
   /* Exclusive Backgrounds */
-  --color-sidebar-bg: #0b1120;
-  --color-app-bg: #f8fafc;
+  --color-sidebar-bg: #ffffff;
+  --color-app-bg: #f4f6f9;
   --color-card-bg: #ffffff;
 
   /* Typography */
-  --font-sans: 'Inter Variable', 'Plus Jakarta Sans', -apple-system, sans-serif;
+  --font-sans: 'Inter Variable', -apple-system, sans-serif;
   
-  /* Tiered Shadows System - Sophisticated & Soft */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-horizon: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --shadow-premium: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
-  --shadow-glow: 0 0 20px rgba(79, 70, 229, 0.15);
-  --shadow-float: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  /* Tiered Shadows System - Minimalist & Crisp */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-horizon: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-premium: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --shadow-glow: none;
+  --shadow-float: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
 
   /* Gradients */
-  --gradient-primary: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-  --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%);
-  --mesh-gradient: radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.05) 0, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.05) 0, transparent 50%);
+  --gradient-primary: linear-gradient(to bottom, #0d6efd 0%, #0b5ed7 100%);
+  --gradient-glass: none;
+  --mesh-gradient: none;
 
   /* Transitions */
-  --transition-smooth: all 0.2s ease;
+  --transition-smooth: all 0.15s ease-in-out;
 }
 
 /* Base Styles */
