@@ -201,28 +201,28 @@ export const CeldaCalendario = React.memo(({
       <button
         onClick={onEdit}
         title={`Día ${asig.dia} · Clic para asignar`}
-        className="celda-vacia w-full h-full flex flex-col items-center justify-center gap-1.5 rounded-[18px] border border-dashed border-white/[0.07] hover:border-sky-500/40 transition-all duration-300 group relative overflow-hidden"
-        style={{ minHeight: 82, background: 'rgba(15,23,42,0.4)' }}
+        className="celda-vacia w-full h-full flex flex-col items-center justify-center gap-1.5 rounded-[12px] border border-dashed border-slate-300 hover:border-primary/45 transition-all duration-150 group relative overflow-hidden shadow-xs"
+        style={{ minHeight: 82, background: '#f8fafc' }}
       >
         {/* Subtle grid pattern */}
         <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.4) 1px, transparent 1px)',
+          backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.15) 1px, transparent 1px)',
           backgroundSize: '12px 12px'
         }} />
         
         <div
-          className="size-8 rounded-[12px] flex items-center justify-center text-slate-600 group-hover:text-sky-400 group-hover:scale-110 group-hover:rotate-90 transition-all duration-500 relative z-10"
-          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
+          className="size-8 rounded-[8px] flex items-center justify-center text-slate-400 group-hover:text-primary group-hover:scale-110 transition-all duration-300 relative z-10"
+          style={{ background: '#ffffff', border: '1px solid #e2e8f0' }}
         >
-          <span className="material-symbols-outlined text-[18px]">add</span>
+          <span className="material-symbols-outlined text-[16px]">add</span>
         </div>
-        <span className="text-[7px] font-black text-slate-700 group-hover:text-sky-400/80 uppercase tracking-[0.25em] transition-colors relative z-10">
+        <span className="text-[7.5px] font-bold text-slate-400 group-hover:text-primary uppercase tracking-[0.2em] transition-colors relative z-10">
           ASIGNAR
         </span>
         
         {/* Hover glow */}
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-          style={{ background: 'radial-gradient(circle at center, rgba(14,165,233,0.06), transparent 70%)' }}
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+          style={{ background: 'radial-gradient(circle at center, rgba(13,110,253,0.04), transparent 70%)' }}
         />
       </button>
     );
