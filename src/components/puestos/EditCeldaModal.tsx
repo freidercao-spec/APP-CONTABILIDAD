@@ -139,6 +139,13 @@ export const EditCeldaModal = ({
     }));
   };
 
+  // Jornadas donde NO aplica horario de servicio (ausencias / no trabajo)
+  const NON_WORK_JORNADAS = [
+    'descanso_remunerado', 'descanso_no_remunerado', 'vacacion',
+    'licencia', 'suspension', 'incapacidad', 'accidente'
+  ];
+  const isNonWorkJornada = NON_WORK_JORNADAS.includes(tempAsig.jornada as string);
+
   const setEstadoLaboral = (jornada: string, codigo: string) => {
     setTempAsig(prev => {
       let nextTurno = prev.turno;
@@ -149,7 +156,10 @@ export const EditCeldaModal = ({
         ...prev,
         jornada: jornada as any,
         codigo_personalizado: codigo,
-        turno: nextTurno as any
+        turno: nextTurno as any,
+        // En estados de ausencia limpiar horario (no es relevante)
+        inicio: NON_WORK_JORNADAS.includes(jornada) ? '' : prev.inicio,
+        fin:    NON_WORK_JORNADAS.includes(jornada) ? '' : prev.fin,
       };
     });
   };
@@ -305,15 +315,16 @@ export const EditCeldaModal = ({
           </div>
 
           {/* DOBLE COLUMNA: HORARIO Y JORNADA */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-            {/* CONFIGURACIÓN DE HORARIO CUSTOM */}
+          <div className={`grid grid-cols-1 gap-6 ${ isNonWorkJornada ? '' : 'md:grid-cols-12' }`}>
+            {/* CONFIGURACIÓN DE HORARIO CUSTOM — solo visible en estados de trabajo */}
+            {!isNonWorkJornada && (
             <div className="md:col-span-7 space-y-3">
               <div className="flex items-center justify-between px-1">
                 <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Horario del Servicio</span>
                 <span className="px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-600 rounded text-[8px] font-bold uppercase tracking-wider">Personalizable</span>
               </div>
               
-              <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-250 shadow-xs">
+              <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-xs">
                 <div className="space-y-1">
                   <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wide ml-1">Entrada</label>
                   <div className="relative group">
@@ -363,6 +374,7 @@ export const EditCeldaModal = ({
                 </div>
               </div>
             </div>
+            )}
 
             {/* ESTADO DE JORNADA */}
             <div className="md:col-span-5 space-y-3">
