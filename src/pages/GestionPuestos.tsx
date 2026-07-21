@@ -13,6 +13,7 @@ import {
 } from "../store/programacionStore";
 import { useAuthStore } from "../store/authStore";
 import { useAuditStore } from "../store/auditStore";
+import { supabase } from "../lib/supabase";
 import { showTacticalToast } from "../utils/tacticalToast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
