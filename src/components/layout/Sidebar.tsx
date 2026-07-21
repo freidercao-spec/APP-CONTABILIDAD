@@ -136,10 +136,6 @@ const Sidebar = () => {
         ? <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-slate-100 text-slate-800 border border-slate-300 text-[9px] font-bold rounded-md">{counts.activos}</span>
         : undefined;
 
-    const BADGE_DISP = counts.disponibles > 0
-        ? <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-emerald-50 text-white text-[9px] font-bold rounded-md">{counts.disponibles}</span>
-        : undefined;
-
     const BADGE_AI = alertasIA > 0
         ? <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-rose-600 text-white text-[9px] font-bold rounded-md">{alertasIA}</span>
         : undefined;
@@ -200,7 +196,6 @@ const Sidebar = () => {
                     <NavSection title="OPERACIONES" collapsed={c}>
                         <NavItem to="/"                icon="dashboard"      label="Estadísticas"       collapsed={c} onClick={closeSidebar} />
                         <NavItem to="/vigilantes"       icon="shield_person"  label="Vigilantes"         collapsed={c} onClick={closeSidebar} badge={BADGE_ACTIVOS} />
-                        <NavItem to="/disponibles"      icon="group_add"      label="Disponibles"        collapsed={c} onClick={closeSidebar} badge={BADGE_DISP} />
                         <NavItem to="/gestion-puestos"  icon="clinical_notes" label="Puestos Activos"    collapsed={c} onClick={closeSidebar} />
                         <NavItem to="/resumen"          icon="picture_as_pdf" label="Resumen / PDF"      collapsed={c} onClick={closeSidebar} />
                     </NavSection>
