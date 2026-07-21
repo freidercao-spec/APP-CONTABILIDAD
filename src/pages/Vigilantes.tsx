@@ -79,10 +79,13 @@ const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
             message: `¿Está seguro de retirar y dar de baja a ${selectedGuard.nombre} (${selectedGuard.id})? Su registro se moverá al módulo de "Retirados" para no perder sus asignaciones pasadas ni alterar el historial de los tableros.`,
             confirmLabel: 'Sí, retirar efectivo',
             variant: 'danger',
+            requireInput: true,
+            inputPlaceholder: 'Indique la causa o motivo del retiro del efectivo...',
         });
         if (ok) {
             const currentIdx = filteredVigilantes.findIndex(v => v.id === selectedGuard.id);
-            deleteVigilante(selectedGuard.id);
+            const reason = typeof ok === 'string' ? ok : 'Sin motivo especificado';
+            await useVigilanteStore.getState().deleteVigilante(selectedGuard.id, reason);
             const remaining = vigilantes.filter(v => v.id !== selectedGuard.id && v.estado !== 'inactivo');
             if (remaining.length > 0) {
                 const next = remaining[Math.min(currentIdx, remaining.length - 1)];
@@ -90,6 +93,19 @@ const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
             } else {
                 setSelectedGuardId(null);
             }
+        }
+    };
+
+    const handleReactivateGuard = async () => {
+        if (!selectedGuard) return;
+        const ok = await confirm({
+            title: 'Reactivar Efectivo',
+            message: `¿Confirma el reingreso de ${selectedGuard.nombre} (${selectedGuard.id}) a la fuerza activa? Su perfil volverá a estar disponible para asignación.`,
+            confirmLabel: 'Sí, reactivar',
+            variant: 'success',
+        });
+        if (ok) {
+            await useVigilanteStore.getState().reactivarVigilante(selectedGuard.id);
         }
     };
 
@@ -222,9 +238,16 @@ const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
                                         {selectedGuard.estado === 'activo' ? 'Pasar a Disponible' : 'Activar en Puesto'}
                                     </button>
                                 ) : (
-                                    <div className="flex items-center justify-center bg-slate-100 text-slate-400 py-3.5 rounded-2xl text-[9px] font-black uppercase tracking-wider border border-slate-200 select-none text-center px-2">
-                                        Efectivo Inactivo
-                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleReactivateGuard}
+                                        className="flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 select-none bg-success text-white hover:bg-success/90 shadow-lg shadow-success/10 border border-success/25"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px] notranslate" translate="no">
+                                            replay
+                                        </span>
+                                        Reactivar Reingreso
+                                    </button>
                                 )}
                                 <button
                                     type="button"

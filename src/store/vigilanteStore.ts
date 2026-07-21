@@ -64,7 +64,8 @@ interface VigilanteState {
     ) => Promise<string>;
     updateGuardStatus: (id: string, estado: Vigilante['estado'], puestoId?: string, justificacion?: string) => void;
     addActivity: (id: string, action: string, details: string) => void;
-    deleteVigilante: (id: string) => void;
+    deleteVigilante: (id: string, reason?: string) => Promise<void>;
+    reactivarVigilante: (id: string) => Promise<void>;
     addDescargo: (vigilanteId: string, descargo: Omit<Descargo, 'id'>) => void;
     resolverDescargo: (vigilanteId: string, descargoId: string) => void;
     setVacaciones: (vigilanteId: string, inicio: string, fin: string, motivo?: string) => void;
@@ -423,25 +424,88 @@ export const useVigilanteStore = create<VigilanteState>()(
                 }
             },
 
-            deleteVigilante: async (id) => {
+            deleteVigilante: async (id, reason) => {
                 const vigilante = get().vigilantes.find(v => v.id === id);
+                const descDetails = `Dado de baja del sistema.${reason ? ` Motivo: ${reason}` : ''}`;
 
                 // Optimistic
                 set((state) => ({
                     vigilantes: state.vigilantes.map((v) =>
-                        v.id === id ? { ...v, estado: 'inactivo' as const } : v
+                        v.id === id 
+                            ? { 
+                                ...v, 
+                                estado: 'inactivo' as const,
+                                historial: [
+                                    ...(v.historial || []),
+                                    {
+                                        id: crypto.randomUUID(),
+                                        timestamp: new Date().toISOString(),
+                                        action: 'Baja de Efectivo',
+                                        details: descDetails
+                                    }
+                                ]
+                              } 
+                            : v
                     )
                 }));
 
                 if (vigilante?.dbId) {
                     const { useAuditStore } = await import('./auditStore');
-                    useAuditStore.getState().logAction('VIGILANTES', 'Baja de Efectivo', `Efectivo ${id} (${vigilante.nombre}) dado de baja del sistema.`, 'warning');
+                    useAuditStore.getState().logAction('VIGILANTES', 'Baja de Efectivo', `Efectivo ${id} (${vigilante.nombre}) dado de baja. ${reason ? `Motivo: ${reason}` : ''}`, 'warning');
 
                     await supabase
                         .from('vigilantes')
                         .update({ estado: 'inactivo' })
                         .eq('id', vigilante.dbId);
+
+                    await safeInsertTable('historial_vigilante', {
+                        vigilante_id: vigilante.dbId,
+                        accion: 'Baja de Efectivo',
+                        detalles: descDetails,
+                    });
                 }
+            },
+
+            reactivarVigilante: async (id) => {
+                const vigilante = get().vigilantes.find(v => v.id === id);
+                if (!vigilante?.dbId) return;
+
+                const { useAuditStore } = await import('./auditStore');
+                useAuditStore.getState().logAction('VIGILANTES', 'Reingreso de Efectivo', `Efectivo ${id} (${vigilante.nombre}) reactivado en el sistema como disponible.`, 'success');
+
+                // Optimistic
+                set((state) => ({
+                    vigilantes: state.vigilantes.map((v) =>
+                        v.id === id
+                            ? {
+                                ...v,
+                                estado: 'disponible' as const,
+                                historial: [
+                                    ...(v.historial || []),
+                                    {
+                                        id: crypto.randomUUID(),
+                                        timestamp: new Date().toISOString(),
+                                        action: 'Reingreso / Reactivación',
+                                        details: 'Efectivo reactivado y puesto en estado disponible para operaciones.'
+                                    }
+                                ]
+                              }
+                            : v
+                    )
+                }));
+
+                await supabase
+                    .from('vigilantes')
+                    .update({ estado: 'disponible' })
+                    .eq('id', vigilante.dbId);
+
+                await safeInsertTable('historial_vigilante', {
+                    vigilante_id: vigilante.dbId,
+                    accion: 'Reingreso / Reactivación',
+                    detalles: 'Efectivo reactivado y puesto en estado disponible para operaciones.',
+                });
+
+                showTacticalToast({ title: 'Efectivo Reactivado', message: `El vigilante ${vigilante.nombre} ha reingresado a la fuerza activa.`, type: 'success' });
             },
 
             addDescargo: async (vigilanteId, descargo) => {

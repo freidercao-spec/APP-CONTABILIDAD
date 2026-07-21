@@ -1518,15 +1518,26 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 
                 const prog = state.getProgramacion(puestoId, anio, mes);
                 if (!prog) return;
+
+                const vStore = useVigilanteStore.getState();
+                const isGuardInactive = (vId: string | null | undefined) => {
+                    if (!vId) return false;
+                    const v = vStore.vigilantes.find(g => g.id === vId || g.dbId === vId);
+                    return v?.estado === 'inactivo';
+                };
+                
+                let retiredRemovedCount = 0;
+                const newPersonal: PersonalPuesto[] = tpl.personal.map(p => {
+                    const isInactive = isGuardInactive(p.vigilanteId);
+                    if (isInactive) retiredRemovedCount++;
+                    return { 
+                        rol: p.rol, 
+                        vigilanteId: isInactive ? null : p.vigilanteId,
+                        turnoId: p.turnoId 
+                    };
+                });
                 
                 const daysInTargetMonth = new Date(anio, mes + 1, 0).getDate();
-                // CORRECCIÓN: preservar turnoId de la plantilla para que los turnos
-                // personalizados se restauren correctamente en el tablero
-                const newPersonal: PersonalPuesto[] = tpl.personal.map(p => ({ 
-                    rol: p.rol, 
-                    vigilanteId: p.vigilanteId,
-                    turnoId: p.turnoId 
-                }));
                 const newAsignaciones: AsignacionDia[] = [];
 
                 // Generar asignaciones para todos los roles de la plantilla
@@ -1534,11 +1545,12 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     newPersonal.forEach(p => {
                         const match = tpl.patron.find(pat => pat.diaRelativo === d && pat.rol === p.rol);
                         if (match) {
+                           const isInactive = isGuardInactive(match.vigilanteId);
                            newAsignaciones.push({
                                 dia: d,
-                                vigilanteId: match.vigilanteId,
+                                vigilanteId: isInactive ? null : match.vigilanteId,
                                 turno: (match.turno as any) || 'AM',
-                                jornada: match.jornada as TipoJornada || 'sin_asignar',
+                                jornada: isInactive ? 'sin_asignar' : (match.jornada as TipoJornada || 'sin_asignar'),
                                 rol: p.rol as string
                            });
                         } else {
@@ -1562,7 +1574,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             actualizadoEn: new Date().toISOString(),
                             syncStatus: 'pending', 
                             isDetailLoaded: true 
-                          } 
+                        } 
                         : p);
 
                     const newMap = new Map<string, ProgramacionMensual>(s._progMap || []);
@@ -1577,11 +1589,19 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 get()._updateMap();
                 queueSync(prog.id, set, get, true);
                 
-                showTacticalToast({
-                    title: "Plantilla Aplicada",
-                    message: `Se ha cargado la plantilla "${tpl.nombre}" con ${newPersonal.length} roles y ${newAsignaciones.filter(a => a.vigilanteId).length} asignaciones.`,
-                    type: "success"
-                });
+                if (retiredRemovedCount > 0) {
+                    showTacticalToast({
+                        title: "Efectivos Retirados Omitidos",
+                        message: `Se detectaron ${retiredRemovedCount} vigilante(s) retirado(s) en la plantilla. Se omitió su asignación automática para evitar anomalías.`,
+                        type: "warning"
+                    });
+                } else {
+                    showTacticalToast({
+                        title: "Plantilla Aplicada",
+                        message: `Se ha cargado la plantilla "${tpl.nombre}" con ${newPersonal.length} roles y ${newAsignaciones.filter(a => a.vigilanteId).length} asignaciones.`,
+                        type: "success"
+                    });
+                }
             },
 
             eliminarPlantilla: async (templateId) => {
