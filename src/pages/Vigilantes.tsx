@@ -5,13 +5,13 @@ import GuardDetailModal from '../components/guards/GuardDetailModal';
 import { ConfirmDialog, useConfirm } from '../components/ui/ConfirmDialog';
 
 interface VigilanteProps {
-    defaultTab?: 'activos' | 'reserva';
+    defaultTab?: 'activos' | 'reserva' | 'retirados';
 }
 
 const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState<'activos' | 'reserva'>(defaultTab);
+    const [activeTab, setActiveTab] = useState<'activos' | 'reserva' | 'retirados'>(defaultTab);
     const [selectedGuardId, setSelectedGuardId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const { confirm, dialogProps } = useConfirm();
@@ -31,6 +31,7 @@ const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
         .filter(v => {
             if (activeTab === 'activos') return v.estado === 'activo';
             if (activeTab === 'reserva') return v.estado === 'disponible';
+            if (activeTab === 'retirados') return v.estado === 'inactivo';
             return false;
         })
         .filter(v =>
@@ -75,14 +76,14 @@ const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
         if (!selectedGuard) return;
         const ok = await confirm({
             title: 'Dar de Baja Vigilante',
-            message: `¿Esta seguro de eliminar permanentemente a ${selectedGuard.nombre} (${selectedGuard.id})? Esta accion no se puede deshacer y el registro se perdera.`,
-            confirmLabel: 'Si, dar de baja',
+            message: `¿Está seguro de retirar y dar de baja a ${selectedGuard.nombre} (${selectedGuard.id})? Su registro se moverá al módulo de "Retirados" para no perder sus asignaciones pasadas ni alterar el historial de los tableros.`,
+            confirmLabel: 'Sí, retirar efectivo',
             variant: 'danger',
         });
         if (ok) {
             const currentIdx = filteredVigilantes.findIndex(v => v.id === selectedGuard.id);
             deleteVigilante(selectedGuard.id);
-            const remaining = vigilantes.filter(v => v.id !== selectedGuard.id);
+            const remaining = vigilantes.filter(v => v.id !== selectedGuard.id && v.estado !== 'inactivo');
             if (remaining.length > 0) {
                 const next = remaining[Math.min(currentIdx, remaining.length - 1)];
                 setSelectedGuardId(next?.id || null);
@@ -125,16 +126,17 @@ const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
 
                     {/* Filter Tabs */}
                     <div className="bg-slate-100 p-1 rounded-xl flex w-full md:w-auto border border-slate-200">
-                        {(['activos', 'reserva'] as const).map(tab => (
+                        {(['activos', 'reserva', 'retirados'] as const).map(tab => (
                             <button
                                 key={tab}
                                 type="button"
                                 onClick={() => setActiveTab(tab)}
                                 className={`flex-1 md:flex-none px-4 py-2 text-[10px] font-bold rounded-lg transition-all uppercase tracking-wider select-none flex items-center justify-center gap-2 ${activeTab === tab ? 'bg-white text-slate-900 shadow-xs border border-slate-200' : 'text-slate-600 hover:text-slate-900'}`}
                             >
-                                <span className={`size-1.5 rounded-full ${tab === 'activos' ? 'bg-success' : 'bg-warning'} ${activeTab === tab ? 'animate-pulse' : 'opacity-50'}`}></span>
+                                <span className={`size-1.5 rounded-full ${tab === 'activos' ? 'bg-success' : tab === 'reserva' ? 'bg-warning' : 'bg-slate-400'} ${activeTab === tab ? 'animate-pulse' : 'opacity-50'}`}></span>
                                 {tab === 'activos' ? `En Campo (${countByStatus('activo')})` :
-                                    `Disponibles (${countByStatus('disponible')})`}
+                                 tab === 'reserva' ? `Disponibles (${countByStatus('disponible')})` :
+                                 `Retirados (${countByStatus('inactivo')})`}
                             </button>
                         ))}
                     </div>
@@ -163,9 +165,22 @@ const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
 
                             {/* Status Badge - Tactical Grade */}
                             <div className="absolute top-6 right-6 z-10">
-                                <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 ${selectedGuard.estado === 'activo' ? 'bg-success/10 text-success border-success/30' : selectedGuard.estado === 'ausente' ? 'bg-danger/10 text-danger border-danger/30' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
-                                    <span className={`size-2 rounded-full ${selectedGuard.estado === 'activo' ? 'bg-success glow-active' : selectedGuard.estado === 'ausente' ? 'bg-danger' : 'bg-slate-400'}`}></span>
-                                    {selectedGuard.estado === 'activo' ? 'Operativo' : selectedGuard.estado === 'disponible' ? 'En Base' : 'No Localizado'}
+                                <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 ${
+                                    selectedGuard.estado === 'activo' ? 'bg-success/10 text-success border-success/30' : 
+                                    selectedGuard.estado === 'ausente' ? 'bg-danger/10 text-danger border-danger/30' : 
+                                    selectedGuard.estado === 'inactivo' ? 'bg-slate-100 text-slate-500 border-slate-200' : 
+                                    'bg-warning/10 text-warning border-warning/30'
+                                }`}>
+                                    <span className={`size-2 rounded-full ${
+                                        selectedGuard.estado === 'activo' ? 'bg-success glow-active' : 
+                                        selectedGuard.estado === 'ausente' ? 'bg-danger' : 
+                                        selectedGuard.estado === 'inactivo' ? 'bg-slate-400' : 
+                                        'bg-warning animate-pulse'
+                                    }`}></span>
+                                    {selectedGuard.estado === 'activo' ? 'Operativo' : 
+                                     selectedGuard.estado === 'disponible' ? 'En Base' : 
+                                     selectedGuard.estado === 'inactivo' ? 'Retirado' : 
+                                     'No Localizado'}
                                 </span>
                             </div>
 
@@ -195,16 +210,22 @@ const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
 
                             {/* Action Buttons */}
                             <div className="grid grid-cols-2 gap-4 w-full mt-6">
-                                <button
-                                    type="button"
-                                    onClick={handleToggleStatus}
-                                    className={`flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 select-none border-2 ${selectedGuard.estado === 'activo' ? 'bg-warning/5 text-warning border-warning/20 hover:bg-warning/10' : 'bg-success/5 text-success border-success/20 hover:bg-success/10'}`}
-                                >
-                                    <span className="material-symbols-outlined text-[18px] notranslate" translate="no">
-                                        {selectedGuard.estado === 'activo' ? 'event_available' : 'play_circle'}
-                                    </span>
-                                    {selectedGuard.estado === 'activo' ? 'Pasar a Disponible' : 'Activar en Puesto'}
-                                </button>
+                                {selectedGuard.estado !== 'inactivo' ? (
+                                    <button
+                                        type="button"
+                                        onClick={handleToggleStatus}
+                                        className={`flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 select-none border-2 ${selectedGuard.estado === 'activo' ? 'bg-warning/5 text-warning border-warning/20 hover:bg-warning/10' : 'bg-success/5 text-success border-success/20 hover:bg-success/10'}`}
+                                    >
+                                        <span className="material-symbols-outlined text-[18px] notranslate" translate="no">
+                                            {selectedGuard.estado === 'activo' ? 'event_available' : 'play_circle'}
+                                        </span>
+                                        {selectedGuard.estado === 'activo' ? 'Pasar a Disponible' : 'Activar en Puesto'}
+                                    </button>
+                                ) : (
+                                    <div className="flex items-center justify-center bg-slate-100 text-slate-400 py-3.5 rounded-2xl text-[9px] font-black uppercase tracking-wider border border-slate-200 select-none text-center px-2">
+                                        Efectivo Inactivo
+                                    </div>
+                                )}
                                 <button
                                     type="button"
                                     onClick={handleViewProfile}
@@ -216,14 +237,16 @@ const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
                             </div>
 
                             {/* Danger Zone */}
-                            <button
-                                type="button"
-                                onClick={handleDeleteGuard}
-                                className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-bold text-slate-600 hover:text-danger hover:bg-danger/5 transition-all uppercase tracking-widest active:scale-95 select-none border border-transparent hover:border-danger/20"
-                            >
-                                <span className="material-symbols-outlined text-[16px] notranslate" translate="no">delete</span>
-                                Dar de baja
-                            </button>
+                            {selectedGuard.estado !== 'inactivo' && (
+                                <button
+                                    type="button"
+                                    onClick={handleDeleteGuard}
+                                    className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-bold text-slate-600 hover:text-danger hover:bg-danger/5 transition-all uppercase tracking-widest active:scale-95 select-none border border-transparent hover:border-danger/20"
+                                >
+                                    <span className="material-symbols-outlined text-[16px] notranslate" translate="no">delete</span>
+                                    Dar de baja
+                                </button>
+                            )}
                         </div>
                     ) : (
                         <div className="glass-panel rounded-2xl p-12 text-center flex flex-col items-center justify-center opacity-40 border border-white/5">

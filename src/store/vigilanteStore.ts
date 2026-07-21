@@ -28,7 +28,7 @@ export interface Vigilante {
     apellidos?: string;
     cedula: string;
     rango: string;
-    estado: 'disponible' | 'activo' | 'ausente';
+    estado: 'disponible' | 'activo' | 'ausente' | 'inactivo';
     foto?: string;
     puestoId?: string;
     fechaIngreso: string;
@@ -157,8 +157,7 @@ export const useVigilanteStore = create<VigilanteState>()(
                     const { count, error: countErr } = await supabase
                         .from('vigilantes')
                         .select('*', { count: 'exact', head: true })
-                        .eq('empresa_id', currentEmpresaId)
-                        .neq('estado', 'inactivo');
+                        .eq('empresa_id', currentEmpresaId);
 
                     if (countErr) throw countErr;
                     
@@ -172,7 +171,6 @@ export const useVigilanteStore = create<VigilanteState>()(
                                 .from('vigilantes')
                                 .select('*')
                                 .eq('empresa_id', currentEmpresaId)
-                                .neq('estado', 'inactivo')
                                 .range(from, from + BATCH - 1)
                         );
                     }
@@ -430,7 +428,9 @@ export const useVigilanteStore = create<VigilanteState>()(
 
                 // Optimistic
                 set((state) => ({
-                    vigilantes: state.vigilantes.filter((v) => v.id !== id)
+                    vigilantes: state.vigilantes.map((v) =>
+                        v.id === id ? { ...v, estado: 'inactivo' as const } : v
+                    )
                 }));
 
                 if (vigilante?.dbId) {

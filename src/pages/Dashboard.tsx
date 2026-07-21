@@ -32,9 +32,10 @@ const Dashboard = () => {
     // ─── STATS OPTIMIZACIÓN CRÍTICA ───────────────────────────────────────────────
     const S = useMemo(() => {
         let vActivos = 0, vDisp = 0, vAusentes = 0, vConDesc = 0, vVacas = 0;
-        const vTotal = vigilantes.length;
+        const activeVigilantes = vigilantes.filter(v => v.estado !== 'inactivo');
+        const vTotal = activeVigilantes.length;
         
-        vigilantes.forEach(v => {
+        activeVigilantes.forEach(v => {
             if (v.estado === 'activo') vActivos++;
             else if (v.estado === 'disponible') vDisp++;
             else if (v.estado === 'ausente') vAusentes++;
@@ -98,8 +99,10 @@ const Dashboard = () => {
     // Filtered & Paginated Table Data
     const filteredVigilantes = useMemo(() => {
         const q = tableSearch.toLowerCase();
-        return vigilantes.filter(v =>
-            !q || v.nombre.toLowerCase().includes(q) || v.id.toLowerCase().includes(q) || (v.especialidad||'').toLowerCase().includes(q)
+        return vigilantes.filter(v => 
+            v.estado !== 'inactivo' && (
+                !q || v.nombre.toLowerCase().includes(q) || v.id.toLowerCase().includes(q) || (v.especialidad||'').toLowerCase().includes(q)
+            )
         );
     }, [vigilantes, tableSearch]);
 
