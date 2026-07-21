@@ -90,41 +90,41 @@ const GuardModal = ({ isOpen, onClose }: GuardModalProps) => {
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"></div>
 
             <div
-                className="relative w-full max-w-lg bg-[#0b1424] border border-white/10 rounded-[28px] shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-300 max-h-[90vh] flex flex-col"
+                className="relative w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 fade-in duration-150 max-h-[90vh] flex flex-col"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header - Fixed */}
-                <div className="bg-gradient-to-r from-primary/15 to-transparent px-8 py-6 flex items-center justify-between border-b border-white/5 shrink-0">
-                    <div className="flex items-center gap-4">
-                        <div className="size-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary border border-primary/20">
-                            <span className="material-symbols-outlined text-2xl notranslate" translate="no">person_add</span>
+                <div className="bg-slate-50 px-6 py-4 flex items-center justify-between border-b border-slate-200 shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+                            <span className="material-symbols-outlined text-xl notranslate" translate="no">person_add</span>
                         </div>
                         <div>
-                            <h4 className="text-lg font-bold text-white uppercase tracking-tight">Nueva <span className="text-primary">Ficha</span></h4>
-                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">Registro en Tablero Operativo</p>
+                            <h4 className="text-base font-bold text-slate-900 uppercase tracking-tight">Nueva <span className="text-primary">Ficha</span></h4>
+                            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Registro en Tablero Operativo</p>
                         </div>
                     </div>
                     <button
                         type="button"
                         onClick={handleClose}
-                        className="size-10 rounded-full flex items-center justify-center hover:bg-white/10 text-slate-400 hover:text-white transition-all active:scale-90"
+                        className="size-8 rounded-lg flex items-center justify-center bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-all border border-slate-200"
                     >
-                        <span className="material-symbols-outlined notranslate" translate="no">close</span>
+                        <span className="material-symbols-outlined text-[16px] notranslate" translate="no">close</span>
                     </button>
                 </div>
 
                 {/* Form - Body is scrollable, Footer is fixed */}
-                <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden" noValidate>
+                <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden bg-white" noValidate>
                     {/* Scrollable Body */}
-                    <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-5">
+                    <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-4">
                         {/* Code Preview Banner */}
-                        <div className="bg-black/30 border border-primary/20 rounded-2xl px-5 py-3 flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Codigo TACTICO Asignado</span>
-                            <span className="font-mono text-primary font-bold text-lg tracking-widest">{formattedPreview}</span>
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 flex items-center justify-between shadow-xs">
+                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Código TÁCTICO Asignado</span>
+                            <span className="font-mono text-primary font-bold text-base tracking-wider">{formattedPreview}</span>
                         </div>
 
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">
+                        <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider ml-1">
                                 Nombre Completo <span className="text-danger">*</span>
                             </label>
                             <input
@@ -132,15 +132,15 @@ const GuardModal = ({ isOpen, onClose }: GuardModalProps) => {
                                 autoFocus
                                 value={nombre}
                                 onChange={(e) => setNombre(e.target.value)}
-                                className="w-full bg-[#0d1a2e] border border-white/8 rounded-xl py-3.5 px-5 text-sm text-white focus:border-primary/60 focus:ring-1 focus:ring-primary/20 outline-none transition-all placeholder:text-slate-700"
+                                className="w-full bg-white border border-slate-200 rounded-lg py-2.5 px-3.5 text-[12px] font-semibold text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-slate-400 shadow-xs"
                                 placeholder="Ej: Juan Carlos Perez"
                             />
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">
-                                    Numero de Cedula <span className="text-danger">*</span>
+                            <div className="space-y-1">
+                                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider ml-1">
+                                    Número de Cédula <span className="text-danger">*</span>
                                 </label>
                                 <input
                                     required
@@ -148,31 +148,31 @@ const GuardModal = ({ isOpen, onClose }: GuardModalProps) => {
                                     inputMode="numeric"
                                     value={cedula}
                                     onChange={(e) => setCedula(e.target.value.replace(/[^0-9.]/g, ''))}
-                                    className="w-full bg-[#0d1a2e] border border-white/8 rounded-xl py-3.5 px-4 text-sm text-white focus:border-primary/60 focus:ring-1 focus:ring-primary/20 outline-none transition-all placeholder:text-slate-700 font-mono"
+                                    className="w-full bg-white border border-slate-200 rounded-lg py-2.5 px-3.5 text-[12px] font-semibold text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-slate-400 font-mono shadow-xs"
                                     placeholder="Sin puntos ni comas"
                                 />
                             </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Rango</label>
+                            <div className="space-y-1">
+                                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider ml-1">Rango</label>
                                 <div className="relative">
                                     <select
                                         value={rango}
                                         onChange={(e) => setRango(e.target.value)}
-                                        className="w-full bg-[#0d1a2e] border border-white/8 rounded-xl py-3.5 px-4 text-sm text-white appearance-none outline-none focus:border-primary/50"
+                                        className="w-full bg-white border border-slate-200 rounded-lg py-2.5 px-3.5 text-[12px] font-semibold text-slate-900 appearance-none outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-xs"
                                     >
                                         {RANGOS.map(r => (
                                             <option key={r.value} value={r.value}>{r.label}</option>
                                         ))}
                                     </select>
-                                    <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none notranslate text-sm" translate="no">expand_more</span>
+                                    <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none notranslate text-sm" translate="no">expand_more</span>
                                 </div>
                             </div>
                         </div>
 
-                        {/* ── Modulo de Registro ── */}
-                        <div className="bg-[#111c44] border border-primary/20 rounded-[24px] p-5 space-y-4 shadow-2xl">
-                            <p className="text-[11px] font-black text-white uppercase tracking-widest flex items-center gap-2">
-                                <span className="material-symbols-outlined text-primary text-lg notranslate" translate="no">hub</span>
+                        {/* ── Módulo de Registro ── */}
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs">
+                            <p className="text-[10px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-primary text-base notranslate" translate="no">hub</span>
                                 Ubicación Operativa Inicial
                             </p>
 
@@ -180,61 +180,61 @@ const GuardModal = ({ isOpen, onClose }: GuardModalProps) => {
                                 <button
                                     type="button"
                                     onClick={() => { setModulo('activo'); setAsignarPuesto(false); }}
-                                    className={`py-3 px-4 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all flex flex-col items-center gap-1.5 border-2 ${modulo === 'activo' ? 'bg-primary/10 border-primary text-primary' : 'border-white/10 text-slate-500 hover:border-white/20'}`}
+                                    className={`py-2.5 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 border ${modulo === 'activo' ? 'bg-primary/10 border-primary text-primary shadow-xs' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'}`}
                                 >
-                                    <span className="material-symbols-outlined text-[20px] notranslate" translate="no">local_police</span>
+                                    <span className="material-symbols-outlined text-[18px] notranslate" translate="no">local_police</span>
                                     Fuerza Operativa
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => { setModulo('disponible'); setAsignarPuesto(false); }}
-                                    className={`py-3 px-4 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all flex flex-col items-center gap-1.5 border-2 ${modulo === 'disponible' ? 'bg-success/10 border-success text-success' : 'border-white/10 text-slate-500 hover:border-white/20'}`}
+                                    className={`py-2.5 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 border ${modulo === 'disponible' ? 'bg-emerald-50 border-emerald-300 text-emerald-700 shadow-xs' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'}`}
                                 >
-                                    <span className="material-symbols-outlined text-[20px] notranslate" translate="no">group_add</span>
+                                    <span className="material-symbols-outlined text-[18px] notranslate" translate="no">group_add</span>
                                     En Disponibilidad
                                 </button>
                             </div>
 
-                            {/* ── SECCIÓN OPCIONAL DE ASIGNACIÓN (Simplificada) ── */}
-                            <div className="pt-2">
+                            {/* ── SECCIÓN OPCIONAL DE ASIGNACIÓN ── */}
+                            <div className="pt-1">
                                 <button
                                     type="button"
                                     onClick={() => setAsignarPuesto(!asignarPuesto)}
-                                    className={`w-full py-2.5 px-4 rounded-xl flex items-center justify-between border transition-all ${asignarPuesto ? 'bg-primary/10 border-primary/40 text-primary' : 'bg-white/2 border-white/5 text-slate-500 hover:bg-white/5'}`}
+                                    className={`w-full py-2 px-3 rounded-lg flex items-center justify-between border transition-all text-[9px] font-bold uppercase tracking-wider ${asignarPuesto ? 'bg-primary/10 border-primary text-primary' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'}`}
                                 >
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1.5">
                                         <span className="material-symbols-outlined text-sm">{asignarPuesto ? 'expand_more' : 'chevron_right'}</span>
-                                        <span className="text-[9px] font-black uppercase tracking-widest">Asignación Rápida a Puesto (Opcional)</span>
+                                        <span>Asignación Rápida a Puesto (Opcional)</span>
                                     </div>
-                                    {asignarPuesto && <span className="text-[9px] bg-primary text-white px-2 py-0.5 rounded-full font-bold">Activo</span>}
+                                    {asignarPuesto && <span className="text-[8px] bg-primary text-white px-2 py-0.5 rounded font-bold">Activo</span>}
                                 </button>
 
                                 {asignarPuesto && (
-                                    <div className="mt-3 p-4 bg-black/40 rounded-2xl border border-white/5 space-y-4 animate-in slide-in-from-top-1 duration-200">
+                                    <div className="mt-2.5 p-3 bg-white rounded-lg border border-slate-200 space-y-3 shadow-xs">
                                         <div className="relative">
                                             <select
                                                 value={puestoId}
                                                 onChange={(e) => setPuestoId(e.target.value)}
-                                                className="w-full bg-[#0d1a2e] border border-white/8 rounded-xl py-3 px-5 text-sm text-white appearance-none outline-none focus:border-primary/50"
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-[11px] font-semibold text-slate-900 appearance-none outline-none focus:border-primary"
                                             >
                                                 <option value="">Seleccione el puesto destino...</option>
                                                 {puestos.map(p => (
                                                     <option key={p.id} value={p.id}>{p.id} - {p.nombre}</option>
                                                 ))}
                                             </select>
-                                            <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none notranslate" translate="no">expand_more</span>
+                                            <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none notranslate text-xs" translate="no">expand_more</span>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-2 gap-2">
                                             <div className="space-y-1">
-                                                <label className="text-[9px] font-bold text-slate-500 uppercase ml-1">Entrada</label>
+                                                <label className="text-[8px] font-bold text-slate-500 uppercase ml-1">Entrada</label>
                                                 <MilitaryTimeInput value={horaInicio} onChange={val => setHoraInicio(val)}
-                                                    className="w-full bg-[#0d1a2e] border border-white/8 rounded-xl py-2.5 px-3 text-xs text-white"
+                                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-2.5 text-xs text-slate-900"
                                                 />
                                             </div>
                                             <div className="space-y-1">
-                                                <label className="text-[9px] font-bold text-slate-500 uppercase ml-1">Salida</label>
+                                                <label className="text-[8px] font-bold text-slate-500 uppercase ml-1">Salida</label>
                                                 <MilitaryTimeInput value={horaFin} onChange={val => setHoraFin(val)}
-                                                    className="w-full bg-[#0d1a2e] border border-white/8 rounded-xl py-2.5 px-3 text-xs text-white"
+                                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-2.5 text-xs text-slate-900"
                                                 />
                                             </div>
                                         </div>
@@ -243,12 +243,12 @@ const GuardModal = ({ isOpen, onClose }: GuardModalProps) => {
                             </div>
 
                             {modulo === 'disponible' && (
-                                <div className="space-y-1.5 animate-in fade-in duration-300">
-                                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest ml-1">Nota Adicional / Estado</label>
+                                <div className="space-y-1 animate-in fade-in duration-150">
+                                    <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider ml-1">Nota Adicional / Estado</label>
                                     <textarea
                                         value={justificacion}
                                         onChange={e => setJustificacion(e.target.value)}
-                                        className="w-full bg-[#0d2020] border border-white/5 rounded-xl py-3 px-4 text-xs text-white outline-none focus:border-success/30 h-16 resize-none"
+                                        className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs text-slate-900 outline-none focus:border-primary h-16 resize-none placeholder:text-slate-400 shadow-xs"
                                         placeholder="Motivo de disponibilidad (Ej: Turno pendiente, Licencia...)"
                                     />
                                 </div>
@@ -257,11 +257,11 @@ const GuardModal = ({ isOpen, onClose }: GuardModalProps) => {
                     </div>
 
                     {/* Footer - Fixed */}
-                    <div className="p-8 border-t border-white/5 bg-black/20 flex gap-4 shrink-0">
+                    <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex gap-3 shrink-0">
                         <button
                             type="button"
                             onClick={handleClose}
-                            className="flex-1 py-3.5 bg-white/3 text-slate-400 font-bold rounded-2xl uppercase tracking-widest hover:bg-white/8 active:scale-95 transition-all text-[10px] border border-white/5"
+                            className="flex-1 py-2.5 bg-white text-slate-600 hover:text-slate-900 font-bold rounded-xl uppercase tracking-wider active:scale-95 transition-all text-[10px] border border-slate-200 shadow-xs"
                         >
                             Cancelar
                         </button>

@@ -101,11 +101,11 @@ const GuardDetailModal = ({ isOpen, onClose, guard }: GuardDetailModalProps) => 
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"></div>
 
             <div
-                className="relative w-full max-w-2xl bg-[#0b1424] border border-white/10 rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 max-h-[92vh] flex flex-col"
+                className="relative w-full max-w-2xl bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-150 max-h-[92vh] flex flex-col"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="bg-gradient-to-r from-primary/15 to-transparent px-8 py-5 flex items-center justify-between border-b border-white/5 flex-shrink-0">
+                <div className="bg-slate-50 px-6 py-4 flex items-center justify-between border-b border-slate-200 flex-shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="size-14 rounded-2xl overflow-hidden border-2 border-primary/30">
                             {guard.foto
@@ -117,7 +117,7 @@ const GuardDetailModal = ({ isOpen, onClose, guard }: GuardDetailModalProps) => 
                         </div>
                         <div>
                             <div className="flex items-center gap-2">
-                                <h4 className="text-base font-black text-white uppercase tracking-tight">{guard.nombre}</h4>
+                                <h4 className="text-base font-black text-slate-900 uppercase tracking-tight">{guard.nombre}</h4>
                                 <button 
                                     onClick={() => {
                                         setEditData({

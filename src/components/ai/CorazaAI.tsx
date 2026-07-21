@@ -120,70 +120,61 @@ export const CorazaAI = () => {
         <div className="fixed bottom-8 right-6 z-[100] flex flex-col items-end gap-0">
             {/* AI Chat Panel — only mounted when open so it never blocks clicks */}
             {isOpen && (
-            <div className="fixed bottom-[88px] right-4 sm:right-6 w-[calc(100vw-32px)] sm:w-[420px] h-[calc(100vh-140px)] sm:h-[600px] horizon-card border-none shadow-[0_30px_90px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden origin-bottom-right animate-in slide-in-from-bottom-4 fade-in duration-300">
+            <div className="fixed bottom-[88px] right-4 sm:right-6 w-[calc(100vw-32px)] sm:w-[420px] h-[calc(100vh-140px)] sm:h-[600px] bg-white border border-slate-200 shadow-2xl rounded-2xl flex flex-col overflow-hidden origin-bottom-right animate-in slide-in-from-bottom-4 fade-in duration-200">
                 {/* Header Section */}
-                <div className="bg-[#0b1437]/90 p-5 flex items-center justify-between shrink-0 relative overflow-hidden border-b border-white/10 backdrop-blur-md">
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-transparent to-primary/5"></div>
-                    {/* HUD Corner Accents */}
-                    <div className="absolute top-0 left-0 size-4 border-t-2 border-l-2 border-primary/40 rounded-tl-sm"></div>
-                    <div className="absolute top-0 right-0 size-4 border-t-2 border-r-2 border-primary/40 rounded-tr-sm"></div>
-
-                    <div className="flex items-center gap-4 relative z-10">
+                <div className="bg-slate-50 p-4 flex items-center justify-between shrink-0 relative overflow-hidden border-b border-slate-200">
+                    <div className="flex items-center gap-3 relative z-10">
                         <div className="relative group/avatar">
-                            <div className="size-14 rounded-full p-[2px] bg-gradient-to-tr from-primary via-primary-light to-transparent animate-spin-slow shadow-[0_0_20px_rgba(67,24,255,0.3)]">
-                                <div className="w-full h-full rounded-full bg-slate-900 overflow-hidden border border-white/10">
+                            <div className="size-11 rounded-full p-[2px] bg-primary border border-primary/30 shadow-xs">
+                                <div className="w-full h-full rounded-full bg-slate-100 overflow-hidden">
                                     <img 
                                         src={corazaiAvatar} 
                                         alt="CorazAI" 
-                                        className="w-full h-full object-cover object-top scale-[1.35] origin-top brightness-110" 
+                                        className="w-full h-full object-cover object-top scale-[1.35] origin-top" 
                                     />
                                 </div>
                             </div>
-                            <div className="absolute -bottom-0.5 -right-0.5 size-4 bg-[#0b1437] rounded-full flex items-center justify-center border border-white/10">
-                                <span className="size-2.5 rounded-full bg-success animate-pulse shadow-[0_0_8px_rgba(48,209,88,0.6)]"></span>
+                            <div className="absolute -bottom-0.5 -right-0.5 size-3.5 bg-white rounded-full flex items-center justify-center border border-slate-200">
+                                <span className="size-2 rounded-full bg-emerald-500 animate-pulse"></span>
                             </div>
                         </div>
                         <div>
-                            <h3 className="text-white font-black text-[16px] uppercase tracking-wider leading-none mb-1.5 flex items-center gap-2">
+                            <h3 className="text-slate-900 font-bold text-[14px] uppercase tracking-wide leading-none mb-1 flex items-center gap-1.5">
                                 CorazAI
-                                <span className="px-1.5 py-0.5 rounded-md bg-primary/20 border border-primary/30 text-[8px] text-primary-light font-black tracking-tighter">V4.0 PRO</span>
+                                <span className="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-[8px] text-primary font-bold">V4.0 PRO</span>
                             </h3>
-                            <div className="flex items-center gap-2 text-white/50 font-bold text-[9px] uppercase tracking-widest">
-                                <span className="flex gap-0.5">
-                                    <span className="size-1 bg-primary/40 rounded-full animate-bounce"></span>
-                                    <span className="size-1 bg-primary/60 rounded-full animate-bounce [animation-delay:0.1s]"></span>
-                                    <span className="size-1 bg-primary/40 rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                                </span>
-                                Sistema de Supervision Activo
+                            <div className="flex items-center gap-1.5 text-slate-500 font-bold text-[8.5px] uppercase tracking-wider">
+                                <span className="size-1.5 bg-emerald-500 rounded-full"></span>
+                                Asistente Operativo
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 relative z-10">
+                    <div className="flex items-center gap-1.5 relative z-10">
                         <a 
                             href="https://wa.me/573113836939" 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="px-3 h-8 bg-[#25D366]/20 hover:bg-[#25D366]/30 text-[#25D366] rounded-lg text-[9px] font-black uppercase tracking-widest border border-[#25D366]/20 transition-all flex items-center gap-1.5 active:scale-95"
+                            className="px-2.5 h-7 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-md text-[8.5px] font-bold uppercase tracking-wider border border-emerald-200 transition-all flex items-center gap-1 shadow-xs"
                         >
-                            <span className="material-symbols-outlined text-[14px]">chat</span>
+                            <span className="material-symbols-outlined text-[13px]">chat</span>
                             WhatsApp
                         </a>
                         <button
                             onClick={clearChat}
-                            className="px-3 h-8 bg-white/10 hover:bg-white/20 text-white rounded-lg text-[9px] font-black uppercase tracking-widest border border-white/10 transition-all flex items-center gap-1.5 active:scale-95"
+                            className="px-2.5 h-7 bg-white hover:bg-slate-100 text-slate-700 rounded-md text-[8.5px] font-bold uppercase tracking-wider border border-slate-200 transition-all flex items-center gap-1 shadow-xs"
                         >
-                            <span className="material-symbols-outlined text-[14px]">add_comment</span>
+                            <span className="material-symbols-outlined text-[13px]">add_comment</span>
                             Nuevo
                         </button>
-                        <button onClick={toggleOpen} className="size-9 rounded-xl bg-black/20 text-white/70 hover:text-white hover:bg-black/40 transition-all flex items-center justify-center border border-white/5 active:scale-90">
-                            <span className="material-symbols-outlined text-[20px]">expand_more</span>
+                        <button onClick={toggleOpen} className="size-7 rounded-md bg-white text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-all flex items-center justify-center border border-slate-200 shadow-xs">
+                            <span className="material-symbols-outlined text-[18px]">expand_more</span>
                         </button>
                     </div>
                 </div>
 
                 {/* Messages Body */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-[#0D1117]/95 backdrop-blur-3xl relative">
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-slate-50 relative">
                     <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:30px_30px] opacity-20 [mask-image:radial-gradient(ellipse_at_center,black,transparent_80%)]"></div>
 
                     {chatActions.length === 0 && (

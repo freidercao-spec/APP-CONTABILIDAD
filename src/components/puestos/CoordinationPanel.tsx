@@ -215,18 +215,17 @@ export const CoordinationPanel = ({
   }, [uniqueVids, originStaffVids, hideBusyGuards, freshCProg, localBusyVids, displayCount]);
 
   return (
-    <div className="mt-10 bg-[#0f172a]/80 backdrop-blur-xl rounded-[48px] border border-white/10 overflow-hidden shadow-[0_32px_128px_rgba(0,0,0,0.6)] relative">
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent"></div>
+    <div className="mt-8 bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm relative">
       
-      {/* ?? HEADER T?CTICO PREMIUM ?????????????????????????????????????????? */}
-      <div className="px-10 py-8 border-b border-white/5 bg-white/[0.01] flex flex-wrap items-center justify-between gap-6">
-        <div className="flex items-center gap-6">
-          <div className="size-16 rounded-[24px] bg-indigo-600/10 border border-indigo-500/30 flex items-center justify-center">
-            <span className="material-symbols-outlined text-indigo-400 text-[32px]">hub</span>
+      {/* HEADER TÁCTICO POS */}
+      <div className="px-6 py-5 border-b border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="size-11 rounded-xl bg-primary-soft border border-primary/20 flex items-center justify-center">
+            <span className="material-symbols-outlined text-primary text-[24px]">hub</span>
           </div>
           <div>
-            <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">
-              CENTRO <span className="text-indigo-500 not-italic">DE COORDINACIÓN</span>
+            <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight">
+              CENTRO <span className="text-primary">DE COORDINACIÓN</span>
             </h3>
             <div className="flex items-center gap-3 mt-1.5">
                <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded text-[9px] font-black text-emerald-400 uppercase tracking-widest">

@@ -38,39 +38,39 @@ export const AddTurnoForm: React.FC<Props> = ({
   };
 
   return (
-    <div className="space-y-4 bg-white/5 p-4 rounded-2xl border border-white/5">
+    <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
       <div>
-        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Identificador del Turno</label>
+        <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Identificador del Turno</label>
         <input
           type="text"
           value={nombre}
           onChange={e => setNombre(e.target.value)}
           placeholder="Ej: Turno Especial, Refuerzo..."
-          className="w-full h-10 px-3 bg-slate-900 border border-white/10 rounded-xl text-[11px] font-bold text-white outline-none focus:border-violet-400 placeholder-slate-700 transition-all"
+          className="w-full h-9 px-3 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-900 outline-none focus:border-primary placeholder:text-slate-400 shadow-xs transition-all"
         />
       </div>
 
       <div className="flex gap-3">
         <div className="flex-1">
-          <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Hora Inicio</label>
+          <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Hora Inicio</label>
           <input type="time" value={inicio} onChange={e => setInicio(e.target.value)}
-            className="w-full h-10 px-3 bg-slate-900 border border-white/10 rounded-xl text-[11px] text-white outline-none focus:border-violet-400 transition-all" />
+            className="w-full h-9 px-3 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-900 outline-none focus:border-primary shadow-xs transition-all" />
         </div>
         <div className="flex-1">
-          <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Hora Fin</label>
+          <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Hora Fin</label>
           <input type="time" value={fin} onChange={e => setFin(e.target.value)}
-            className="w-full h-10 px-3 bg-slate-900 border border-white/10 rounded-xl text-[11px] text-white outline-none focus:border-violet-400 transition-all" />
+            className="w-full h-9 px-3 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-900 outline-none focus:border-primary shadow-xs transition-all" />
         </div>
       </div>
 
       <div>
-        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Color Distintivo</label>
+        <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Color Distintivo</label>
         <div className="flex flex-wrap gap-2">
           {PRESET_COLORS.map(c => (
             <button
               key={c.value}
               onClick={() => setColor(c.value)}
-              className={`size-7 rounded-lg border-2 transition-all ${color === c.value ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'}`}
+              className={`size-6 rounded-md border-2 transition-all ${color === c.value ? 'border-slate-800 scale-110 shadow-xs' : 'border-transparent opacity-70 hover:opacity-100'}`}
               style={{ backgroundColor: c.value }}
               title={c.name}
             />

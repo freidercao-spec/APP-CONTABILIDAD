@@ -99,53 +99,50 @@ const Inteligencia = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Tactical Feed (65%) */}
-                <div className="lg:col-span-8 flex flex-col h-[750px] horizon-card border-none bg-slate-950 shadow-2xl relative overflow-hidden">
-                    {/* Interior tactical grid effect */}
-                    <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] opacity-20"></div>
-
-                    <div className="p-8 flex items-center justify-between gap-4 border-b border-white/5 relative z-10 bg-slate-950/50 backdrop-blur-md">
-                        <div className="flex items-center gap-4">
-                            <h2 className="text-sm font-black text-white uppercase tracking-[0.3em]">Registro de Actividad Tactica</h2>
-                            <span className="px-3 py-1 rounded-full bg-primary/20 text-primary-light text-[10px] font-black border border-primary/20">{actions.length} EVENTOS</span>
+                <div className="lg:col-span-8 flex flex-col h-[750px] bg-white border border-slate-200 rounded-2xl shadow-sm relative overflow-hidden">
+                    <div className="p-6 flex items-center justify-between gap-4 border-b border-slate-200 relative z-10 bg-slate-50">
+                        <div className="flex items-center gap-3">
+                            <h2 className="text-xs font-bold text-slate-900 uppercase tracking-widest">Registro de Actividad Táctica</h2>
+                            <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-bold border border-primary/20">{actions.length} EVENTOS</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="size-2 rounded-full bg-success animate-pulse"></span>
-                            <span className="text-[10px] font-bold text-success/80 uppercase tracking-widest">Enlace Estable</span>
+                            <span className="text-[9px] font-bold text-success uppercase tracking-wider">Enlace Estable</span>
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-6 relative z-10">
+                    <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-6 relative z-10 bg-white">
                         {/* Timeline vertical line */}
-                        <div className="absolute left-[39px] top-8 bottom-8 w-px bg-gradient-to-b from-primary via-primary/20 to-transparent opacity-30"></div>
+                        <div className="absolute left-[31px] top-6 bottom-6 w-px bg-slate-200"></div>
 
                         {actions.map((action, idx) => (
-                            <div key={action.id} className="relative pl-14 group animate-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${idx * 50}ms` }}>
+                            <div key={action.id} className="relative pl-12 group animate-in slide-in-from-bottom-4 duration-300" style={{ animationDelay: `${idx * 50}ms` }}>
                                 {/* Timeline Dot */}
-                                <div className={`absolute left-[33px] top-6 size-3.5 rounded-full border-4 border-slate-950 z-10 transition-transform group-hover:scale-125 ${action.sender === 'user' ? 'bg-primary shadow-[0_0_15px_rgba(67,24,255,0.6)]' :
-                                    action.priority === 'high' ? 'bg-danger shadow-[0_0_15px_rgba(238,93,80,0.6)] pulse-danger' :
-                                        action.priority === 'medium' ? 'bg-warning shadow-[0_0_15px_rgba(255,181,71,0.6)]' :
-                                            'bg-success shadow-[0_0_15px_rgba(5,205,153,0.6)]'
+                                <div className={`absolute left-[25px] top-5 size-3 rounded-full border-2 border-white z-10 transition-transform group-hover:scale-125 ${action.sender === 'user' ? 'bg-primary' :
+                                    action.priority === 'high' ? 'bg-danger' :
+                                        action.priority === 'medium' ? 'bg-warning' :
+                                            'bg-success'
                                     }`}></div>
 
-                                <div className={`p-6 rounded-[24px] border border-white/5 transition-all group-hover:border-white/10 ${action.sender === 'user' ? 'bg-white/5' : 'bg-white/[0.03]'
-                                    } shadow-xl`}>
-                                    <div className="flex items-start justify-between gap-4 mb-4">
-                                        <div className="flex items-center gap-3">
-                                            <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${getPriorityColor(action.priority)}`}>
+                                <div className={`p-4 rounded-xl border border-slate-200 transition-all ${action.sender === 'user' ? 'bg-slate-50' : 'bg-white'
+                                    } shadow-xs`}>
+                                    <div className="flex items-start justify-between gap-4 mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border ${getPriorityColor(action.priority)}`}>
                                                 {action.sender === 'user' ? 'OPERADOR' : 'CORAZA AI'}
                                             </span>
-                                            <span className="text-[10px] font-mono font-bold text-slate-500 uppercase">
+                                            <span className="text-[9px] font-mono font-bold text-slate-500 uppercase">
                                                 T+: {new Date(action.timestamp).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                                             </span>
                                         </div>
                                         {action.type === 'notification' && (
-                                            <span className="material-symbols-outlined text-[18px] text-primary animate-pulse">sensors</span>
+                                            <span className="material-symbols-outlined text-[16px] text-primary animate-pulse">sensors</span>
                                         )}
                                     </div>
 
-                                    <div className={`text-[14px] leading-relaxed tracking-wide ${action.sender === 'user' ? 'text-slate-400 font-medium italic' : 'text-slate-100 font-bold'}`}>
+                                    <div className={`text-[13px] leading-relaxed tracking-wide ${action.sender === 'user' ? 'text-slate-600 font-medium italic' : 'text-slate-800 font-bold'}`}>
                                         <FormattedText text={action.text} />
                                     </div>
 

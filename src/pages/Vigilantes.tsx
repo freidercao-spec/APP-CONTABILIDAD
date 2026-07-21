@@ -108,46 +108,46 @@ const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
                     <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Control de <span className="text-primary">Efectivos</span></h3>
                 </div>
 
-                {/* Controls Section (Tactical Dark Panel) */}
-                <div className="flex flex-col md:flex-row items-center gap-2 bg-[#111c44] p-3 rounded-[32px] border border-[#1b254b] shadow-[0_20px_50px_-15px_rgba(17,28,68,0.5)]">
+                {/* Controls Section (Clean Light POS Panel) */}
+                <div className="flex flex-col md:flex-row items-center gap-3 bg-white p-2.5 rounded-2xl border border-slate-200 shadow-sm">
                     {/* Search */}
                     <div className="relative group w-full md:w-auto">
-                        <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 text-[20px] group-focus-within:text-white transition-colors notranslate pointer-events-none" translate="no">search</span>
+                        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] group-focus-within:text-primary transition-colors notranslate pointer-events-none" translate="no">search</span>
                         <input
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
-                            className="bg-black/20 border border-white/5 rounded-[24px] py-4 pl-14 pr-6 text-[13px] font-bold focus:outline-none focus:bg-white/10 focus:border-primary/50 focus:ring-4 focus:ring-primary/20 placeholder:text-slate-500 text-white w-full md:w-[280px] transition-all"
+                            className="bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-11 pr-4 text-[12px] font-bold focus:outline-none focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400 text-slate-900 w-full md:w-[260px] transition-all shadow-xs"
                             placeholder="Buscar operativo o ID..."
                         />
                     </div>
 
-                    <div className="w-px h-8 bg-white/10 hidden md:block mx-2"></div>
+                    <div className="w-px h-6 bg-slate-200 hidden md:block mx-1"></div>
 
                     {/* Filter Tabs */}
-                    <div className="bg-black/20 p-1.5 rounded-[24px] flex w-full md:w-auto border border-white/5">
+                    <div className="bg-slate-100 p-1 rounded-xl flex w-full md:w-auto border border-slate-200">
                         {(['activos', 'reserva'] as const).map(tab => (
                             <button
                                 key={tab}
                                 type="button"
                                 onClick={() => setActiveTab(tab)}
-                                className={`flex-1 md:flex-none px-6 py-3 text-[11px] font-black rounded-xl transition-all uppercase tracking-widest select-none flex items-center justify-center gap-2.5 ${activeTab === tab ? 'bg-primary text-white shadow-lg shadow-primary/30 ring-1 ring-white/10' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                                className={`flex-1 md:flex-none px-4 py-2 text-[10px] font-bold rounded-lg transition-all uppercase tracking-wider select-none flex items-center justify-center gap-2 ${activeTab === tab ? 'bg-white text-slate-900 shadow-xs border border-slate-200' : 'text-slate-600 hover:text-slate-900'}`}
                             >
-                                <span className={`size-1.5 rounded-full ${tab === 'activos' ? 'bg-success' : 'bg-warning'} ${activeTab === tab ? 'animate-pulse shadow-sm' : 'opacity-40'}`}></span>
+                                <span className={`size-1.5 rounded-full ${tab === 'activos' ? 'bg-success' : 'bg-warning'} ${activeTab === tab ? 'animate-pulse' : 'opacity-50'}`}></span>
                                 {tab === 'activos' ? `En Campo (${countByStatus('activo')})` :
                                     `Disponibles (${countByStatus('disponible')})`}
                             </button>
                         ))}
                     </div>
 
-                    <div className="w-px h-8 bg-white/10 hidden md:block mx-2"></div>
+                    <div className="w-px h-6 bg-slate-200 hidden md:block mx-1"></div>
 
                     {/* Add Button */}
                     <button
                         type="button"
                         onClick={() => setIsModalOpen(true)}
-                        className="bg-primary hover:bg-primary-light text-white flex items-center justify-center gap-3 h-[52px] px-8 rounded-[24px] select-none shadow-[0_10px_25px_rgba(67,24,255,0.4)] transition-all active:scale-95 w-full md:w-auto border border-white/10 font-bold text-[13px]"
+                        className="bg-primary hover:bg-primary-dark text-white flex items-center justify-center gap-2 h-[42px] px-6 rounded-xl select-none shadow-sm transition-all active:scale-95 w-full md:w-auto font-bold text-[11px] uppercase tracking-wide"
                     >
-                        <span className="material-symbols-outlined text-[20px] notranslate" translate="no">person_add</span>
+                        <span className="material-symbols-outlined text-[18px] notranslate" translate="no">person_add</span>
                         Nuevo
                     </button>
                 </div>
