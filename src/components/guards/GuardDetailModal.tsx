@@ -5,6 +5,8 @@ import { useVigilanteStore } from '../../store/vigilanteStore';
 import { usePuestoStore } from '../../store/puestoStore';
 import { useProgramacionStore } from '../../store/programacionStore';
 import { ConfirmDialog, useConfirm } from '../ui/ConfirmDialog';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface GuardDetailModalProps {
     isOpen: boolean;
@@ -102,6 +104,127 @@ const GuardDetailModal = ({ isOpen, onClose, guard }: GuardDetailModalProps) => 
         setIsEditing(false);
     };
 
+    const exportGuardProfileToPDF = async () => {
+        try {
+            const { showTacticalToast } = await import('../../utils/tacticalToast');
+            showTacticalToast({ title: 'Generando PDF', message: 'Preparando ficha laboral...', type: 'info' });
+
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const pageW = doc.internal.pageSize.getWidth();
+
+            // Header Box
+            doc.setFillColor(15, 23, 42); 
+            doc.rect(10, 10, pageW - 20, 28, 'F');
+
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(13); doc.setFont('helvetica', 'bold');
+            doc.text('CORAZA SEGURIDAD PRIVADA CTA', 15, 19);
+
+            doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+            doc.text('NIT 901509121 | EXPERTOS EN PROTECCIÓN Y VIGILANCIA', 15, 25);
+            doc.setTextColor(148, 163, 184);
+            doc.text(`FICHA LABORAL INDIVIDUAL · EMITIDO: ${new Date().toLocaleDateString('es-CO')} ${new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })}`, 15, 31);
+
+            // Basic Info Section
+            doc.setTextColor(15, 23, 42);
+            doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+            doc.text('INFORMACIÓN GENERAL DEL EFECTIVO', 10, 48);
+
+            doc.setDrawColor(226, 232, 240);
+            doc.setLineWidth(0.3);
+            doc.line(10, 50, pageW - 10, 50);
+
+            const infoRows = [
+                ['Nombre Completo:', guard.nombre.toUpperCase(), 'Código Táctico:', guard.id],
+                ['Cédula Ciudadana:', guard.cedula || '-', 'Rango / Grado:', guard.rango.toUpperCase()],
+                ['Estado Operativo:', guard.estado.toUpperCase(), 'Fecha Incorporación:', new Date(guard.fechaIngreso).toLocaleDateString('es-CO')],
+                ['Teléfono Contacto:', guard.telefono || '-', 'Correo Electrónico:', (guard.email || '-').toLowerCase()],
+                ['Especialidad:', guard.especialidad || 'Vigilancia Física', 'Puesto Asignado:', guard.puestoId ? String(guard.puestoId) : 'Sin asignar']
+            ];
+
+            autoTable(doc, {
+                startY: 53,
+                body: infoRows,
+                theme: 'plain',
+                styles: { fontSize: 8, cellPadding: 1.5, font: 'helvetica' },
+                columnStyles: {
+                    0: { fontStyle: 'bold', textColor: [100, 116, 139], width: 35 },
+                    1: { fontStyle: 'bold', textColor: [15, 23, 42], width: 60 },
+                    2: { fontStyle: 'bold', textColor: [100, 116, 139], width: 35 },
+                    3: { fontStyle: 'bold', textColor: [15, 23, 42], width: 60 }
+                }
+            });
+
+            // Historial de Descargos
+            const lastY = (doc as any).lastAutoTable.finalY + 10;
+            doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+            doc.text('REGISTRO DE DESCARGOS Y ACCIONES DISCIPLINARIAS', 10, lastY);
+            doc.line(10, lastY + 2, pageW - 10, lastY + 2);
+
+            const descargos = guard.descargos || [];
+            if (descargos.length === 0) {
+                doc.setFontSize(8.5); doc.setFont('helvetica', 'italic');
+                doc.setTextColor(148, 163, 184);
+                doc.text('No se registran descargos activos ni resueltos en su expediente.', 12, lastY + 8);
+            } else {
+                const descRows = descargos.map(d => [
+                    new Date(d.fecha).toLocaleDateString('es-CO'),
+                    d.tipo.toUpperCase(),
+                    d.descripcion,
+                    d.estado.toUpperCase() === 'RESUELTO' ? '✓ RESUELTO' : '⚠ ACTIVO'
+                ]);
+
+                autoTable(doc, {
+                    startY: lastY + 5,
+                    head: [['Fecha', 'Tipo', 'Detalles / Justificación', 'Estado']],
+                    body: descRows,
+                    theme: 'grid',
+                    styles: { fontSize: 8, cellPadding: 2, font: 'helvetica' },
+                    headStyles: { fillColor: [225, 29, 72], textColor: [255, 255, 255], fontStyle: 'bold' },
+                    columnStyles: {
+                        0: { width: 25 },
+                        1: { width: 30, fontStyle: 'bold' },
+                        2: { halign: 'left' },
+                        3: { width: 25, fontStyle: 'bold', halign: 'center' }
+                    }
+                });
+            }
+
+            // Vacaciones
+            const lastY2 = descargos.length === 0 ? lastY + 18 : (doc as any).lastAutoTable.finalY + 10;
+            doc.setTextColor(15, 23, 42);
+            doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+            doc.text('PROGRAMACIÓN DE VACACIONES', 10, lastY2);
+            doc.line(10, lastY2 + 2, pageW - 10, lastY2 + 2);
+
+            if (guard.vacaciones) {
+                const vacRows = [[
+                    new Date(guard.vacaciones.inicio + 'T12:00:00').toLocaleDateString('es-CO', { dateStyle: 'medium' }),
+                    new Date(guard.vacaciones.fin + 'T12:00:00').toLocaleDateString('es-CO', { dateStyle: 'medium' }),
+                    guard.vacaciones.motivo || 'Vacaciones anuales de ley'
+                ]];
+                autoTable(doc, {
+                    startY: lastY2 + 5,
+                    head: [['Inicio', 'Retorno', 'Detalles / Justificación']],
+                    body: vacRows,
+                    theme: 'grid',
+                    styles: { fontSize: 8, cellPadding: 2, font: 'helvetica' },
+                    headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold' }
+                });
+            } else {
+                doc.setFontSize(8.5); doc.setFont('helvetica', 'italic');
+                doc.setTextColor(148, 163, 184);
+                doc.text('Sin vacaciones programadas actualmente.', 12, lastY2 + 8);
+            }
+
+            // Save
+            doc.save(`FICHA_CORAZA_${guard.id}_${guard.nombre.replace(/\s+/g, '_')}.pdf`);
+            showTacticalToast({ title: 'Ficha Exportada', message: 'El PDF de la ficha individual se ha descargado correctamente.', type: 'success' });
+        } catch (err) {
+            console.error('Error generating guard PDF:', err);
+        }
+    };
+
     const tabCls = (t: TabType) =>
         `flex-1 py-2 text-[10px] font-bold uppercase tracking-wider transition-all rounded-lg ${activeTab === t ? 'bg-primary text-white shadow-xs' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'}`;
 
@@ -187,6 +310,16 @@ const GuardDetailModal = ({ isOpen, onClose, guard }: GuardDetailModalProps) => 
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        {!isEditing && (
+                            <button
+                                onClick={exportGuardProfileToPDF}
+                                className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 shadow-xs active:scale-95"
+                                title="Exportar Ficha Laboral en PDF"
+                            >
+                                <span className="material-symbols-outlined text-[16px] notranslate" translate="no">picture_as_pdf</span>
+                                Exportar Ficha
+                            </button>
+                        )}
                         {isEditing && (
                              <button
                                 onClick={handleSaveProfile}
@@ -321,10 +454,10 @@ const GuardDetailModal = ({ isOpen, onClose, guard }: GuardDetailModalProps) => 
                                                 </div>
                                             </div>
                                             <button 
-                                                onClick={() => window.print()} 
+                                                onClick={exportGuardProfileToPDF} 
                                                 className="h-9 px-4 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-700 shadow-xs transition-all active:scale-95 flex items-center gap-1.5"
                                             >
-                                                <span className="material-symbols-outlined text-[16px]">print</span>
+                                                <span className="material-symbols-outlined text-[16px] notranslate" translate="no">picture_as_pdf</span>
                                                 Exportar PDF
                                             </button>
                                         </div>

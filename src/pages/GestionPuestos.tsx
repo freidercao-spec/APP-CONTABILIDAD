@@ -232,6 +232,41 @@ const PanelMensualPuesto = ({
   const currentUser =
     username || useAuthStore.getState().username || "Operador";
 
+  // Detección de edición concurrente con Supabase Presence
+  const [activeOperators, setActiveOperators] = useState<string[]>([]);
+  useEffect(() => {
+    if (!currentUser || !puestoId) return;
+
+    const trackKey = `${puestoId}-${anio}-${mes}`;
+    const channel = supabase.channel(`presence-${trackKey}`, {
+      config: {
+        presence: {
+          key: currentUser,
+        },
+      },
+    });
+
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        const operators = Object.keys(state).filter(name => name !== currentUser);
+        setActiveOperators(operators);
+      });
+
+    channel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await channel.track({
+          user: currentUser,
+          onlineAt: new Date().toISOString(),
+        });
+      }
+    });
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [puestoId, anio, mes, currentUser]);
+
   const version = useProgramacionStore(s => (s as any).version || 0);
   const prog = useMemo(
     () => getProgramacion(puestoId, anio, mes),
@@ -1152,6 +1187,16 @@ const PanelMensualPuesto = ({
 
   return (
     <div className="animate-fade-in bg-slate-50 min-h-screen pb-16 px-3 pt-2">
+      {/* Banner de Edición Concurrente */}
+      {activeOperators.length > 0 && (
+        <div className="flex items-center gap-3 px-5 py-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800 animate-pulse mb-4 shadow-xs">
+          <span className="material-symbols-outlined text-[20px] notranslate" translate="no">group</span>
+          <div className="text-[10px] font-bold uppercase tracking-wider">
+            <span>Atención: Edición Concurrente Detectada · </span>
+            <span className="font-black text-amber-950">Otros coordinadores en este puesto: {activeOperators.join(', ')}</span>
+          </div>
+        </div>
+      )}
       {/* ── HEADER compacto ── */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2 min-w-0">

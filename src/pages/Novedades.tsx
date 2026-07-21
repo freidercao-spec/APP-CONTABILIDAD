@@ -6,6 +6,16 @@ import { supabase } from '../lib/supabase';
 
 const Novedades = () => {
     const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    
+    // Estados del Formulario de Reporte
+    const [reportTitle, setReportTitle] = useState('');
+    const [reportDescription, setReportDescription] = useState('');
+    const [reportType, setReportType] = useState('INCIDENTE');
+    const [reportSeverity, setReportSeverity] = useState('alta');
+    const [reportFile, setReportFile] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     const [dbNovedades, setDbNovedades] = useState<any[]>([]);
     const [loadingNovedades, setLoadingNovedades] = useState(true);
     const [novedadesError, setNovedadesError] = useState(false);
@@ -13,7 +23,14 @@ const Novedades = () => {
     const puestos = usePuestoStore(s => s.puestos);
     const now = new Date();
 
-    // Fetch from Supabase novedades table with Realtime Sync
+    // Solicitar permiso de notificaciones nativas del navegador
+    useEffect(() => {
+        import('../utils/browserNotifications').then(m => {
+            m.requestNotificationPermission();
+        });
+    }, []);
+
+    // Fetch de novedades de Supabase con sincronización Realtime y notificaciones push
     useEffect(() => {
         const fetchDbNovedades = async () => {
             try {
@@ -34,7 +51,7 @@ const Novedades = () => {
 
         fetchDbNovedades();
 
-        // Suscripcion Realtime
+        // Suscripción Realtime
         const channel = supabase
             .channel('novedades_live')
             .on(
@@ -44,8 +61,20 @@ const Novedades = () => {
                     schema: 'public',
                     table: 'novedades',
                 },
-                () => {
+                (payload) => {
                     fetchDbNovedades();
+                    // Alerta push nativa si se inserta una novedad crítica/alta
+                    if (payload.eventType === 'INSERT') {
+                        const newRecord = payload.new;
+                        if (newRecord && (newRecord.gravedad === 'alta' || newRecord.gravedad === 'critica' || newRecord.gravedad === 'critical')) {
+                            import('../utils/browserNotifications').then(m => {
+                                m.sendBrowserNotification(
+                                    `⚠️ INCIDENTE CRÍTICO: ${newRecord.titulo || 'Novedad de Sistema'}`,
+                                    newRecord.descripcion || 'Se ha registrado una novedad crítica en el panel de control.'
+                                );
+                            });
+                        }
+                    }
                 }
             )
             .subscribe();
@@ -80,7 +109,8 @@ const Novedades = () => {
             details: n.descripcion,
             action: n.tipo === 'IA_INSIGHT' ? 'CorazAI Insight' : n.tipo,
             type: 'DB_NOVELTY' as const,
-            severity: n.gravedad === 'alta' ? 'critical' : 'warning'
+            severity: n.gravedad === 'alta' ? 'critical' : 'warning',
+            evidencia: n.evidencia_url || null
         }));
 
         return [...dbMapped, ...historyMapped].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 12);
@@ -112,6 +142,66 @@ const Novedades = () => {
     const puestosAlerta = puestos.filter(p => p.estado === 'alerta');
     const puestosSinCoverage = puestos.filter(p => !p.turnos || p.turnos.length === 0);
 
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setReportFile(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleReportSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!reportTitle.trim() || !reportDescription.trim()) return;
+        setIsSubmitting(true);
+        try {
+            const newNovedad = {
+                titulo: reportTitle,
+                descripcion: reportDescription,
+                tipo: reportType,
+                gravedad: reportSeverity,
+                evidencia_url: reportFile,
+                created_at: new Date().toISOString()
+            };
+            const { error } = await supabase.from('novedades').insert(newNovedad);
+            if (error) throw error;
+            
+            const { useAuditStore } = await import('../store/auditStore');
+            useAuditStore.getState().logAction('NOVEDADES', 'Reporte Manual', `Incidente registrado: ${reportTitle} (${reportSeverity.toUpperCase()})`, reportSeverity === 'alta' ? 'critical' : 'warning');
+            
+            // Reset
+            setReportTitle('');
+            setReportDescription('');
+            setReportType('INCIDENTE');
+            setReportSeverity('alta');
+            setReportFile(null);
+            setIsReportModalOpen(false);
+            
+            const { showTacticalToast } = await import('../utils/tacticalToast');
+            showTacticalToast({ title: 'Novedad Reportada', message: 'El incidente ha sido registrado en la bitacora y transmitido en tiempo real.', type: 'success' });
+        } catch (err) {
+            console.error('Error reporting incident:', err);
+            // Fallback
+            setDbNovedades(prev => [
+                {
+                    id: crypto.randomUUID(),
+                    titulo: reportTitle,
+                    descripcion: reportDescription,
+                    tipo: reportType,
+                    gravedad: reportSeverity,
+                    evidencia_url: reportFile,
+                    created_at: new Date().toISOString()
+                },
+                ...prev
+            ]);
+            setIsReportModalOpen(false);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     return (
         <div className="page-container space-y-10 animate-in fade-in duration-500 pb-20">
 
@@ -137,6 +227,10 @@ const Novedades = () => {
                     <h1 className="text-3xl font-bold text-slate-900 tracking-tight uppercase tracking-widest">Panel de <span className="text-primary font-black">Novedades</span></h1>
                 </div>
                 <div className="flex items-center gap-3">
+                    <button onClick={() => setIsReportModalOpen(true)} className="px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-3 shadow-md shadow-primary/20">
+                        <span className="material-symbols-outlined text-[18px] notranslate" translate="no">add_alert</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest leading-none pt-0.5">Reportar Incidente</span>
+                    </button>
                     <button onClick={() => setIsWhatsAppModalOpen(true)} className="px-6 py-3 bg-success/10 border border-success/20 text-success rounded-xl hover:bg-success/20 transition-all flex items-center gap-3">
                         <span className="material-symbols-outlined text-[18px] notranslate" translate="no">chat</span>
                         <span className="text-[10px] font-bold uppercase tracking-widest leading-none pt-0.5">WhatsApp Bridge</span>
@@ -221,6 +315,34 @@ const Novedades = () => {
                             </div>
                             <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tighter">{n.title}</h3>
                             <p className="text-slate-500 text-sm leading-relaxed font-medium">{n.details}</p>
+                            
+                            {/* Renderizar evidencia fotográfica si existe */}
+                            {n.type === 'DB_NOVELTY' && n.evidencia && (
+                                <div className="mt-4 border border-slate-200 rounded-2xl overflow-hidden max-w-sm bg-slate-50 shadow-xs">
+                                    <img 
+                                        src={n.evidencia} 
+                                        alt="Evidencia adjunta" 
+                                        className="w-full h-auto max-h-48 object-cover cursor-zoom-in hover:opacity-95 transition-opacity" 
+                                        onClick={() => {
+                                            const w = window.open();
+                                            if (w) w.document.write(`<img src="${n.evidencia}" style="max-width:100%; max-height:100vh; display:block; margin:auto;" />`);
+                                        }}
+                                    />
+                                    <div className="px-4 py-2 border-t border-slate-100 bg-white flex items-center justify-between">
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Evidencia Adjunta</span>
+                                        <button 
+                                            onClick={() => {
+                                                const w = window.open();
+                                                if (w) w.document.write(`<img src="${n.evidencia}" style="max-width:100%; max-height:100vh; display:block; margin:auto;" />`);
+                                            }}
+                                            className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline flex items-center gap-1"
+                                        >
+                                            <span className="material-symbols-outlined text-[12px] notranslate" translate="no">open_in_new</span>
+                                            Ver completo
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     ))}
 
@@ -286,6 +408,128 @@ const Novedades = () => {
                 </div>
             </div>
 
+            {/* Modal de Reporte de Incidente Manual */}
+            {isReportModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-10">
+                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsReportModalOpen(false)} />
+                    <div className="relative w-full max-w-lg bg-white border border-slate-100 rounded-[32px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                            <div className="flex items-center gap-3">
+                                <span className="material-symbols-outlined text-primary text-[22px] notranslate" translate="no">add_alert</span>
+                                <h3 className="text-lg font-black text-slate-900 uppercase tracking-wide">Reportar Novedad / Incidente</h3>
+                            </div>
+                            <button onClick={() => setIsReportModalOpen(false)} className="size-10 rounded-full flex items-center justify-center hover:bg-slate-200/50 text-slate-400 transition-all">
+                                <span className="material-symbols-outlined text-[20px] notranslate" translate="no">close</span>
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleReportSubmit} className="p-8 space-y-5">
+                            {/* Titulo */}
+                            <div className="space-y-1">
+                                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider ml-1">Título del Incidente *</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={reportTitle}
+                                    onChange={e => setReportTitle(e.target.value)}
+                                    placeholder="Ej: Falla de energía en Garita Principal..."
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs text-slate-900 outline-none focus:border-primary transition-all shadow-xs"
+                                />
+                            </div>
+
+                            {/* Descripción */}
+                            <div className="space-y-1">
+                                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider ml-1">Descripción Detallada *</label>
+                                <textarea
+                                    required
+                                    value={reportDescription}
+                                    onChange={e => setReportDescription(e.target.value)}
+                                    placeholder="Describa el incidente, hora aproximada y personal involucrado..."
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs text-slate-900 outline-none focus:border-primary h-24 resize-none transition-all shadow-xs"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                {/* Tipo */}
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider ml-1">Clase de Novedad</label>
+                                    <select
+                                        value={reportType}
+                                        onChange={e => setReportType(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs text-slate-900 font-bold outline-none focus:border-primary transition-all"
+                                    >
+                                        <option value="INCIDENTE">INCIDENTE</option>
+                                        <option value="AUSENCIA">AUSENCIA</option>
+                                        <option value="INCAPACIDAD">INCAPACIDAD</option>
+                                        <option value="ALERTA_SISTEMA">ALERTA GENERAL</option>
+                                    </select>
+                                </div>
+
+                                {/* Gravedad */}
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider ml-1">Gravedad / Prioridad</label>
+                                    <select
+                                        value={reportSeverity}
+                                        onChange={e => setReportSeverity(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs text-slate-900 font-bold outline-none focus:border-primary transition-all"
+                                    >
+                                        <option value="baja">BAJA</option>
+                                        <option value="media">MEDIA (Advertencia)</option>
+                                        <option value="alta">ALTA (Crítica)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Evidencia Adjunta */}
+                            <div className="space-y-2">
+                                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider ml-1 block">Evidencia Fotográfica (Opcional)</label>
+                                <div className="flex items-center gap-3">
+                                    <label className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-dashed border-slate-300 hover:bg-slate-50 cursor-pointer text-slate-500 hover:text-slate-800 transition-all">
+                                        <span className="material-symbols-outlined text-[18px]">cloud_upload</span>
+                                        <span className="text-[10px] font-bold uppercase tracking-wider">Subir Archivo / Captura</span>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleFileChange}
+                                            className="hidden"
+                                        />
+                                    </label>
+                                </div>
+                                {reportFile && (
+                                    <div className="relative size-20 rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-100 group">
+                                        <img src={reportFile} alt="Vista previa" className="w-full h-full object-cover" />
+                                        <button
+                                            type="button"
+                                            onClick={() => setReportFile(null)}
+                                            className="absolute top-1 right-1 size-5 rounded-full bg-danger text-white flex items-center justify-center hover:scale-105 transition-transform"
+                                        >
+                                            <span className="material-symbols-outlined text-[10px] notranslate" translate="no">close</span>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Acciones */}
+                            <div className="flex gap-3 pt-4 border-t border-slate-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsReportModalOpen(false)}
+                                    className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSubmitting || !reportTitle.trim() || !reportDescription.trim()}
+                                    className="flex-1 py-3 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary/95 active:scale-95 disabled:opacity-50 transition-all shadow-md shadow-primary/10"
+                                >
+                                    {isSubmitting ? 'Transmitiendo...' : 'Transmitir Alerta'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
             {/* WhatsApp Modal */}
             {isWhatsAppModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-6 sm:p-10">
