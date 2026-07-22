@@ -405,6 +405,17 @@ const PanelMensualPuesto = ({
     return m;
   }, [vigilantes]);
 
+  // Mapa rápido: id/dbId → objeto Vigilante completo
+  const vigilanteObjMap = useMemo(() => {
+    const m = new Map<string, any>();
+    if (!Array.isArray(vigilantes)) return m;
+    vigilantes.forEach((v) => {
+      if (v?.id) m.set(v.id, v);
+      if (v?.dbId) m.set(v.dbId, v);
+    });
+    return m;
+  }, [vigilantes]);
+
 
   // ── MAPA DE CONFLICTOS: Detecta doble asignación por vigilante/día ──────
   // Optimizado: Ahora se lee directamente del mapa pre-calculado en el store
@@ -1840,21 +1851,56 @@ const PanelMensualPuesto = ({
                        ? conflictMapValue.replace('CONFLICT:', '')
                        : '';
 
-                     return (
-                       <td key={d} className={`border-r border-slate-100 transition-all p-1.5 ${isWeekend ? 'bg-slate-50/60' : ''}`} style={{ width: 120 }}>
-                         <CeldaCalendario
-                           asig={asig}
-                           vigilanteNombre={asig.vigilanteId ? (vigilanteMap.get(asig.vigilanteId) || "Asignado") : undefined}
-                           onEdit={() => setEditCell({ asig, progId: prog?.id || '', preSelectVigilanteId: per.vigilanteId || undefined })}
-                           turnosConfig={turnosConfig}
-                           jornadasCustom={jornadasCustom}
-                           hasConflict={hasConflict}
-                           conflictDetail={conflictDetail}
-                           syncStatus={syncStatus}
-                         isGuardRetired={asig.vigilanteId ? (retiredMap.get(asig.vigilanteId) ?? false) : false}
-                         />
-                       </td>
-                     );
+                      // DetecciÃ³n de vigilantes retirados (Preserva turnos trabajados pagables)
+                      const targetVigId = asig.vigilanteId || per.vigilanteId;
+                      const vObj = targetVigId ? vigilanteObjMap.get(targetVigId) : null;
+                      const isInactive = vObj?.estado === 'inactivo';
+
+                      let isRetiredAfterThisDay = false;
+                      let isWorkedShiftInactive = false;
+
+                      if (isInactive) {
+                        let bajaDate: Date | null = null;
+                        if (vObj?.fechaBaja) {
+                          bajaDate = new Date(vObj.fechaBaja);
+                        } else if (vObj?.historial) {
+                          const bajaHist = (vObj.historial || []).find((h: any) => h.action === 'Baja de Efectivo');
+                          if (bajaHist?.timestamp) bajaDate = new Date(bajaHist.timestamp);
+                        }
+
+                        const cellDate = new Date(anio, mes, d, 23, 59, 59);
+
+                        if (bajaDate && !isNaN(bajaDate.getTime())) {
+                          if (cellDate > bajaDate && asig.jornada === 'sin_asignar') {
+                            isRetiredAfterThisDay = true;
+                          } else {
+                            isWorkedShiftInactive = true;
+                          }
+                        } else {
+                          if (asig.jornada !== 'sin_asignar') {
+                            isWorkedShiftInactive = true;
+                          } else {
+                            isRetiredAfterThisDay = true;
+                          }
+                        }
+                      }
+
+                      return (
+                        <td key={d} className={`border-r border-slate-100 transition-all p-1.5 ${isWeekend ? 'bg-slate-50/60' : ''}`} style={{ width: 120 }}>
+                          <CeldaCalendario
+                            asig={asig}
+                            vigilanteNombre={asig.vigilanteId ? (vigilanteMap.get(asig.vigilanteId) || "Asignado") : undefined}
+                            onEdit={() => setEditCell({ asig, progId: prog?.id || '', preSelectVigilanteId: per.vigilanteId || undefined })}
+                            turnosConfig={turnosConfig}
+                            jornadasCustom={jornadasCustom}
+                            hasConflict={hasConflict}
+                            conflictDetail={conflictDetail}
+                            syncStatus={syncStatus}
+                            isGuardRetired={isRetiredAfterThisDay}
+                            isGuardInactiveWorked={isWorkedShiftInactive}
+                          />
+                        </td>
+                      );
                    })}
                  </tr>
                 );

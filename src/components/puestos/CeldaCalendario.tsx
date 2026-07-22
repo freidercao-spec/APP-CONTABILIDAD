@@ -11,7 +11,8 @@ interface CeldaCalendarioProps {
   hasConflict?: boolean;
   conflictDetail?: string;
   syncStatus?: 'synced' | 'pending' | 'error';
-  isGuardRetired?: boolean;   // true si el vigilante asignado ya fue dado de baja
+  isGuardRetired?: boolean;   // true si el vigilante asignado ya fue dado de baja y no tiene turno trabajado
+  isGuardInactiveWorked?: boolean; // true si la persona trabajó este turno pero está dada de baja actualmente
 }
 
 // ─── PALETA VISUAL PREMIUM ──────────────────────────────────────────────────
@@ -193,12 +194,13 @@ export const CeldaCalendario = React.memo(({
   conflictDetail,
   syncStatus = 'synced',
   isGuardRetired = false,
+  isGuardInactiveWorked = false,
 }: CeldaCalendarioProps) => {
 
   const isSinAsignar = asig.jornada === 'sin_asignar';
 
-  // ── CELDA BAJA / RETIRADO ───────────────────────────────────────────────────
-  if (isGuardRetired && asig.vigilanteId) {
+  // ── CELDA BAJA / RETIRADO (Solo para celdas sin turno trabajado post-retiro) ─
+  if (isGuardRetired && isSinAsignar && asig.vigilanteId) {
     const nombre = typeof vigilanteNombre === 'string' ? vigilanteNombre : vigilanteNombre?.nombre ?? 'Efectivo';
     return (
       <button
@@ -342,8 +344,15 @@ export const CeldaCalendario = React.memo(({
           </span>
         </div>
         
-        {/* Estado punto */}
-        <div className="size-1.5 rounded-full" style={{ backgroundColor: s.accentLine }} />
+        {isGuardInactiveWorked ? (
+          <div className="flex items-center gap-0.5 px-1 py-[1px] bg-red-100 border border-red-300 rounded text-[7px] font-black text-red-700 tracking-tight" title="Efectivo dado de baja del sistema (Turno trabajado registrado para liquidación)">
+            <span className="material-symbols-outlined text-[8px] text-red-600">person_off</span>
+            <span>BAJA</span>
+          </div>
+        ) : (
+          /* Estado punto */
+          <div className="size-1.5 rounded-full" style={{ backgroundColor: s.accentLine }} />
+        )}
       </div>
 
       {/* ── GUARD NAME (centro) ── */}
