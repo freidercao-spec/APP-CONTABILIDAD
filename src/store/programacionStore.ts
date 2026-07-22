@@ -1148,7 +1148,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 
                 const hasVigilantes = (pList: any[]) => pList && pList.some(p => p.vigilanteId);
                 
-                const personalBase: PersonalPuesto[] = (progAnterior && hasVigilantes(progAnterior.personal))
+                const rawPersonalBase: PersonalPuesto[] = (progAnterior && hasVigilantes(progAnterior.personal))
                     ? progAnterior.personal.map((p: any) => ({ ...p }))
                     : (prog && hasVigilantes(prog.personal))
                         ? prog.personal.map((p: any) => ({ ...p }))
@@ -1159,6 +1159,27 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                 { rol: 'titular_b', vigilanteId: null, turnoId: 'PM' },
                                 { rol: 'relevante', vigilanteId: null, turnoId: 'AM' }
                               ];
+
+                // Depurar vigilantes retirados: no programar a un inactivo en meses futuros
+                const vStoreGen = useVigilanteStore.getState();
+                const isGuardInactiveGen = (vId: string | null | undefined) => {
+                    if (!vId) return false;
+                    const v = vStoreGen.vigilantes.find(g => g.id === vId || g.dbId === vId);
+                    return v?.estado === 'inactivo';
+                };
+                let retiredRemovedGen = 0;
+                const personalBase: PersonalPuesto[] = rawPersonalBase.map(p => {
+                    const inactive = isGuardInactiveGen(p.vigilanteId);
+                    if (inactive) retiredRemovedGen++;
+                    return inactive ? { ...p, vigilanteId: null } : p;
+                });
+                if (retiredRemovedGen > 0) {
+                    showTacticalToast({
+                        title: '⚠️ Personal Retirado Excluido',
+                        message: `${retiredRemovedGen} efectivo(s) retirado(s) fueron removidos de la programación de este mes.`,
+                        type: 'warning',
+                    });
+                }
 
                 // Aplicar motor de turnos
                 let nuevasAsignaciones = aplicarMotorTurnos(

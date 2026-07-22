@@ -43,6 +43,7 @@ export interface Vigilante {
     telefono?: string;
     email?: string;
     especialidad?: string;
+    fechaBaja?: string;   // ISO date — se registra cuando el estado pasa a 'inactivo'
 }
 
 interface VigilanteState {
@@ -136,6 +137,7 @@ function mapDbToVigilante(row: any, historial: any[], descargos: any[], vacacion
             fin: vacacion.fecha_fin,
             motivo: vacacion.motivo || undefined,
         } : undefined,
+        fechaBaja: row.fecha_baja || (row.estado === 'inactivo' ? (row.updated_at || row.created_at) : undefined),
     };
 }
 
@@ -435,6 +437,7 @@ export const useVigilanteStore = create<VigilanteState>()(
                             ? { 
                                 ...v, 
                                 estado: 'inactivo' as const,
+                                fechaBaja: new Date().toISOString(),
                                 historial: [
                                     ...(v.historial || []),
                                     {

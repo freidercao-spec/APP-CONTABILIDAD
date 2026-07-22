@@ -11,6 +11,7 @@ interface CeldaCalendarioProps {
   hasConflict?: boolean;
   conflictDetail?: string;
   syncStatus?: 'synced' | 'pending' | 'error';
+  isGuardRetired?: boolean;   // true si el vigilante asignado ya fue dado de baja
 }
 
 // ─── PALETA VISUAL PREMIUM ──────────────────────────────────────────────────
@@ -191,9 +192,40 @@ export const CeldaCalendario = React.memo(({
   hasConflict,
   conflictDetail,
   syncStatus = 'synced',
+  isGuardRetired = false,
 }: CeldaCalendarioProps) => {
 
   const isSinAsignar = asig.jornada === 'sin_asignar';
+
+  // ── CELDA BAJA / RETIRADO ───────────────────────────────────────────────────
+  if (isGuardRetired && asig.vigilanteId) {
+    const nombre = typeof vigilanteNombre === 'string' ? vigilanteNombre : vigilanteNombre?.nombre ?? 'Efectivo';
+    return (
+      <button
+        onClick={onEdit}
+        title="Vigilante retirado del sistema"
+        style={{
+          background: '#fef2f2',
+          border: '1.5px solid #fecaca',
+          borderRadius: 10,
+          width: '100%',
+          minHeight: 56,
+          padding: '4px 6px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 2,
+          cursor: 'pointer',
+          opacity: 0.85,
+        }}
+      >
+        <span style={{ fontSize: 9, fontWeight: 900, color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.1em', lineHeight: 1 }}>BAJA</span>
+        <span style={{ fontSize: 8, fontWeight: 600, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1, maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nombre}</span>
+        <span className="material-symbols-outlined" style={{ fontSize: 13, color: '#fca5a5', marginTop: 1 }}>person_off</span>
+      </button>
+    );
+  }
 
   // ── CELDA VACÍA ─────────────────────────────────────────────────────────────
   if (isSinAsignar) {

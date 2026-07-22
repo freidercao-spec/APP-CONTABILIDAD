@@ -393,6 +393,19 @@ const PanelMensualPuesto = ({
     return m;
   }, [vigilantes]);
 
+  // Mapa rápido: id/dbId → true si el vigilante está retirado (inactivo)
+  const retiredMap = useMemo(() => {
+    const m = new Map<string, boolean>();
+    if (!Array.isArray(vigilantes)) return m;
+    vigilantes.forEach((v) => {
+      const isRetired = v?.estado === 'inactivo';
+      if (v?.id) m.set(v.id, isRetired);
+      if (v?.dbId) m.set(v.dbId, isRetired);
+    });
+    return m;
+  }, [vigilantes]);
+
+
   // ── MAPA DE CONFLICTOS: Detecta doble asignación por vigilante/día ──────
   // Optimizado: Ahora se lee directamente del mapa pre-calculado en el store
   const storeConflictMap = useProgramacionStore(s => (s as any).conflictMap);
@@ -1838,6 +1851,7 @@ const PanelMensualPuesto = ({
                            hasConflict={hasConflict}
                            conflictDetail={conflictDetail}
                            syncStatus={syncStatus}
+                         isGuardRetired={asig.vigilanteId ? (retiredMap.get(asig.vigilanteId) ?? false) : false}
                          />
                        </td>
                      );
