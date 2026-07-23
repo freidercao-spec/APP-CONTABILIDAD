@@ -20,6 +20,9 @@ const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
         setActiveTab(defaultTab);
     }, [defaultTab]);
 
+    const [page, setPage] = useState(1);
+    const PAGE_SIZE = 18;
+
     useEffect(() => {
         setPage(1);
     }, [activeTab, searchQuery]);
@@ -27,9 +30,6 @@ const Vigilantes = ({ defaultTab = 'activos' }: VigilanteProps) => {
     const vigilantes = useVigilanteStore((state) => state.vigilantes);
     const updateGuardStatus = useVigilanteStore((state) => state.updateGuardStatus);
     const deleteVigilante = useVigilanteStore((state) => state.deleteVigilante);
-
-    const [page, setPage] = useState(1);
-    const PAGE_SIZE = 18;
 
     const filteredVigilantes = vigilantes
         .filter(v => {

@@ -21,7 +21,6 @@ const Novedades = () => {
     const [novedadesError, setNovedadesError] = useState(false);
     const vigilantes = useVigilanteStore(s => s.vigilantes);
     const puestos = usePuestoStore(s => s.puestos);
-    const now = new Date();
 
     // Solicitar permiso de notificaciones nativas del navegador
     useEffect(() => {
@@ -117,26 +116,35 @@ const Novedades = () => {
     }, [allHistory, dbNovedades]);
 
     // Vacation intelligence
-    const enVacacionesHoy = useMemo(() => vigilantes.filter(v => {
-        if (!v.vacaciones) return false;
-        const inicio = new Date(v.vacaciones.inicio);
-        const fin = new Date(v.vacaciones.fin);
-        return now >= inicio && now <= fin;
-    }), [vigilantes]);
+    const enVacacionesHoy = useMemo(() => {
+        const today = new Date();
+        return vigilantes.filter(v => {
+            if (!v.vacaciones) return false;
+            const inicio = new Date(v.vacaciones.inicio);
+            const fin = new Date(v.vacaciones.fin);
+            return today >= inicio && today <= fin;
+        });
+    }, [vigilantes]);
 
-    const vacProximas = useMemo(() => vigilantes.filter(v => {
-        if (!v.vacaciones) return false;
-        const inicio = new Date(v.vacaciones.inicio);
-        const diff = (inicio.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-        return diff > 0 && diff <= 7;
-    }), [vigilantes]);
+    const vacProximas = useMemo(() => {
+        const today = new Date();
+        return vigilantes.filter(v => {
+            if (!v.vacaciones) return false;
+            const inicio = new Date(v.vacaciones.inicio);
+            const diff = (inicio.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+            return diff > 0 && diff <= 7;
+        });
+    }, [vigilantes]);
 
-    const regresandoProx = useMemo(() => vigilantes.filter(v => {
-        if (!v.vacaciones) return false;
-        const fin = new Date(v.vacaciones.fin);
-        const diff = (fin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-        return diff >= 0 && diff <= 7;
-    }), [vigilantes]);
+    const regresandoProx = useMemo(() => {
+        const today = new Date();
+        return vigilantes.filter(v => {
+            if (!v.vacaciones) return false;
+            const fin = new Date(v.vacaciones.fin);
+            const diff = (fin.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+            return diff >= 0 && diff <= 7;
+        });
+    }, [vigilantes]);
 
     const ausentes = vigilantes.filter(v => v.estado === 'ausente');
     const puestosAlerta = puestos.filter(p => p.estado === 'alerta');
@@ -302,19 +310,39 @@ const Novedades = () => {
                     ))}
 
                     {/* Real Dynamic History */}
-                    {combinedNovedades.map((n, i) => (
-                        <div key={n.id} className={`bg-white border border-slate-100 rounded-[32px] p-7 border-l-8 ${n.severity === 'critical' ? 'border-l-danger bg-danger/5' : n.severity === 'warning' ? 'border-l-warning' : (i === 0 ? 'border-l-primary shadow-md' : 'border-l-slate-200')} group hover:border-primary/40 transition-all ${i > 5 ? 'opacity-60' : ''} shadow-sm`}>
-                            <div className="flex items-center gap-3 mb-3">
-                                <span className={`px-3 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-lg ${n.severity === 'critical' ? 'bg-danger/10 text-danger border border-danger/20' : i === 0 ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}>
-                                    {n.action}
-                                </span>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                    {new Date(n.timestamp).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })} - {new Date(n.timestamp).toLocaleDateString('es-CO')}
-                                </span>
-                                {n.type === 'DB_NOVELTY' && <span className="material-symbols-outlined text-[14px] text-primary">psychology</span>}
-                            </div>
-                            <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tighter">{n.title}</h3>
-                            <p className="text-slate-500 text-sm leading-relaxed font-medium">{n.details}</p>
+                    {loadingNovedades && combinedNovedades.length === 0 ? (
+                        <div className="space-y-6">
+                            {[1, 2, 3].map(n => (
+                                <div key={n} className="bg-white border border-slate-100 rounded-[32px] p-7 border-l-8 border-l-slate-200 animate-pulse shadow-sm">
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <div className="h-4 w-20 bg-slate-200 rounded-lg" />
+                                        <div className="h-3 w-32 bg-slate-100 rounded" />
+                                    </div>
+                                    <div className="h-6 w-3/4 bg-slate-200 rounded mb-2" />
+                                    <div className="h-4 w-5/6 bg-slate-100 rounded" />
+                                </div>
+                            ))}
+                        </div>
+                    ) : combinedNovedades.length === 0 ? (
+                        <div className="bg-white border border-slate-100 rounded-[32px] p-10 text-center shadow-sm">
+                            <span className="material-symbols-outlined text-[48px] text-slate-300 mb-3">info</span>
+                            <h3 className="text-lg font-black text-slate-700 uppercase tracking-tight">Sin novedades recientes</h3>
+                            <p className="text-slate-400 text-xs mt-1">No se han registrado novedades ni registros de historial en las últimas horas.</p>
+                        </div>
+                    ) : (
+                        combinedNovedades.map((n, i) => (
+                            <div key={n.id} className={`bg-white border border-slate-100 rounded-[32px] p-7 border-l-8 ${n.severity === 'critical' ? 'border-l-danger bg-danger/5' : n.severity === 'warning' ? 'border-l-warning' : (i === 0 ? 'border-l-primary shadow-md' : 'border-l-slate-200')} group hover:border-primary/40 transition-all ${i > 5 ? 'opacity-60' : ''} shadow-sm`}>
+                                <div className="flex items-center gap-3 mb-3">
+                                    <span className={`px-3 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-lg ${n.severity === 'critical' ? 'bg-danger/10 text-danger border border-danger/20' : i === 0 ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}>
+                                        {n.action}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                        {new Date(n.timestamp).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })} - {new Date(n.timestamp).toLocaleDateString('es-CO')}
+                                    </span>
+                                    {n.type === 'DB_NOVELTY' && <span className="material-symbols-outlined text-[14px] text-primary">psychology</span>}
+                                </div>
+                                <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tighter">{n.title}</h3>
+                                <p className="text-slate-500 text-sm leading-relaxed font-medium">{n.details}</p>
                             
                             {/* Renderizar evidencia fotográfica si existe */}
                             {n.type === 'DB_NOVELTY' && n.evidencia && (
@@ -344,9 +372,9 @@ const Novedades = () => {
                                 </div>
                             )}
                         </div>
-                    ))}
+                    )))}
 
-                    {combinedNovedades.length === 0 && vacProximas.length === 0 && regresandoProx.length === 0 && (
+                    {vacProximas.length === 0 && regresandoProx.length === 0 && combinedNovedades.length === 0 && (
                         <div className="text-center py-24 text-slate-300">
                             <span className="material-symbols-outlined text-5xl notranslate">plagiarism</span>
                             <p className="mt-4 text-[11px] font-black uppercase tracking-widest">Sin novedades registradas</p>

@@ -39,11 +39,18 @@ export const PuestoCard = React.memo(({ puesto, anio, mes, onClick, onAsignar, o
   const getAlertas = useProgramacionStore(s => s.getAlertas);
   const vigilantes = useVigilanteStore(s => s.vigilantes);
   const progId = prog?.id || null;
-  const cobertura = useMemo(() => progId ? getCoberturaPorcentaje(progId) : 0, [progId, getCoberturaPorcentaje, prog?.asignaciones]);
-  const alertas = useMemo(() => progId ? getAlertas(progId) : [], [progId, getAlertas, prog?.asignaciones]);
+  const cobertura = useMemo(() => {
+    const _ = prog?.asignaciones;
+    return progId ? getCoberturaPorcentaje(progId) : 0;
+  }, [progId, getCoberturaPorcentaje, prog?.asignaciones]);
+  const alertas = useMemo(() => {
+    const _ = prog?.asignaciones;
+    return progId ? getAlertas(progId) : [];
+  }, [progId, getAlertas, prog?.asignaciones]);
   const stats = useMemo(() => {
-    if (!prog?.personal) return { count: 0, guards: [] };
-    const valid = prog.personal.filter((p: any) => p.vigilanteId);
+    const personal = prog?.personal;
+    if (!personal) return { count: 0, guards: [] };
+    const valid = personal.filter((p: any) => p.vigilanteId);
     const guards = valid.map((p: any) => { const v = vigilantes.find(v => v.id === p.vigilanteId || v.dbId === p.vigilanteId); return v || { nombre: "?" }; });
     return { count: valid.length, guards };
   }, [prog?.personal, vigilantes]);
