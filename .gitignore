@@ -50,3 +50,6 @@ massive-*.mjs
 seed-*.mjs
 *-seed-*.mjs
 script_output*.txt
+
+# Keep alive logs
+keep_alive_log.txt
