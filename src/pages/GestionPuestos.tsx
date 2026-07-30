@@ -470,18 +470,19 @@ const PanelMensualPuesto = ({
     setIsApplyingCiclo(true);
     setShowCicloModal(false);
     try {
-      const mesBase = mes;
-      const anioBase = anio;
+      // El mes de destino es el mes que estamos visualizando actualmente
+      const mesDestino = mes;
+      const anioDestino = anio;
       
-      const dSiguiente = new Date(anioBase, mesBase + 1);
-      const mesDestino = dSiguiente.getMonth();
-      const anioDestino = dSiguiente.getFullYear();
+      // El mes de origen/base es el anterior al que visualizamos
+      const mesBase = mes === 0 ? 11 : mes - 1;
+      const anioBase = mes === 0 ? anio - 1 : anio;
 
       const progBase = getProgramacion(puestoId, anioBase, mesBase);
 
       if (progBase && !progBase.isDetailLoaded && !progBase.isFetching) {
         showTacticalToast({
-          title: '⏳ Cargando datos de este mes...',
+          title: '⏳ Cargando datos del mes anterior...',
           message: 'Recuperando posición final para el siguiente mes.',
           type: 'info',
         });
@@ -509,9 +510,8 @@ const PanelMensualPuesto = ({
           type: 'success',
         });
 
-        setAnioLocal(anioDestino);
-        setMesLocal(mesDestino);
-        onMesChange?.(anioDestino, mesDestino);
+        // Ya que estamos en el mes visualizado (mesDestino), solo cargamos sus datos actualizados
+        await useProgramacionStore.getState().fetchProgramacionesByMonth(anioDestino, mesDestino);
       } else {
         showTacticalToast({
           title: '⚠️ Sin datos suficientes',
@@ -525,7 +525,7 @@ const PanelMensualPuesto = ({
     } finally {
       setIsApplyingCiclo(false);
     }
-  }, [puestoId, anio, mes, currentUser, puestoNombre, getProgramacion, fetchProgramacionDetalles, generarMesConMotor, logAction, isApplyingCiclo, onMesChange, setAnioLocal, setMesLocal]);
+  }, [puestoId, anio, mes, currentUser, puestoNombre, getProgramacion, fetchProgramacionDetalles, generarMesConMotor, logAction, isApplyingCiclo]);
 
   const handleGeneratePDF = useCallback(async () => {
     if (!prog) return;
