@@ -18,6 +18,8 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const [showPass, setShowPass] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const [failedCount, setFailedCount] = useState(0);
+    const [lockoutTime, setLockoutTime] = useState<number | null>(null);
     const emailRef = useRef<HTMLInputElement>(null);
     const logAction = useAuditStore(s => s.logAction);
 
@@ -29,23 +31,41 @@ const Login = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+
+        if (lockoutTime && Date.now() < lockoutTime) {
+            const secsLeft = Math.ceil((lockoutTime - Date.now()) / 1000);
+            setError(`🔒 Acceso bloqueado por seguridad. Intente de nuevo en ${secsLeft} segundo(s).`);
+            return;
+        }
+
         if (!email || !password) { setError('Ingrese correo y contraseña.'); return; }
         setLoading(true);
         try {
             const result = await login(email, password);
             if (result.success) {
+                setFailedCount(0);
+                setLockoutTime(null);
                 setAuditUser(email);
                 logAction('LOGIN', 'Inicio de sesion', `Acceso concedido para: ${email}`, 'success');
             } else {
-                const msg = result.message || 'Error de acceso desconocido';
-                let friendly = msg;
-                if (msg === 'Invalid login credentials') friendly = 'Correo o contraseña incorrectos.';
-                else if (msg.includes('Email logins are disabled') || msg.includes('email_provider_disabled')) friendly = 'El proveedor de Email está desactivado. Contacte al administrador.';
-                else if (msg.includes('Email not confirmed')) friendly = 'Cuenta pendiente de confirmación. Revise su correo.';
-                else if (msg.includes('Too many requests')) friendly = 'Demasiados intentos. Espere unos minutos.';
-                else if (msg.includes('User not found')) friendly = 'No existe un usuario con ese correo.';
-                setError(friendly);
-                logAction('LOGIN', 'Error de acceso', `Fallo al autenticar "${email}": ${msg}`, 'warning');
+                const newCount = failedCount + 1;
+                setFailedCount(newCount);
+
+                if (newCount >= 5) {
+                    setLockoutTime(Date.now() + 5 * 60 * 1000); // 5 minutos de bloqueo
+                    setError('🚨 Demasiados intentos fallidos. Acceso bloqueado temporalmente por 5 minutos por seguridad.');
+                    logAction('LOGIN', 'Bloqueo por seguridad', `Superados 5 intentos fallidos desde: ${email}`, 'warning');
+                } else {
+                    const msg = result.message || 'Error de acceso desconocido';
+                    let friendly = msg;
+                    if (msg === 'Invalid login credentials') friendly = `Correo o contraseña incorrectos. (Intento ${newCount}/5)`;
+                    else if (msg.includes('Email logins are disabled') || msg.includes('email_provider_disabled')) friendly = 'El proveedor de Email está desactivado. Contacte al administrador.';
+                    else if (msg.includes('Email not confirmed')) friendly = 'Cuenta pendiente de confirmación. Revise su correo.';
+                    else if (msg.includes('Too many requests')) friendly = 'Demasiados intentos. Espere unos minutos.';
+                    else if (msg.includes('User not found')) friendly = 'No existe un usuario con ese correo.';
+                    setError(friendly);
+                    logAction('LOGIN', 'Error de acceso', `Fallo al autenticar "${email}": ${msg}`, 'warning');
+                }
             }
         } catch {
             setError('Error de conexión. Verifique su internet.');

@@ -3,10 +3,14 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import { useUIStore } from '../../store/uiStore';
+import { useAutoLogout } from '../../hooks/useAutoLogout';
 
 const AppLayout = ({ children }: { children?: React.ReactNode }) => {
     const { isSidebarOpen, closeSidebar } = useUIStore();
     const location = useLocation();
+
+    // Activar cierre de sesión automático por inactividad
+    useAutoLogout();
 
     // Cerrar drawer mobile al cambiar de ruta
     useEffect(() => {
