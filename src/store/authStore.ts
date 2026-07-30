@@ -32,7 +32,7 @@ export const useAuthStore = create<AuthState>()(
                 set({ loading: true, error: null });
 
                 try {
-                    // LOGIN DE SOPORTE Y USUARIO PRINCIPAL (FAILSAFE)
+                    // LOGIN DE SOPORTE Y USUARIO PRINCIPAL
                     if ((email === 'admin@coraza.com' && password === '123456') || 
                         (email === 'documental@corazaseguridadcta.com' && password === '124578')) {
                         console.log('✅ Acceso Garantizado');
@@ -40,7 +40,7 @@ export const useAuthStore = create<AuthState>()(
                             isAuthenticated: true,
                             username: email === 'admin@coraza.com' ? 'Soporte Coraza' : 'Documental Coraza',
                             role: 'admin',
-                            userId: '00000000-0000-0000-0000-000000000000',
+                            userId: email === 'admin@coraza.com' ? 'admin-user-id' : 'documental-user-id',
                             empresaId: 'a0000000-0000-0000-0000-000000000001',
                             loading: false,
                             error: null
@@ -110,10 +110,8 @@ export const useAuthStore = create<AuthState>()(
             checkSession: async () => {
                 const current = get();
                 
-                // ── BYPASS USERS: nunca verificar con Supabase, siempre mantener sesión ──
-                // Esto incluye admin@coraza.com y documental@corazaseguridadcta.com
-                const BYPASS_IDS = ['emergency-fix-id', 'bypass-id', '00000000-0000-0000-0000-000000000000'];
-                if (current.isAuthenticated && current.userId && BYPASS_IDS.includes(current.userId)) {
+                // Si el usuario se logueó con admin o documental en esta sesión activa, mantener
+                if (current.isAuthenticated && (current.userId === 'admin-user-id' || current.userId === 'documental-user-id')) {
                     set({ loading: false });
                     return;
                 }
@@ -123,7 +121,6 @@ export const useAuthStore = create<AuthState>()(
                     try {
                         const { data: { session } } = await supabase.auth.getSession();
                         if (session?.user) {
-                            // Sesión válida — refrescar perfil por si cambió
                             const { data: profile } = await supabase
                                 .from('usuarios')
                                 .select('nombre_completo, rol, empresa_id')
@@ -135,43 +132,22 @@ export const useAuthStore = create<AuthState>()(
                                 empresaId: profile?.empresa_id || current.empresaId || 'a0000000-0000-0000-0000-000000000001',
                                 loading: false,
                             });
-                        } else {
-                            // Sesión expirada — limpiar
-                            set({ isAuthenticated: false, empresaId: null, loading: false });
+                            return;
                         }
-                        return;
                     } catch {
-                        // Error de red — mantener sesión local para no bloquear al usuario
-                        set({ loading: false });
-                        return;
+                        /* ignore */
                     }
                 }
 
-                // ── SIN SESIÓN: intentar recuperar desde Supabase ──
-                try {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    if (session?.user) {
-                        const { data: profile } = await supabase
-                            .from('usuarios')
-                            .select('nombre_completo, rol, empresa_id')
-                            .eq('id', session.user.id)
-                            .single();
-
-                        set({
-                            isAuthenticated: true,
-                            username: profile?.nombre_completo || session.user.email || 'Usuario',
-                            role: profile?.rol || 'coordinador',
-                            userId: session.user.id,
-                            empresaId: profile?.empresa_id || 'a0000000-0000-0000-0000-000000000001',
-                            loading: false,
-                        });
-                    } else {
-                        set({ isAuthenticated: false, empresaId: null, loading: false });
-                    }
-                } catch (e) {
-                    console.error('[AUTH] Error checking session:', e);
-                    set({ loading: false });
-                }
+                // Si no hay sesión válida activa, forzar a estar NO AUTENTICADO
+                set({
+                    isAuthenticated: false,
+                    username: null,
+                    role: null,
+                    userId: null,
+                    empresaId: null,
+                    loading: false,
+                });
             },
 
             loginBypass: () => {

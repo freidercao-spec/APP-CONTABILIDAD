@@ -75,12 +75,14 @@ export function useSupabaseInit() {
 
         const initBaseDatos = async () => {
             try {
+                const authState = useAuthStore.getState();
+                if (!authState.isAuthenticated) {
+                    setIsLoading(false);
+                    return;
+                }
+
                 setIsLoading(true);
                 addLog('📦 Conectando a Supabase...');
-
-                // Esperar a que auth esté listo para tener el empresaId correcto
-                await waitForAuth();
-                addLog('✅ Autenticación lista');
 
                 addLog('🧬 Sincronizando DNA Operativo (Vigilantes y Puestos)...');
                 const [vigRes, puestRes] = await Promise.allSettled([
