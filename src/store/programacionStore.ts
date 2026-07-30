@@ -16,6 +16,7 @@ import {
     generarResumenFinMes,
     type EstadoFinMes,
     type AlertaMotor,
+    type TipoCiclo,
 } from './motorTurnos';
 
 import {
@@ -204,7 +205,8 @@ interface ProgramacionState {
         puestoId: string,
         anio: number,
         mes: number,
-        usuario: string
+        usuario: string,
+        tipoCiclo?: TipoCiclo
     ) => ProgramacionMensual | null;
 
     /**
@@ -1127,7 +1129,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
             },
 
             // ── MOTOR DE TURNOS: Generación explícita de mes con ciclo ──────────
-            generarMesConMotor: (puestoId: string, anio: number, mes: number, usuario: string): ProgramacionMensual | null => {
+            generarMesConMotor: (puestoId: string, anio: number, mes: number, usuario: string, tipoCiclo: TipoCiclo = '12x3'): ProgramacionMensual | null => {
                 const s = get();
                 if (!s.loaded && !s.programaciones.length) return null;
 
@@ -1171,7 +1173,13 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 const personalBase: PersonalPuesto[] = rawPersonalBase.map(p => {
                     const inactive = isGuardInactiveGen(p.vigilanteId);
                     if (inactive) retiredRemovedGen++;
-                    return inactive ? { ...p, vigilanteId: null } : p;
+                    return {
+                        rol: p.rol,
+                        vigilanteId: inactive ? null : p.vigilanteId,
+                        turnoId: p.turnoId,
+                        displayName: p.displayName,
+                        tipoCiclo: tipoCiclo // Inyectar el ciclo actual seleccionado
+                    };
                 });
                 if (retiredRemovedGen > 0) {
                     showTacticalToast({
@@ -1186,7 +1194,8 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     dbPuestoId, anio, mes,
                     personalBase,
                     asigAnterior,
-                    anioAnterior, mesAnterior
+                    anioAnterior, mesAnterior,
+                    progAnterior?.personal
                 ) ?? [];
 
                 // Agregar filas vacías para roles sin vigilante
@@ -1215,7 +1224,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             id: crypto.randomUUID(),
                             timestamp: new Date().toISOString(),
                             usuario,
-                            descripcion: `Motor de turnos aplicado. ${nuevasAsignaciones.filter(a => a.vigilanteId).length} asignaciones generadas desde ciclo ${asigAnterior.length > 0 ? 'del mes anterior' : 'inicial'}.`,
+                            descripcion: `Motor de turnos aplicado (${tipoCiclo}). ${nuevasAsignaciones.filter(a => a.vigilanteId).length} asignaciones generadas desde ciclo ${asigAnterior.length > 0 ? 'del mes anterior' : 'inicial'}.`,
                             tipo: 'sistema' as const
                         }
                     ],

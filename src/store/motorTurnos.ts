@@ -23,8 +23,7 @@ import type { AsignacionDia, TipoJornada } from './programacionStore';
 
 // ── Tipos públicos del motor ─────────────────────────────────────────────────
 
-/** Valor de celda visible en el tablero */
-export type ValorCelda = 'D' | 'N' | 'R' | 'NR';
+export type TipoCiclo = '12x3' | '10x5' | '2x2' | '13x2';
 
 /** Una celda del tablero con metadatos completos */
 export interface CeldaTurno {
@@ -32,7 +31,7 @@ export interface CeldaTurno {
   valor: ValorCelda;            // D | N | R | NR
   jornada: TipoJornada;
   turno: string;               // 'AM' | 'PM' | 'descanso'
-  posicionCiclo: number;       // 0-17 en el ciclo de 18 días
+  posicionCiclo: number;       // posición en el ciclo
 }
 
 /** Estado de un vigilante al final de un mes (para propagación) */
@@ -43,7 +42,7 @@ export interface EstadoFinMes {
   anio: number;
   mes: number;
   ultimoDiaCalculado: number;
-  posicionCicloFinal: number;  // 0-17: posición al terminar ese mes
+  posicionCicloFinal: number;  // posición al terminar ese mes
   valorFinal: ValorCelda;
 }
 
@@ -57,6 +56,7 @@ export interface ResultadoTableroMes {
   celdas: CeldaTurno[];        // longitud = días del mes
   posicionInicioMes: number;   // posición en ciclo el día 1
   posicionFinMes: number;      // posición en ciclo el último día
+  tipoCiclo?: TipoCiclo;       // ciclo usado para esta generación
 }
 
 /** Alerta detectada por el motor */
@@ -71,57 +71,163 @@ export interface AlertaMotor {
 
 // ── Constantes del ciclo ─────────────────────────────────────────────────────
 
-/** Longitud total del ciclo en días */
+/** Longitud total del ciclo en días (Mantenido por compatibilidad histórica) */
 export const CICLO_TOTAL = 15;
 
 /**
- * Mapa completo del ciclo de 15 posiciones.
- * Cada elemento define el valor visible y la jornada correspondiente.
+ * Mapa de las configuraciones de los 4 ciclos soportados
  */
-const CICLO: ReadonlyArray<{ valor: ValorCelda; jornada: TipoJornada; turno: string }> = [
-  // ─── 6 días DIURNOS (pos 0-5) ───────────────────────────────────────────
-  { valor: 'D', jornada: 'normal', turno: 'AM' },
-  { valor: 'D', jornada: 'normal', turno: 'AM' },
-  { valor: 'D', jornada: 'normal', turno: 'AM' },
-  { valor: 'D', jornada: 'normal', turno: 'AM' },
-  { valor: 'D', jornada: 'normal', turno: 'AM' },
-  { valor: 'D', jornada: 'normal', turno: 'AM' },
-  // ─── 6 días NOCTURNOS (pos 6-11) ─────────────────────────────────────────
-  { valor: 'N', jornada: 'normal', turno: 'PM' },
-  { valor: 'N', jornada: 'normal', turno: 'PM' },
-  { valor: 'N', jornada: 'normal', turno: 'PM' },
-  { valor: 'N', jornada: 'normal', turno: 'PM' },
-  { valor: 'N', jornada: 'normal', turno: 'PM' },
-  { valor: 'N', jornada: 'normal', turno: 'PM' },
-  // ─── 3 días DESCANSO (pos 12-14): 2R + 1NR ──────────────────────────────
-  { valor: 'R',  jornada: 'descanso_remunerado',     turno: 'descanso' },
-  { valor: 'R',  jornada: 'descanso_remunerado',     turno: 'descanso' },
-  { valor: 'NR', jornada: 'descanso_no_remunerado',  turno: 'descanso' },
-] as const;
+export const CONFIGURACIONES_CICLOS: Record<TipoCiclo, {
+  nombre: string;
+  totalDias: number;
+  fases: ReadonlyArray<{ valor: ValorCelda; jornada: TipoJornada; turno: string }>;
+}> = {
+  '12x3': {
+    nombre: 'Ciclo 12x3 (6D-6N-3Desc)',
+    totalDias: 15,
+    fases: [
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'R',  jornada: 'descanso_remunerado',     turno: 'descanso' },
+      { valor: 'R',  jornada: 'descanso_remunerado',     turno: 'descanso' },
+      { valor: 'NR', jornada: 'descanso_no_remunerado',  turno: 'descanso' },
+    ]
+  },
+  '10x5': {
+    nombre: 'Ciclo 10x5 (5D-5N-5Desc)',
+    totalDias: 15,
+    fases: [
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'R',  jornada: 'descanso_remunerado',     turno: 'descanso' },
+      { valor: 'R',  jornada: 'descanso_remunerado',     turno: 'descanso' },
+      { valor: 'NR', jornada: 'descanso_no_remunerado',  turno: 'descanso' },
+      { valor: 'NR', jornada: 'descanso_no_remunerado',  turno: 'descanso' },
+      { valor: 'NR', jornada: 'descanso_no_remunerado',  turno: 'descanso' },
+    ]
+  },
+  '2x2': {
+    nombre: 'Ciclo 2x2 (2D-2N-2Desc NR)',
+    totalDias: 6,
+    fases: [
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'NR', jornada: 'descanso_no_remunerado',  turno: 'descanso' },
+      { valor: 'NR', jornada: 'descanso_no_remunerado',  turno: 'descanso' },
+    ]
+  },
+  '13x2': {
+    nombre: 'Ciclo 13x2 (13D-2R-13N-2R)',
+    totalDias: 30,
+    fases: [
+      // 13 días de día
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      { valor: 'D',  jornada: 'normal',                 turno: 'AM' },
+      // 2 descansos remunerados
+      { valor: 'R',  jornada: 'descanso_remunerado',     turno: 'descanso' },
+      { valor: 'R',  jornada: 'descanso_remunerado',     turno: 'descanso' },
+      // 13 días de noche
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      { valor: 'N',  jornada: 'normal',                 turno: 'PM' },
+      // 2 descansos remunerados
+      { valor: 'R',  jornada: 'descanso_remunerado',     turno: 'descanso' },
+      { valor: 'R',  jornada: 'descanso_remunerado',     turno: 'descanso' },
+    ]
+  }
+};
+
+/**
+ * Mapa completo del ciclo original (Mantenido por compatibilidad)
+ */
+const CICLO = CONFIGURACIONES_CICLOS['12x3'].fases;
 
 // ── Funciones primitivas del ciclo ───────────────────────────────────────────
 
 /**
- * Normaliza cualquier número de día de ciclo al rango [0, 17].
- * Maneja negativos y valores mayores a 17 correctamente.
+ * Normaliza cualquier número de día de ciclo al rango del ciclo indicado.
  */
-export function normalizarPosicion(pos: number): number {
-  return ((pos % CICLO_TOTAL) + CICLO_TOTAL) % CICLO_TOTAL;
+export function normalizarPosicion(pos: number, tipoCiclo: TipoCiclo = '12x3'): number {
+  const config = CONFIGURACIONES_CICLOS[tipoCiclo] || CONFIGURACIONES_CICLOS['12x3'];
+  const total = config.totalDias;
+  return ((pos % total) + total) % total;
 }
 
 /**
  * Obtiene el estado del ciclo en una posición dada.
  */
-export function estadoCiclo(pos: number): (typeof CICLO)[number] {
-  return CICLO[normalizarPosicion(pos)];
+export function estadoCiclo(pos: number, tipoCiclo: TipoCiclo = '12x3'): { valor: ValorCelda; jornada: TipoJornada; turno: string } {
+  const config = CONFIGURACIONES_CICLOS[tipoCiclo] || CONFIGURACIONES_CICLOS['12x3'];
+  return config.fases[normalizarPosicion(pos, tipoCiclo)];
 }
 
 /**
  * Determina qué fase del ciclo corresponde a una posición.
  * Útil para mostrar el bloque actual al usuario.
  */
-export function faseCiclo(pos: number): 'DIURNO' | 'DESCANSO_D' | 'NOCTURNO' | 'DESCANSO_N' {
-  const p = normalizarPosicion(pos);
+export function faseCiclo(pos: number, tipoCiclo: TipoCiclo = '12x3'): 'DIURNO' | 'DESCANSO_D' | 'NOCTURNO' | 'DESCANSO_N' {
+  const config = CONFIGURACIONES_CICLOS[tipoCiclo] || CONFIGURACIONES_CICLOS['12x3'];
+  const p = normalizarPosicion(pos, tipoCiclo);
+
+  if (tipoCiclo === '13x2') {
+    if (p <= 12) return 'DIURNO';
+    if (p <= 14) return 'DESCANSO_D';
+    if (p <= 27) return 'NOCTURNO';
+    return 'DESCANSO_N';
+  }
+  if (tipoCiclo === '10x5') {
+    if (p <= 4) return 'DIURNO';
+    if (p <= 9) return 'NOCTURNO';
+    return 'DESCANSO_N';
+  }
+  if (tipoCiclo === '2x2') {
+    if (p <= 1) return 'DIURNO';
+    if (p <= 3) return 'NOCTURNO';
+    return 'DESCANSO_N';
+  }
+  
+  // 12x3 default
   if (p <= 5)  return 'DIURNO';
   if (p <= 11) return 'NOCTURNO';
   return 'DESCANSO_N';
@@ -130,20 +236,15 @@ export function faseCiclo(pos: number): 'DIURNO' | 'DESCANSO_D' | 'NOCTURNO' | '
 /**
  * Calcula el valor de celda visible: D, N, R, o NR.
  */
-export function valorCelda(pos: number): ValorCelda {
-  return CICLO[normalizarPosicion(pos)].valor;
+export function valorCelda(pos: number, tipoCiclo: TipoCiclo = '12x3'): ValorCelda {
+  const config = CONFIGURACIONES_CICLOS[tipoCiclo] || CONFIGURACIONES_CICLOS['12x3'];
+  return config.fases[normalizarPosicion(pos, tipoCiclo)].valor;
 }
 
 // ── Generador de tablero mensual ─────────────────────────────────────────────
 
 /**
- * @param posicionDia1 — posición en el ciclo (0-17) del día 1 del mes.
- * @param anio
- * @param mes           — 0-indexed (0=enero, 11=diciembre)
- * @param vigilanteId
- * @param rol
- * @param puestoId
- * @returns ResultadoTableroMes completo con todas las celdas del mes.
+ * Genera el tablero de un mes para un ciclo específico
  */
 export function generarTableroMes(
   posicionDia1: number,
@@ -152,14 +253,16 @@ export function generarTableroMes(
   vigilanteId: string,
   rol: string,
   puestoId: string,
+  tipoCiclo: TipoCiclo = '12x3',
 ): ResultadoTableroMes {
   const diasTotales = new Date(anio, mes + 1, 0).getDate();
-  const posInicio = normalizarPosicion(posicionDia1);
+  const posInicio = normalizarPosicion(posicionDia1, tipoCiclo);
+  const config = CONFIGURACIONES_CICLOS[tipoCiclo] || CONFIGURACIONES_CICLOS['12x3'];
   const celdas: CeldaTurno[] = [];
 
   for (let d = 0; d < diasTotales; d++) {
-    const pos = normalizarPosicion(posInicio + d);
-    const estado = CICLO[pos];
+    const pos = normalizarPosicion(posInicio + d, tipoCiclo);
+    const estado = config.fases[pos];
     celdas.push({
       dia: d + 1,
       valor: estado.valor,
@@ -177,26 +280,22 @@ export function generarTableroMes(
     mes,
     celdas,
     posicionInicioMes: posInicio,
-    posicionFinMes: normalizarPosicion(posInicio + diasTotales - 1),
+    posicionFinMes: normalizarPosicion(posInicio + diasTotales - 1, tipoCiclo),
+    tipoCiclo,
   };
 }
 
 /**
- * Calcula la posición en ciclo del día 1 del mes siguiente,
- * dada la posición del último día del mes actual.
- *
- * @param posicionUltimoDia — posición (0-17) del último día del mes
- * @returns posición (0-17) del día 1 del mes siguiente
+ * Calcula la posición en ciclo del día 1 del mes siguiente
  */
-export function posicionDia1MesSiguiente(posicionUltimoDia: number): number {
-  return normalizarPosicion(posicionUltimoDia + 1);
+export function posicionDia1MesSiguiente(posicionUltimoDia: number, tipoCiclo: TipoCiclo = '12x3'): number {
+  return normalizarPosicion(posicionUltimoDia + 1, tipoCiclo);
 }
 
 // ── Conversión entre AsignacionDia ↔ CeldaTurno ──────────────────────────────
 
 /**
- * Convierte una CeldaTurno del motor a AsignacionDia del store,
- * manteniendo el vigilanteId y rol originales.
+ * Convierte una CeldaTurno del motor a AsignacionDia del store
  */
 export function celdaToAsignacion(
   celda: CeldaTurno,
@@ -215,19 +314,24 @@ export function celdaToAsignacion(
 
 /**
  * Extrae la posición en ciclo de una celda existente (AsignacionDia)
- * usando el valor de jornada y turno.
- * Útil para reconstruir el estado del ciclo desde datos guardados.
- *
- * NOTA: Este método es una inferencia heurística. La fuente de verdad
- * es `EstadoFinMes.posicionCicloFinal`.
  */
-export function inferirPosicionDesdeCelda(asig: AsignacionDia): number | null {
+export function inferirPosicionDesdeCelda(asig: AsignacionDia, tipoCiclo: TipoCiclo = '12x3'): number | null {
   const { jornada, turno } = asig;
+  const config = CONFIGURACIONES_CICLOS[tipoCiclo] || CONFIGURACIONES_CICLOS['12x3'];
+  const fases = config.fases;
 
-  if (jornada === 'normal' && turno === 'AM')            return 0;  // D — comenzamos en pos 0 del bloque
-  if (jornada === 'normal' && turno === 'PM')            return 6;  // N — comenzamos en pos 6 del bloque
-  if (jornada === 'descanso_remunerado')                return 12; // R — pos 12
-  if (jornada === 'descanso_no_remunerado')             return 14; // NR — pos 14
+  const isDescRem = (jornada === 'descanso_remunerado');
+  const isDescNoRem = (jornada === 'descanso_no_remunerado');
+  const isDiurno = (jornada === 'normal' && turno === 'AM');
+  const isNocturno = (jornada === 'normal' && turno === 'PM');
+
+  for (let i = 0; i < fases.length; i++) {
+    const f = fases[i];
+    if (isDiurno && f.valor === 'D') return i;
+    if (isNocturno && f.valor === 'N') return i;
+    if (isDescRem && f.valor === 'R') return i;
+    if (isDescNoRem && f.valor === 'NR') return i;
+  }
   return null;
 }
 
@@ -236,15 +340,13 @@ export function inferirPosicionDesdeCelda(asig: AsignacionDia): number | null {
 /**
  * Dado el array de asignaciones guardadas de un mes,
  * extrae el estado final de ciclo de cada vigilante.
- *
- * Primero intenta leer el campo `posicionCiclo` si fue guardado.
- * Si no existe, lo reconstruye desde jornada/turno del último día.
  */
 export function extraerEstadosFinMes(
   asignaciones: AsignacionDia[],
   anio: number,
   mes: number,
   puestoId: string,
+  personalMesAnterior?: Array<{ rol: string; vigilanteId: string | null; tipoCiclo?: TipoCiclo }>,
 ): EstadoFinMes[] {
   const diasMes = new Date(anio, mes + 1, 0).getDate();
   const porVigilante = new Map<string, AsignacionDia[]>();
@@ -260,17 +362,20 @@ export function extraerEstadosFinMes(
 
   porVigilante.forEach((asigs, key) => {
     const [vigilanteId, rol] = key.split('::');
-    // Ordenar por día descendente para obtener el último día asignado
     const sorted = [...asigs].sort((a, b) => b.dia - a.dia);
     const ultimaAsig = sorted[0];
 
     if (!ultimaAsig) return;
 
-    // Si la celda tiene posición explícita (guardada por el motor), la usamos
+    // Buscar tipo de ciclo en el personal del mes anterior
+    const rConfig = personalMesAnterior?.find(p => p.rol === rol);
+    const tCiclo = rConfig?.tipoCiclo || '12x3';
+    const config = CONFIGURACIONES_CICLOS[tCiclo] || CONFIGURACIONES_CICLOS['12x3'];
+
     const posExplicita = (ultimaAsig as any).posicionCiclo;
     const posicionFinal = typeof posExplicita === 'number'
-      ? normalizarPosicion(posExplicita)
-      : reconstruirPosicionDesdeHistorial(asigs, diasMes);
+      ? normalizarPosicion(posExplicita, tCiclo)
+      : reconstruirPosicionDesdeHistorial(asigs, diasMes, tCiclo);
 
     estados.push({
       vigilanteId,
@@ -280,7 +385,7 @@ export function extraerEstadosFinMes(
       mes,
       ultimoDiaCalculado: ultimaAsig.dia,
       posicionCicloFinal: posicionFinal,
-      valorFinal: valorCelda(posicionFinal),
+      valorFinal: config.fases[posicionFinal]?.valor || 'D',
     });
   });
 
@@ -288,20 +393,16 @@ export function extraerEstadosFinMes(
 }
 
 /**
- * Reconstruye la posición en ciclo del último día del mes,
- * analizando el historial completo de asignaciones del vigilante.
- *
- * Busca transiciones de estado conocidas en la secuencia para anclar la posición
- * exacta del ciclo. Si no hay suficientes datos, hace una estimación desde el valor final.
+ * Reconstruye la posición en ciclo del último día del mes
  */
 function reconstruirPosicionDesdeHistorial(
   asigs: AsignacionDia[],
   diasMes: number,
+  tipoCiclo: TipoCiclo = '12x3',
 ): number {
   const sorted = [...asigs].sort((a, b) => a.dia - b.dia);
   if (sorted.length === 0) return 0;
 
-  // Creamos un mapa indexado por día para buscar transiciones rápidamente
   const valores = new Array<ValorCelda | null>(diasMes + 1).fill(null);
   sorted.forEach(a => {
     if (a.dia >= 1 && a.dia <= diasMes) {
@@ -309,58 +410,46 @@ function reconstruirPosicionDesdeHistorial(
     }
   });
 
-  // Escanear la secuencia buscando transiciones conocidas
-  // Transiciones del ciclo de 15 días:
-  // - D -> N: D es pos 5, N es pos 6
-  // - N -> R: N es pos 11, R es pos 12
-  // - R -> D: R es pos 14, D es pos 0
+  const config = CONFIGURACIONES_CICLOS[tipoCiclo] || CONFIGURACIONES_CICLOS['12x3'];
+  const fases = config.fases;
+  const cicloLen = config.totalDias;
+
   for (let d = 1; d < diasMes; d++) {
     const v1 = valores[d];
     const v2 = valores[d + 1];
     if (!v1 || !v2) continue;
 
-    if (v1 === 'D' && v2 === 'N') {
-      const posLast = 5 + (diasMes - d);
-      return normalizarPosicion(posLast);
+    const matches: number[] = [];
+    for (let i = 0; i < cicloLen; i++) {
+      if (fases[i].valor === v1 && fases[(i + 1) % cicloLen].valor === v2) {
+        matches.push(i);
+      }
     }
-    if (v1 === 'N' && (v2 === 'R' || v2 === 'NR')) {
-      const posLast = 11 + (diasMes - d);
-      return normalizarPosicion(posLast);
-    }
-    if ((v1 === 'R' || v1 === 'NR') && v2 === 'D') {
-      const posLast = 14 + (diasMes - d);
-      return normalizarPosicion(posLast);
+
+    if (matches.length === 1) {
+      const posAtD = matches[0];
+      const posLast = posAtD + (diasMes - d);
+      return ((posLast % cicloLen) + cicloLen) % cicloLen;
     }
   }
 
-  // Buscar la primera celda con un valor reconocible de jornada
   const primera = sorted.find(
     (a) => a.jornada !== 'sin_asignar' && a.jornada !== 'vacacion',
   );
   if (!primera) return 0;
 
-  // Inferir la posición de esa primera celda
-  const posPrimera = inferirPosicionDesdeCelda(primera);
-  if (posPrimera === null) return 0;
+  const valPrimera = asignacionToValorCelda(primera);
+  const firstIndex = fases.findIndex(f => f.valor === valPrimera);
+  const posPrimera = firstIndex >= 0 ? firstIndex : 0;
 
-  // La posición del último día es: posPrimera + (diaPrimera - 1) de diferencia
-  // hasta el último día del mes
   const offsetHastaFin = diasMes - primera.dia;
-  return normalizarPosicion(posPrimera + offsetHastaFin);
+  return ((posPrimera + offsetHastaFin) % cicloLen + cicloLen) % cicloLen;
 }
 
 // ── Motor de transición de mes ────────────────────────────────────────────────
 
 /**
- * Calcula la posición en ciclo del día 1 de un nuevo mes,
- * tomando como base los estados finales del mes anterior.
- *
- * @param estadosFinMesAnterior — array de EstadoFinMes del mes que termina
- * @param vigilanteId
- * @param rol
- * @param anioAnterior          — año del mes anterior
- * @param mesAnterior           — mes anterior (0-indexed)
- * @returns posición (0-17) para el día 1 del nuevo mes
+ * Calcula la posición en ciclo del día 1 de un nuevo mes
  */
 export function calcularPosicionNuevoMes(
   estadosFinMesAnterior: EstadoFinMes[],
@@ -368,6 +457,7 @@ export function calcularPosicionNuevoMes(
   rol: string,
   anioAnterior: number,
   mesAnterior: number,
+  tipoCicloNuevo: TipoCiclo = '12x3',
 ): number {
   const estado = estadosFinMesAnterior.find(
     (e) =>
@@ -378,27 +468,19 @@ export function calcularPosicionNuevoMes(
   );
 
   if (!estado) {
-    // Sin datos previos: comenzar desde el inicio del ciclo
     console.warn(
       `[MotorTurnos] ⚠️ Sin estado previo para ${vigilanteId}::${rol}. Iniciando desde pos 0.`,
     );
     return 0;
   }
 
-  return posicionDia1MesSiguiente(estado.posicionCicloFinal);
+  return posicionDia1MesSiguiente(estado.posicionCicloFinal, tipoCicloNuevo);
 }
 
 // ── Generador multi-rol para un puesto completo ───────────────────────────────
 
 /**
- * Genera el tablero completo de un puesto para un mes dado,
- * calculando ciclos independientes por cada rol/vigilante.
- *
- * @param puestoId
- * @param anio
- * @param mes
- * @param personalConfig  — Array de { rol, vigilanteId, posicionDia1 }
- * @returns Map de rol → ResultadoTableroMes
+ * Genera el tablero completo de un puesto para un mes dado
  */
 export function generarTableroCompletoPuesto(
   puestoId: string,
@@ -408,12 +490,13 @@ export function generarTableroCompletoPuesto(
     rol: string;
     vigilanteId: string | null;
     posicionDia1: number;
+    tipoCiclo?: TipoCiclo;
   }>,
 ): Map<string, ResultadoTableroMes> {
   const resultado = new Map<string, ResultadoTableroMes>();
 
-  personalConfig.forEach(({ rol, vigilanteId, posicionDia1 }) => {
-    if (!vigilanteId) return; // Vacante: sin ciclo que calcular
+  personalConfig.forEach(({ rol, vigilanteId, posicionDia1, tipoCiclo }) => {
+    if (!vigilanteId) return;
     const tablero = generarTableroMes(
       posicionDia1,
       anio,
@@ -421,6 +504,7 @@ export function generarTableroCompletoPuesto(
       vigilanteId,
       rol,
       puestoId,
+      tipoCiclo || '12x3',
     );
     resultado.set(rol, tablero);
   });
@@ -432,7 +516,6 @@ export function generarTableroCompletoPuesto(
 
 /**
  * Convierte un ResultadoTableroMes en el array AsignacionDia[]
- * que espera el programacionStore.
  */
 export function tableroToAsignaciones(tablero: ResultadoTableroMes): AsignacionDia[] {
   return tablero.celdas.map((celda) =>
@@ -441,8 +524,7 @@ export function tableroToAsignaciones(tablero: ResultadoTableroMes): AsignacionD
 }
 
 /**
- * Convierte todos los tableros de un puesto en AsignacionDia[],
- * fusionando los resultados de todos los roles en un solo array.
+ * Convierte todos los tableros de un puesto en AsignacionDia[]
  */
 export function tablerosToAsignaciones(
   tableros: Map<string, ResultadoTableroMes>,
@@ -574,13 +656,15 @@ export function generarResumenFinMes(
 
   tableros.forEach((tablero, rol) => {
     const ultimaCelda = tablero.celdas[tablero.celdas.length - 1];
+    const tCiclo = tablero.tipoCiclo || '12x3';
     puestosData[rol] = {
       vigilanteId: tablero.vigilanteId,
       ultimo_dia_mes: diasMes,
       posicion_en_ciclo: ultimaCelda.posicionCiclo,
       turno_actual: ultimaCelda.valor,
-      fase_actual: faseCiclo(ultimaCelda.posicionCiclo),
-      posicion_dia1_mes_siguiente: posicionDia1MesSiguiente(ultimaCelda.posicionCiclo),
+      fase_actual: faseCiclo(ultimaCelda.posicionCiclo, tCiclo),
+      posicion_dia1_mes_siguiente: posicionDia1MesSiguiente(ultimaCelda.posicionCiclo, tCiclo),
+      tipo_ciclo: tCiclo,
     };
   });
 
@@ -621,16 +705,17 @@ export function aplicarMotorTurnos(
   puestoId: string,
   anio: number,
   mes: number,
-  personal: Array<{ rol: string; vigilanteId: string | null }>,
+  personal: Array<{ rol: string; vigilanteId: string | null; tipoCiclo?: TipoCiclo }>,
   asignacionesMesAnterior: AsignacionDia[],
   anioMesAnterior: number,
   mesMesAnterior: number,
+  personalMesAnterior?: Array<{ rol: string; vigilanteId: string | null; tipoCiclo?: TipoCiclo }>,
 ): AsignacionDia[] | null {
   if (!personal || personal.length === 0) return null;
 
   // 1. Extraer estados finales del mes anterior (si existen)
   const estadosPrevios: EstadoFinMes[] = asignacionesMesAnterior.length > 0
-    ? extraerEstadosFinMes(asignacionesMesAnterior, anioMesAnterior, mesMesAnterior, puestoId)
+    ? extraerEstadosFinMes(asignacionesMesAnterior, anioMesAnterior, mesMesAnterior, puestoId, personalMesAnterior)
     : [];
 
   // 2. Calcular posición inicial del día 1 para cada rol
@@ -643,11 +728,13 @@ export function aplicarMotorTurnos(
         p.rol,
         anioMesAnterior,
         mesMesAnterior,
+        p.tipoCiclo || '12x3',
       );
       return {
         rol: p.rol,
         vigilanteId: p.vigilanteId,
         posicionDia1: posicion,
+        tipoCiclo: p.tipoCiclo || '12x3',
       };
     });
 

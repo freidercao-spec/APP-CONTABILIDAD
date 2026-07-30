@@ -23,6 +23,8 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { getColombiaHolidays, isHoliday } from "../utils/colombiaHolidays";
 
+import type { TipoCiclo } from "../store/motorTurnos";
+
 // Sub-components
 import { CeldaCalendario } from "../components/puestos/CeldaCalendario";
 import { EditCeldaModal } from "../components/puestos/EditCeldaModal";
@@ -229,6 +231,7 @@ const PanelMensualPuesto = ({
   const [isApplyingCiclo, setIsApplyingCiclo] = useState(false);
   const [showTurnosConfig, setShowTurnosConfig] = useState(false);
   const [showRolesModal, setShowRolesModal] = useState(false);
+  const [showCicloModal, setShowCicloModal] = useState(false);
 
   const currentUser =
     username || useAuthStore.getState().username || "Operador";
@@ -460,22 +463,25 @@ const PanelMensualPuesto = ({
   );
 
   // ── Motor de Ciclo D/N/R/NR — Aplicar plantilla del mes anterior ────────────
-  const handleAplicarCiclo = useCallback(async () => {
+  // ── Motor de Ciclo D/N/R/NR — Aplicar plantilla del mes anterior ────────────
+  const handleAplicarCiclo = useCallback(() => {
+    setShowCicloModal(true);
+  }, []);
+
+  const ejecutarAplicarCiclo = useCallback(async (tipoCiclo: TipoCiclo) => {
     if (isApplyingCiclo) return;
     setIsApplyingCiclo(true);
+    setShowCicloModal(false);
     try {
-      // El mes actual (donde está el usuario) es la base/semilla
       const mesBase = mes;
       const anioBase = anio;
       
-      // El mes destino donde aplicaremos el ciclo continuo es el mes siguiente
       const dSiguiente = new Date(anioBase, mesBase + 1);
       const mesDestino = dSiguiente.getMonth();
       const anioDestino = dSiguiente.getFullYear();
 
       const progBase = getProgramacion(puestoId, anioBase, mesBase);
 
-      // 1. Asegurar que los detalles del mes actual (base) estén cargados
       if (progBase && !progBase.isDetailLoaded && !progBase.isFetching) {
         showTacticalToast({
           title: '⏳ Cargando datos de este mes...',
@@ -483,10 +489,8 @@ const PanelMensualPuesto = ({
           type: 'info',
         });
         await fetchProgramacionDetalles(progBase.id);
-        // Aguardar a que el estado se propague
         await new Promise(r => setTimeout(r, 700));
       } else if (!progBase) {
-        // Cargar desde la base de datos si no está en memoria
         await useProgramacionStore.getState().fetchProgramacionesByMonth(anioBase, mesBase);
         await new Promise(r => setTimeout(r, 500));
         const progBaseRefetched = getProgramacion(puestoId, anioBase, mesBase);
@@ -496,21 +500,18 @@ const PanelMensualPuesto = ({
         }
       }
 
-      // 2. Aplicar el motor de ciclos para el mes siguiente
-      const result = generarMesConMotor(puestoId, anioDestino, mesDestino, currentUser);
+      const result = generarMesConMotor(puestoId, anioDestino, mesDestino, currentUser, tipoCiclo);
       if (result) {
-        logAction('PROGRAMACION', 'Ciclo D/N/R Aplicado', `Puesto: ${puestoNombre} | ${MONTH_NAMES[mesDestino]} ${anioDestino}`, 'success');
+        logAction('PROGRAMACION', 'Ciclo D/N/R Aplicado', `Puesto: ${puestoNombre} | ${MONTH_NAMES[mesDestino]} ${anioDestino} | Ciclo: ${tipoCiclo}`, 'success');
         
-        // Guardar borrador en Supabase automáticamente
         await useProgramacionStore.getState().guardarBorrador(result.id, currentUser);
         
         showTacticalToast({
           title: '✅ Ciclo Aplicado con Éxito',
-          message: `La programación de ${MONTH_NAMES[mesDestino]} fue generada y guardada.`,
+          message: `La programación de ${MONTH_NAMES[mesDestino]} (${tipoCiclo}) fue generada y guardada.`,
           type: 'success',
         });
 
-        // 3. Navegar automáticamente al siguiente mes en el tablero para mostrar el resultado
         setAnioLocal(anioDestino);
         setMesLocal(mesDestino);
         onMesChange?.(anioDestino, mesDestino);
@@ -1944,6 +1945,95 @@ const PanelMensualPuesto = ({
         compareProgId={compareProgId}
         setCompareProgId={setCompareProgId}
       />
+
+      {showCicloModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden flex flex-col">
+            
+            {/* Cabecera */}
+            <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between bg-slate-950/50">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-indigo-400 text-[20px]">autorenew</span>
+                <h3 className="text-sm font-black uppercase text-white tracking-wider">Aplicar Ciclo Rotativo</h3>
+              </div>
+              <button 
+                onClick={() => setShowCicloModal(false)}
+                className="size-7 rounded-lg hover:bg-white/5 flex items-center justify-center transition-colors text-slate-400 hover:text-white"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+
+            {/* Contenido */}
+            <div className="p-5 flex-1 overflow-y-auto space-y-4">
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Selecciona el ciclo rotativo para generar automáticamente la programación del mes siguiente. El sistema continuará la posición del ciclo del mes anterior de manera ininterrumpida.
+              </p>
+
+              <div className="grid grid-cols-1 gap-2.5">
+                {/* Opción 12x3 */}
+                <button
+                  onClick={() => ejecutarAplicarCiclo('12x3')}
+                  className="flex items-start gap-3.5 p-3.5 rounded-lg border border-white/5 bg-slate-800/40 hover:bg-indigo-600/10 hover:border-indigo-500/30 transition-all text-left group"
+                >
+                  <span className="material-symbols-outlined text-indigo-400 text-[20px] mt-0.5 group-hover:scale-110 transition-transform">looks_one</span>
+                  <div>
+                    <h4 className="text-xs font-black uppercase text-white tracking-wide">Ciclo 12x3 <span className="text-[9px] text-slate-500 lowercase">(6D-6N-3Desc)</span></h4>
+                    <p className="text-[10px] text-slate-400 mt-1">6 Días Diurnos, 6 Días Nocturnos, 3 Descansos (2 Remunerados, 1 No Remunerado). Ciclo completo de 15 días.</p>
+                  </div>
+                </button>
+
+                {/* Opción 10x5 */}
+                <button
+                  onClick={() => ejecutarAplicarCiclo('10x5')}
+                  className="flex items-start gap-3.5 p-3.5 rounded-lg border border-white/5 bg-slate-800/40 hover:bg-indigo-600/10 hover:border-indigo-500/30 transition-all text-left group"
+                >
+                  <span className="material-symbols-outlined text-teal-400 text-[20px] mt-0.5 group-hover:scale-110 transition-transform">looks_two</span>
+                  <div>
+                    <h4 className="text-xs font-black uppercase text-white tracking-wide">Ciclo 10x5 <span className="text-[9px] text-slate-500 lowercase">(5D-5N-5Desc)</span></h4>
+                    <p className="text-[10px] text-slate-400 mt-1">5 Días Diurnos, 5 Días Nocturnos, 5 Descansos (2 Remunerados, 3 No Remunerados). Ciclo completo de 15 días.</p>
+                  </div>
+                </button>
+
+                {/* Opción 2x2 */}
+                <button
+                  onClick={() => ejecutarAplicarCiclo('2x2')}
+                  className="flex items-start gap-3.5 p-3.5 rounded-lg border border-white/5 bg-slate-800/40 hover:bg-indigo-600/10 hover:border-indigo-500/30 transition-all text-left group"
+                >
+                  <span className="material-symbols-outlined text-amber-400 text-[20px] mt-0.5 group-hover:scale-110 transition-transform">looks_3</span>
+                  <div>
+                    <h4 className="text-xs font-black uppercase text-white tracking-wide">Ciclo 2x2 <span className="text-[9px] text-slate-500 lowercase">(2D-2N-2Desc)</span></h4>
+                    <p className="text-[10px] text-slate-400 mt-1">2 Días Diurnos, 2 Días Nocturnos, 2 Descansos No Remunerados. Ciclo completo de 6 días.</p>
+                  </div>
+                </button>
+
+                {/* Opción 13x2 */}
+                <button
+                  onClick={() => ejecutarAplicarCiclo('13x2')}
+                  className="flex items-start gap-3.5 p-3.5 rounded-lg border border-white/5 bg-slate-800/40 hover:bg-indigo-600/10 hover:border-indigo-500/30 transition-all text-left group"
+                >
+                  <span className="material-symbols-outlined text-rose-400 text-[20px] mt-0.5 group-hover:scale-110 transition-transform">looks_4</span>
+                  <div>
+                    <h4 className="text-xs font-black uppercase text-white tracking-wide">Ciclo 13x2 <span className="text-[9px] text-slate-500 lowercase">(13D-2R-13N-2R)</span></h4>
+                    <p className="text-[10px] text-slate-400 mt-1">13 Días Diurnos, 2 Descansos Remunerados, 13 Días Nocturnos, 2 Descansos Remunerados. Ciclo completo de 30 días.</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Pie de modal */}
+            <div className="px-5 py-3.5 border-t border-white/5 bg-slate-950/30 flex justify-end">
+              <button 
+                onClick={() => setShowCicloModal(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-black uppercase tracking-wider transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {showPersonalModal && (
         <GestionPersonalModal

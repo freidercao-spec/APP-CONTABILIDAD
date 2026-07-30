@@ -79,6 +79,7 @@ export interface PersonalPuesto {
     vigilanteId: string | null;
     turnoId?: string;
     displayName?: string; // Etiqueta visible personalizada (para roles con ID UUID-style)
+    tipoCiclo?: string;   // Tipo de ciclo asignado (12x3, 10x5, 2x2, 13x2)
 }
 
 export interface CambioProgramacion {
