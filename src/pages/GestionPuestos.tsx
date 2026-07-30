@@ -1244,12 +1244,67 @@ const PanelMensualPuesto = ({
 
 
 
+  // OVERLAY SELECTOR DE CICLO AL NAVEGAR AL SIGUIENTE MES
+  const pendingNavModalOverlay = pendingNavModal && (() => {
+    const { newAnio: navAnio, newMes: navMes } = pendingNavModal;
+    const CICLOS_OVL = [
+      { id: '12x3' as TipoCiclo, label: 'Ciclo 12×3', desc: '6 Días · 6 Noches · 3 Descansos (2R+1NR)', color: 'from-blue-600 to-indigo-700', icon: '🔵' },
+      { id: '10x5' as TipoCiclo, label: 'Ciclo 10×5', desc: '5 Días · 5 Noches · 5 Descansos (2R+3NR)', color: 'from-violet-600 to-purple-700', icon: '🟣' },
+      { id: '2x2'  as TipoCiclo, label: 'Ciclo 2×2',  desc: '2 Días · 2 Noches · 2 Descansos NR',       color: 'from-emerald-600 to-teal-700',  icon: '🟢' },
+      { id: '13x2' as TipoCiclo, label: 'Ciclo 13×2', desc: '13 Días · 2 Descansos R · 13 Noches · 2R', color: 'from-amber-600 to-orange-700',   icon: '🟡' },
+    ];
+    return (
+      <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in">
+        <div className="w-full max-w-md bg-slate-900 border border-indigo-500/30 rounded-2xl p-6 shadow-2xl space-y-5 ring-1 ring-indigo-500/20">
+          <div className="text-center space-y-1.5">
+            <span className="px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-[10px] font-black text-indigo-400 uppercase tracking-widest inline-block">
+              Paso al Siguiente Mes
+            </span>
+            <h2 className="text-xl font-black text-white uppercase tracking-tight">
+              {MONTH_NAMES[navMes]} {navAnio}
+            </h2>
+            <p className="text-xs text-slate-400 max-w-xs mx-auto">
+              ¿Qué ciclo de turnos deseas aplicar para <strong className="text-white">{MONTH_NAMES[navMes]}</strong>? Se heredará el personal de <strong className="text-white">{MONTH_NAMES[mes]}</strong>.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2.5">
+            {CICLOS_OVL.map(c => (
+              <button
+                key={c.id}
+                onClick={() => ejecutarAplicarCicloEnMes(c.id, navAnio, navMes)}
+                disabled={isApplyingCiclo}
+                className={`flex items-center gap-3.5 p-3.5 rounded-xl bg-gradient-to-r ${c.color} hover:scale-[1.02] active:scale-98 transition-all shadow-lg hover:shadow-indigo-500/20 disabled:opacity-60 text-left group`}
+              >
+                <span className="text-2xl group-hover:scale-110 transition-transform">{c.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-xs font-black text-white uppercase tracking-wide">{c.label}</h4>
+                  <p className="text-[10px] text-white/80 truncate">{c.desc}</p>
+                </div>
+                <span className="material-symbols-outlined text-white/60 text-[18px]">arrow_forward</span>
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => setPendingNavModal(null)}
+            className="w-full py-2.5 rounded-xl border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 text-xs font-black uppercase tracking-widest transition-all"
+          >
+            Cancelar — Permanecer en {MONTH_NAMES[mes]} {anio}
+          </button>
+        </div>
+      </div>
+    );
+  })();
+
   // SI EL MES NO EXISTE O ESTÁ VACÍO: Desplegar el selector de ciclos interactivo
   // Condición: no hay programación, O hay programación pero el detalle ya cargó y no tiene asignaciones
   const mesEstaVacio = !prog || (prog.isDetailLoaded && progAsignaciones.length === 0);
   if (mesEstaVacio) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 text-white p-4">
+      <>
+        {pendingNavModalOverlay}
+        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 text-white p-4">
         <div className="w-full max-w-xl bg-slate-950/40 border border-white/10 rounded-2xl p-6 shadow-2xl space-y-6">
           
           {/* Header */}
@@ -1343,6 +1398,7 @@ const PanelMensualPuesto = ({
 
         </div>
       </div>
+      </>
     );
   }
 
@@ -2263,58 +2319,7 @@ const PanelMensualPuesto = ({
           }}
         />
       )}
-      {/* OVERLAY SELECTOR DE CICLO AL NAVEGAR AL SIGUIENTE MES */}
-      {pendingNavModal && (() => {
-        const { newAnio: navAnio, newMes: navMes } = pendingNavModal;
-        const CICLOS_OVL = [
-          { id: '12x3' as TipoCiclo, label: 'Ciclo 12×3', desc: '6 Días · 6 Noches · 3 Descansos (2R+1NR)', color: 'from-blue-600 to-indigo-700', icon: '🔵' },
-          { id: '10x5' as TipoCiclo, label: 'Ciclo 10×5', desc: '5 Días · 5 Noches · 5 Descansos (2R+3NR)', color: 'from-violet-600 to-purple-700', icon: '🟣' },
-          { id: '2x2'  as TipoCiclo, label: 'Ciclo 2×2',  desc: '2 Días · 2 Noches · 2 Descansos NR',       color: 'from-emerald-600 to-teal-700',  icon: '🟢' },
-          { id: '13x2' as TipoCiclo, label: 'Ciclo 13×2', desc: '13 Días · 2 Descansos R · 13 Noches · 2R', color: 'from-amber-600 to-orange-700',   icon: '🟡' },
-        ];
-        return (
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in">
-            <div className="w-full max-w-md bg-slate-900 border border-indigo-500/30 rounded-2xl p-6 shadow-2xl space-y-5 ring-1 ring-indigo-500/20">
-              <div className="text-center space-y-1.5">
-                <span className="px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-[10px] font-black text-indigo-400 uppercase tracking-widest inline-block">
-                  Paso al Siguiente Mes
-                </span>
-                <h2 className="text-xl font-black text-white uppercase tracking-tight">
-                  {MONTH_NAMES[navMes]} {navAnio}
-                </h2>
-                <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                  ¿Qué ciclo de turnos deseas aplicar para <strong className="text-white">{MONTH_NAMES[navMes]}</strong>? Se heredará el personal de <strong className="text-white">{MONTH_NAMES[mes]}</strong>.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 gap-2.5">
-                {CICLOS_OVL.map(c => (
-                  <button
-                    key={c.id}
-                    onClick={() => ejecutarAplicarCicloEnMes(c.id, navAnio, navMes)}
-                    disabled={isApplyingCiclo}
-                    className={`flex items-center gap-3.5 p-3.5 rounded-xl bg-gradient-to-r ${c.color} hover:scale-[1.02] active:scale-98 transition-all shadow-lg hover:shadow-indigo-500/20 disabled:opacity-60 text-left group`}
-                  >
-                    <span className="text-2xl group-hover:scale-110 transition-transform">{c.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-xs font-black text-white uppercase tracking-wide">{c.label}</h4>
-                      <p className="text-[10px] text-white/80 truncate">{c.desc}</p>
-                    </div>
-                    <span className="material-symbols-outlined text-white/60 text-[18px]">arrow_forward</span>
-                  </button>
-                ))}
-              </div>
-
-              <button
-                onClick={() => setPendingNavModal(null)}
-                className="w-full py-2.5 rounded-xl border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 text-xs font-black uppercase tracking-widest transition-all"
-              >
-                Cancelar — Permanecer en {MONTH_NAMES[mes]} {anio}
-              </button>
-            </div>
-          </div>
-        );
-      })()}
+      {pendingNavModalOverlay}
     </div>
   );
 };
