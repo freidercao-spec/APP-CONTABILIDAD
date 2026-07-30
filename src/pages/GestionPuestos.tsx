@@ -2336,6 +2336,56 @@ const GestionPuestos = () => {
   const [selectedPuesto, setSelectedPuesto] = useState<any>(null);
   const [detailPuesto, setDetailPuesto] = useState<any>(null);
   const [autoOpenPersonalFlag, setAutoOpenPersonalFlag] = useState(false);
+  const [pendingGlobalNavModal, setPendingGlobalNavModal] = useState<{ newAnio: number; newMes: number } | null>(null);
+  const [isApplyingGlobalCiclo, setIsApplyingGlobalCiclo] = useState(false);
+  const currentUser = useAuthStore(s => s.username) || 'sistema';
+
+  const ejecutarAplicarCicloGlobal = useCallback(async (tipoCiclo: TipoCiclo, targetAnio: number, targetMes: number) => {
+    if (isApplyingGlobalCiclo) return;
+    setIsApplyingGlobalCiclo(true);
+    setPendingGlobalNavModal(null);
+    setAnio(targetAnio);
+    setMes(targetMes);
+
+    try {
+      showTacticalToast({
+        title: '⏳ Carga de Mes',
+        message: `Preparando programación de ${MONTH_NAMES[targetMes]} ${targetAnio}...`,
+        type: 'info',
+      });
+
+      const currentPuestos = usePuestoStore.getState().puestos || [];
+      const progStore = useProgramacionStore.getState() as any;
+
+      const mesAnterior = targetMes === 0 ? 11 : targetMes - 1;
+      const anioAnterior = targetMes === 0 ? targetAnio - 1 : targetAnio;
+      await progStore.fetchProgramacionesByMonth(anioAnterior, mesAnterior);
+      await progStore.fetchProgramacionesByMonth(targetAnio, targetMes);
+
+      let count = 0;
+      for (const p of currentPuestos) {
+        if ((p as any).estado === 'inactivo') continue;
+        const pId = p.dbId || p.id;
+        const res = progStore.generarMesConMotor(pId, targetAnio, targetMes, currentUser, tipoCiclo);
+        if (res) {
+          await progStore.guardarBorrador(res.id, currentUser);
+          count++;
+        }
+      }
+
+      await progStore.fetchProgramacionesByMonth(targetAnio, targetMes);
+      showTacticalToast({
+        title: '✅ Mes Montado Exitosamente',
+        message: `Se generó la programación de ${MONTH_NAMES[targetMes]} ${targetAnio} con el ciclo ${tipoCiclo} para ${count} puesto(s).`,
+        type: 'success',
+      });
+    } catch (err) {
+      console.error('[GlobalCiclo] Error:', err);
+      showTacticalToast({ title: '❌ Error', message: 'No se pudo montar la programación.', type: 'error' });
+    } finally {
+      setIsApplyingGlobalCiclo(false);
+    }
+  }, [isApplyingGlobalCiclo, currentUser]);
 
   const { puestos, fetchPuestos, loaded: puestosLoaded } = usePuestoStore();
   const { programaciones, fetchProgramaciones, loaded: progLoaded } = useProgramacionStore();
@@ -2442,7 +2492,10 @@ const GestionPuestos = () => {
               <p className="text-[14px] font-black text-slate-900 uppercase tracking-wide">{MONTH_NAMES[mes]}</p>
             </div>
             <button 
-              onClick={() => { const d = new Date(anio, mes + 1); setAnio(d.getFullYear()); setMes(d.getMonth()); }}
+              onClick={() => {
+                const d = new Date(anio, mes + 1);
+                setPendingGlobalNavModal({ newAnio: d.getFullYear(), newMes: d.getMonth() });
+              }}
               className="px-3 py-2.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-all"
             >
               <span className="material-symbols-outlined text-xl">chevron_right</span>
@@ -2725,6 +2778,55 @@ const GestionPuestos = () => {
       <PuestoModal isOpen={isNewPuestoModalOpen} puestoId={puestoToEdit?.id} onClose={() => { setIsNewPuestoModalOpen(false); setPuestoToEdit(null); }} onCreated={() => fetchPuestos()} />
       {detailPuesto && (
         <PuestoDetailModal puesto={detailPuesto} onClose={() => setDetailPuesto(null)} />
+      )}
+
+      {/* OVERLAY SELECTOR DE CICLO GLOBAL AL AVANZAR DE MES */}
+      {pendingGlobalNavModal && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 animate-fade-in">
+          <div className="w-full max-w-md bg-slate-900 border border-indigo-500/30 rounded-2xl p-6 shadow-2xl space-y-5 ring-1 ring-indigo-500/20">
+            <div className="text-center space-y-1.5">
+              <span className="px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-[10px] font-black text-indigo-400 uppercase tracking-widest inline-block">
+                Paso al Siguiente Mes
+              </span>
+              <h2 className="text-xl font-black text-white uppercase tracking-tight">
+                {MONTH_NAMES[pendingGlobalNavModal.newMes]} {pendingGlobalNavModal.newAnio}
+              </h2>
+              <p className="text-xs text-slate-400 max-w-xs mx-auto">
+                ¿Qué ciclo de turnos deseas aplicar para <strong className="text-white">{MONTH_NAMES[pendingGlobalNavModal.newMes]}</strong>? Se arrastrarán automáticamente los vigilantes y turnos del mes anterior.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2.5">
+              {[
+                { id: '12x3' as TipoCiclo, label: 'Ciclo 12×3', desc: '6 Días · 6 Noches · 3 Descansos (2R+1NR)', color: 'from-blue-600 to-indigo-700', icon: '🔵' },
+                { id: '10x5' as TipoCiclo, label: 'Ciclo 10×5', desc: '5 Días · 5 Noches · 5 Descansos (2R+3NR)', color: 'from-violet-600 to-purple-700', icon: '🟣' },
+                { id: '2x2'  as TipoCiclo, label: 'Ciclo 2×2',  desc: '2 Días · 2 Noches · 2 Descansos NR',       color: 'from-emerald-600 to-teal-700',  icon: '🟢' },
+                { id: '13x2' as TipoCiclo, label: 'Ciclo 13×2', desc: '13 Días · 2 Descansos R · 13 Noches · 2R', color: 'from-amber-600 to-orange-700',   icon: '🟡' },
+              ].map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => ejecutarAplicarCicloGlobal(c.id, pendingGlobalNavModal.newAnio, pendingGlobalNavModal.newMes)}
+                  disabled={isApplyingGlobalCiclo}
+                  className={`flex items-center gap-3.5 p-3.5 rounded-xl bg-gradient-to-r ${c.color} hover:scale-[1.02] active:scale-98 transition-all shadow-lg hover:shadow-indigo-500/20 disabled:opacity-60 text-left group`}
+                >
+                  <span className="text-2xl group-hover:scale-110 transition-transform">{c.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-xs font-black text-white uppercase tracking-wide">{c.label}</h4>
+                    <p className="text-[10px] text-white/80 truncate">{c.desc}</p>
+                  </div>
+                  <span className="material-symbols-outlined text-white/60 text-[18px]">arrow_forward</span>
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setPendingGlobalNavModal(null)}
+              className="w-full py-2.5 rounded-xl border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 text-xs font-black uppercase tracking-widest transition-all"
+            >
+              Cancelar — Permanecer en {MONTH_NAMES[mes]} {anio}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
