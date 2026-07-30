@@ -1224,18 +1224,35 @@ const PanelMensualPuesto = ({
         </div>
       )}
       {/* ── HEADER compacto ── */}
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <button onClick={onClose} className="text-[10px] font-black text-primary hover:underline uppercase">Puestos</button>
-          <span className="material-symbols-outlined text-[12px] text-slate-400">chevron_right</span>
-          <h1 className="text-[14px] font-black text-slate-900 uppercase truncate">{nombrePuesto}</h1>
-          {(puesto as any)?.zona && (
-            <span className="hidden sm:inline px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-full text-[9px] font-black text-primary uppercase">{(puesto as any).zona}</span>
-          )}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3 pb-3 border-b border-slate-200/50">
+        
+        {/* Título de puesto y Ruta de navegación */}
+        <div className="flex items-center justify-between w-full md:w-auto">
+          <div className="flex items-center gap-2 min-w-0">
+            <button onClick={onClose} className="text-[10px] font-black text-primary hover:underline uppercase">Puestos</button>
+            <span className="material-symbols-outlined text-[12px] text-slate-400">chevron_right</span>
+            <h1 className="text-[13px] sm:text-[14px] font-black text-slate-900 uppercase truncate max-w-[150px] sm:max-w-none">{nombrePuesto}</h1>
+            {(puesto as any)?.zona && (
+              <span className="hidden sm:inline px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-full text-[9px] font-black text-primary uppercase">{(puesto as any).zona}</span>
+            )}
+          </div>
+
+          {/* Navegación del mes visible en móvil (derecha del título) */}
+          <div className="flex items-center gap-1 md:hidden">
+            <button onClick={() => navegarMes(-1)} className="size-7 rounded-lg bg-slate-800 border border-white/10 flex items-center justify-center hover:bg-slate-700 transition-colors">
+              <span className="material-symbols-outlined text-[16px] text-slate-300">chevron_left</span>
+            </button>
+            <div className="px-2.5 py-1 rounded-lg bg-slate-800 border border-white/10 text-center select-none min-w-[90px]">
+              <span className="text-[11px] font-black text-white uppercase tracking-wide">{MONTH_NAMES[mes]} {anio}</span>
+            </div>
+            <button onClick={() => navegarMes(1)} className="size-7 rounded-lg bg-slate-800 border border-white/10 flex items-center justify-center hover:bg-slate-700 transition-colors">
+              <span className="material-symbols-outlined text-[16px] text-slate-300">chevron_right</span>
+            </button>
+          </div>
         </div>
 
-        {/* Navegación mes compacta */}
-        <div className="flex items-center gap-1">
+        {/* Navegación del mes visible en pantallas grandes */}
+        <div className="hidden md:flex items-center gap-1">
           <button onClick={() => navegarMes(-1)} className="size-7 rounded-lg bg-slate-800 border border-white/10 flex items-center justify-center hover:bg-slate-700 transition-colors">
             <span className="material-symbols-outlined text-[16px] text-slate-300">chevron_left</span>
           </button>
@@ -1247,11 +1264,13 @@ const PanelMensualPuesto = ({
           </button>
         </div>
 
-        {/* Botones de acción */}
-        <div className="flex flex-wrap gap-1.5">
+        {/* Botones de acción — envuelven de forma limpia en móvil */}
+        <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto bg-slate-50 p-2 md:p-0 rounded-xl md:bg-transparent">
+          
+          {/* BOTÓN DE CICLO ROTATIVO (Destacado y fácil de ver) */}
           <button onClick={handleAplicarCiclo} disabled={isApplyingCiclo}
-            className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wide transition-all flex items-center gap-1 disabled:opacity-60">
-            <span className={`material-symbols-outlined text-[12px] ${isApplyingCiclo ? 'animate-spin' : ''}`}>{isApplyingCiclo ? 'sync' : 'autorenew'}</span>
+            className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 disabled:opacity-60 shadow-lg shadow-indigo-600/20 active:scale-95">
+            <span className={`material-symbols-outlined text-[14px] ${isApplyingCiclo ? 'animate-spin' : ''}`}>{isApplyingCiclo ? 'sync' : 'autorenew'}</span>
             {isApplyingCiclo ? 'Aplicando...' : 'Ciclo D/N/R'}
           </button>
 
@@ -1276,13 +1295,13 @@ const PanelMensualPuesto = ({
 
           <button onClick={handleGenerateExcel} disabled={isGeneratingPDF}
             className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[9px] font-black uppercase tracking-wide transition-all flex items-center gap-1 disabled:opacity-60">
-            <span className={`material-symbols-outlined text-[12px] ${isGeneratingPDF ? 'animate-spin' : ''}`}>{isGeneratingPDF ? 'sync' : 'table_view'}</span>
+            <span className={`material-symbols-outlined text-[12px] ${isGeneratingPDF ? 'animate-spin' : ''}`}>{isGeneratingPDF ? 'table_view' : 'table_view'}</span>
             Excel
           </button>
 
           <button onClick={handleGeneratePDF} disabled={isGeneratingPDF}
             className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[9px] font-black uppercase tracking-wide transition-all flex items-center gap-1 disabled:opacity-60">
-            <span className={`material-symbols-outlined text-[12px] ${isGeneratingPDF ? 'animate-spin' : ''}`}>{isGeneratingPDF ? 'sync' : 'picture_as_pdf'}</span>
+            <span className={`material-symbols-outlined text-[12px] ${isGeneratingPDF ? 'animate-spin' : ''}`}>{isGeneratingPDF ? 'picture_as_pdf' : 'picture_as_pdf'}</span>
             PDF
           </button>
 
@@ -1309,7 +1328,7 @@ const PanelMensualPuesto = ({
           </div>
 
           <button onClick={() => { const h = useProgramacionStore.getState().hasPendingChanges(); if (isSyncing || h) { if (confirm('Hay cambios sincronizando. ¿Cerrar de todas formas?')) onClose(); } else onClose(); }}
-            className="px-2.5 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase hover:bg-slate-200 transition-all">
+            className="px-2.5 py-1.5 bg-slate-200 text-slate-600 rounded-lg text-[9px] font-black uppercase hover:bg-slate-300 transition-all">
             Cerrar
           </button>
         </div>
