@@ -13,6 +13,15 @@ window.onerror = (msg, url, line, col, error) => {
 
 console.log('[CORAZA] 🚀 Iniciando Nucleo del Sistema...');
 
+// Forzar desautenticación limpia de claves almacenadas legacy
+try {
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith('coraza-auth')) {
+      localStorage.removeItem(key);
+    }
+  });
+} catch {}
+
 // Handle Vite dynamic import failures (common after new deployments)
 window.addEventListener('vite:preloadError', (event) => {
   console.warn('[CORAZA] Error de precarga detectado. Reiniciando núcleo...', event);

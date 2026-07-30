@@ -1,6 +1,13 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { supabase } from '../lib/supabase';
+
+// Limpiar claves legacy de localStorage para garantizar la seguridad
+if (typeof window !== 'undefined') {
+    ['coraza-auth-v1', 'coraza-auth-v2', 'coraza-auth-v3', 'coraza-auth-v4', 'coraza-auth-v5', 'coraza-auth-v6', 'coraza-auth-v7'].forEach(k => {
+        try { localStorage.removeItem(k); } catch {}
+    });
+}
 
 interface AuthState {
     isAuthenticated: boolean;
@@ -99,6 +106,7 @@ export const useAuthStore = create<AuthState>()(
                     loading: false,
                     error: null,
                 });
+                try { sessionStorage.clear(); } catch {}
             },
 
             updateProfile: (username, role, empresaId) => set((s) => ({ 
@@ -110,7 +118,7 @@ export const useAuthStore = create<AuthState>()(
             checkSession: async () => {
                 const current = get();
                 
-                // Si el usuario se logueó con admin o documental en esta sesión activa, mantener
+                // Si el usuario se logueó en la sesión activa del navegador, mantener
                 if (current.isAuthenticated && (current.userId === 'admin-user-id' || current.userId === 'documental-user-id')) {
                     set({ loading: false });
                     return;
@@ -139,7 +147,7 @@ export const useAuthStore = create<AuthState>()(
                     }
                 }
 
-                // Si no hay sesión válida activa, forzar a estar NO AUTENTICADO
+                // Si no hay sesión activa en sessionStorage o Supabase, forzar a estar NO AUTENTICADO
                 set({
                     isAuthenticated: false,
                     username: null,
@@ -163,9 +171,10 @@ export const useAuthStore = create<AuthState>()(
         }),
 
         {
-            name: 'coraza-auth-v7', // Incremento de version para forzar login inicial
+            name: 'coraza-session-auth',
+            storage: createJSONStorage(() => sessionStorage),
             onRehydrateStorage: () => (state) => {
-                if (state) state.loading = true; // Iniciar cargando hasta que checkSession termine
+                if (state) state.loading = false;
             }
         }
     )
