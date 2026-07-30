@@ -1148,19 +1148,31 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 const pStore = usePuestoStore.getState();
                 const targetPuesto = pStore.puestos?.find(px => px.id === puestoId || px.dbId === puestoId);
                 
-                const hasVigilantes = (pList: any[]) => pList && pList.some(p => p.vigilanteId);
+                const hasVigilantes = (pList: any[]) => pList && pList.some((p: any) => p.vigilanteId);
                 
+                // Búsqueda histórica: si el mes inmediatamente anterior está vacío, buscar la última programación que tuvo vigilantes
+                let fallbackPersonalFromHistory: PersonalPuesto[] | null = null;
+                const prevProgsWithGuards = s.programaciones
+                    .filter((p: any) => (p.puestoId === puestoId || p.puestoId === dbPuestoId) && hasVigilantes(p.personal))
+                    .sort((a: any, b: any) => (b.anio * 12 + b.mes) - (a.anio * 12 + a.mes));
+                
+                if (prevProgsWithGuards.length > 0) {
+                    fallbackPersonalFromHistory = prevProgsWithGuards[0].personal.map((p: any) => ({ ...p }));
+                }
+
                 const rawPersonalBase: PersonalPuesto[] = (progAnterior && hasVigilantes(progAnterior.personal))
                     ? progAnterior.personal.map((p: any) => ({ ...p }))
                     : (prog && hasVigilantes(prog.personal))
                         ? prog.personal.map((p: any) => ({ ...p }))
-                        : (targetPuesto as any)?.personal?.length
-                            ? (targetPuesto as any).personal.map((p: any) => ({ ...p }))
-                            : [
-                                { rol: 'titular_a', vigilanteId: null, turnoId: 'AM' },
-                                { rol: 'titular_b', vigilanteId: null, turnoId: 'PM' },
-                                { rol: 'relevante', vigilanteId: null, turnoId: 'AM' }
-                              ];
+                        : fallbackPersonalFromHistory
+                            ? fallbackPersonalFromHistory
+                            : (targetPuesto as any)?.personal?.length
+                                ? (targetPuesto as any).personal.map((p: any) => ({ ...p }))
+                                : [
+                                    { rol: 'titular_a', vigilanteId: null, turnoId: 'AM' },
+                                    { rol: 'titular_b', vigilanteId: null, turnoId: 'PM' },
+                                    { rol: 'relevante', vigilanteId: null, turnoId: 'AM' }
+                                  ];
 
                 // Depurar vigilantes retirados: no programar a un inactivo en meses futuros
                 const vStoreGen = useVigilanteStore.getState();
