@@ -526,68 +526,106 @@ const GuardDetailModal = ({ isOpen, onClose, guard }: GuardDetailModalProps) => 
                         </div>
                     )}
 
-                    {/* ── TAB HISTORIAL ── */}
-                    {activeTab === 'historial' && !isEditing && (
-                        <div className="p-6">
-                            {/* Summary Header */}
-                            <div className="flex items-center justify-between mb-5">
-                                <div>
-                                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Fecha de Ingreso al Sistema</p>
-                                    <p className="text-sm font-bold text-slate-800 mt-0.5">
-                                        {new Date(guard.fechaIngreso).toLocaleDateString('es-CO', { dateStyle: 'long' })}
-                                    </p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Total Eventos</p>
-                                    <p className="text-2xl font-bold text-primary">{guard.historial.length}</p>
-                                </div>
-                            </div>
+                    {/* ── TAB HISTORIAL / NOVEDADES ── */}
+                    {activeTab === 'historial' && !isEditing && (() => {
+                        // Construcción de la línea de tiempo completa desde el ingreso al sistema
+                        const entryEvent = {
+                            id: `entry-${guard.id}`,
+                            timestamp: guard.fechaIngreso ? new Date(guard.fechaIngreso).toISOString() : new Date().toISOString(),
+                            action: 'Ingreso e Incorporación al Sistema',
+                            details: `Registro e incorporación oficial del efectivo ${guard.nombre} (${guard.id}) con rango ${guard.rango.toUpperCase()}.`
+                        };
 
-                            {guard.historial.length > 0 ? (
-                                <div className="relative">
-                                    <div className="absolute left-5 top-0 bottom-0 w-px bg-gradient-to-b from-primary/30 to-transparent"></div>
-                                    <ul className="space-y-3 pl-14">
-                                        {[...guard.historial].reverse().map((event, i) => {
-                                            const isAssignment = event.action.toLowerCase().includes('asign') || event.action.toLowerCase().includes('puesto') || event.action.toLowerCase().includes('traslado');
-                                            const isRemoval = event.action.toLowerCase().includes('remov') || event.action.toLowerCase().includes('retire') || event.action.toLowerCase().includes('baja');
-                                            const isIngreso = event.action.toLowerCase().includes('ingreso') || event.action.toLowerCase().includes('registro');
-                                            
-                                            let dotColor = 'bg-slate-300';
-                                            let textColor = 'text-slate-700';
-                                            let icon = 'history';
-                                            if (i === 0) { dotColor = 'bg-primary'; textColor = 'text-primary'; icon = 'radio_button_checked'; }
-                                            else if (isAssignment) { dotColor = 'bg-success'; textColor = 'text-success'; icon = 'location_on'; }
-                                            else if (isRemoval) { dotColor = 'bg-danger'; textColor = 'text-danger'; icon = 'location_off'; }
-                                            else if (isIngreso) { dotColor = 'bg-amber-400'; textColor = 'text-amber-400'; icon = 'person_add'; }
+                        const hasEntry = (guard.historial || []).some(h => h.action.toLowerCase().includes('ingreso') || h.action.toLowerCase().includes('registro'));
+                        const baseHistory = hasEntry ? [...(guard.historial || [])] : [entryEvent, ...(guard.historial || [])];
 
-                                            return (
-                                                <li key={event.id} className="relative">
-                                                    <div className={`absolute -left-9 top-1.5 size-4 rounded-full border-2 border-white ${dotColor} flex items-center justify-center`}>
-                                                        <span className="material-symbols-outlined text-[8px] text-white notranslate">{icon}</span>
-                                                    </div>
-                                                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 hover:border-primary/20 transition-colors">
-                                                        <div className="flex justify-between items-start mb-1.5">
-                                                            <p className={`text-[11px] font-bold uppercase tracking-wider ${textColor}`}>{event.action}</p>
-                                                            <span className="text-[9px] font-mono text-slate-500 ml-4 flex-shrink-0 bg-slate-200 px-2 py-0.5 rounded-full">
-                                                                {new Date(event.timestamp).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}
-                                                            </span>
+                        // Incorporar Descargos en el historial cronológico
+                        const descargoEvents = (guard.descargos || []).map(d => ({
+                            id: `desc-${d.id}`,
+                            timestamp: d.fecha,
+                            action: `Descargo: ${d.tipo.toUpperCase()}`,
+                            details: `${d.descripcion}${d.puestoNombre ? ` (Puesto: ${d.puestoNombre})` : ''} — Estado: ${d.estado.toUpperCase()}`
+                        }));
+
+                        // Incorporar Vacaciones en la línea de tiempo
+                        const vacEvents = guard.vacaciones ? [{
+                            id: `vac-${guard.id}`,
+                            timestamp: `${guard.vacaciones.inicio}T08:00:00.000Z`,
+                            action: 'Programación de Vacaciones de Ley',
+                            details: `Periodo: ${guard.vacaciones.inicio} al ${guard.vacaciones.fin}${guard.vacaciones.motivo ? ` — Motivo: ${guard.vacaciones.motivo}` : ''}`
+                        }] : [];
+
+                        // Mezclar y ordenar cronológicamente de más reciente a más antiguo
+                        const fullTimeline = [...baseHistory, ...descargoEvents, ...vacEvents].sort((a, b) => 
+                            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+                        );
+
+                        return (
+                            <div className="p-6">
+                                {/* Summary Header */}
+                                <div className="flex items-center justify-between mb-6 bg-slate-50 border border-slate-200 p-4 rounded-xl">
+                                    <div>
+                                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Fecha de Ingreso al Sistema</p>
+                                        <p className="text-sm font-black text-slate-900 mt-0.5 flex items-center gap-2">
+                                            <span className="material-symbols-outlined text-[16px] text-primary">event_available</span>
+                                            {new Date(guard.fechaIngreso).toLocaleDateString('es-CO', { dateStyle: 'full' })}
+                                        </p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Historial Registrado</p>
+                                        <p className="text-2xl font-black text-primary">{fullTimeline.length} Eventos</p>
+                                    </div>
+                                </div>
+
+                                {fullTimeline.length > 0 ? (
+                                    <div className="relative">
+                                        <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-slate-200"></div>
+                                        <ul className="space-y-3.5 pl-14">
+                                            {fullTimeline.map((event, i) => {
+                                                const isAssignment = event.action.toLowerCase().includes('asign') || event.action.toLowerCase().includes('puesto') || event.action.toLowerCase().includes('traslado');
+                                                const isRemoval = event.action.toLowerCase().includes('remov') || event.action.toLowerCase().includes('retire') || event.action.toLowerCase().includes('baja');
+                                                const isIngreso = event.action.toLowerCase().includes('ingreso') || event.action.toLowerCase().includes('incorporación');
+                                                const isDescargo = event.action.toLowerCase().includes('descargo') || event.action.toLowerCase().includes('disciplinario');
+                                                const isVacation = event.action.toLowerCase().includes('vacacio');
+
+                                                let dotColor = 'bg-slate-500';
+                                                let textColor = 'text-slate-900';
+                                                let icon = 'history';
+
+                                                if (isDescargo) { dotColor = 'bg-rose-600'; textColor = 'text-rose-700'; icon = 'gavel'; }
+                                                else if (isVacation) { dotColor = 'bg-blue-600'; textColor = 'text-blue-700'; icon = 'flight_takeoff'; }
+                                                else if (isAssignment) { dotColor = 'bg-emerald-600'; textColor = 'text-emerald-700'; icon = 'location_on'; }
+                                                else if (isRemoval) { dotColor = 'bg-rose-500'; textColor = 'text-rose-600'; icon = 'location_off'; }
+                                                else if (isIngreso) { dotColor = 'bg-indigo-600'; textColor = 'text-indigo-700'; icon = 'person_add'; }
+
+                                                return (
+                                                    <li key={event.id} className="relative">
+                                                        <div className={`absolute -left-9 top-2 size-5 rounded-full border-2 border-white ${dotColor} flex items-center justify-center shadow-xs`}>
+                                                            <span className="material-symbols-outlined text-[10px] text-white notranslate">{icon}</span>
                                                         </div>
-                                                        <p className="text-[11px] text-slate-600 leading-relaxed font-medium">{event.details}</p>
-                                                    </div>
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                </div>
-                            ) : (
-                                <div className="text-center py-16 opacity-50 border border-dashed border-slate-200 rounded-2xl">
-                                    <span className="material-symbols-outlined text-4xl text-slate-400 notranslate" translate="no">history_off</span>
-                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mt-3">Sin historial registrado</p>
-                                    <p className="text-[10px] text-slate-500 mt-1">Los eventos se registran automáticamente al realizar cambios</p>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                                                        <div className="bg-white border border-slate-200 rounded-xl p-4 hover:border-indigo-400/40 hover:shadow-xs transition-all">
+                                                            <div className="flex justify-between items-start mb-1 gap-2">
+                                                                <p className={`text-[11px] font-black uppercase tracking-wide ${textColor}`}>{event.action}</p>
+                                                                <span className="text-[9px] font-mono font-bold text-slate-500 flex-shrink-0 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md">
+                                                                    {new Date(event.timestamp).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-[11px] text-slate-600 leading-relaxed font-medium">{event.details}</p>
+                                                        </div>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-16 opacity-50 border border-dashed border-slate-200 rounded-2xl">
+                                        <span className="material-symbols-outlined text-4xl text-slate-400 notranslate" translate="no">history_off</span>
+                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mt-3">Sin historial registrado</p>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
 
                     {/* ── TAB DESCARGOS ── */}
                     {activeTab === 'descargos' && (
