@@ -1244,18 +1244,6 @@ const PanelMensualPuesto = ({
   const staffAsignado = progPersonal.filter((p: any) => p.vigilanteId);
 
 
-  // RELAXED LOADING: Dejar pasar si ya hay prog, aunque esté "fetching" para evitar pantallas en blanco infinitas
-  if (isInitialLoading && !prog) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-white">
-        <div className="size-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-sm font-black text-slate-300 uppercase tracking-widest">
-           Cargando {MONTH_NAMES[mes]} {anio}...
-        </p>
-        <p className="text-[10px] text-slate-500 mt-2">Recuperando datos desde Supabase...</p>
-      </div>
-    );
-  }
 
   // SI EL MES NO EXISTE O ESTÁ VACÍO: Desplegar el selector de ciclos interactivo
   // Condición: no hay programación, O hay programación pero el detalle ya cargó y no tiene asignaciones
