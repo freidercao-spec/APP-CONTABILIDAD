@@ -178,6 +178,7 @@ const PanelMensualPuesto = ({
   // ── Navegación local de mes/año dentro del panel ──────────────────────
   const [anio, setAnioLocal] = React.useState(anioInicial);
   const [mes, setMesLocal] = React.useState(mesInicial);
+  const [pendingNavModal, setPendingNavModal] = useState<{ newAnio: number; newMes: number } | null>(null);
 
   const ejecutarNavegacion = React.useCallback((newAnio: number, newMes: number) => {
     setAnioLocal(newAnio);
@@ -240,8 +241,6 @@ const PanelMensualPuesto = ({
   const [showTurnosConfig, setShowTurnosConfig] = useState(false);
   const [showRolesModal, setShowRolesModal] = useState(false);
   const [showCicloModal, setShowCicloModal] = useState(false);
-  // Estado para el modal de selección de ciclo al avanzar de mes
-  const [pendingNavModal, setPendingNavModal] = useState<{ newAnio: number; newMes: number } | null>(null);
 
   const currentUser =
     username || useAuthStore.getState().username || "Operador";
