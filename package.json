@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "deploy": "npm run build && git checkout gh-pages && copy /Y dist\\index.html index.html && xcopy /E /I /Y dist\\assets assets && git add index.html assets && git commit -m \"deploy_build_sync\" && git push origin gh-pages && git checkout main",
     "lint": "eslint .",
     "preview": "vite preview"
   },
