@@ -1202,8 +1202,10 @@ const PanelMensualPuesto = ({
     );
   }
 
-  // SI EL MES NO EXISTE: Desplegar el selector de ciclos interactivo para inicializarlo con la lógica que el usuario elija
-  if (!prog) {
+  // SI EL MES NO EXISTE O ESTÁ VACÍO: Desplegar el selector de ciclos interactivo
+  // Condición: no hay programación, O hay programación pero el detalle ya cargó y no tiene asignaciones
+  const mesEstaVacio = !prog || (prog.isDetailLoaded && progAsignaciones.length === 0);
+  if (mesEstaVacio) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 text-white p-4">
         <div className="w-full max-w-xl bg-slate-950/40 border border-white/10 rounded-2xl p-6 shadow-2xl space-y-6">
