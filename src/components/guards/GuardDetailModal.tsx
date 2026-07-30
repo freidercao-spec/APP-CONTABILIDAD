@@ -73,6 +73,12 @@ const GuardDetailModal = ({ isOpen, onClose, guard }: GuardDetailModalProps) => 
         }
     }, [isOpen, guard?.id]);
 
+    useEffect(() => {
+        if (isOpen) {
+            useProgramacionStore.getState().fetchProgramacionesByMonth(selectedYear, selectedMonth);
+        }
+    }, [isOpen, selectedYear, selectedMonth]);
+
     if (!isOpen) return null;
 
     const handleAddDescargo = () => {

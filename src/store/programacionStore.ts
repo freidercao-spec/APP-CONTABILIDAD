@@ -1926,15 +1926,61 @@ export const useProgramacionStore = create<ProgramacionState>()(
                 
                 progs.forEach(prog => {
                     const puesto = pStore.puestos.find(px => px.id === prog.puestoId || px.dbId === prog.puestoId);
-                    prog.asignaciones.forEach(asig => {
-                        if (idsMatch(asig.vigilanteId, vigilanteId)) {
+                    const puestoNombre = puesto?.nombre || 'Puesto';
+                    const puestoIdStr = puesto?.id || prog.puestoId || '?';
+
+                    // 1. Si existen asignaciones explícitas cargadas
+                    if (prog.asignaciones && prog.asignaciones.length > 0) {
+                        prog.asignaciones.forEach(asig => {
+                            if (idsMatch(asig.vigilanteId, vigilanteId)) {
+                                results.push({
+                                    ...asig,
+                                    puestoNombre,
+                                    puestoId: puestoIdStr
+                                });
+                            }
+                        });
+                    } else if (prog.personal && prog.personal.some(per => idsMatch(per.vigilanteId, vigilanteId))) {
+                        // 2. Fallback: Si el vigilante está asignado en personal pero las asignaciones detalladas no se han traído de la DB
+                        const personalConSig = prog.personal.filter(p => p.vigilanteId);
+                        const mesAnterior = mes === 0 ? 11 : mes - 1;
+                        const anioAnterior = mes === 0 ? anio - 1 : anio;
+                        const progAnterior = get().getProgramacion(prog.puestoId, anioAnterior, mesAnterior);
+                        const estadosPrevios = progAnterior?.asignaciones
+                            ? extraerEstadosFinMes(progAnterior.asignaciones, anioAnterior, mesAnterior, prog.puestoId)
+                            : [];
+
+                        const personalConfig = personalConSig.map(p => ({
+                            rol: p.rol,
+                            vigilanteId: p.vigilanteId,
+                            posicionDia1: calcularPosicionNuevoMes(estadosPrevios, p.vigilanteId!, p.rol, anioAnterior, mesAnterior)
+                        }));
+
+                        const tableros = generarTableroCompletoPuesto(prog.puestoId, anio, mes, personalConfig);
+                        const daysInMonth = new Date(anio, mes + 1, 0).getDate();
+
+                        for (let d = 1; d <= daysInMonth; d++) {
+                            const per = prog.personal.find(p => idsMatch(p.vigilanteId, vigilanteId));
+                            if (!per) continue;
+                            const tRol = tableros.find(t => t.rol === per.rol);
+                            const turnoDia = tRol?.turnos?.[d - 1] || 'D';
+
+                            let jornada = 'normal';
+                            if (turnoDia === 'DR') jornada = 'descanso_remunerado';
+                            else if (turnoDia === 'NR') jornada = 'descanso_no_remunerado';
+                            else if (turnoDia === 'V') jornada = 'vacacion';
+
                             results.push({
-                                ...asig,
-                                puestoNombre: puesto?.nombre || 'Puesto',
-                                puestoId: puesto?.id || '?'
+                                dia: d,
+                                rol: per.rol,
+                                vigilanteId,
+                                turno: turnoDia === 'N' ? 'PM' : 'AM',
+                                jornada,
+                                puestoNombre,
+                                puestoId: puestoIdStr
                             });
                         }
-                    });
+                    }
                 });
                 return results.sort((a, b) => a.dia - b.dia);
             },
