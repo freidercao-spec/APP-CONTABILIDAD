@@ -1210,14 +1210,6 @@ export const useProgramacionStore = create<ProgramacionState>()(
                     progAnterior?.personal
                 ) ?? [];
 
-                // Agregar filas vacías para roles sin vigilante
-                personalBase.forEach(p => {
-                    if (!p.vigilanteId) {
-                        for (let dia = 1; dia <= daysInMonth; dia++) {
-                            nuevasAsignaciones.push({ dia, vigilanteId: null, turno: p.turnoId || 'AM', jornada: 'sin_asignar', rol: p.rol });
-                        }
-                    }
-                });
 
                 const newId = prog?.id ?? crypto.randomUUID();
                 const nuevoProg: ProgramacionMensual = {
