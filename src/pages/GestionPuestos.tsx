@@ -179,16 +179,24 @@ const PanelMensualPuesto = ({
   const [anio, setAnioLocal] = React.useState(anioInicial);
   const [mes, setMesLocal] = React.useState(mesInicial);
 
+  const ejecutarNavegacion = React.useCallback((newAnio: number, newMes: number) => {
+    setAnioLocal(newAnio);
+    setMesLocal(newMes);
+    onMesChange?.(newAnio, newMes);
+    useProgramacionStore.getState().fetchProgramacionesByMonth(newAnio, newMes);
+  }, [onMesChange]);
+
   const navegarMes = React.useCallback((delta: number) => {
     const d = new Date(anio, mes + delta);
     const newAnio = d.getFullYear();
     const newMes  = d.getMonth();
-    setAnioLocal(newAnio);
-    setMesLocal(newMes);
-    onMesChange?.(newAnio, newMes);
-    // Forzar fetch del mes destino si no está cargado
-    useProgramacionStore.getState().fetchProgramacionesByMonth(newAnio, newMes);
-  }, [anio, mes, onMesChange]);
+    // Al avanzar al siguiente mes, mostrar selector de ciclo primero
+    if (delta > 0) {
+      setPendingNavModal({ newAnio, newMes });
+    } else {
+      ejecutarNavegacion(newAnio, newMes);
+    }
+  }, [anio, mes, ejecutarNavegacion]);
   const username = useAuthStore(s => s.username);
   const vigilantes = useVigilanteStore(s => s.vigilantes);
   const allPuestos = usePuestoStore(s => s.puestos);
@@ -232,6 +240,8 @@ const PanelMensualPuesto = ({
   const [showTurnosConfig, setShowTurnosConfig] = useState(false);
   const [showRolesModal, setShowRolesModal] = useState(false);
   const [showCicloModal, setShowCicloModal] = useState(false);
+  // Estado para el modal de selección de ciclo al avanzar de mes
+  const [pendingNavModal, setPendingNavModal] = useState<{ newAnio: number; newMes: number } | null>(null);
 
   const currentUser =
     username || useAuthStore.getState().username || "Operador";
@@ -526,6 +536,50 @@ const PanelMensualPuesto = ({
       setIsApplyingCiclo(false);
     }
   }, [puestoId, anio, mes, currentUser, puestoNombre, getProgramacion, fetchProgramacionDetalles, generarMesConMotor, logAction, isApplyingCiclo]);
+
+  // Función para aplicar ciclo al navegar al mes siguiente
+  const ejecutarAplicarCicloEnMes = useCallback(async (tipoCiclo: TipoCiclo, anioDestino: number, mesDestino: number) => {
+    if (isApplyingCiclo) return;
+    setIsApplyingCiclo(true);
+    setPendingNavModal(null);
+    try {
+      // Primero navegamos al mes destino
+      ejecutarNavegacion(anioDestino, mesDestino);
+
+      const mesBase = mesDestino === 0 ? 11 : mesDestino - 1;
+      const anioBase = mesDestino === 0 ? anioDestino - 1 : anioDestino;
+
+      await useProgramacionStore.getState().fetchProgramacionesByMonth(anioDestino, mesDestino);
+      await new Promise(r => setTimeout(r, 400));
+
+      let progBase = getProgramacion(puestoId, anioBase, mesBase);
+      if (!progBase) {
+        await useProgramacionStore.getState().fetchProgramacionesByMonth(anioBase, mesBase);
+        await new Promise(r => setTimeout(r, 400));
+        progBase = getProgramacion(puestoId, anioBase, mesBase);
+      }
+      if (progBase && !progBase.isDetailLoaded && !(progBase as any).isFetching) {
+        showTacticalToast({ title: '⏳ Cargando mes anterior...', message: 'Calculando posición del ciclo.', type: 'info' });
+        await fetchProgramacionDetalles(progBase.id);
+        await new Promise(r => setTimeout(r, 700));
+      }
+
+      const result = generarMesConMotor(puestoId, anioDestino, mesDestino, currentUser, tipoCiclo);
+      if (result) {
+        logAction('PROGRAMACION', 'Ciclo D/N/R Aplicado', `Puesto: ${puestoNombre} | ${MONTH_NAMES[mesDestino]} ${anioDestino} | Ciclo: ${tipoCiclo}`, 'success');
+        await useProgramacionStore.getState().guardarBorrador(result.id, currentUser);
+        showTacticalToast({ title: '✅ Ciclo Aplicado', message: `${MONTH_NAMES[mesDestino]} ${anioDestino} generado con ciclo ${tipoCiclo}.`, type: 'success' });
+        await useProgramacionStore.getState().fetchProgramacionesByMonth(anioDestino, mesDestino);
+      } else {
+        showTacticalToast({ title: '⚠️ Sin personal', message: 'Define el personal del puesto primero.', type: 'warning' });
+      }
+    } catch (err) {
+      console.error('[CicloMotor] Error al navegar:', err);
+      showTacticalToast({ title: '❌ Error', message: 'No se pudo aplicar el ciclo.', type: 'error' });
+    } finally {
+      setIsApplyingCiclo(false);
+    }
+  }, [puestoId, currentUser, puestoNombre, getProgramacion, fetchProgramacionDetalles, generarMesConMotor, logAction, isApplyingCiclo, ejecutarNavegacion]);
 
   const handleGeneratePDF = useCallback(async () => {
     if (!prog) return;
@@ -1188,6 +1242,55 @@ const PanelMensualPuesto = ({
   const syncStatus = prog?.syncStatus ?? 'synced';
 
   const staffAsignado = progPersonal.filter((p: any) => p.vigilanteId);
+
+  // MODAL DE SELECCIÓN DE CICLO AL NAVEGAR AL SIGUIENTE MES
+  if (pendingNavModal) {
+    const { newAnio, newMes } = pendingNavModal;
+    const CICLOS_NAV = [
+      { id: '12x3' as TipoCiclo, label: 'Ciclo 12×3', desc: '6 Días · 6 Noches · 3 Descansos (2R+1NR)', color: 'from-blue-600 to-indigo-700', icon: '🔵' },
+      { id: '10x5' as TipoCiclo, label: 'Ciclo 10×5', desc: '5 Días · 5 Noches · 5 Descansos (2R+3NR)', color: 'from-violet-600 to-purple-700', icon: '🟣' },
+      { id: '2x2'  as TipoCiclo, label: 'Ciclo 2×2',  desc: '2 Días · 2 Noches · 2 Descansos NR',       color: 'from-emerald-600 to-teal-700',  icon: '🟢' },
+      { id: '13x2' as TipoCiclo, label: 'Ciclo 13×2', desc: '13 Días · 2 Descansos R · 13 Noches · 2R', color: 'from-amber-600 to-orange-700',   icon: '🟡' },
+    ];
+    return (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div className="w-full max-w-lg bg-slate-900 border border-white/10 rounded-2xl p-6 shadow-2xl space-y-5 animate-fade-in">
+          {/* Header */}
+          <div className="text-center space-y-1">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Siguiente Mes</p>
+            <h2 className="text-xl font-black text-white uppercase tracking-tight">
+              {MONTH_NAMES[newMes]} {newAnio}
+            </h2>
+            <p className="text-sm text-slate-400">Selecciona el ciclo a aplicar para este mes</p>
+          </div>
+
+          {/* Tarjetas de ciclos */}
+          <div className="grid grid-cols-2 gap-3">
+            {CICLOS_NAV.map(c => (
+              <button
+                key={c.id}
+                onClick={() => ejecutarAplicarCicloEnMes(c.id, newAnio, newMes)}
+                disabled={isApplyingCiclo}
+                className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-br ${c.color} hover:scale-[1.03] active:scale-95 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-60 disabled:cursor-not-allowed`}
+              >
+                <span className="text-3xl">{c.icon}</span>
+                <span className="text-sm font-black text-white uppercase tracking-wide">{c.label}</span>
+                <span className="text-[10px] text-white/70 text-center leading-tight">{c.desc}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Cancelar */}
+          <button
+            onClick={() => setPendingNavModal(null)}
+            className="w-full py-2.5 rounded-xl border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 text-xs font-black uppercase tracking-widest transition-all"
+          >
+            Cancelar — Permanecer en {MONTH_NAMES[mes]} {anio}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // RELAXED LOADING: Dejar pasar si ya hay prog, aunque esté "fetching" para evitar pantallas en blanco infinitas
   if (isInitialLoading && !prog) {
