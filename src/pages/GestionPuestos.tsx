@@ -2267,31 +2267,49 @@ const PanelMensualPuesto = ({
       {pendingNavModal && (() => {
         const { newAnio: navAnio, newMes: navMes } = pendingNavModal;
         const CICLOS_OVL = [
-          { id: '12x3' as TipoCiclo, label: '12×3', desc: '6D · 6N · 3 Desc', color: 'from-blue-600 to-indigo-700' },
-          { id: '10x5' as TipoCiclo, label: '10×5', desc: '5D · 5N · 5 Desc', color: 'from-violet-600 to-purple-700' },
-          { id: '2x2'  as TipoCiclo, label: '2×2',  desc: '2D · 2N · 2 Desc', color: 'from-emerald-600 to-teal-700' },
-          { id: '13x2' as TipoCiclo, label: '13×2', desc: '13D · 2R · 13N',   color: 'from-amber-600 to-orange-700' },
+          { id: '12x3' as TipoCiclo, label: 'Ciclo 12×3', desc: '6 Días · 6 Noches · 3 Descansos (2R+1NR)', color: 'from-blue-600 to-indigo-700', icon: '🔵' },
+          { id: '10x5' as TipoCiclo, label: 'Ciclo 10×5', desc: '5 Días · 5 Noches · 5 Descansos (2R+3NR)', color: 'from-violet-600 to-purple-700', icon: '🟣' },
+          { id: '2x2'  as TipoCiclo, label: 'Ciclo 2×2',  desc: '2 Días · 2 Noches · 2 Descansos NR',       color: 'from-emerald-600 to-teal-700',  icon: '🟢' },
+          { id: '13x2' as TipoCiclo, label: 'Ciclo 13×2', desc: '13 Días · 2 Descansos R · 13 Noches · 2R', color: 'from-amber-600 to-orange-700',   icon: '🟡' },
         ];
         return (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-            <div className="w-full max-w-xs bg-slate-900 border border-white/10 rounded-xl p-4 shadow-2xl space-y-3">
-              <div className="text-center">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Siguiente Mes</p>
-                <h2 className="text-base font-black text-white uppercase">{MONTH_NAMES[navMes]} {navAnio}</h2>
-                <p className="text-[11px] text-slate-400">¿Qué ciclo aplicar?</p>
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in">
+            <div className="w-full max-w-md bg-slate-900 border border-indigo-500/30 rounded-2xl p-6 shadow-2xl space-y-5 ring-1 ring-indigo-500/20">
+              <div className="text-center space-y-1.5">
+                <span className="px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-[10px] font-black text-indigo-400 uppercase tracking-widest inline-block">
+                  Paso al Siguiente Mes
+                </span>
+                <h2 className="text-xl font-black text-white uppercase tracking-tight">
+                  {MONTH_NAMES[navMes]} {navAnio}
+                </h2>
+                <p className="text-xs text-slate-400 max-w-xs mx-auto">
+                  ¿Qué ciclo de turnos deseas aplicar para <strong className="text-white">{MONTH_NAMES[navMes]}</strong>? Se heredará el personal de <strong className="text-white">{MONTH_NAMES[mes]}</strong>.
+                </p>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+
+              <div className="grid grid-cols-1 gap-2.5">
                 {CICLOS_OVL.map(c => (
-                  <button key={c.id} onClick={() => ejecutarAplicarCicloEnMes(c.id, navAnio, navMes)} disabled={isApplyingCiclo}
-                    className={`flex flex-col items-center gap-1 py-3 px-2 rounded-lg bg-gradient-to-br ${c.color} hover:scale-[1.04] active:scale-95 transition-all shadow disabled:opacity-60 disabled:cursor-not-allowed`}>
-                    <span className="text-xs font-black text-white uppercase tracking-wide">{c.label}</span>
-                    <span className="text-[9px] text-white/70 text-center leading-tight">{c.desc}</span>
+                  <button
+                    key={c.id}
+                    onClick={() => ejecutarAplicarCicloEnMes(c.id, navAnio, navMes)}
+                    disabled={isApplyingCiclo}
+                    className={`flex items-center gap-3.5 p-3.5 rounded-xl bg-gradient-to-r ${c.color} hover:scale-[1.02] active:scale-98 transition-all shadow-lg hover:shadow-indigo-500/20 disabled:opacity-60 text-left group`}
+                  >
+                    <span className="text-2xl group-hover:scale-110 transition-transform">{c.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-black text-white uppercase tracking-wide">{c.label}</h4>
+                      <p className="text-[10px] text-white/80 truncate">{c.desc}</p>
+                    </div>
+                    <span className="material-symbols-outlined text-white/60 text-[18px]">arrow_forward</span>
                   </button>
                 ))}
               </div>
-              <button onClick={() => setPendingNavModal(null)}
-                className="w-full py-2 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 text-[10px] font-black uppercase tracking-widest transition-all">
-                Cancelar
+
+              <button
+                onClick={() => setPendingNavModal(null)}
+                className="w-full py-2.5 rounded-xl border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 text-xs font-black uppercase tracking-widest transition-all"
+              >
+                Cancelar — Permanecer en {MONTH_NAMES[mes]} {anio}
               </button>
             </div>
           </div>
