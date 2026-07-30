@@ -2460,43 +2460,43 @@ const GestionPuestos = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-slate-100">
-      <header className="bg-white px-8 py-4 border-b border-slate-200 shrink-0 flex items-center justify-between shadow-sm z-30 relative">
+    <div className="h-screen flex flex-col bg-slate-950 text-slate-100">
+      <header className="bg-slate-900/90 px-8 py-3.5 border-b border-slate-800 shrink-0 flex items-center justify-between shadow-xl backdrop-blur-md z-30 relative">
         <div className="flex items-center gap-8 flex-1">
           {/* Logo + Título */}
           <div className="flex items-center gap-4">
-            <div className="size-10 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center">
+            <div className="size-10 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center shadow-inner">
               <img src="./logo.png" alt="CORAZA" className="w-7 h-7 object-contain" />
             </div>
             <div>
               <div className="flex items-center gap-2 mb-0.5">
-                <div className="size-1.5 bg-emerald-500 rounded-full"></div>
-                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Sistema Activo</span>
+                <div className="size-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]" />
+                <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Sistema Operativo</span>
               </div>
-              <h1 className="text-[18px] font-black text-slate-900 uppercase tracking-tight leading-none">
-                Centro de <span className="text-primary">Mando</span>
+              <h1 className="text-[18px] font-black text-white uppercase tracking-tight leading-none">
+                Centro de <span className="text-indigo-400">Mando</span>
               </h1>
             </div>
           </div>
 
           {/* Navegación de Mes */}
-          <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+          <div className="flex items-center bg-slate-950/80 border border-slate-800 rounded-xl overflow-hidden shadow-inner">
             <button 
               onClick={() => { const d = new Date(anio, mes - 1); setAnio(d.getFullYear()); setMes(d.getMonth()); }}
-              className="px-3 py-2.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-all"
+              className="px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800/80 transition-all"
             >
               <span className="material-symbols-outlined text-xl">chevron_left</span>
             </button>
-            <div className="px-5 py-1.5 text-center border-x border-slate-200 min-w-[120px]">
-              <p className="text-[9px] font-bold text-primary uppercase tracking-widest mb-0.5">{anio}</p>
-              <p className="text-[14px] font-black text-slate-900 uppercase tracking-wide">{MONTH_NAMES[mes]}</p>
+            <div className="px-5 py-1 text-center border-x border-slate-800 min-w-[130px]">
+              <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-0.5">{anio}</p>
+              <p className="text-[14px] font-black text-white uppercase tracking-wide">{MONTH_NAMES[mes]}</p>
             </div>
             <button 
               onClick={() => {
                 const d = new Date(anio, mes + 1);
                 setPendingGlobalNavModal({ newAnio: d.getFullYear(), newMes: d.getMonth() });
               }}
-              className="px-3 py-2.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-all"
+              className="px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800/80 transition-all"
             >
               <span className="material-symbols-outlined text-xl">chevron_right</span>
             </button>
@@ -2506,24 +2506,24 @@ const GestionPuestos = () => {
         {/* Controles derecha */}
         <div className="flex items-center gap-3">
           {/* Toggle de vista */}
-          <div className="flex bg-slate-100 border border-slate-200 rounded-lg p-1 shadow-sm">
+          <div className="flex bg-slate-950 border border-slate-800 rounded-xl p-1 shadow-inner">
             <button 
               onClick={() => setViewMode('cards')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all ${viewMode === 'cards' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-600 hover:text-slate-900'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${viewMode === 'cards' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-white'}`}
             >
               <span className="material-symbols-outlined text-[14px]">grid_view</span>
               <span className="hidden lg:inline">Carpetas</span>
             </button>
             <button 
               onClick={() => setViewMode('master_grid')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all ${viewMode === 'master_grid' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-600 hover:text-slate-900'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${viewMode === 'master_grid' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-white'}`}
             >
               <span className="material-symbols-outlined text-[14px]">table_chart</span>
               <span className="hidden lg:inline">Maestro</span>
             </button>
             <button 
               onClick={() => navigate('/auditoria?q=PROGRAMACION')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider text-slate-600 hover:text-success transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-slate-400 hover:text-emerald-400 transition-all"
             >
               <span className="material-symbols-outlined text-[14px]">history</span>
               <span className="hidden xl:inline">Historial</span>
@@ -2533,19 +2533,19 @@ const GestionPuestos = () => {
           {/* Botón Nuevo Puesto */}
           <button 
             onClick={() => setIsNewPuestoModalOpen(true)}
-            className="h-[36px] px-4 rounded-lg flex items-center gap-2 transition-all bg-primary hover:bg-primary-dark text-white border border-primary/80 shadow-sm active:scale-95"
+            className="h-[36px] px-4 rounded-xl flex items-center gap-2 transition-all bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500/50 shadow-lg shadow-indigo-600/25 active:scale-95 font-black text-[9px] uppercase tracking-wider"
           >
             <span className="material-symbols-outlined text-[16px]">add_location</span>
-            <span className="text-[9px] font-bold uppercase tracking-wider hidden lg:inline">Nuevo Puesto</span>
+            <span className="hidden lg:inline">Nuevo Puesto</span>
           </button>
         </div>
       </header>
 
-      <main className="flex-1 overflow-hidden flex flex-col bg-slate-100">
+      <main className="flex-1 overflow-hidden flex flex-col bg-slate-950">
         {viewMode === 'cards' ? (
           <div className="flex-1 flex flex-col overflow-hidden px-10 pt-8 pb-8">
             {/* ═══ STAT CARDS ═══ */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-10 shrink-0">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8 shrink-0">
                <KpiCard
                   label="Total Puestos"
                   value={(puestos||[]).filter(p=>(p as any).estado!=='inactivo').length}
@@ -2597,34 +2597,29 @@ const GestionPuestos = () => {
 
               {/* Ultra Elite Tactical Search Bar */}
               <div className="relative flex-1 group z-10 w-full max-w-2xl">
-                {/* Neon Back-Glow Effect */}
                 <div
                   className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500/0 via-indigo-500/20 to-primary/0 opacity-0 group-focus-within:opacity-100 blur-xl transition-all duration-700 pointer-events-none"
                 />
                 
-                {/* Tech Frame Base */}
-                <div className="relative flex items-center h-[42px] rounded-lg bg-white border border-slate-200 shadow-sm overflow-hidden transition-all group-focus-within:border-primary group-focus-within:ring-2 group-focus-within:ring-primary/20">
-                  {/* Left Icon */}
-                  <div className="flex items-center justify-center w-10 h-full border-r border-slate-200 bg-slate-50 shrink-0">
-                    <span className="material-symbols-outlined text-[17px] text-slate-500 group-focus-within:text-primary transition-colors">
+                <div className="relative flex items-center h-[42px] rounded-xl bg-slate-900 border border-slate-800 shadow-inner overflow-hidden transition-all group-focus-within:border-indigo-500 group-focus-within:ring-2 group-focus-within:ring-indigo-500/20">
+                  <div className="flex items-center justify-center w-10 h-full border-r border-slate-800 bg-slate-950 shrink-0">
+                    <span className="material-symbols-outlined text-[17px] text-slate-500 group-focus-within:text-indigo-400 transition-colors">
                       search
                     </span>
                   </div>
 
-                  {/* Input Field */}
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
-                    placeholder="Buscar puesto..."
-                    className="w-full h-full bg-transparent border-none outline-none px-3 font-semibold text-slate-900 text-[12px] tracking-wide placeholder:text-slate-400 placeholder:font-normal transition-all"
+                    placeholder="Buscar puesto por nombre, zona o ID..."
+                    className="w-full h-full bg-transparent border-none outline-none px-3 font-semibold text-white text-[12px] tracking-wide placeholder:text-slate-500 transition-all"
                   />
 
-                  {/* Clear Button */}
                   {searchQuery && (
                     <button
                       onClick={() => setSearchQuery('')}
-                      className="mr-2 size-6 flex items-center justify-center rounded bg-slate-200 text-slate-600 hover:bg-danger hover:text-white transition-all"
+                      className="mr-2 size-6 flex items-center justify-center rounded bg-slate-800 text-slate-400 hover:bg-rose-500 hover:text-white transition-all"
                     >
                       <span className="material-symbols-outlined text-[13px]">close</span>
                     </button>
@@ -2632,8 +2627,8 @@ const GestionPuestos = () => {
                 </div>
               </div>
 
-              {/* Filter Pills with Result Counter */}
-              <div className="flex flex-row gap-1 p-1 bg-slate-100 border border-slate-200 rounded-lg shadow-sm">
+              {/* Filter Pills */}
+              <div className="flex flex-row gap-1 p-1 bg-slate-900 border border-slate-800 rounded-xl shadow-inner">
                 {[
                   { id: 'todos',        label: 'Todos',      icon: 'grid_view',            accent: '#0284c7' },
                   { id: 'alerta',       label: 'Alertas',    icon: 'notifications_active', accent: '#dc2626' },
@@ -2662,17 +2657,17 @@ const GestionPuestos = () => {
                       <button
                         key={t.id}
                         onClick={() => setFilterTab(t.id as any)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-wide transition-all ${
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide transition-all ${
                           isActive 
-                            ? 'bg-white text-slate-900 shadow-sm border border-slate-200' 
-                            : 'text-slate-600 hover:text-slate-900 border border-transparent'
+                            ? 'bg-slate-800 text-white shadow-md border border-slate-700' 
+                            : 'text-slate-400 hover:text-white border border-transparent'
                         }`}
                         style={isActive ? { color: t.accent } : {}}
                       >
                         <span className="material-symbols-outlined text-[14px]">{t.icon}</span>
                         <span className="hidden lg:inline">{t.label}</span>
-                        <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${
-                          isActive ? 'text-white' : 'bg-slate-200 text-slate-600'
+                        <span className={`px-1.5 py-0.5 rounded text-[8px] font-black ${
+                          isActive ? 'text-white' : 'bg-slate-950 text-slate-400'
                         }`} style={isActive ? { background: t.accent } : {}}>
                           {count}
                         </span>
