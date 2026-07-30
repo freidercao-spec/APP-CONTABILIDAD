@@ -20,11 +20,11 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()(
     persist(
         (set, get) => ({
-            isAuthenticated: true,
-            username: 'Soporte Coraza',
-            role: 'admin',
-            userId: '00000000-0000-0000-0000-000000000000',
-            empresaId: 'a0000000-0000-0000-0000-000000000001',
+            isAuthenticated: false,
+            username: null,
+            role: null,
+            userId: null,
+            empresaId: null,
             loading: false,
             error: null,
 
@@ -187,7 +187,7 @@ export const useAuthStore = create<AuthState>()(
         }),
 
         {
-            name: 'coraza-auth-v6', // Incremento de version para forzar limpieza
+            name: 'coraza-auth-v7', // Incremento de version para forzar login inicial
             onRehydrateStorage: () => (state) => {
                 if (state) state.loading = true; // Iniciar cargando hasta que checkSession termine
             }
