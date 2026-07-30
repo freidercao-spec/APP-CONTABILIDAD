@@ -1174,6 +1174,9 @@ export const useProgramacionStore = create<ProgramacionState>()(
                                     { rol: 'relevante', vigilanteId: null, turnoId: 'AM' }
                                   ];
 
+                // Determinar el ciclo final: usar el explícito, o heredar el del mes anterior, o 12x3 por defecto
+                const cicloFinal: TipoCiclo = tipoCiclo || (progAnterior?.personal?.[0] as any)?.tipoCiclo || (fallbackPersonalFromHistory?.[0] as any)?.tipoCiclo || '12x3';
+
                 // Depurar vigilantes retirados: no programar a un inactivo en meses futuros
                 const vStoreGen = useVigilanteStore.getState();
                 const isGuardInactiveGen = (vId: string | null | undefined) => {
@@ -1190,7 +1193,7 @@ export const useProgramacionStore = create<ProgramacionState>()(
                         vigilanteId: inactive ? null : p.vigilanteId,
                         turnoId: p.turnoId,
                         displayName: p.displayName,
-                        tipoCiclo: tipoCiclo // Inyectar el ciclo actual seleccionado
+                        tipoCiclo: cicloFinal // Preservar e inyectar el ciclo heredado o seleccionado
                     };
                 });
                 if (retiredRemovedGen > 0) {
