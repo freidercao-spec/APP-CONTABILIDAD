@@ -7,15 +7,14 @@ import { useAuthStore } from '../store/authStore';
 
 /**
  * Hook para inicializar la carga de datos desde Supabase.
- * CORRECCIONES:
- * 1. Espera a que authStore esté listo (empresaId disponible) antes de cargar datos
- * 2. Programaciones solo se cargan DESPUÉS de que vigilantes y puestos terminen
- *    (para que el mapeo shorthand → UUID funcione correctamente)
- * 3. Se cargan mes anterior, actual y siguiente desde el inicio
- * 4. Timeout de seguridad de 5s para auth y 30s para datos
+ * CORRECCIONES CRÍTICAS:
+ * 1. Monitorea `isAuthenticated` activamente para cargar los datos en cuanto el usuario inicie sesión.
+ * 2. Carga Vigilantes, Puestos, Programaciones de 3 meses (anterior, actual, siguiente) y sus detalles.
+ * 3. Activa canales Realtime y reanuda sincronizaciones pendientes.
  */
 export function useSupabaseInit() {
-    const didInit = useRef(false);
+    const isAuthenticated = useAuthStore(s => s.isAuthenticated);
+    const didInitForUser = useRef<string | boolean>(false);
     const [isLoading, setIsLoading] = useState(true);
     const [logs, setLogs] = useState<string[]>([]);
 
@@ -31,8 +30,14 @@ export function useSupabaseInit() {
     const fetchAudit = useAuditStore(s => s.fetchEntries);
 
     useEffect(() => {
-        if (didInit.current) return;
-        didInit.current = true;
+        if (!isAuthenticated) {
+            setIsLoading(false);
+            didInitForUser.current = false;
+            return;
+        }
+
+        if (didInitForUser.current === true) return;
+        didInitForUser.current = true;
 
         const retry = async <T>(fn: () => Promise<T>, retries = 2): Promise<T> => {
             try {
@@ -43,44 +48,8 @@ export function useSupabaseInit() {
             }
         };
 
-        /**
-         * Espera a que el authStore termine de deshidratar y tenga empresaId.
-         * Esto es crítico: zustand/persist rehidrata asincrónicamente y si
-         * cargamos datos antes, todas las queries usan empresaId=null y fallan.
-         */
-        const waitForAuth = (): Promise<void> => {
-            return new Promise(resolve => {
-                const checkAuthReady = () => {
-                    const state = useAuthStore.getState();
-                    // Listo cuando: autenticado y no cargando
-                    if (state.isAuthenticated && !state.loading) {
-                        resolve();
-                        return;
-                    }
-                    setTimeout(checkAuthReady, 120);
-                };
-                // Failsafe: si auth tarda más de 5s, continuar de todas formas
-                const failsafe = setTimeout(resolve, 5000);
-                // Cancelar failsafe si auth termina antes
-                const poll = setInterval(() => {
-                    const state = useAuthStore.getState();
-                    if (state.isAuthenticated && !state.loading) {
-                        clearInterval(poll);
-                        clearTimeout(failsafe);
-                        resolve();
-                    }
-                }, 120);
-            });
-        };
-
         const initBaseDatos = async () => {
             try {
-                const authState = useAuthStore.getState();
-                if (!authState.isAuthenticated) {
-                    setIsLoading(false);
-                    return;
-                }
-
                 setIsLoading(true);
                 addLog('📦 Conectando a Supabase...');
 
@@ -120,34 +89,32 @@ export function useSupabaseInit() {
                 ]);
 
                 // PRE-CARGA DE DETALLES (Crítico para que el dashboard no se vea vacío post-refresh)
-                // Cargamos los detalles del mes actual para que los indicadores de cobertura y alertas funcionen.
                 const currentProgs = useProgramacionStore.getState().programaciones.filter(p => p.anio === anio && p.mes === mesActual);
                 if (currentProgs.length > 0) {
                     addLog(`📥 Cargando detalles estratégicos (${currentProgs.length} puestos)...`);
                     await useProgramacionStore.getState()._fetchDetails(currentProgs, currentProgs.map(p => p.id));
                 }
 
-                // Activar Sincronizacion Realtime Global
+                // Activar Sincronización Realtime Global
                 useVigilanteStore.getState().setupRealtime();
                 usePuestoStore.getState().setupRealtime();
                 useProgramacionStore.getState().setupRealtime();
 
-                // REANUDAR MOTOR DE GUARDADO (Crítico para persistencia post-refresh)
+                // REANUDAR MOTOR DE GUARDADO
                 addLog('📡 Reanudando sincronizaciones pendientes...');
                 useProgramacionStore.getState().resumePendingSyncs();
 
                 addLog('🚀 Sistema Listo.');
             } catch (err: any) {
-                addLog('⚠️ Error crítico de inicialización: ' + (err.message || 'Desconocido'));
-                console.error('[Coraza] ❌ Error:', err);
+                console.error('[INIT ERROR]', err);
+                addLog('❌ Error en inicialización: ' + err.message);
             } finally {
                 setIsLoading(false);
             }
         };
 
         initBaseDatos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [isAuthenticated, fetchVigilantes, fetchPuestos, fetchProgramacionesByMonth, fetchTemplates, fetchAudit]);
 
     return { isLoading, logs };
 }
