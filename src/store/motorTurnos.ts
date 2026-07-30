@@ -461,7 +461,7 @@ export function calcularPosicionNuevoMes(
 ): number {
   const estado = estadosFinMesAnterior.find(
     (e) =>
-      e.vigilanteId === vigilanteId &&
+      (vigilanteId ? e.vigilanteId === vigilanteId : true) &&
       e.rol === rol &&
       e.anio === anioAnterior &&
       e.mes === mesAnterior,
@@ -718,13 +718,12 @@ export function aplicarMotorTurnos(
     ? extraerEstadosFinMes(asignacionesMesAnterior, anioMesAnterior, mesMesAnterior, puestoId, personalMesAnterior)
     : [];
 
-  // 2. Calcular posición inicial del día 1 para cada rol
+  // 2. Calcular posición inicial del día 1 para cada rol (incluyendo roles vacantes)
   const personalConfig = personal
-    .filter((p) => p.vigilanteId)
     .map((p) => {
       const posicion = calcularPosicionNuevoMes(
         estadosPrevios,
-        p.vigilanteId!,
+        p.vigilanteId || '',
         p.rol,
         anioMesAnterior,
         mesMesAnterior,
@@ -732,7 +731,7 @@ export function aplicarMotorTurnos(
       );
       return {
         rol: p.rol,
-        vigilanteId: p.vigilanteId,
+        vigilanteId: p.vigilanteId || null,
         posicionDia1: posicion,
         tipoCiclo: p.tipoCiclo || '12x3',
       };
