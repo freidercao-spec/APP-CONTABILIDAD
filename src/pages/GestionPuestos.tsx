@@ -330,11 +330,8 @@ const PanelMensualPuesto = ({
             await fetchProgramacionDetalles(progAnterior.id);
           }
 
-          // Crear la programación del nuevo mes (ahora heredará automáticamente el ciclo)
-          const newProg = crearOObtenerProgramacion(puestoId, anio, mes, currentUser);
-          if (newProg && newProg.id) {
-            useProgramacionStore.getState().guardarBorrador(newProg.id, currentUser);
-          }
+          // El mes se mantendrá como no creado (undefined) para solicitar explícitamente el ciclo al operador
+          console.log(`[GestionPuestos] 📅 Mes ${mes + 1}/${anio} no iniciado. Esperando elección de ciclo.`);
         }
       }, 800);
       return () => clearTimeout(timer);
@@ -1195,18 +1192,112 @@ const PanelMensualPuesto = ({
   // RELAXED LOADING: Dejar pasar si ya hay prog, aunque esté "fetching" para evitar pantallas en blanco infinitas
   if (isInitialLoading && !prog) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
-        <div className="size-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-sm font-black text-slate-500 uppercase tracking-widest">
+      <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-white">
+        <div className="size-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-sm font-black text-slate-300 uppercase tracking-widest">
            Cargando {MONTH_NAMES[mes]} {anio}...
         </p>
-        <p className="text-[10px] text-slate-400 mt-2">Si tarda mucho, el mes puede estar vacío en la base de datos.</p>
-        <button
-          onClick={() => crearOObtenerProgramacion(puestoId, anio, mes, currentUser)}
-          className="mt-6 px-8 py-3 bg-primary hover:bg-indigo-500 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all"
-        >
-          Crear Tablero para este Mes
-        </button>
+        <p className="text-[10px] text-slate-500 mt-2">Recuperando datos desde Supabase...</p>
+      </div>
+    );
+  }
+
+  // SI EL MES NO EXISTE: Desplegar el selector de ciclos interactivo para inicializarlo con la lógica que el usuario elija
+  if (!prog) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 text-white p-4">
+        <div className="w-full max-w-xl bg-slate-950/40 border border-white/10 rounded-2xl p-6 shadow-2xl space-y-6">
+          
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-white/5 pb-4">
+            <div className="flex items-center gap-2">
+              <button onClick={onClose} className="size-8 rounded-lg hover:bg-white/5 flex items-center justify-center transition-colors text-slate-400 hover:text-white">
+                <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+              </button>
+              <div>
+                <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">{nombrePuesto}</span>
+                <h2 className="text-sm font-black uppercase text-white tracking-wider">Inicializar Programación</h2>
+              </div>
+            </div>
+            <div className="px-3 py-1 rounded-lg bg-slate-800 border border-white/10 text-center select-none">
+              <span className="text-[12px] font-black text-indigo-300 uppercase tracking-wide">{MONTH_NAMES[mes]} {anio}</span>
+            </div>
+          </div>
+
+          <div className="text-center space-y-2">
+            <span className="material-symbols-outlined text-[48px] text-indigo-400 animate-pulse">calendar_month</span>
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-200">El mes de {MONTH_NAMES[mes]} aún no está programado</h3>
+            <p className="text-[11px] text-slate-400 max-w-md mx-auto leading-relaxed">
+              Selecciona uno de los siguientes ciclos de turnos para generarlo automáticamente de forma continua a partir del mes anterior, o inicia con un tablero vacío.
+            </p>
+          </div>
+
+          {/* Opciones de ciclo */}
+          <div className="grid grid-cols-1 gap-2.5">
+            {/* Opción 12x3 */}
+            <button
+              onClick={() => ejecutarAplicarCiclo('12x3')}
+              className="flex items-start gap-3.5 p-3.5 rounded-xl border border-white/5 bg-slate-800/20 hover:bg-indigo-600/10 hover:border-indigo-500/30 transition-all text-left group"
+            >
+              <span className="material-symbols-outlined text-indigo-400 text-[20px] mt-0.5 group-hover:scale-110 transition-transform">looks_one</span>
+              <div>
+                <h4 className="text-xs font-black uppercase text-white tracking-wide">Ciclo 12x3 <span className="text-[9px] text-slate-500 lowercase">(6D-6N-3Desc)</span></h4>
+                <p className="text-[10px] text-slate-400 mt-1">6 Días Diurnos, 6 Días Nocturnos, 3 Descansos (2 Remunerados, 1 No Remunerado). Ciclo completo de 15 días.</p>
+              </div>
+            </button>
+
+            {/* Opción 10x5 */}
+            <button
+              onClick={() => ejecutarAplicarCiclo('10x5')}
+              className="flex items-start gap-3.5 p-3.5 rounded-xl border border-white/5 bg-slate-800/20 hover:bg-indigo-600/10 hover:border-indigo-500/30 transition-all text-left group"
+            >
+              <span className="material-symbols-outlined text-teal-400 text-[20px] mt-0.5 group-hover:scale-110 transition-transform">looks_two</span>
+              <div>
+                <h4 className="text-xs font-black uppercase text-white tracking-wide">Ciclo 10x5 <span className="text-[9px] text-slate-500 lowercase">(5D-5N-5Desc)</span></h4>
+                <p className="text-[10px] text-slate-400 mt-1">5 Días Diurnos, 5 Días Nocturnos, 5 Descansos (2 Remunerados, 3 No Remunerados). Ciclo completo de 15 días.</p>
+              </div>
+            </button>
+
+            {/* Opción 2x2 */}
+            <button
+              onClick={() => ejecutarAplicarCiclo('2x2')}
+              className="flex items-start gap-3.5 p-3.5 rounded-xl border border-white/5 bg-slate-800/20 hover:bg-indigo-600/10 hover:border-indigo-500/30 transition-all text-left group"
+            >
+              <span className="material-symbols-outlined text-amber-400 text-[20px] mt-0.5 group-hover:scale-110 transition-transform">looks_3</span>
+              <div>
+                <h4 className="text-xs font-black uppercase text-white tracking-wide">Ciclo 2x2 <span className="text-[9px] text-slate-500 lowercase">(2D-2N-2Desc)</span></h4>
+                <p className="text-[10px] text-slate-400 mt-1">2 Días Diurnos, 2 Días Nocturnos, 2 Descansos No Remunerados. Ciclo completo de 6 días.</p>
+              </div>
+            </button>
+
+            {/* Opción 13x2 */}
+            <button
+              onClick={() => ejecutarAplicarCiclo('13x2')}
+              className="flex items-start gap-3.5 p-3.5 rounded-xl border border-white/5 bg-slate-800/20 hover:bg-indigo-600/10 hover:border-indigo-500/30 transition-all text-left group"
+            >
+              <span className="material-symbols-outlined text-rose-400 text-[20px] mt-0.5 group-hover:scale-110 transition-transform">looks_4</span>
+              <div>
+                <h4 className="text-xs font-black uppercase text-white tracking-wide">Ciclo 13x2 <span className="text-[9px] text-slate-500 lowercase">(13D-2R-13N-2R)</span></h4>
+                <p className="text-[10px] text-slate-400 mt-1">13 Días Diurnos, 2 Descansos Remunerados, 13 Días Nocturnos, 2 Descansos Remunerados. Ciclo completo de 30 días.</p>
+              </div>
+            </button>
+
+            {/* Crear vacío */}
+            <button
+              onClick={async () => {
+                const newProg = await crearOObtenerProgramacion(puestoId, anio, mes, currentUser);
+                if (newProg) {
+                  showTacticalToast({ title: '✅ Tablero Creado', message: 'Iniciando con tablero vacío.', type: 'success' });
+                }
+              }}
+              className="flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-white/10 hover:border-white/20 bg-slate-900/20 hover:bg-white/5 transition-all text-slate-400 hover:text-white"
+            >
+              <span className="material-symbols-outlined text-[18px]">add</span>
+              <span className="text-xs font-black uppercase tracking-wider">Crear Tablero Vacío (Sin Ciclo)</span>
+            </button>
+          </div>
+
+        </div>
       </div>
     );
   }
