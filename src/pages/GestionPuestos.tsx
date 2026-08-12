@@ -2327,8 +2327,8 @@ const PanelMensualPuesto = ({
 const GestionPuestos = () => {
   const navigate = useNavigate();
   const { anioGlobal, mesGlobal } = useAuthStore();
-  const [anio, setAnio] = useState(new Date().getFullYear());
-  const [mes, setMes] = useState(new Date().getMonth());
+  const [anio, setAnio] = useState(2026);
+  const [mes, setMes] = useState(7);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<'cards' | 'master_grid'>('cards');
   const [isNewPuestoModalOpen, setIsNewPuestoModalOpen] = useState(false);

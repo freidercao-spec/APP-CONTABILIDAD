@@ -16,9 +16,8 @@ const Dashboard = () => {
     const getCobPct      = useProgramacionStore(s => s.getCoberturaPorcentaje);
     const [isSyncing, setIsSyncing] = useState(false);
 
-    const now = useMemo(() => new Date(), []);
-    const CURR_MES = now.getMonth();
-    const CURR_ANIO = now.getFullYear();
+    const CURR_MES = 7;
+    const CURR_ANIO = 2026;
 
     const [activeTab, setActiveTab] = useState<'personal'|'puestos'>('personal');
     const [tableSearch, setTableSearch] = useState('');

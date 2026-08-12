@@ -76,11 +76,15 @@ export function useSupabaseInit() {
                 const anio = now.getFullYear();
                 const mesActual = now.getMonth();
 
-                const mesesACargar = [
+                const mesesMap = new Map<string, { anio: number; mes: number }>();
+                [
                     { anio: mesActual === 0 ? anio - 1 : anio, mes: mesActual === 0 ? 11 : mesActual - 1 },
                     { anio, mes: mesActual },
                     { anio: mesActual === 11 ? anio + 1 : anio, mes: mesActual === 11 ? 0 : mesActual + 1 },
-                ];
+                    { anio: 2026, mes: 7 } // Garantizar siempre la carga táctica de Agosto 2026
+                ].forEach(m => mesesMap.set(`${m.anio}-${m.mes}`, m));
+
+                const mesesACargar = Array.from(mesesMap.values());
 
                 await Promise.all([
                     ...mesesACargar.map(m => retry(() => fetchProgramacionesByMonth(m.anio, m.mes))),
@@ -89,7 +93,7 @@ export function useSupabaseInit() {
                 ]);
 
                 // PRE-CARGA DE DETALLES (Crítico para que el dashboard no se vea vacío post-refresh)
-                const currentProgs = useProgramacionStore.getState().programaciones.filter(p => p.anio === anio && p.mes === mesActual);
+                const currentProgs = useProgramacionStore.getState().programaciones.filter(p => (p.anio === anio && p.mes === mesActual) || (p.anio === 2026 && p.mes === 7));
                 if (currentProgs.length > 0) {
                     addLog(`📥 Cargando detalles estratégicos (${currentProgs.length} puestos)...`);
                     await useProgramacionStore.getState()._fetchDetails(currentProgs, currentProgs.map(p => p.id));
