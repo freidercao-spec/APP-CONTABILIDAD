@@ -204,34 +204,45 @@ const Login = () => {
                         </button>
                     </form>
 
+                    {/* Botones de Acceso Rápido y Limpieza */}
+                    <div className="mt-4 space-y-2">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setEmail('documental@corazaseguridadcta.com');
+                                setPassword('124578');
+                                login('documental@corazaseguridadcta.com', '124578');
+                            }}
+                            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+                        >
+                            <span className="material-symbols-outlined text-[16px]">bolt</span>
+                            Ingresar Directo (Documental)
+                        </button>
+
+                        <button 
+                            type="button"
+                            onClick={() => {
+                                localStorage.clear();
+                                sessionStorage.clear();
+                                window.location.reload();
+                            }}
+                            className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold uppercase tracking-wider rounded-xl transition-all border border-slate-300 flex items-center justify-center gap-2"
+                        >
+                            <span className="material-symbols-outlined text-[14px]">refresh</span>
+                            Limpiar Caché y Recargar
+                        </button>
+                    </div>
+
                     {/* Security Badge */}
-                    <div className="mt-6 flex flex-col items-center gap-4">
+                    <div className="mt-4 flex flex-col items-center gap-4">
                         <div className="flex items-center w-full gap-3">
-                            <div className="h-[1px] flex-1 bg-white/5" />
-                            <div className="flex items-center gap-1.5 text-[9px] font-black text-slate-600 uppercase tracking-widest">
-                                <span className="material-symbols-outlined text-[11px] text-success">verified_user</span>
+                            <div className="h-[1px] flex-1 bg-slate-200" />
+                            <div className="flex items-center gap-1.5 text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                                <span className="material-symbols-outlined text-[11px] text-emerald-600">verified_user</span>
                                 Acceso Seguro TLS/SSL
                             </div>
-                            <div className="h-[1px] flex-1 bg-white/5" />
+                            <div className="h-[1px] flex-1 bg-slate-200" />
                         </div>
-
-                            {/* Botón de Recuperación — solo visible en desarrollo */}
-                            {import.meta.env.DEV && (
-                              <div className="flex flex-col items-center gap-4 w-full">
-                                  <button 
-                                    type="button"
-                                    onClick={() => {
-                                      localStorage.clear();
-                                      sessionStorage.clear();
-                                      window.location.reload();
-                                    }}
-                                    className="w-full py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-[10px] font-black text-white uppercase tracking-[0.2em] rounded-xl transition-all shadow-lg"
-                                  >
-                                    <span className="material-symbols-outlined text-[14px] mr-2">refresh</span>
-                                    LIMPIAR TODO Y REINICIAR APP
-                                  </button>
-                              </div>
-                            )}
                     </div>
                 </div>
 
