@@ -960,11 +960,21 @@ export const useProgramacionStore = create<ProgramacionState>()(
                             }
                         });
                         const newMap = new Map<string, ProgramacionMensual>();
+                        const pStore = usePuestoStore.getState();
                         merged.forEach((p: any) => {
-                            newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
                             newMap.set(p.id, p);
+                            if (p.puestoId) newMap.set(`${p.puestoId}-${p.anio}-${p.mes}`, p);
                             const dbUuidLocal = translatePuestoToUuid(p.puestoId);
                             if (dbUuidLocal && dbUuidLocal !== p.puestoId) newMap.set(`${dbUuidLocal}-${p.anio}-${p.mes}`, p);
+                            const foundP = pStore.puestos?.find((px: any) => px.id === p.puestoId || px.dbId === p.puestoId || px.nombre?.trim().toUpperCase() === String(p.puestoId).trim().toUpperCase());
+                            if (foundP) {
+                                if (foundP.id) newMap.set(`${foundP.id}-${p.anio}-${p.mes}`, p);
+                                if (foundP.dbId) newMap.set(`${foundP.dbId}-${p.anio}-${p.mes}`, p);
+                                if (foundP.nombre) {
+                                    newMap.set(`${foundP.nombre}-${p.anio}-${p.mes}`, p);
+                                    newMap.set(`${foundP.nombre.trim().toUpperCase()}-${p.anio}-${p.mes}`, p);
+                                }
+                            }
                         });
                         return { programaciones: merged, loaded: true, _progMap: newMap };
                     });
