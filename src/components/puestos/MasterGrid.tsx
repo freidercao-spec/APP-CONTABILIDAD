@@ -29,7 +29,7 @@ export const MasterGrid = ({ anio, mes, filteredPuestos, programaciones, isIniti
         const dayMap = new Map<number, any[]>();
         if (pg.asignaciones) {
           pg.asignaciones.forEach(a => {
-            if (a.dia && a.vigilanteId && a.jornada !== 'sin_asignar') {
+            if (a.dia && (a.vigilanteId || a.codigo_personalizado || a.jornada !== 'sin_asignar')) {
               if (!dayMap.has(a.dia)) {
                 dayMap.set(a.dia, []);
               }
@@ -39,6 +39,7 @@ export const MasterGrid = ({ anio, mes, filteredPuestos, programaciones, isIniti
         }
         
         const entry = { prog: pg, asigsByDay: dayMap };
+        if (pg.id) map.set(String(pg.id).trim(), entry);
         if (pg.puestoId) {
           map.set(String(pg.puestoId).trim(), entry);
         }
@@ -137,7 +138,9 @@ export const MasterGrid = ({ anio, mes, filteredPuestos, programaciones, isIniti
           </thead>
           <tbody>
             {filteredPuestos.map((p) => {
-              const entry = progMap.get(String(p.dbId || '').trim()) || progMap.get(String(p.id || '').trim());
+              const entry = progMap.get(String(p.dbId || '').trim()) || 
+                            progMap.get(String(p.id || '').trim()) || 
+                            progMap.get(String(p.nombre || '').trim().toUpperCase());
               const prog = entry?.prog;
               const asigsByDay = entry?.asigsByDay;
 
