@@ -68,6 +68,7 @@ const Dashboard = () => {
         const alertasCrit = entries.filter(e => e.severity === 'critical').length;
         const alertasWarn = entries.filter(e => e.severity === 'warning').length;
         
+        const now = new Date();
         const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
         const eventosHoy = entries.filter(e => {
             const eth = new Date(e.timestamp).getTime();
