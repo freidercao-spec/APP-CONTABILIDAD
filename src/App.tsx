@@ -91,8 +91,8 @@ const AppRouter = () => {
             <Route path="/puestos-activos" element={<Navigate to="/gestion-puestos" replace />} />
             <Route path="/resumen" element={<Resumen />} />
             
-            {/* Inteligencia */}
-            <Route path="/inteligencia" element={<Inteligencia />} />
+            {/* Novedades e Incidentes */}
+            <Route path="/inteligencia" element={<Navigate to="/" replace />} />
             <Route path="/novedades" element={<Novedades />} />
             
             {/* Control Central */}

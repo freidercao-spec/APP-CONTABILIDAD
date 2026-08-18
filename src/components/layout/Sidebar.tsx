@@ -200,8 +200,7 @@ const Sidebar = () => {
                         <NavItem to="/resumen"          icon="picture_as_pdf" label="Resumen / PDF"      collapsed={c} onClick={closeSidebar} />
                     </NavSection>
 
-                    <NavSection title="INTELIGENCIA" collapsed={c}>
-                        <NavItem to="/inteligencia" icon="psychology"    label="Centro IA"          collapsed={c} onClick={closeSidebar} badge={BADGE_AI} />
+                    <NavSection title="INCIDENTES" collapsed={c}>
                         <NavItem to="/novedades"    icon="report_problem" label="Incidentes"         collapsed={c} onClick={closeSidebar} />
                     </NavSection>
 

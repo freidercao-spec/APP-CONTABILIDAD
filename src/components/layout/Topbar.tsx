@@ -15,7 +15,7 @@ const PAGE_META: Record<string, { title: string; icon: string; section: string }
     '/puestos':         { title: 'Mapa de Puestos',       icon: 'hub',              section: 'Cuadro Operativo' },
     '/gestion-puestos': { title: 'Puestos Activos',       icon: 'event_note',       section: 'Cuadro Operativo' },
     '/resumen':         { title: 'Resumen / PDF',         icon: 'picture_as_pdf',   section: 'Cuadro Operativo' },
-    '/inteligencia':    { title: 'Inteligencia IA',       icon: 'insights',         section: 'Inteligencia' },
+    '/inteligencia':    { title: 'Estadísticas',          icon: 'dashboard',        section: 'Cuadro Operativo' },
     '/novedades':       { title: 'Novedades Operativas',  icon: 'warning_amber',    section: 'Inteligencia' },
     '/configuracion':   { title: 'Sistema Central',       icon: 'settings',         section: 'Control Central' },
     '/auditoria':       { title: 'Auditoría Interna',    icon: 'policy',           section: 'Control Central' },
