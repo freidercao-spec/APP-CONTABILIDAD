@@ -2340,7 +2340,7 @@ const GestionPuestos = () => {
   const [isApplyingGlobalCiclo, setIsApplyingGlobalCiclo] = useState(false);
   const currentUser = useAuthStore(s => s.username) || 'sistema';
 
-  const ejecutarAplicarCicloGlobal = useCallback(async (tipoCiclo: TipoCiclo, targetAnio: number, targetMes: number) => {
+  const ejecutarAplicarCicloGlobal = useCallback(async (tipoCiclo: any, targetAnio: number, targetMes: number) => {
     if (isApplyingGlobalCiclo) return;
     setIsApplyingGlobalCiclo(true);
     setPendingGlobalNavModal(null);
@@ -2348,15 +2348,25 @@ const GestionPuestos = () => {
     setMes(targetMes);
 
     try {
+      const progStore = useProgramacionStore.getState() as any;
+
+      if (tipoCiclo === 'solo_navegar') {
+        showTacticalToast({
+          title: '📅 Navegación de Mes',
+          message: `Cargando programación de ${MONTH_NAMES[targetMes]} ${targetAnio}...`,
+          type: 'info',
+        });
+        await progStore.fetchProgramacionesByMonth(targetAnio, targetMes);
+        return;
+      }
+
       showTacticalToast({
-        title: '⏳ Carga de Mes',
-        message: `Preparando programación de ${MONTH_NAMES[targetMes]} ${targetAnio}...`,
+        title: '⏳ Generando Mes',
+        message: `Aplicando opción ${tipoCiclo === 'clonar_exacto' ? 'Clonar Mes Anterior' : tipoCiclo} a ${MONTH_NAMES[targetMes]} ${targetAnio}...`,
         type: 'info',
       });
 
       const currentPuestos = usePuestoStore.getState().puestos || [];
-      const progStore = useProgramacionStore.getState() as any;
-
       const mesAnterior = targetMes === 0 ? 11 : targetMes - 1;
       const anioAnterior = targetMes === 0 ? targetAnio - 1 : targetAnio;
       await progStore.fetchProgramacionesByMonth(anioAnterior, mesAnterior);
@@ -2366,22 +2376,48 @@ const GestionPuestos = () => {
       for (const p of currentPuestos) {
         if ((p as any).estado === 'inactivo') continue;
         const pId = p.dbId || p.id;
-        const res = progStore.generarMesConMotor(pId, targetAnio, targetMes, currentUser, tipoCiclo);
-        if (res) {
-          await progStore.guardarBorrador(res.id, currentUser);
-          count++;
+        
+        if (tipoCiclo === 'clonar_exacto') {
+          // Lógica de clonación exacta del mes anterior
+          const progAnt = progStore.getProgramacion(pId, anioAnterior, mesAnterior);
+          if (progAnt) {
+            const daysTarget = new Date(targetAnio, targetMes + 1, 0).getDate();
+            const nuevasAsignaciones = (progAnt.asignaciones || [])
+              .filter((a: any) => a.dia <= daysTarget)
+              .map((a: any) => ({ ...a }));
+            
+            let progTarget = progStore.getProgramacion(pId, targetAnio, targetMes);
+            if (!progTarget) {
+              progTarget = progStore.crearProgramacion(pId, targetAnio, targetMes, currentUser);
+            }
+            if (progTarget) {
+              progStore.asignarPersonal(progTarget.id, progAnt.personal || [], currentUser);
+              progStore.actualizarAsignacion(progTarget.id, -1, { jornada: 'limpiar_todo' }, currentUser);
+              nuevasAsignaciones.forEach((a: any) => {
+                progStore.actualizarAsignacion(progTarget.id, a.dia, a, currentUser);
+              });
+              await progStore.guardarBorrador(progTarget.id, currentUser);
+              count++;
+            }
+          }
+        } else {
+          const res = progStore.generarMesConMotor(pId, targetAnio, targetMes, currentUser, tipoCiclo);
+          if (res) {
+            await progStore.guardarBorrador(res.id, currentUser);
+            count++;
+          }
         }
       }
 
       await progStore.fetchProgramacionesByMonth(targetAnio, targetMes);
       showTacticalToast({
-        title: '✅ Mes Montado Exitosamente',
-        message: `Se generó la programación de ${MONTH_NAMES[targetMes]} ${targetAnio} con el ciclo ${tipoCiclo} para ${count} puesto(s).`,
+        title: '✅ Mes Configurado Exitosamente',
+        message: `Programación de ${MONTH_NAMES[targetMes]} ${targetAnio} lista para ${count} puesto(s).`,
         type: 'success',
       });
     } catch (err) {
       console.error('[GlobalCiclo] Error:', err);
-      showTacticalToast({ title: '❌ Error', message: 'No se pudo montar la programación.', type: 'error' });
+      showTacticalToast({ title: '❌ Error', message: 'No se pudo configurar el mes.', type: 'error' });
     } finally {
       setIsApplyingGlobalCiclo(false);
     }
@@ -2482,7 +2518,10 @@ const GestionPuestos = () => {
           {/* Navegación de Mes */}
           <div className="flex items-center bg-slate-950/80 border border-slate-800 rounded-xl overflow-hidden shadow-inner">
             <button 
-              onClick={() => { const d = new Date(anio, mes - 1); setAnio(d.getFullYear()); setMes(d.getMonth()); }}
+              onClick={() => {
+                const d = new Date(anio, mes - 1);
+                setPendingGlobalNavModal({ newAnio: d.getFullYear(), newMes: d.getMonth() });
+              }}
               className="px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800/80 transition-all"
             >
               <span className="material-symbols-outlined text-xl">chevron_left</span>
@@ -2775,28 +2814,30 @@ const GestionPuestos = () => {
         <PuestoDetailModal puesto={detailPuesto} onClose={() => setDetailPuesto(null)} />
       )}
 
-      {/* OVERLAY SELECTOR DE CICLO GLOBAL AL AVANZAR DE MES */}
+      {/* OVERLAY SELECTOR DE CICLO GLOBAL AL CAMBIAR DE MES */}
       {pendingGlobalNavModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 animate-fade-in">
-          <div className="w-full max-w-md bg-slate-900 border border-indigo-500/30 rounded-2xl p-6 shadow-2xl space-y-5 ring-1 ring-indigo-500/20">
+          <div className="w-full max-w-lg bg-slate-900 border border-indigo-500/30 rounded-2xl p-6 shadow-2xl space-y-5 ring-1 ring-indigo-500/20">
             <div className="text-center space-y-1.5">
               <span className="px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-[10px] font-black text-indigo-400 uppercase tracking-widest inline-block">
-                Paso al Siguiente Mes
+                Opciones para Programar Mes
               </span>
               <h2 className="text-xl font-black text-white uppercase tracking-tight">
                 {MONTH_NAMES[pendingGlobalNavModal.newMes]} {pendingGlobalNavModal.newAnio}
               </h2>
-              <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                ¿Qué ciclo de turnos deseas aplicar para <strong className="text-white">{MONTH_NAMES[pendingGlobalNavModal.newMes]}</strong>? Se arrastrarán automáticamente los vigilantes y turnos del mes anterior.
+              <p className="text-xs text-slate-400 max-w-md mx-auto">
+                Selecciona cómo deseas generar los turnos para <strong className="text-white">{MONTH_NAMES[pendingGlobalNavModal.newMes]} {pendingGlobalNavModal.newAnio}</strong>:
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-2.5">
+            <div className="grid grid-cols-1 gap-2.5 max-h-[380px] overflow-y-auto custom-scrollbar pr-1">
               {[
-                { id: '12x3' as TipoCiclo, label: 'Ciclo 12×3', desc: '6 Días · 6 Noches · 3 Descansos (2R+1NR)', color: 'from-blue-600 to-indigo-700', icon: '🔵' },
-                { id: '10x5' as TipoCiclo, label: 'Ciclo 10×5', desc: '5 Días · 5 Noches · 5 Descansos (2R+3NR)', color: 'from-violet-600 to-purple-700', icon: '🟣' },
-                { id: '2x2'  as TipoCiclo, label: 'Ciclo 2×2',  desc: '2 Días · 2 Noches · 2 Descansos NR',       color: 'from-emerald-600 to-teal-700',  icon: '🟢' },
-                { id: '13x2' as TipoCiclo, label: 'Ciclo 13×2', desc: '13 Días · 2 Descansos R · 13 Noches · 2R', color: 'from-amber-600 to-orange-700',   icon: '🟡' },
+                { id: 'clonar_exacto', label: '📋 Clonar Mes Anterior Exacto', desc: 'Copia 100% los vigilantes y turnos diarios del mes previo', color: 'from-amber-600 to-orange-700', icon: '📋' },
+                { id: '12x3', label: 'Ciclo 12×3', desc: '6 Días · 6 Noches · 3 Descansos (2R+1NR)', color: 'from-blue-600 to-indigo-700', icon: '🔵' },
+                { id: '10x5', label: 'Ciclo 10×5', desc: '5 Días · 5 Noches · 5 Descansos (2R+3NR)', color: 'from-violet-600 to-purple-700', icon: '🟣' },
+                { id: '2x2',  label: 'Ciclo 2×2',  desc: '2 Días · 2 Noches · 2 Descansos NR',       color: 'from-emerald-600 to-teal-700',  icon: '🟢' },
+                { id: '13x2', label: 'Ciclo 13×2', desc: '13 Días · 2 Descansos R · 13 Noches · 2R', color: 'from-indigo-600 to-blue-800',   icon: '🟡' },
+                { id: 'solo_navegar', label: '👁️ Solo Navegar / Ver Existente', desc: 'Ver programación guardada sin modificar ningún turno', color: 'from-slate-700 to-slate-800', icon: '👁️' },
               ].map(c => (
                 <button
                   key={c.id}
